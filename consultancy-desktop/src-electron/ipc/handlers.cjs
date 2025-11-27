@@ -255,7 +255,7 @@ function registerIpcHandlers(app) {
         const defaultFlags = {
             isEmployersEnabled: true,
             isJobsEnabled: true,
-            isVisaKanbanEnabled: true, // <--- Ensure this is 'true' or 'false', not 'tfalserue'
+            isVisaKanbanEnabled: true, 
             isDocumentsEnabled: true,
             isVisaTrackingEnabled: true,
             isFinanceTrackingEnabled: true,

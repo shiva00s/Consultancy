@@ -2,23 +2,59 @@ const { app } = require('electron');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcrypt');
-
 const saltRounds = 10;
 let db;
 
-// --- Database Schema Setup (CLEAN - No user creation/updates here) ---
+// ==========================================
+// 1. DEFINE MIGRATIONS HERE
+// ==========================================
+// Add new SQL changes here as you build new features.
+const MIGRATIONS = [
+  // Version 1: Initial Schema (Handled by setupDatabase, but we reserve index 0)
+  { version: 1, up: async (db) => { console.log('Base schema assumed.'); } },
+
+  // Version 2: Add 'createdAt' to visa_tracking if missing (Fixes your recent crash)
+  {
+    version: 2,
+    up: async (db) => {
+      try {
+        await new Promise((resolve, reject) => {
+          db.run(`ALTER TABLE visa_tracking ADD COLUMN createdAt DATETIME DEFAULT CURRENT_TIMESTAMP`, (err) => {
+            // Ignore "duplicate column" error, fail on others
+            if (err && !err.message.includes('duplicate column')) reject(err);
+            else resolve();
+          });
+        });
+        console.log('Migration 2 Applied: Added createdAt to visa_tracking');
+      } catch (e) { console.log('Migration 2 skipped or failed:', e.message); }
+    }
+  },
+
+  // Version 3: Add 'updatedAt' for better sorting
+  {
+    version: 3,
+    up: async (db) => {
+      const tables = ['candidates', 'visa_tracking', 'job_orders'];
+      for (const table of tables) {
+        await new Promise((resolve) => {
+          db.run(`ALTER TABLE ${table} ADD COLUMN updatedAt DATETIME`, (err) => resolve());
+        });
+      }
+      console.log('Migration 3 Applied: Added updatedAt columns');
+    }
+  }
+];
+
+// ==========================================
+// 2. CORE SETUP
+// ==========================================
+
 function setupDatabase(dbInstance) {
   return new Promise((resolve, reject) => {
     dbInstance.serialize(() => {
-      
-      dbInstance.run('BEGIN TRANSACTION', (err) => {
-          if (err) {
-            console.error('Failed to BEGIN TRANSACTION:', err.message);
-            return reject(new Error('Failed to BEGIN TRANSACTION.'));
-          }
-      });
+      dbInstance.run('BEGIN TRANSACTION');
 
-      // 1. Users Table
+      // --- Tables ---
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,54 +63,40 @@ function setupDatabase(dbInstance) {
           role TEXT NOT NULL DEFAULT 'staff',
           features TEXT 
         );
-      `, (err) => {
-        if (err) console.error('Error creating users table:', err.message);
-      });
+      `);
 
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS system_settings (
           key TEXT PRIMARY KEY, 
           value TEXT
         );
-      `, (err) => {
-        if (err) console.error('Error creating system_settings table:', err.message);
-      });
+      `);
 
-      // 2. Candidates Table
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS candidates (
           id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, education TEXT,
           experience INTEGER, dob TEXT, passportNo TEXT UNIQUE, passportExpiry TEXT,
           contact TEXT, aadhar TEXT, status TEXT DEFAULT 'New', notes TEXT,
-          Position TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP, isDeleted INTEGER DEFAULT 0 
+          Position TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP, isDeleted INTEGER DEFAULT 0
         );
-      `, (err) => {
-        if (err) console.error('Error creating candidates table:', err.message);
-      });
+      `);
 
-      // 3. Documents Table
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS documents (
           id INTEGER PRIMARY KEY AUTOINCREMENT, candidate_id INTEGER NOT NULL, fileType TEXT, 
           fileName TEXT, filePath TEXT UNIQUE, category TEXT DEFAULT 'Uncategorized',
           isDeleted INTEGER DEFAULT 0, FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE
         );
-      `, (err) => {
-        if (err) console.error('Error creating documents table:', err.message);
-      });
+      `);
 
-      // 4. Employers Table
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS employers (
           id INTEGER PRIMARY KEY AUTOINCREMENT, companyName TEXT NOT NULL, country TEXT,
           contactPerson TEXT, contactEmail TEXT, notes TEXT,
           createdAt DATETIME DEFAULT CURRENT_TIMESTAMP, isDeleted INTEGER DEFAULT 0
         );
-      `, (err) => {
-        if (err) console.error('Error creating employers table:', err.message);
-      });
+      `);
 
-      // 5. Job Orders Table
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS job_orders (
           id INTEGER PRIMARY KEY AUTOINCREMENT, employer_id INTEGER NOT NULL, positionTitle TEXT NOT NULL,
@@ -82,11 +104,8 @@ function setupDatabase(dbInstance) {
           requirements TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP, isDeleted INTEGER DEFAULT 0,
           FOREIGN KEY (employer_id) REFERENCES employers (id) ON DELETE CASCADE
         );
-      `, (err) => {
-        if (err) console.error('Error creating job_orders table:', err.message);
-      });
+      `);
 
-      // 6. Placements Table
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS placements (
           id INTEGER PRIMARY KEY AUTOINCREMENT, candidate_id INTEGER NOT NULL, job_order_id INTEGER NOT NULL,
@@ -95,35 +114,22 @@ function setupDatabase(dbInstance) {
           FOREIGN KEY (job_order_id) REFERENCES job_orders (id) ON DELETE CASCADE,
           UNIQUE(candidate_id, job_order_id)
         );
-      `, (err) => {
-        if (err) console.error('Error creating placements table:', err.message);
-      });
+      `);
 
-      // === NEW: USER PERMISSIONS TABLE (INJECTED) ===
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS user_permissions (
           user_id INTEGER PRIMARY KEY,
           flags TEXT, 
           FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
         );
-      `, (err) => {
-        if (err) console.error('Error creating user_permissions table:', err.message);
-      });
-// ===============================================
+      `);
 
-      // === NEW: PASSPORT TRACKING TABLE (INJECTED) ===
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS passport_tracking (
           id INTEGER PRIMARY KEY AUTOINCREMENT, 
           candidate_id INTEGER NOT NULL,
-          -- Passport Receipt
-          received_date TEXT,
-          received_notes TEXT,
-          -- Passport Dispatch
-          dispatch_date TEXT,
-          docket_number TEXT,
-          dispatch_notes TEXT,
-          -- Status and Source
+          received_date TEXT, received_notes TEXT,
+          dispatch_date TEXT, docket_number TEXT, dispatch_notes TEXT,
           passport_status TEXT NOT NULL DEFAULT 'Received',
           source_type TEXT NOT NULL DEFAULT 'Direct Candidate',
           agent_contact TEXT,
@@ -131,13 +137,8 @@ function setupDatabase(dbInstance) {
           isDeleted INTEGER DEFAULT 0,
           FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE
         );
-      `, (err) => {
-        if (err) console.error('Error creating passport_tracking table:', err.message);
-      });
-// ===============================================
+      `);
 
-      // 
-// 7. Visa Tracking Table
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS visa_tracking (
           id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -147,25 +148,17 @@ function setupDatabase(dbInstance) {
           application_date TEXT, 
           status TEXT DEFAULT 'Pending', 
           notes TEXT,
-          
-          -- === INJECTED FIELDS (From UI) ===
           position TEXT,
           passport_number TEXT,
           travel_date TEXT,
           contact_type TEXT DEFAULT 'Direct Candidate',
           agent_contact TEXT,
-          -- =================================
-
           createdAt DATETIME DEFAULT CURRENT_TIMESTAMP, 
           isDeleted INTEGER DEFAULT 0,
-          FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE 
-CASCADE
+          FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE
         );
-      `, (err) => {
-        if (err) console.error('Error creating visa_tracking table:', err.message);
-      });
+      `);
 
-      // 8. Interview Tracking Table
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS interview_tracking (
           id INTEGER PRIMARY KEY AUTOINCREMENT, candidate_id INTEGER NOT NULL, job_order_id INTEGER,
@@ -174,11 +167,8 @@ CASCADE
           FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE,
           FOREIGN KEY (job_order_id) REFERENCES job_orders (id) ON DELETE SET NULL
         );
-      `, (err) => {
-        if (err) console.error('Error creating interview_tracking table:', err.message);
-      });
+      `);
 
-      // 9. Medical Tracking Table
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS medical_tracking (
           id INTEGER PRIMARY KEY AUTOINCREMENT, candidate_id INTEGER NOT NULL, test_date TEXT,
@@ -186,11 +176,8 @@ CASCADE
           createdAt DATETIME DEFAULT CURRENT_TIMESTAMP, isDeleted INTEGER DEFAULT 0,
           FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE
         );
-      `, (err) => {
-        if (err) console.error('Error creating medical_tracking table:', err.message);
-      });
+      `);
 
-      // 10. Travel Tracking Table
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS travel_tracking (
           id INTEGER PRIMARY KEY AUTOINCREMENT, candidate_id INTEGER NOT NULL, pnr TEXT,
@@ -198,11 +185,8 @@ CASCADE
           arrival_city TEXT, notes TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP, isDeleted INTEGER DEFAULT 0,
           FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE
         );
-      `, (err) => {
-        if (err) console.error('Error creating travel_tracking table:', err.message);
-      });
+      `);
 
-      // 11. Payments Table
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS payments (
           id INTEGER PRIMARY KEY AUTOINCREMENT, candidate_id INTEGER NOT NULL, description TEXT NOT NULL,
@@ -210,11 +194,8 @@ CASCADE
           due_date TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, isDeleted INTEGER DEFAULT 0,
           FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE
         );
-      `, (err) => {
-        if (err) console.error('Error creating payments table:', err.message);
-      });
+      `);
 
-      // 12. Audit Log Table
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS audit_log (
           id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, username TEXT,
@@ -222,75 +203,33 @@ CASCADE
           details TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
         );
-      `, (err) => {
-        if (err) console.error('Error creating audit_log table:', err.message);
-      });
+      `);
 
-      // 13. Communication Logs
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS communication_logs (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           candidate_id INTEGER NOT NULL,
           user_id INTEGER,
-          type TEXT NOT NULL, -- 'Email' or 'WhatsApp'
+          type TEXT NOT NULL,
           details TEXT,
           timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE
         );
-      `, (err) => { if (err) console.error(err.message); });
+      `);
 
-dbInstance.run(`
+      dbInstance.run(`
         CREATE TABLE IF NOT EXISTS required_documents (
           id INTEGER PRIMARY KEY AUTOINCREMENT, 
           name TEXT NOT NULL UNIQUE,
           isDeleted INTEGER DEFAULT 0 
         );
-      `, (err) => {
-        if (err) console.error('Error creating required_documents table:', err.message);
-      });
+      `);
 
-      const visaColsToAdd = [
-    { name: 'position', type: 'TEXT' },
-    { name: 'passport_number', type: 'TEXT' },
-    { name: 'travel_date', type: 'TEXT' },
-    { name: 'contact_type', type: 'TEXT DEFAULT "Direct Candidate"' },
-    { name: 'agent_contact', type: 'TEXT' },
-];
-visaColsToAdd.forEach(col => {
-    dbInstance.run(`ALTER TABLE visa_tracking ADD COLUMN ${col.name} ${col.type}`, (err) => {
-        if (err && err.message.includes('duplicate column name')) { /* Pass */ }
-        else if (err) console.error(`Error adding ${col.name} column to visa_tracking:`, err.message);
-    });
-});
-
-      // --- Column Addition for Existing DBs ---
-      const tablesToUpdate = [
-    'candidates', 'documents', 'employers', 'job_orders', 
-    'placements', 'visa_tracking', 'payments', 
-    'interview_tracking', 'medical_tracking', 'travel_tracking', 'audit_log' 
-];
-      
-      tablesToUpdate.forEach(table => {
-        // Add isDeleted column
-        dbInstance.run(`ALTER TABLE ${table} ADD COLUMN isDeleted INTEGER DEFAULT 0`, (err) => {
-          if (err && err.message.includes('duplicate column name')) { /* Pass */ }
-          else if (err) console.error(`Error adding isDeleted column to ${table}:`, err.message);
-        });
-      });
-
-      // Add features column to users table
-      dbInstance.run(`ALTER TABLE users ADD COLUMN features TEXT`, (err) => {
-        if (err && err.message.includes('duplicate column name')) { /* Pass */ }
-        else if (err) console.error(`Error adding features column to users:`, err.message);
-      });
-
-      // --- Final Commit ---
       dbInstance.run('COMMIT', (err) => {
         if (err) {
-          console.error('Error committing transaction (Final Commit):', err.message);
-          reject(new Error(err.message));
+          console.error('Schema setup failed:', err.message);
+          reject(err);
         } else {
-          console.log('Database schema setup complete.');
           resolve(dbInstance);
         }
       });
@@ -298,58 +237,84 @@ visaColsToAdd.forEach(col => {
   });
 }
 
-// --- Database Initialization ---
+// ==========================================
+// 3. MIGRATION RUNNER
+// ==========================================
+async function runMigrations(db) {
+  return new Promise((resolve, reject) => {
+    // 1. Get current version
+    db.get("PRAGMA user_version", async (err, row) => {
+      if (err) return reject(err);
+      
+      let currentVersion = row.user_version;
+      console.log(`Current DB Version: ${currentVersion}`);
+
+      // 2. Run newer migrations
+      for (const migration of MIGRATIONS) {
+        if (migration.version > currentVersion) {
+          console.log(`Applying Migration v${migration.version}...`);
+          try {
+            await migration.up(db);
+            // Update version after success
+            await new Promise((res) => db.run(`PRAGMA user_version = ${migration.version}`, res));
+            currentVersion = migration.version;
+          } catch (migErr) {
+            console.error(`Migration v${migration.version} failed:`, migErr);
+            // Stop on error to prevent corruption
+            return reject(migErr);
+          }
+        }
+      }
+      
+      console.log(`Database now at Version: ${currentVersion}`);
+      resolve();
+    });
+  });
+}
+
+// ==========================================
+// 4. INITIALIZATION
+// ==========================================
 function initializeDatabase() {
   const dbPath = path.join(app.getPath('userData'), 'consultancy.db');
   console.log('Database path:', dbPath);
 
   return new Promise((resolve, reject) => {
-    const dbInstance = new sqlite3.Database(dbPath, (err) => {
-      if (err) {
-        console.error('Error opening database:', err.message);
-        return reject(err);
-      }
-      console.log('Connected to the SQLite database.');
+    const dbInstance = new sqlite3.Database(dbPath, async (err) => {
+      if (err) return reject(err);
       
-      // --- PERFORMANCE FIX: Enable Write-Ahead Logging ---
-      dbInstance.run('PRAGMA journal_mode = WAL;', (err) => {
-        if (err) console.error('Failed to enable WAL mode:', err);
-        else console.log('SQLite WAL mode enabled.');
-      });
-      // --------------------------------------------------
+      console.log('Connected to SQLite.');
+      
+      // Performance tuning
+      dbInstance.run('PRAGMA journal_mode = WAL;');
+      dbInstance.run('PRAGMA foreign_keys = ON;');
 
-      dbInstance.run('PRAGMA foreign_keys = ON;', (err) => {
-        if (err) {
-          console.error('Error enabling foreign keys:', err.message);
-          return reject(err);
-        }
-        console.log('Foreign keys enabled.');
+      try {
+        // 1. Ensure base tables exist
+        await setupDatabase(dbInstance);
         
-        // --- THE FIX: Wait for setupDatabase to finish ---
-        setupDatabase(dbInstance)
-          .then((db) => {
-            // After setup, run the User Fixes
-            return ensureInitialUserAndRoles(db);
-          })
-          .then((db) => {
-            global.db = db;
-            resolve(db);
-          })
-          .catch((setupErr) => {
-            console.error("Database setup FAILED:", setupErr);
-            reject(setupErr);
-          });
-      });
+        // 2. Run Migrations (Fixes missing columns)
+        await runMigrations(dbInstance);
+        
+        // 3. Ensure Admin Exists
+        await ensureInitialUserAndRoles(dbInstance);
+        
+        global.db = dbInstance;
+        resolve(dbInstance);
+        
+      } catch (setupError) {
+        console.error("DB Init Failed:", setupError);
+        reject(setupError);
+      }
     });
   });
 }
 
-// --- NEW FUNCTION: Runs ONLY after setup is complete and database is unlocked ---
+// Helper: Ensure default Super Admin
 async function ensureInitialUserAndRoles(dbInstance) {
     const superAdminUser = 'admin';
     const superAdminPass = 'superadmin123';
     
-    // Check if any user exists at all
     const anyUser = await new Promise((resolve, reject) => {
         dbInstance.get('SELECT id FROM users LIMIT 1', [], (err, row) => {
             if (err) return reject(err);
@@ -358,38 +323,15 @@ async function ensureInitialUserAndRoles(dbInstance) {
     });
 
     if (!anyUser) {
-        // Database is empty. Create the default Super Admin.
         const hash = await bcrypt.hash(superAdminPass, saltRounds);
-        await new Promise((resolve, reject) => {
+        await new Promise((resolve) => {
             dbInstance.run(
                 "INSERT INTO users (id, username, password, role) VALUES (1, ?, ?, 'super_admin')",
                 [superAdminUser, hash],
-                (err) => {
-                    if (err) console.error('Error creating default SA:', err);
-                    else console.log('Created default Super Admin (ID 1).');
-                    resolve();
-                }
+                () => resolve()
             );
         });
-    } else {
-        // Database has users. Ensure user 'shiva' is Super Admin (for your setup).
-        // Check for ID 1 (shiva) and force role.
-        await new Promise((resolve, reject) => {
-            dbInstance.run("UPDATE users SET role = 'super_admin' WHERE id = 1", [], (err) => {
-                if (err) console.error('Error forcing ID 1 to SA:', err.message);
-                else console.log('Verified ID 1 as Super Admin.');
-                resolve();
-            });
-        });
-
-        // Demote user 'admin' (ID 3) back to standard admin if they were SA by mistake
-        await new Promise((resolve, reject) => {
-            dbInstance.run("UPDATE users SET role = 'admin' WHERE id != 1 AND role = 'super_admin'", [], (err) => {
-                if (err) console.error('Error demoting user:', err.message);
-                else console.log('Demoted conflicting SA users.');
-                resolve();
-            });
-        });
+        console.log('Created default Super Admin.');
     }
     return dbInstance;
 }
