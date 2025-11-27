@@ -949,26 +949,34 @@ async function getJobOrders() {
 
 // MODIFIED: Use structured error return
 async function addJobOrder(user, data) {
-  // --- Validation ---
+  // 1. Permission Check
   const accessCheck = await checkAdminFeatureAccess(user, 'isJobsEnabled');
-  if (!accessCheck.success) return accessCheck; // Block if feature disabled
+  if (!accessCheck.success) return accessCheck;
 
+  // 2. Validation
   const errors = {};
-  if (validateRequired(data.employer_id, 'Employer ID')) errors.employer_id = validateRequired(data.employer_id, 'Employer ID');
-  if (validateRequired(data.positionTitle, 'Position Title')) errors.positionTitle = validateRequired(data.positionTitle, 'Position Title');
-  if (validatePositiveNumber(data.openingsCount, 'Openings Count')) errors.openingsCount = validatePositiveNumber(data.openingsCount, 'Openings Count');
-  if (Object.keys(errors).length > 0) return { success: false, error: "Validation failed", errors: errors };
-  // --- End Validation ---
+  if (validateRequired(data.employer_id, 'Employer ID')) errors.employer_id = 'Employer is required.';
+  if (validateRequired(data.positionTitle, 'Position Title')) errors.positionTitle = 'Position Title is required.';
+  // Validate openings
+  const openings = parseInt(data.openingsCount, 10);
+  if (isNaN(openings) || openings < 1) errors.openingsCount = 'Openings must be at least 1.';
 
+  if (Object.keys(errors).length > 0) return { success: false, error: "Validation failed", errors: errors };
+
+  // 3. Database Insert
+  const db = getDatabase(); // <--- FIXED: Added missing db definition
   const sql = `INSERT INTO job_orders (employer_id, positionTitle, country, openingsCount, status, requirements) 
                VALUES (?, ?, ?, ?, ?, ?)`;
   const params = [
     data.employer_id, data.positionTitle, data.country,
     data.openingsCount, data.status, data.requirements,
   ];
+
   try {
     const result = await dbRun(db, sql, params);
     const newJobId = result.lastID;
+    
+    // Fetch and return the new row with joined employer name
     const getSql = `
       SELECT j.*, e.companyName 
       FROM job_orders j
@@ -982,8 +990,7 @@ async function addJobOrder(user, data) {
   }
 }
 
-// --- JOB ORDER FUNCTIONS ---
-
+// MODIFIED: Use structured error return
 async function updateJobOrder(user, id, data) {
   // 1. Permission Check
   const accessCheck = await checkAdminFeatureAccess(user, 'isJobsEnabled');
@@ -991,39 +998,30 @@ async function updateJobOrder(user, id, data) {
 
   // 2. Validation
   const errors = {};
-  // Helper to ensure we don't crash if data is missing
-  if (!data.employer_id) errors.employer_id = 'Employer is required.';
-  if (!data.positionTitle || !data.positionTitle.trim()) errors.positionTitle = 'Position Title is required.';
+  if (validateRequired(data.employer_id, 'Employer ID')) errors.employer_id = 'Employer is required.';
+  if (validateRequired(data.positionTitle, 'Position Title')) errors.positionTitle = 'Position Title is required.';
   
   const openings = parseInt(data.openingsCount, 10);
   if (isNaN(openings) || openings < 1) errors.openingsCount = 'Openings must be at least 1.';
 
-  if (Object.keys(errors).length > 0) {
-      return { success: false, error: "Validation failed", errors };
-  }
+  if (Object.keys(errors).length > 0) return { success: false, error: "Validation failed", errors: errors };
 
   // 3. Database Update
-  const db = getDatabase();
+  const db = getDatabase(); // <--- FIXED: Added missing db definition
   
-  // NOTE: We only use ?, ?, ? placeholders. 'user' is NOT in this query.
   const sql = `UPDATE job_orders SET 
                employer_id = ?, positionTitle = ?, country = ?, openingsCount = ?, status = ?, requirements = ?
                WHERE id = ?`;
-               
   const params = [
-    data.employer_id, 
-    data.positionTitle, 
-    data.country,
-    data.openingsCount, 
-    data.status, 
-    data.requirements, 
-    id, // <--- ID goes last
+    data.employer_id, data.positionTitle, data.country,
+    data.openingsCount, data.status, data.requirements, 
+    id, // <--- ID is the last parameter
   ];
 
   try {
     await dbRun(db, sql, params);
     
-    // Fetch and return the updated row to update UI instantly
+    // Fetch updated row to return to UI
     const getSql = `
       SELECT j.*, e.companyName 
       FROM job_orders j
@@ -1032,9 +1030,7 @@ async function updateJobOrder(user, id, data) {
     `;
     const row = await dbGet(db, getSql, [id]);
     return { success: true, id: id, data: row };
-    
   } catch (err) {
-    console.error("Update Job Error:", err.message);
     return { success: false, error: err.message };
   }
 }
@@ -1044,20 +1040,18 @@ async function deleteJobOrder(user, id) {
   const accessCheck = await checkAdminFeatureAccess(user, 'isJobsEnabled');
   if (!accessCheck.success) return accessCheck;
 
-  // 2. Database Soft Delete
-  const db = getDatabase();
+  const db = getDatabase(); // <--- FIXED: Added missing db definition
+
   try {
     await dbRun(db, 'BEGIN TRANSACTION');
-    // Soft delete the job
+    // Soft delete the job order
     await dbRun(db, 'UPDATE job_orders SET isDeleted = 1 WHERE id = ?', [id]);
     // Soft delete associated placements
     await dbRun(db, 'UPDATE placements SET isDeleted = 1 WHERE job_order_id = ?', [id]);
     await dbRun(db, 'COMMIT');
-    
     return { success: true };
   } catch (err) {
     await dbRun(db, 'ROLLBACK');
-    console.error("Delete Job Error:", err.message);
     return { success: false, error: err.message };
   }
 }

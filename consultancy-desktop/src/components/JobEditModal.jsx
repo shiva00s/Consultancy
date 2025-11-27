@@ -5,6 +5,16 @@ function JobEditModal({user, job, employers, onClose, onSave }) {
   const [formData, setFormData] = useState(job);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+const defaultJob = {
+  id: null,
+  employer_id: "",
+  positionTitle: "",
+  jobDescription: "",
+  salary: "",
+  location: "",
+  created_at: "",
+};
+
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
