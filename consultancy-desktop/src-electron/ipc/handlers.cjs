@@ -324,10 +324,9 @@ function registerIpcHandlers(app) {
     // ====================================================================
     // 4. CANDIDATE MANAGEMENT (REFACTORED)
     // ====================================================================
-// === REAL BULK DOCUMENT IMPORT HANDLER ===
-    ipcMain.handle('bulk-import-documents', async (event, { user, candidateIdMap, archivePath }) => {
+ipcMain.handle('bulk-import-documents', async (event, { user, candidateIdMap, archivePath }) => {
         try {
-            // FIX: Ensure DB is defined
+            // CRITICAL FIX: Ensure DB is defined within the handler scope
             const db = getDatabase(); 
             
             if (!fs.existsSync(archivePath)) {
@@ -344,7 +343,7 @@ function registerIpcHandlers(app) {
 
             // 3. Process Files
             const files = fs.readdirSync(tempExtractDir);
-            console.log(`Found ${files.length} files in ZIP.`);
+            console.log(`Found ${files.length} items in ZIP.`);
             
             let successfulDocs = 0;
             let failedDocs = 0;
@@ -356,39 +355,38 @@ function registerIpcHandlers(app) {
             const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
 
             for (const fileName of files) {
-                // Skip hidden files (Mac/Linux artifacts)
+                // Skip Mac/Linux artifacts and hidden files
                 if (fileName.startsWith('.') || fileName.startsWith('__')) continue;
 
-                // Expected format: PASSPORT_Category.pdf (e.g., A1234567_Resume.pdf)
                 const cleanName = path.parse(fileName).name; 
                 const parts = cleanName.split('_');
                 
-                // Allow files without category (default to Uncategorized)
-                // If the file is just "A1234567.pdf", parts.length is 1. We accept this.
+                // Allow files without category (PassportNo.pdf)
                 let passportNo = parts[0].trim().toUpperCase();
                 let category = 'Uncategorized';
 
                 if (parts.length >= 2) {
-                    category = parts.slice(1).join('_'); // Join everything after first _
+                    category = parts.slice(1).join('_'); // Everything after first _ is category
                 }
 
                 // Lookup Candidate ID
                 const candidateId = candidateIdMap[passportNo];
 
                 if (candidateId) {
-                    // Move file
+                    // Prepare paths and copy file
                     const uniqueName = `${uuidv4()}${path.extname(fileName)}`;
                     const newFilePath = path.join(filesDir, uniqueName);
                     
                     try {
+                        // A. Copy file to permanent storage
                         fs.copyFileSync(path.join(tempExtractDir, fileName), newFilePath);
 
-                        // Database Insert
+                        // B. Database Insert (Awaited Promise)
                         await new Promise((resolve, reject) => {
                             const fileType = mime.getType(fileName) || 'application/octet-stream';
                             db.run(sqlDoc, [candidateId, fileType, fileName, newFilePath, category], function(err) {
                                 if (err) {
-                                    console.error(`DB Insert Error for ${fileName}:`, err.message);
+                                    console.error(`DB Insert Failed for ${fileName}:`, err.message);
                                     failedDocs++;
                                     // Cleanup file if DB insert fails
                                     try { fs.unlinkSync(newFilePath); } catch(e) {}
@@ -404,9 +402,21 @@ function registerIpcHandlers(app) {
                         failedDocs++;
                     }
                 } else {
-                    console.warn(`Skipped: No candidate found for Passport "${passportNo}" (File: ${fileName})`);
-                    failedDocs++;
-                }
+    // MODIFIED: Added specific logging for the skipped file
+    console.warn(`--------------------------------`);
+    console.warn(`SKIPPED FILE: ${fileName}`);
+    console.warn(`Extracted Passport (Key): "${passportNo}"`);
+    
+    // Check if the map has any similar keys that might be a mismatch
+    const mapKeys = Object.keys(candidateIdMap);
+    console.warn(`Candidate Count in Map: ${mapKeys.length}`);
+    if (mapKeys.length > 0) {
+        console.warn(`Example Map Key: ${mapKeys[0]}`); 
+    }
+    console.warn(`--------------------------------`);
+
+    failedDocs++;
+}
             }
 
             // 4. Cleanup Temp Files
@@ -445,7 +455,7 @@ function registerIpcHandlers(app) {
         
         const candidateId = createResult.id;
         logAction(user, 'create_candidate', 'candidates', candidateId, `Name: ${textData.name}`);
-
+const db = getDatabase();
         // 2. Handle file uploads (this part stays in handlers.cjs)
         try {
             const filesDir = path.join(app.getPath('userData'), 'candidate_files');
@@ -513,6 +523,7 @@ function registerIpcHandlers(app) {
 ipcMain.handle('add-documents', async (event, { user, candidateId, files }) => {
     try {
         const filesDir = path.join(app.getPath('userData'), 'candidate_files');
+        const db = getDatabase();
         if (!files || files.length === 0) return { success: false, error: 'No files provided.' };
 
         const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
