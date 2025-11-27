@@ -8,7 +8,7 @@ import {
 import JobEditModal from "../components/JobEditModal";
 import toast from 'react-hot-toast';
 import useDataStore from '../store/dataStore'; 
-import { shallow } from 'zustand/shallow'; 
+// REMOVED: import { shallow } from 'zustand/shallow'; 
 import useAuthStore from '../store/useAuthStore';
 import "../css/JobOrderListPage.css";
 
@@ -37,11 +37,12 @@ function JobOrderListPage() {
     addJob: state.addJob,
     updateJob: state.updateJob,
     deleteJob: state.deleteJob,
-  }), shallow); 
+  })); // FIX: Removed ', shallow'
+  
   const { user } = useAuthStore(
-    (state) => ({ user: state.user }),
-    shallow
-  );
+    (state) => ({ user: state.user })
+  ); // FIX: Removed ', shallow'
+  
   const [formData, setFormData] = useState(initialForm);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({});

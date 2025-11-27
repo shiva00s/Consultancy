@@ -42,53 +42,6 @@ function BulkImportPage() {
   const [results, setResults] = useState(null);
 
   // --- DATA IMPORT HANDLERS ---
-
-const handleDocumentImport = async () => {
-    // 1. Select ZIP File
-    const fileResult = await window.electronAPI.showOpenDialog({
-      properties: ['openFile'],
-      filters: [{ name: 'Zip Archives', extensions: ['zip'] }]
-    });
-
-    if (fileResult.canceled || fileResult.filePaths.length === 0) return;
-    const zipPath = fileResult.filePaths[0];
-
-    setLoading(true);
-    try {
-      // 2. Fetch all candidates to build the Passport Map
-      // We need to know which Candidate ID belongs to "A1234567"
-      // NOTE: You might need a specialized query for this if you have thousands of candidates
-      const allCandidatesRes = await window.electronAPI.searchCandidates({ limit: 10000, offset: 0 }); // Fetch minimal data
-      
-      if (!allCandidatesRes.success) throw new Error("Failed to fetch candidate list.");
-
-      const candidateIdMap = {};
-      allCandidatesRes.data.forEach(c => {
-        if (c.passportNo) {
-            candidateIdMap[c.passportNo.toUpperCase()] = c.id;
-        }
-      });
-
-      // 3. Send to Backend
-      const res = await window.electronAPI.bulkImportDocuments({
-        user,
-        candidateIdMap,
-        archivePath: zipPath
-      });
-
-      if (res.success) {
-        toast.success(`Import Complete! Success: ${res.data.successfulDocs}, Failed: ${res.data.failedDocs}`);
-      } else {
-        toast.error(`Import Failed: ${res.error}`);
-      }
-
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleFileSelect = async () => {
     setResults(null);
     const res = await window.electronAPI.showOpenDialog({

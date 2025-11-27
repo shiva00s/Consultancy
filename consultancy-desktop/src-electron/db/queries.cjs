@@ -508,20 +508,25 @@ async function getDetailedReportList(user, filters = {}) {
 // 4. CANDIDATE MANAGEMENT
 // ====================================================================
 
-// MODIFIED: Ensured the function uses the new validation helpers
 async function createCandidate(data) {
   const db = getDatabase();
   // // --- NEW: Centralized Validation ---
   const errors = {};
   const today = new Date().setHours(0, 0, 0, 0);
-  // if (validateRequired(data.name, 'Name')) errors.name = validateRequired(data.name, 'Name');
+
+  // CRITICAL FIX: Clean the Passport Number (remove spaces, convert to uppercase)
+  const cleanPassportNo = data.passportNo ? 
+      data.passportNo.trim().replace(/[^A-Z0-9]/gi, '').toUpperCase() : '';
+
   if (validateRequired(data.name, 'Name')) errors.name = validateRequired(data.name, 'Name');
+
   if (validateRequired(data.Position, 'Position')) errors.Position = validateRequired(data.Position, 'Position');
-// if (validateRequired(data.passportNo, 'Passport No')) {
-  if (validateRequired(data.passportNo, 'Passport No')) {
-    errors.passportNo = validateRequired(data.passportNo, 'Passport No');
-  } else if (!/^[A-Za-z0-9]{6,15}$/.test(data.passportNo)) {
-    errors.passportNo = 'Passport No must be 6-15 letters or numbers.';
+
+  if (validateRequired(cleanPassportNo, 'Passport No')) {
+    errors.passportNo = validateRequired(cleanPassportNo, 'Passport No');
+  } else if (!/^[A-Z0-9]{6,15}$/.test(cleanPassportNo)) {
+    // This regex checks the cleaned data.
+    errors.passportNo = 'Passport No must be 6-15 letters or numbers (no special characters).';
   }
 
   if (data.aadhar) {
@@ -585,20 +590,19 @@ async function createCandidate(data) {
     const sqlCandidate = `INSERT INTO candidates 
       (name, education, experience, dob, passportNo, passportExpiry, contact, aadhar, status, notes, Position) 
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    // const paramsCandidate = [
+    
     const paramsCandidate = [
       data.name, data.education, data.experience, data.dob,
-      data.passportNo, data.passportExpiry, data.contact,
+      cleanPassportNo, // <--- USE THE CLEANED PASSPORT NUMBER FOR STORAGE
+      data.passportExpiry, data.contact,
       data.aadhar, data.status || 'New', data.notes || '',
       data.Position,
     ];
-    // const result = await dbRun(db, sqlCandidate, paramsCandidate);
+    
     const result = await dbRun(db, sqlCandidate, paramsCandidate);
     return { success: true, id: result.lastID };
-    // } catch (err) {
-    } catch (err) {
+  } catch (err) {
     return { success: false, error: err.message };
-  // }  }
   }
 }
 
