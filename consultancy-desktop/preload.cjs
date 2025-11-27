@@ -197,4 +197,24 @@ getAllActiveVisas: () => ipcRenderer.invoke('get-all-active-visas'),
 
 getAdvancedAnalytics: (timeRange) => ipcRenderer.invoke('get-advanced-analytics', timeRange),
   exportAnalytics: (format) => ipcRenderer.invoke('export-analytics', format),
+
+// Document Management APIs
+  uploadDocument: (data) => ipcRenderer.invoke('upload-document', data),
+  getCandidateDocuments: (candidateId) => ipcRenderer.invoke('get-candidate-documents', candidateId),
+  downloadDocument: (documentId) => ipcRenderer.invoke('download-document', documentId),
+  deleteDocument: (documentId) => ipcRenderer.invoke('delete-document', documentId),
+  openFileDialog: (options) => ipcRenderer.invoke('open-file-dialog', options),
+  uploadResume: (data) => ipcRenderer.invoke('upload-resume', data),
+  uploadPhoto: (data) => ipcRenderer.invoke('upload-photo', data),
+
+   initCloudSync: (provider, config) => ipcRenderer.invoke('init-cloud-sync', provider, config),
+  createBackup: () => ipcRenderer.invoke('create-backup'),
+  listBackups: () => ipcRenderer.invoke('list-backups'),
+  restoreBackup: (fileId) => ipcRenderer.invoke('restore-backup', fileId),
+  enableAutoSync: (schedule) => ipcRenderer.invoke('enable-auto-sync', schedule),
+  disableAutoSync: () => ipcRenderer.invoke('disable-auto-sync'),
+  getSyncStatus: () => ipcRenderer.invoke('get-sync-status'),
+
+  
+
 });

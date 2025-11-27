@@ -19,6 +19,9 @@ const { sendEmail, saveSmtpSettings } = require('../utils/emailSender.cjs');
 const Tesseract = require('tesseract.js');
 const extract = require('extract-zip');
 const { registerAnalyticsHandlers } = require('./analyticsHandlers.cjs');
+const { registerDocumentHandlers } = require('./documentHandlers.cjs');
+const { fileManager } = require('../utils/fileManager.cjs');
+const { registerSyncHandlers } = require('./syncHandlers.cjs');
 
 
 const tempDir = path.join(os.tmpdir(), "paddle_ocr_temp");
@@ -77,6 +80,10 @@ const extractResumeDetails = (text) => {
 };
 
 function registerIpcHandlers(app) {
+
+    registerAnalyticsHandlers();
+    registerDocumentHandlers();
+    registerSyncHandlers();
     const db = getDatabase();
     if (!db) {
         console.error('Database is not initialized. Handlers will not be registered.');
