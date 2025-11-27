@@ -1,0 +1,75 @@
+/* EmployerListPage.css */
+
+.employer-page-container {
+  margin: 0 auto;
+}
+
+.employer-layout {
+  display: grid;
+  grid-template-columns: 3fr 4fr;
+  gap: 1.2rem;
+}
+
+.form-card form .form-group {
+  margin-bottom: 0.85rem; 
+}
+.form-card form .btn {
+  margin-top: 0.85rem; 
+  width: 100%;
+}
+
+.employer-list {
+  max-height: 75vh; 
+  overflow-y: auto;
+  padding-right: 5px; 
+}
+.employer-list p {
+  text-align: center;
+  padding: 2rem;
+}
+
+.employer-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background-color: var(--bg-secondary);
+  padding: 0.75rem 1rem; 
+  border-radius: var(--border-radius);
+  margin-bottom: 0.6rem; 
+  border: 1px solid var(--border-color);
+  transition: transform .2s ease, background-color .2s ease;
+}
+.employer-item:hover { 
+  transform: translateY(-1px); 
+  background-color: var(--bg-input); 
+}
+.employer-item-icon {
+  font-size: 1.3rem; 
+  color: var(--primary-color);
+  flex-shrink: 0;
+}
+.employer-item-info {
+    flex-grow: 1;
+}
+.employer-item-info h3 {
+  font-size: 1rem; 
+  margin: 0 0 4px 0;
+  color: var(--text-primary);
+}
+.employer-item-info p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Fix: Icon button positioning and styling */
+.employer-item-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+.employer-item-actions .doc-btn {
+    /* We rely on global utility.css to apply doc-btn styles */
+    width: 32px; 
+    height: 32px;
+}

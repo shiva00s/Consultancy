@@ -1,0 +1,23 @@
+.medical-tracking-content {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+.medical-list {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+.medical-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background-color: var(--bg-tertiary);
+    border-radius: var(--border-radius);
+    margin-bottom: 8px;
+    position: relative;
+}
+.medical-item .item-details strong { font-size: 1rem; }
+.medical-item .item-details p { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }
+.medical-item .item-status { text-align: right; }

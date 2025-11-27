@@ -1,0 +1,243 @@
+/* ================================== */
+/* === SHARED STATUS BADGES === */
+/* ================================== */
+
+/* --- Base --- */
+.status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 12px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* --- Colors (Semantic) --- */
+.badge-blue {
+  background-color: var(--primary-color);
+  color: var(--text-on-primary);
+}
+.badge-green {
+  background-color: var(--success-color);
+  color: var(--text-on-primary);
+}
+.badge-red {
+  background-color: var(--danger-color);
+  color: var(--text-on-primary);
+}
+.badge-yellow {
+  background-color: var(--warning-color);
+  color: var(--text-primary);
+}
+.badge-grey {
+  background-color: var(--secondary-color);
+  color: var(--text-on-primary);
+}
+.badge-cyan {
+  background-color: var(--cyan-color);
+  color: var(--text-on-primary);
+}
+
+/* --- Custom File Input (NOTE: Styles defined in App.css for central control) --- */
+.custom-file-input { display: flex; align-items: center; gap: 12px; overflow: visible; }
+
+.custom-file-input .file-input-label {
+  /* Minimal wrapper styles — visual appearance comes from `.btn` */
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  border-radius: var(--border-radius);
+  box-sizing: border-box;
+  /* Let `.btn` set color/background/box-shadow; keep overflow visible */
+  white-space: nowrap;
+  position: relative;
+  z-index: 2;
+}
+.custom-file-input .file-input-label svg {
+  width: 1.05em;
+  height: 1.05em;
+}
+.custom-file-input .file-input-label:focus-visible {
+  outline: 3px solid rgba(var(--primary-rgb),0.12);
+  outline-offset: 2px;
+}
+.custom-file-input .file-input-label:hover {
+  transform: translateY(-1px);
+}
+.custom-file-input input[type="file"] { display: none; } 
+.custom-file-input .file-name-display { font-size: 0.9rem; color: var(--text-primary); font-style: italic; }
+
+.custom-file-input .file-input-label:disabled,
+.custom-file-input input[disabled] + .file-input-label {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Ensure when `.btn` class is applied the label matches global button visuals
+   and text remains high-contrast before hover. Use !important to override
+   any other accidental rules that may dim the text. */
+.custom-file-input .file-input-label.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start; /* left-align icon + text for readability */
+  gap: 10px;
+  padding: 8px 14px !important;
+  background-color: var(--primary-color) !important;
+  color: var(--text-on-primary) !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+  border-radius: var(--border-radius);
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  min-width: 120px !important;
+  line-height: 1.1 !important;
+  white-space: nowrap;
+  opacity: 1 !important; /* ensure not dimmed */
+  text-shadow: 0 1px 0 rgba(0,0,0,0.18) !important; /* lift white text off blue */
+}
+
+.custom-file-input .file-input-label.btn svg { color: var(--text-on-primary) !important; }
+
+/* If some other rule is stubbornly overriding text color, target the label's text node
+   by setting color on direct children and ensuring strong specificity. */
+.custom-file-input .file-input-label.btn,
+.custom-file-input .file-input-label.btn * {
+  color: var(--text-on-primary) !important;
+  -webkit-text-fill-color: var(--text-on-primary) !important;
+}
+
+/* Utility: No-hover variant for buttons that should not animate/change on hover
+   Use this on labels that must keep a stable background and white text. */
+.btn-no-hover {
+  color: var(--text-on-primary) !important;
+  background-color: var(--primary-color) !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+}
+.btn-no-hover:hover,
+.btn-no-hover:active,
+.btn-no-hover:focus {
+  background-color: var(--primary-color) !important; /* keep same color */
+  color: var(--text-on-primary) !important;
+  transform: none !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+}
+
+/* ================================== */
+/* === SHARED LAYOUT CARDS === */
+/* ================================== */
+
+/* Base card for forms or lists */
+.form-card,
+.list-card,
+.module-list-card,
+.module-form-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1.2rem 1.4rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  height: fit-content;
+}
+
+/* Standard card heading */
+.form-card h2,
+.list-card h2,
+.module-list-card h3, 
+.module-form-card h3 { 
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0 0 0.9rem 0;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ================================== */
+/* === SHARED ACTION BUTTONS (.doc-btn) - ICON BUTTONS === */
+/* ================================== */
+
+/* Standard icon-only button (e.g., in lists) */
+.doc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* CRITICAL: Use tertiary background for contrast against the black list item */
+  background-color: var(--bg-tertiary); 
+  color: var(--text-secondary); /* Base button color for non-icon content */
+  border: 1px solid var(--border-color); 
+  border-radius: var(--border-radius);
+  width: 30px; 
+  height: 30px; 
+  font-size: 1.4rem; /* MAXIMIZED SIZE: Ensures the inner icon is clearly visible */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0; 
+}
+
+/* --- INJECTED FIX: BASE VISIBILITY FOR ACTION BUTTONS --- */
+.doc-btn.view,
+.doc-btn.delete {
+    background-color: var(--bg-tertiary); /* Gives the framed boxed look */
+    border-color: var(--border-color);
+}
+.doc-btn.view svg {
+    color: var(--primary-color); 
+}
+.doc-btn.delete svg {
+    color: var(--danger-color); /* Enforces red icon color in default state */
+}
+/* --- END INJECTED FIX --- */
+
+
+.doc-btn:hover { 
+  color: var(--text-primary); 
+  border-color: var(--primary-color); 
+  background-color: var(--bg-input); 
+}
+
+/* --- HOVER STATES (Color Invert) --- */
+.doc-btn.view:hover { 
+  background-color: var(--primary-color); 
+  color: var(--text-on-primary); 
+  border-color: var(--primary-color); 
+}
+.doc-btn.view:hover svg {
+    color: var(--text-on-primary); /* Icon is white on blue hover */
+}
+
+.doc-btn.delete:hover { 
+  background-color: var(--danger-color); 
+  color: var(--text-on-primary); 
+  border-color: var(--danger-color); 
+}
+.doc-btn.delete:hover svg {
+    color: var(--text-on-primary); /* Icon is white on red hover */
+}
+
+.doc-btn:disabled { 
+  opacity: 0.5; 
+  cursor: not-allowed; 
+}
+
+/* --- NEW: Light Theme --- */
+[data-theme="light"] {
+  --primary-color: #007bff; /* Keep blue primary */
+  --primary-hover: #0069d9;
+  --secondary-color: #5a6268;
+  --secondary-hover: #4a5056;
+  --danger-color: #dc3545;
+  --success-color: #28a745;
+    
+  --bg-primary: #f0f2f5; /* Light Gray Body Background */
+  --bg-secondary: #ffffff; /* WHITE Sidebar/Tab Bar/List Item Default */
+  --bg-tertiary: #fdfdfd; /* Off-White Card Background */
+  --bg-input: #f8f9fa; /* Very Light Gray Input Fields */
+  --border-color: #dee2e6;
+  --text-primary: #212529; /* Darkest Text */
+  --text-secondary: #6c757d; /* <--- CRITICAL FIX: Darker text for contrast */
+  --text-on-primary: #ffffff;
+}
+/* --- End Light Theme --- */

@@ -1,0 +1,133 @@
+/* --- Financial Content Container --- */
+.financial-content {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+/* --- Summary Bar Container --- */
+.financial-summary-bar {
+    padding: 8px 12px;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--bg-secondary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* --- Financial Summary Header (Optional, if used) --- */
+.finance-summary-header {
+    font-size: 1.2rem;
+    font-weight: 600;
+    padding: 0 0 1rem 0;
+    margin: 0 0 1rem 0;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* --- Legacy Horizontal Summary Widgets (if used elsewhere) --- */
+.finance-summary-widgets {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.summary-widget {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 8px 12px; 
+    flex-grow: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.summary-widget p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.summary-widget strong {
+    font-size: 1rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-left: 10px;
+    flex-shrink: 0;
+}
+
+/* --- Inline Financial Summary (Professional Row Style) --- */
+.finance-summary-inline {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap; /* allows wrapping on smaller screens */
+    gap: 10px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.finance-summary-inline span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.finance-summary-inline strong {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.summary-icon {
+    color: var(--primary-color);
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+}
+
+.summary-divider {
+    color: var(--border-color);
+    font-weight: 400;
+}
+
+.blue-text strong { color: var(--primary-color); }
+.green-text strong { color: var(--success-color); }
+.red-text strong { color: var(--danger-color); }
+
+/* --- Payment Section Styles --- */
+.payment-list-container h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.payment-item {
+    grid-template-columns: 1.5fr 1.2fr auto;
+}
+
+.payment-item-details h4 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.payment-item-status strong {
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+/* --- Responsive Refinement --- */
+@media (max-width: 600px) {
+    .finance-summary-inline {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+    .summary-divider {
+        display: none;
+    }
+}

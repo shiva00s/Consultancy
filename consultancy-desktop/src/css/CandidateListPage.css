@@ -1,0 +1,212 @@
+/* ✅ COMPACT & PROFESSIONAL CANDIDATE LIST UI */
+
+/* Page width */
+.list-page-container {
+  margin: 0 auto;
+}
+
+/* ✅ Search Section — UNIFIED, COMPACT, EQUAL HEIGHT */
+.search-bar {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr auto auto;
+  gap: 8px; /* MODIFIED: Smaller gap */
+
+  background: var(--bg-tertiary);
+  padding: 10px; /* MODIFIED: Reduced padding */
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  margin-bottom: 1rem; /* MODIFIED: Reduced margin */
+  align-items: center;
+}
+
+/* Search field container */
+.search-field {
+  display: flex;
+  align-items: center;
+  background: var(--bg-input);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  height: 36px; /* MODIFIED: Use global compact height */
+  padding: 0 8px; /* MODIFIED: Reduced padding */
+}
+
+/* Search icon */
+.search-field svg {
+  width: 16px; 
+  height: 16px; 
+  margin-right: 8px;
+  opacity: 0.6;
+}
+
+/* Search input */
+.search-field input {
+  flex: 1;
+  height: 100%;
+  border: none;
+  background: transparent;
+  font-size: 0.9rem; /* MODIFIED: Smaller font */
+  outline: none;
+  color: var(--text-primary); 
+}
+
+/* Dropdown fields */
+.search-bar select,
+.filter-field select,
+.filter-field input {
+  width: 100%;
+  height: 36px; /* MODIFIED: Use global compact height */
+  padding: 0 10px; /* MODIFIED: Reduced padding */
+  font-size: 0.9rem; /* MODIFIED: Smaller font */
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  outline: none;
+  color: var(--text-primary); 
+  box-sizing: border-box; 
+}
+
+/* Buttons — equal height */
+.search-bar button,
+.search-bar .btn {
+  height: 36px; /* MODIFIED: Use global compact height */
+  padding: 0 18px; /* MODIFIED: Reduced padding */
+  font-size: 0.95rem;
+  border-radius: var(--border-radius); 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ✅ RESULTS SECTION */
+.results-container {
+  background: var(--bg-tertiary);
+  border-radius: var(--border-radius); 
+  border: 1px solid var(--border-color);
+  padding: 0.4rem 0.6rem; /* MODIFIED: Reduced padding */
+}
+
+/* Results title */
+.results-header {
+  padding: 8px 10px; /* MODIFIED: Reduced padding */
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+/* List layout */
+.results-list {
+  /* MODIFIED: Changed from 1fr to a 2-column grid pattern */
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Two equal columns */
+  gap: 10px; /* MODIFIED: Smaller gap */
+  padding: 10px 0; /* MODIFIED: Reduced padding */
+}
+
+/* ✅ Candidate card — compact professional */
+.result-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius); 
+  padding: 12px 16px; /* MODIFIED: Reduced padding */
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* MODIFIED: Center align all content */
+  gap: 16px; /* MODIFIED: Reduced gap */
+  transition: all 0.2s ease;
+}
+
+.result-card:hover {
+  background: var(--bg-input);
+  transform: translateY(-1px);
+}
+
+/* Icon bubble */
+.result-card-icon {
+  width: 38px; /* MODIFIED: Smaller size */
+  height: 38px; /* MODIFIED: Smaller size */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--primary-rgb), 0.15);
+  color: var(--primary-color);
+  border-radius: 50%;
+  flex-shrink: 0; 
+}
+
+/* Candidate info */
+.result-card-info {
+  flex-grow: 1; 
+  padding-right: 16px; /* MODIFIED: Added right padding for separation */
+}
+.result-card-info h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.result-card-info p {
+  margin: 2px 0 0 0; /* MODIFIED: Reduced margin */
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Right side: status + View/Edit */
+.result-card-status {
+  display: flex;
+  flex-direction: row; /* MODIFIED: Align horizontally */
+  align-items: center;  /* MODIFIED: Center vertically */
+  gap: 12px;            /* MODIFIED: Add gap between badge and button */
+  flex-shrink: 0; 
+}
+
+.search-bar select:focus,
+.search-field input:focus,
+.filter-field input:focus {
+  outline: none !important;
+  border: 1px solid var(--primary-color) !important;
+}
+
+/* --- NEW: Pagination Styles --- */
+.pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px; /* MODIFIED: Reduced padding */
+    margin-top: 1rem;
+    font-size: 0.9rem; /* MODIFIED: Smaller font */
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+}
+
+.pagination-controls .btn {
+    min-width: 100px; /* MODIFIED: Smaller min-width */
+    padding: 6px 12px; /* MODIFIED: Smaller padding */
+    border-radius: var(--border-radius); 
+    font-size: 0.9rem;
+}
+
+.pagination-info {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+/* --- NEW: Responsive Adjustment for Mobile/Smaller Screens --- */
+@media (max-width: 1024px) {
+    /* Switch back to a single column on smaller desktop/tablet views */
+    .results-list {
+        grid-template-columns: 1fr;
+    }
+}
+/* --- NEW: Candidate Photo Styling --- */
+.candidate-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.result-card-icon {
+    /* Ensure the photo container has a neutral background/border for placeholder */
+    background: var(--bg-input); 
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}

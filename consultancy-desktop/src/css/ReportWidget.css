@@ -1,0 +1,57 @@
+.report-widget-card {
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1.75rem;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.report-widget-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.report-widget-icon {
+  font-size: 2.5rem;
+  padding: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.report-widget-info p {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.report-widget-info span {
+  font-size: 2.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Icon Colors */
+.report-widget-card.blue .report-widget-icon {
+  color: var(--primary-color);
+  background-color: rgba(var(--primary-rgb), 0.08);
+}
+.report-widget-card.green .report-widget-icon {
+  color: var(--success-color);
+  background-color: rgba(var(--success-rgb), 0.08);
+}
+.report-widget-card.purple .report-widget-icon {
+  color: var(--purple-color);
+  background-color: rgba(var(--purple-rgb), 0.08);
+}
+.report-widget-card.yellow .report-widget-icon {
+  color: var(--warning-color);
+  background-color: rgba(var(--warning-rgb), 0.08);
+}
+/* === UI POLISH ADDITIONS (APPEND) === */
+.report-widget-card { border-radius: var(--border-radius); }

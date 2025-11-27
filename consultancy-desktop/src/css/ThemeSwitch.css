@@ -1,0 +1,74 @@
+/* Container for the switch */
+.theme-switch-wrapper {
+  display: flex;
+  align-items: center;
+  margin-left: auto; /* Push the switch to the far right within the header */
+  padding-left: 10px; /* Small buffer */
+  /* NO absolute/fixed positioning here */
+}
+
+/* Hide default HTML checkbox */
+.theme-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* The slider */
+.theme-switch {
+  position: relative;
+  display: inline-block;
+  width: 45px; /* MODIFIED: Smaller width */
+  height: 22px; /* MODIFIED: Smaller height */
+  margin: 0; /* Remove default margins */
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--bg-secondary); /* Background of the track */
+  -webkit-transition: .4s;
+  transition: .4s;
+  border: 1px solid var(--border-color); /* Add border to slider track */
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px; /* MODIFIED: Smaller circle */
+  width: 16px; /* MODIFIED: Smaller circle */
+  left: 3px; /* MODIFIED: Position */
+  bottom: 2px; /* MODIFIED: Position */
+  background-color: var(--text-primary); /* Color of the handle */
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: var(--primary-color); /* When checked (dark mode) */
+  border-color: var(--primary-color);
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px var(--primary-color);
+}
+
+input:checked + .slider:before {
+  -webkit-transform: translateX(22px); /* MODIFIED: Translate for smaller track */
+  -ms-transform: translateX(22px); /* MODIFIED: Translate for smaller track */
+  transform: translateX(22px); /* MODIFIED: Translate for smaller track */
+  background-color: var(--text-inverted); /* White handle in dark mode */
+}
+
+/* Rounded sliders */
+.slider.round {
+  border-radius: 22px; /* Match height for perfect roundness */
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}

@@ -1,0 +1,28 @@
+# Visual Studio
+**/bin/
+**/obj/
+**/.vs/
+*.user
+*.suo
+*.cache
+*.pdb
+*.db
+*.log
+*.tmp
+
+# NodeJS / React / NextJS
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Build Output
+dist/
+build/
+publish/
+*.dll
+*.exe
+
+# System Files
+*.DS_Store
+Thumbs.db

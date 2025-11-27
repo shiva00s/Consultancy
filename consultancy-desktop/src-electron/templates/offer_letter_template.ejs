@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Offer Letter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 40px;
+            color: #333;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #0056b3;
+            margin: 0;
+        }
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            border: 1px solid #ddd;
+        }
+        .details-table th,
+        .details-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .details-table th {
+            background-color: #f9f9f9;
+            width: 30%;
+        }
+        strong {
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 40px;
+            font-size: 0.9em;
+        }
+        .signature-line {
+            margin-top: 60px;
+            border-top: 1px solid #555;
+            width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>OFFER OF EMPLOYMENT</h1>
+            <p><strong>Date:</strong> <%= currentDate %></p>
+        </div>
+
+        <p>Dear <strong><%= candidateName %></strong>,</p>
+
+        <p>Following our recent discussions, we are pleased to offer you the position of <strong><%= positionTitle %></strong> with our client, <strong><%= companyName %></strong>. This position is based in <strong><%= employerCountry %></strong>.</p>
+
+        <p>This offer is contingent upon the successful completion of all pre-employment checks and processing.</p>
+
+        <h3>Key Terms of Offer</h3>
+        <table class="details-table">
+            <tr>
+                <th>Candidate Name</th>
+                <td><%= candidateName %></td>
+            </tr>
+            <tr>
+                <th>Passport No.</th>
+                <td><%= passportNo %></td>
+            </tr>
+            <tr>
+                <th>Position</th>
+                <td><%= positionTitle %></td>
+            </tr>
+            <tr>
+                <th>Employer</th>
+                <td><%= companyName %></td>
+            </tr>
+            <tr>
+                <th>Work Location</th>
+                <td><%= employerCountry %></td>
+            </tr>
+            <tr>
+                <th>Monthly Salary</th>
+                <td><%= monthlySalary %></td>
+            </tr>
+            <tr>
+                <th>Expected Joining Date</th>
+                <td><%= joiningDate %></td>
+            </tr>
+        </table>
+
+        <p>Please review this offer carefully. To accept, please sign and return a copy of this letter by <strong><%= acceptanceDate %></strong>.</p>
+
+        <div class="footer">
+            <p>We look forward to welcoming you.</p>
+            <p>Best Regards,</p>
+            
+            <p><%= contactPerson %><br>
+            <%= companyName %></p>
+
+            <div class="signature-line" style="margin-top: 80px;">
+                <p><strong>Candidate Acceptance:</strong></p>
+                <p>I, <%= candidateName %>, accept this offer of employment.</p>
+                <br>
+                <p>Signature: ___________________________</p>
+                <p>Date: ___________________________</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,317 @@
+/* Page container */
+.detail-page-container {
+  margin: 0 auto;
+}
+
+.back-button {
+  margin-bottom: 1.25rem; 
+}
+
+/* Base Card/Container for content */
+.custom-tabs-container {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    margin-bottom: 2rem;
+    overflow: hidden;
+}
+
+.tabs-header {
+    display: flex;
+    padding: 0;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+    overflow-x: auto;
+}
+
+.tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px; 
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 0.95rem; 
+    font-weight: 500;
+    color: var(--text-secondary);
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+    flex-shrink: 0; 
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-input);
+}
+
+.tab-btn.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    background-color: var(--bg-tertiary);
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.tabs-content {
+    padding: 1.2rem; 
+}
+
+/* --- DETAIL CARD / PROFILE TAB LAYOUT --- */
+.detail-card {
+  margin-bottom: 1.25rem; 
+  overflow: hidden; 
+}
+
+.detail-header {
+  padding: 1rem 1.25rem; 
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.detail-header h2 {
+  margin: 0;
+  font-weight: 600; 
+}
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+.detail-card .form-grid {
+  padding: 1.2rem; 
+}
+
+/* Make read-only inputs look like static text */
+.form-group input:read-only,
+.form-group textarea:read-only {
+  background-color: transparent;
+  border-color: transparent;
+  padding-left: 0;
+  padding-right: 0;
+  color: var(--text-primary);
+  font-size: 0.95rem; 
+  cursor: default;
+  box-shadow: none;
+  padding-top: 8px; 
+  padding-bottom: 8px; 
+}
+.form-group:has(input:read-only) label,
+.form-group:has(textarea:read-only) label {
+  color: var(--primary-color);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Delete Zone */
+.detail-card.delete-zone { 
+  border: 1px solid var(--danger-color);
+  background-color: rgba(var(--danger-rgb), 0.05);
+  padding: 1.25rem; 
+}
+.delete-zone h3 {
+  color: var(--danger-color);
+}
+
+/* --- REUSABLE SUB-MODULE LAYOUTS (for Finance, Visa, Medical, etc.) --- */
+
+.module-vertical-stack {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.2rem; 
+    padding: 0;
+}
+
+/* --- REUSABLE LIST STRUCTURE (.module-list) --- */
+.module-list {
+    display: flex;
+    flex-direction: column; 
+    gap: 8px; /* Compact spacing */
+    max-height: 400px; /* Enforce scroll boundary */
+    overflow-y: auto;
+    padding-right: 5px; /* Space for scrollbar */
+}
+
+.module-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background-color: var(--bg-secondary);
+    padding: 10px 14px; /* Compact padding */
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    transition: all .2s ease;
+}
+.module-list-item:hover {
+    background-color: var(--bg-input); 
+    transform: translateY(-1px); 
+}
+
+.module-list-item .item-icon {
+    font-size: 1.3rem; 
+    color: var(--primary-color);
+    flex-shrink: 0;
+}
+.module-list-item .item-details {
+    flex-grow: 1;
+}
+.module-list-item .item-details strong { 
+    font-size: 1rem; 
+    color: var(--text-primary);
+}
+.module-list-item .item-details p { 
+    margin: 0; 
+    font-size: 0.85rem; 
+    color: var(--text-secondary); 
+}
+.module-list-item .item-status {
+    flex-shrink: 0;
+    text-align: right;
+    margin-left: auto; /* Push status/actions to the right */
+}
+.module-list-item .item-actions {
+    flex-shrink: 0;
+    margin-left: 8px;
+    display: flex;
+    gap: 4px; /* Space between buttons */
+}
+/* --- END REUSABLE LIST STRUCTURE --- */
+
+
+/* --- FINANCIAL TRACKING SPECIFICS (Needs custom override) --- */
+.payment-item {
+  display: grid; 
+  grid-template-columns: 1.5fr auto auto; /* Description, Status/Amount, Actions */
+  align-items: center; 
+  gap: 12px;
+}
+.payment-item-details h4 {
+    margin: 0;
+    font-size: 1rem;
+}
+.payment-item-status { 
+    text-align: right; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: flex-end; 
+    gap: 4px;
+}
+.payment-item.overdue {
+  border-color: var(--danger-color);
+  background-color: rgba(var(--danger-rgb), 0.1);
+}
+
+/* --- DOCUMENT TAB STYLES --- */
+.doc-list-grouped {
+  padding: 0;
+}
+.doc-category-group .module-list {
+  max-height: 250px; /* Shorter scroll boundary for docs */
+}
+.doc-item {
+  /* Overrides module-list-item for document structure */
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: var(--bg-secondary);
+  padding: 8px 10px; 
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  transition: all .2s ease;
+}
+.doc-item .doc-icon {
+    font-size: 1.1rem;
+    color: var(--primary-color);
+}
+.doc-item .doc-name {
+    flex-grow: 1;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.doc-category-select {
+  flex-shrink: 0;
+  margin-left: auto;
+  margin-right: 1rem;
+}
+
+/* File Input/Select inside Doc List */
+.doc-category-select select {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 5px 8px; 
+  font-size: 0.9rem; 
+  min-height: 30px; 
+  box-sizing: border-box;
+}
+.doc-category-select select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.25);
+}
+
+/* Add Docs Section */
+.add-docs-section {
+  padding-top: 1.25rem; 
+  border-top: 1px solid var(--border-color);
+  margin-top: 1.25rem; 
+}
+.add-docs-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.1rem; 
+  align-items: flex-end;
+}
+.add-docs-form .btn {
+  grid-column: 2 / 3;
+}
+.tabs-header {
+    display: flex;
+    padding: 0;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-secondary); /* Ensure distinct background color */
+    overflow-x: auto;
+}
+
+.tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px; 
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 0.95rem; 
+    font-weight: 500;
+    color: var(--text-secondary);
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+    flex-shrink: 0; 
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-input); /* Use slightly darker than tertiary/secondary for hover */
+}
+/* --- LIGHT MODE LIST ITEM OVERRIDE (CRITICAL FIX) --- */
+[data-theme="light"] .module-list-item,
+[data-theme="light"] .payment-item {
+    background-color: var(--bg-secondary) !important; /* Enforce white background */
+    color: var(--text-primary) !important;          /* Enforce dark text */
+    border: 1px solid var(--border-color);          /* Keep border separation */
+}
+
+/* Ensure the hover state is also light */
+[data-theme="light"] .module-list-item:hover,
+[data-theme="light"] .payment-item:hover {
+    background-color: var(--bg-input) !important; /* Slight off-white hover */
+    transform: translateY(-1px);
+}
+/* ---------------------------------------------------- */

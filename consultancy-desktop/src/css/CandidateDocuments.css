@@ -1,0 +1,46 @@
+.doc-item {
+  /* Overrides module-list-item for document structure */
+  display: flex;
+  align-items: center;
+  gap: 10px; /* MODIFIED: Reduced gap for compactness (was 12px) */
+  background-color: var(--bg-secondary);
+  padding: 6px 10px; /* MODIFIED: Reduced vertical padding (was 8px 10px) */
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  transition: all .2s ease;
+}
+.doc-list-card h3 {
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.doc-category-group {
+    margin-bottom: 1.25rem;
+}
+.doc-category-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin: 0 0 0.5rem 0;
+    padding-bottom: 5px;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.doc-list-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+/* --- LIGHT MODE DOC ITEM OVERRIDE (CRITICAL FIX) --- */
+[data-theme="light"] .doc-item {
+    background-color: var(--bg-secondary) !important; /* Enforce white background */
+    color: var(--text-primary) !important;          /* Enforce dark text */
+}
+
+/* Ensure doc item hover is also light */
+[data-theme="light"] .doc-item:hover {
+    background-color: var(--bg-input) !important; /* Slight off-white hover */
+    transform: translateY(-1px);
+}
+/* ---------------------------------------------------- */

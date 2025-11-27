@@ -1,0 +1,129 @@
+.bulk-import-container {
+  margin: 0 auto;
+}
+
+.import-stepper {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  padding: 0;
+  list-style: none;
+}
+.stepper-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1;
+  color: var(--text-secondary);
+}
+.step-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+  transition: all 0.3s ease;
+}
+.step-title {
+  font-weight: 500;
+}
+
+.stepper-item.active .step-number {
+  background: var(--primary-color);
+  color: var(--text-on-primary);
+  border-color: var(--primary-color);
+}
+.stepper-item.active .step-title {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+.stepper-item.completed .step-number {
+  background: var(--success-color);
+  color: var(--text-on-primary);
+  border-color: var(--success-color);
+}
+.stepper-item.completed .step-title {
+  color: var(--success-color);
+}
+
+
+.import-card {
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 2rem;
+}
+
+.file-selection-box {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 2rem;
+  text-align: center;
+  background-color: var(--bg-secondary);
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.file-selection-box:hover {
+  background-color: var(--bg-input);
+  border-color: var(--primary-color);
+}
+.file-selection-box svg {
+  font-size: 3rem;
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+}
+.file-name {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 1rem;
+}
+
+.mapping-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.mapping-table th,
+.mapping-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+.mapping-table th {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+.mapping-table td:first-child {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.mapping-table select {
+  width: 100%;
+}
+
+.import-results ul {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  max-height: 300px;
+  overflow-y: auto;
+}
+.import-results li {
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--danger-color);
+  font-size: 0.9rem;
+}
+.import-results li:last-child {
+  border-bottom: none;
+}

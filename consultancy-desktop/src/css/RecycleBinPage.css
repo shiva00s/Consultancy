@@ -1,0 +1,53 @@
+.recycle-bin-container {
+  margin: 0 auto;
+}
+
+.recycle-list {
+  background-color: var(--bg-tertiary);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  padding: 0.8rem; /* MODIFIED: Reduced padding */
+}
+
+.recycle-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 1rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+.recycle-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px; /* MODIFIED: Reduced padding */
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 8px; /* MODIFIED: Reduced margin */
+}
+
+.item-info strong {
+  font-size: 1rem; /* MODIFIED: Smaller font */
+  color: var(--text-primary);
+}
+
+.item-info span {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-left: 10px;
+}
+
+.item-date {
+  font-size: 0.85rem;
+  color: var(--danger-color);
+}
+
+.item-actions button {
+  margin-left: 6px; /* MODIFIED: Reduced margin */
+  padding: 6px 12px; /* MODIFIED: Smaller button size */
+  font-size: 0.9rem; /* MODIFIED: Smaller font */
+  min-height: 32px; /* MODIFIED: Smaller min height */
+}

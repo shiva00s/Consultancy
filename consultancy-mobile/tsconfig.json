@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "esnext",
+    "moduleResolution": "bundler", /* FIX: Required to resolve customConditions and Expo Router types */
+    "jsx": "react-jsx",
+    "lib": [
+      "es2020",
+      "dom",
+      "esnext.asynciterable"
+    ],
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "experimentalDecorators": true, 
+    "emitDecoratorMetadata": true,  
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "~/*": [
+        "src/*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts",
+    "src/**/*",
+    "components/**/*"
+  ],
+  "extends": "expo/tsconfig.base"
+}
