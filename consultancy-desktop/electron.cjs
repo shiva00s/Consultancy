@@ -3,7 +3,9 @@ const path = require('path');
 const { initializeDatabase } = require('./src-electron/db/database.cjs'); 
 const { registerIpcHandlers } = require('./src-electron/ipc/handlers.cjs'); 
 const { startServer } = require('./src-electron/server/api.cjs');
+const { AutoUpdater } = require('./src-electron/utils/autoUpdater.cjs');
 
+let updater;
 // --- Window Creation (No changes here) ---
 function createWindow() {
   const win = new BrowserWindow({
@@ -15,6 +17,14 @@ function createWindow() {
       contextIsolation: true, // This MUST be true
     },
   });
+
+  // Initialize auto-updater
+  updater = new AutoUpdater(win);
+  
+  // Check for updates on app start (after 3 seconds)
+  setTimeout(() => {
+    updater.checkForUpdatesAndNotify();
+  }, 3000);
 
   if (process.env.NODE_ENV === 'production') {
     win.loadFile(path.join(__dirname, 'dist', 'index.html'));

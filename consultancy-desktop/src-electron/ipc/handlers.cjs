@@ -18,6 +18,7 @@ const { dbRun, dbGet,getCanonicalUserContext } = require('../db/queries.cjs');
 const { sendEmail, saveSmtpSettings } = require('../utils/emailSender.cjs');
 const Tesseract = require('tesseract.js');
 const extract = require('extract-zip');
+const { registerAnalyticsHandlers } = require('./analyticsHandlers.cjs');
 
 
 const tempDir = path.join(os.tmpdir(), "paddle_ocr_temp");
@@ -1615,4 +1616,44 @@ ipcMain.handle('get-user-role', async (event, { userId }) => {
     ipcMain.handle('update-visa-status', async (event, { id, status }) => {
         return queries.updateVisaStatus(id, status);
     });
-    module.exports = { registerIpcHandlers };
+
+const saveDocumentFromApi = async ({ candidateId, user, fileData }) => {
+    try {
+        const db = getDatabase();
+        const filesDir = path.join(app.getPath('userData'), 'candidate_files');
+        
+        // Ensure directory exists
+        if (!fs.existsSync(filesDir)) {
+            fs.mkdirSync(filesDir, { recursive: true });
+        }
+
+        // Generate unique filename
+        const uniqueName = `${uuidv4()}${path.extname(fileData.fileName)}`;
+        const newFilePath = path.join(filesDir, uniqueName);
+
+        // Write buffer to disk (Async)
+        await fs.promises.writeFile(newFilePath, fileData.buffer);
+
+        // Database Insert
+        const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
+        
+        return new Promise((resolve, reject) => {
+            db.run(sqlDoc, [candidateId, fileData.fileType, fileData.fileName, newFilePath, fileData.category], function (err) {
+                if (err) {
+                    // Try to clean up file if DB insert fails
+                    fs.unlink(newFilePath, () => {}); 
+                    reject(err);
+                } else {
+                    logAction(user, 'add_document_mobile', 'candidates', candidateId, `File: ${fileData.fileName}`);
+                    resolve({ success: true, documentId: this.lastID });
+                }
+            });
+        });
+
+    } catch (error) {
+        console.error('saveDocumentFromApi failed:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+    module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase  };

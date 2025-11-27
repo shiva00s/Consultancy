@@ -1,0 +1,67 @@
+<div class="greeting">Dear <%= candidateName %>,</div>
+
+<div class="content">
+    Great news! We've found a job opportunity that matches your profile and skills.
+</div>
+
+<div class="info-box">
+    <div class="info-box-title">Job Opportunity Details</div>
+    <table class="details-table">
+        <tr>
+            <td>Position:</td>
+            <td><strong><%= jobTitle %></strong></td>
+        </tr>
+        <tr>
+            <td>Company:</td>
+            <td><%= employerName %></td>
+        </tr>
+        <tr>
+            <td>Location:</td>
+            <td><%= jobLocation %></td>
+        </tr>
+        <% if (salaryRange) { %>
+        <tr>
+            <td>Salary Range:</td>
+            <td><%= salaryRange %></td>
+        </tr>
+        <% } %>
+        <tr>
+            <td>Employment Type:</td>
+            <td><%= employmentType || 'Full-time' %></td>
+        </tr>
+    </table>
+</div>
+
+<% if (jobDescription) { %>
+<div class="content">
+    <strong>Job Description:</strong><br>
+    <div style="margin-top: 10px; color: #4a5568;">
+        <%= jobDescription %>
+    </div>
+</div>
+<% } %>
+
+<% if (requirements) { %>
+<div class="content">
+    <strong>Key Requirements:</strong>
+    <ul style="margin-left: 20px; margin-top: 10px; color: #4a5568;">
+        <% requirements.forEach(req => { %>
+            <li><%= req %></li>
+        <% }); %>
+    </ul>
+</div>
+<% } %>
+
+<div class="button-container">
+    <a href="<%= applyLink %>" class="cta-button">Express Interest</a>
+</div>
+
+<div class="content" style="margin-top: 30px;">
+    Please let us know if you're interested in this opportunity. Our team will coordinate the next steps with you.
+</div>
+
+<div class="content">
+    Best regards,<br>
+    <strong><%= recruiterName || 'Your Recruiter' %></strong><br>
+    <%= companyName %>
+</div>

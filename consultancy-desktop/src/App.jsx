@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './components/MainLayout'; 
 import ActivationPrompt from './pages/ActivationPrompt';
 // === 1. PAGE IMPORTS (From pages/ folder) ===
+import AdvancedAnalyticsPage from './pages/AdvancedAnalyticsPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
@@ -17,6 +18,7 @@ import RecycleBinPage from './pages/RecycleBinPage';
 import BulkImportPage from './pages/BulkImportPage';
 import SystemAuditLogPage from './pages/SystemAuditLogPage'; 
 import VisaKanbanPage from './pages/VisaKanbanPage';
+
 // ============================================
 
 // === 2. COMPONENT IMPORTS (From components/ folder) ===
@@ -41,6 +43,8 @@ function App() {
     }))
   );
   
+  
+
   const { fetchInitialData, reset: resetDataStore } = useDataStore(
     useShallow((state) => ({ 
       fetchInitialData: state.fetchInitialData,
@@ -129,6 +133,7 @@ if (activationLoading) {
                       <Route path="/jobs" element={<JobOrderListPage />} />
                       <Route path="/system-audit" element={<SystemAuditLogPage />} />
                       <Route path="/visa-board" element={<VisaKanbanPage/>} />
+                      <Route path="/advanced-analytics" element={<AdvancedAnalyticsPage />} />
                   </Route>
                         
                   {/* --- PROTECTED HIGH-RISK ROUTES (Super Admin ONLY) --- */}

@@ -1,0 +1,83 @@
+<div class="greeting">Dear <%= candidateName %>,</div>
+
+<div class="content">
+    Congratulations! Your interview has been scheduled with <strong><%= employerName %></strong> for the position of <strong><%= jobTitle %></strong>.
+</div>
+
+<div class="info-box" style="background-color: #fffbeb; border-left-color: #f59e0b;">
+    <div class="info-box-title" style="color: #92400e;">⏰ Interview Schedule</div>
+    <table class="details-table">
+        <tr>
+            <td>Date:</td>
+            <td><strong><%= interviewDate %></strong></td>
+        </tr>
+        <tr>
+            <td>Time:</td>
+            <td><strong><%= interviewTime %></strong></td>
+        </tr>
+        <tr>
+            <td>Duration:</td>
+            <td><%= duration || '45-60 minutes' %></td>
+        </tr>
+        <tr>
+            <td>Interview Mode:</td>
+            <td><%= interviewMode %></td>
+        </tr>
+        <% if (interviewLocation) { %>
+        <tr>
+            <td>Location:</td>
+            <td><%= interviewLocation %></td>
+        </tr>
+        <% } %>
+        <% if (meetingLink) { %>
+        <tr>
+            <td>Meeting Link:</td>
+            <td><a href="<%= meetingLink %>" style="color: #667eea;"><%= meetingLink %></a></td>
+        </tr>
+        <% } %>
+    </table>
+</div>
+
+<% if (interviewers && interviewers.length > 0) { %>
+<div class="content">
+    <strong>You'll be interviewing with:</strong>
+    <ul style="margin-left: 20px; margin-top: 10px;">
+        <% interviewers.forEach(interviewer => { %>
+            <li><%= interviewer.name %> - <%= interviewer.title %></li>
+        <% }); %>
+    </ul>
+</div>
+<% } %>
+
+<div class="content">
+    <strong>Preparation Tips:</strong>
+    <ol style="margin-left: 20px; margin-top: 10px;">
+        <li>Review the job description and company background</li>
+        <li>Prepare examples of your relevant experience</li>
+        <li>Have questions ready for the interviewer</li>
+        <li>Test your internet connection (if virtual)</li>
+        <li>Dress professionally and arrive 10 minutes early</li>
+    </ol>
+</div>
+
+<% if (documents) { %>
+<div class="content">
+    <strong>Documents to Bring:</strong>
+    <ul style="margin-left: 20px; margin-top: 10px;">
+        <% documents.forEach(doc => { %>
+            <li><%= doc %></li>
+        <% }); %>
+    </ul>
+</div>
+<% } %>
+
+<div class="content" style="margin-top: 30px;">
+    If you need to reschedule or have any questions, please contact us immediately.
+</div>
+
+<div class="content">
+    Good luck with your interview!<br><br>
+    Best regards,<br>
+    <strong><%= recruiterName || 'Your Recruiter' %></strong><br>
+    <%= companyName %>
+</div>

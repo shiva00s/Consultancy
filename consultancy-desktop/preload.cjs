@@ -195,4 +195,6 @@ readAbsoluteFileBuffer: (params) => ipcRenderer.invoke("read-absolute-file-buffe
 getAllActiveVisas: () => ipcRenderer.invoke('get-all-active-visas'),
   updateVisaStatus: (args) => ipcRenderer.invoke('update-visa-status', args),
 
+getAdvancedAnalytics: (timeRange) => ipcRenderer.invoke('get-advanced-analytics', timeRange),
+  exportAnalytics: (format) => ipcRenderer.invoke('export-analytics', format),
 });
