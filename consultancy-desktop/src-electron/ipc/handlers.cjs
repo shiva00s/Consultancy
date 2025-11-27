@@ -325,51 +325,73 @@ function registerIpcHandlers(app) {
     // 4. CANDIDATE MANAGEMENT (REFACTORED)
     // ====================================================================
 
-    // === NEW: BULK DOCUMENT IMPORT HANDLER (INJECTED) ===
+    // === REAL BULK DOCUMENT IMPORT HANDLER ===
     ipcMain.handle('bulk-import-documents', async (event, { user, candidateIdMap, archivePath }) => {
-        // NOTE: candidateIdMap is { PassportNo: CandidateId, ... }
-        // This is a complex operation requiring a library like 'yauzl' (for .zip) or similar.
-        // We will implement the core structure and mock the file extraction process.
-        
         try {
             if (!fs.existsSync(archivePath)) {
                 return { success: false, error: 'Archive file not found.' };
             }
-            
-            logAction(user, 'start_bulk_doc_import', 'system', 1, `Archive: ${path.basename(archivePath)}, Candidates: ${Object.keys(candidateIdMap).length}`);
-            
-            // --- MOCK: Simulate document extraction and insertion ---
-            const mockFilesDir = path.join(app.getPath('userData'), 'candidate_files');
-            if (!fs.existsSync(mockFilesDir)) fs.mkdirSync(mockFilesDir, { recursive: true });
 
-            const successfulDocs = 0;
-            const failedDocs = 0;
-            // In a real app, this is where you extract the ZIP/RAR
-            // and try to match filenames (PassportNo_DocumentType.pdf) to candidateIdMap.
-            /* Example logic if we had a proper extractor library:
-            
-            for (const file in archive) {
-                const parts = file.name.split('_');
-                // e.g., PassportNo_Resume.pdf
-                const passportNo = parts[0];
-                const docCategory = parts[1].replace(path.extname(file.name), '');
+            // 1. Prepare Temp Directory
+            const tempExtractDir = path.join(os.tmpdir(), `import_${uuidv4()}`);
+            if (!fs.existsSync(tempExtractDir)) fs.mkdirSync(tempExtractDir);
+
+            // 2. Extract Zip
+            await extract(archivePath, { dir: tempExtractDir });
+
+            // 3. Process Files
+            const files = fs.readdirSync(tempExtractDir);
+            let successfulDocs = 0;
+            let failedDocs = 0;
+            const filesDir = path.join(app.getPath('userData'), 'candidate_files');
+            if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true });
+
+            const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
+
+            for (const fileName of files) {
+                // Expected format: PASSPORTNO_Category.pdf (e.g., A1234567_Resume.pdf)
+                const cleanName = path.parse(fileName).name; // Remove extension
+                const parts = cleanName.split('_');
                 
+                if (parts.length < 2) {
+                    failedDocs++; // Filename format invalid
+                    continue; 
+                }
+
+                const passportNo = parts[0].trim().toUpperCase();
+                const categoryRaw = parts.slice(1).join('_'); // Join rest as category
+                const category = categoryRaw || 'Uncategorized';
+                
+                // Lookup Candidate ID
                 const candidateId = candidateIdMap[passportNo];
-                
+
                 if (candidateId) {
-                    // Save file and insert into 'documents' table...
-                    successfulDocs++;
+                    // Move file to permanent storage
+                    const uniqueName = `${uuidv4()}${path.extname(fileName)}`;
+                    const newFilePath = path.join(filesDir, uniqueName);
+                    
+                    fs.copyFileSync(path.join(tempExtractDir, fileName), newFilePath);
+
+                    // Database Insert
+                    await new Promise((resolve) => {
+                        const fileType = mime.getType(fileName) || 'application/octet-stream';
+                        db.run(sqlDoc, [candidateId, fileType, fileName, newFilePath, category], (err) => {
+                            if (!err) successfulDocs++;
+                            else failedDocs++;
+                            resolve();
+                        });
+                    });
                 } else {
-                    failedDocs++;
+                    failedDocs++; // Passport not found in map
                 }
             }
-            */
-            
-            // --- END MOCK ---
-            
-            logAction(user, 'complete_bulk_doc_import', 'system', 1, `Success: ${successfulDocs}, Failed: ${failedDocs} (Requires extraction library implementation)`);
-            // For now, return success placeholder to complete the flow.
-            return { success: true, data: { successfulDocs: 0, failedDocs: 0, message: "Structure ready, physical extraction library pending." } };
+
+            // 4. Cleanup
+            fs.rmSync(tempExtractDir, { recursive: true, force: true });
+
+            logAction(user, 'bulk_doc_import', 'system', 1, `Success: ${successfulDocs}, Failed: ${failedDocs}`);
+            return { success: true, data: { successfulDocs, failedDocs } };
+
         } catch (error) {
             console.error('Bulk document import failed:', error);
             return { success: false, error: error.message };
@@ -596,13 +618,17 @@ ipcMain.handle('getImageBase64', (event, { filePath }) => {
         return result;
     });
     // ====================================================================
-    ipcMain.handle('update-job-order', async (event, { user, id, data }) => {
-        const result = await queries.updateJobOrder(user, id, data);
-        if (result.success) {
-            logAction(user, 'update_job', 'job_orders', id, `Position: ${data.positionTitle}, Status: ${data.status}`);
-        }
-        return result;
-    });
+    // src-electron/ipc/handlers.cjs
+
+ipcMain.handle('update-job-order', async (event, { user, id, data }) => {
+    // PASS user, id, AND data to the query
+    const result = await queries.updateJobOrder(user, id, data);
+    
+    if (result.success) {
+        logAction(user, 'update_job', 'job_orders', id, `Position: ${data.positionTitle}, Status: ${data.status}`);
+    }
+    return result;
+});
     // ====================================================================
     ipcMain.handle('delete-job-order', async (event, { user, id }) => {
         const result = await queries.deleteJobOrder(user, id);

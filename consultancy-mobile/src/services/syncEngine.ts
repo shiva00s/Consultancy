@@ -22,16 +22,12 @@ export const SyncEngine = {
 
                 if (record.method === "POST") {
                     response = await api.post(record.endpoint, record.payload);
-
                 } else if (record.method === "PUT") {
-                    // FIX: use exported 'put' instead of 'api.put'
                     response = await put(record.endpoint, record.payload);
-
                 } else if (record.method === "DELETE") {
-                    // FIX: use exported 'del'
                     response = await del(record.endpoint);
-
                 } else {
+                    // Skip invalid methods but don't stop the loop
                     continue;
                 }
 
@@ -39,17 +35,25 @@ export const SyncEngine = {
                     console.log("Synced:", record.localId);
                     successful.push(record.localId);
                 } else {
-                    console.log("Server rejected:", record.localId);
-                    break;
+                    console.error("Server rejected record:", record.localId, response?.data?.error);
+                    // CRITICAL FIX: Do NOT break. Continue to try the next record.
+                    // We only want to stop if the network itself is down.
                 }
-            } catch {
-                // FIX: removed unused "err" variable
-                console.log("Network failure. Stopping sync.");
-                setNetworkStatus("offline");
-                return;
+            } catch (error: any) {
+                // Check if it's a network error (no response) or a server error (4xx/5xx)
+                if (!error.response) {
+                    console.log("Network failure detected. Stopping sync.");
+                    setNetworkStatus("offline");
+                    // Stop processing only on genuine network failure
+                    break;
+                } else {
+                    console.error("Sync Error (Server Side) for:", record.localId, error.message);
+                    // If it's a server error (e.g. 500), we skip this item and try the next one
+                }
             }
         }
 
+        // Remove only the successfully synced items from the queue
         if (successful.length > 0) {
             clearQueue(successful);
         }
@@ -57,6 +61,6 @@ export const SyncEngine = {
         const remaining = useOfflineStore.getState().syncQueue.length;
         setNetworkStatus(remaining === 0 ? "online" : "offline");
 
-        console.log("SyncEngine complete.");
+        console.log(`SyncEngine complete. Cleared ${successful.length} items.`);
     }
 };

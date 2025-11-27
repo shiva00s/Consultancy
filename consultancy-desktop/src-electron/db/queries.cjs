@@ -982,23 +982,24 @@ async function addJobOrder(user, data) {
   }
 }
 
-// MODIFIED: Use structured error return
 async function updateJobOrder(user, id, data) {
-  // --- Validation ---
+  // 1. Feature Flag Check
   const accessCheck = await checkAdminFeatureAccess(user, 'isJobsEnabled');
-  if (!accessCheck.success) return accessCheck; 
+  if (!accessCheck.success) return accessCheck;
 
+  // 2. Validation
   const errors = {};
-  if (validateRequired(data.employer_id, 'Employer ID')) errors.employer_id = validateRequired(data.employer_id, 'Employer ID');
-  if (validateRequired(data.positionTitle, 'Position Title')) errors.positionTitle = validateRequired(data.positionTitle, 'Position Title');
-  if (validatePositiveNumber(data.openingsCount, 'Openings Count')) errors.openingsCount = validatePositiveNumber(data.openingsCount, 'Openings Count');
+  if (validateRequired(data.employer_id, 'Employer')) errors.employer_id = 'Employer is required.';
+  if (validateRequired(data.positionTitle, 'Position')) errors.positionTitle = 'Position is required.';
   
-  if (Object.keys(errors).length > 0) return { success: false, error: "Validation failed", errors: errors };
-  // --- End Validation ---
+  if (Object.keys(errors).length > 0) return { success: false, error: "Validation failed", errors };
 
-  // FIX: Ensure SQL is clean and parameters match exactly
-  const sql = "UPDATE job_orders SET employer_id = ?, positionTitle = ?, country = ?, openingsCount = ?, status = ?, requirements = ? WHERE id = ?";
-  
+  // 3. Database Update
+  const db = getDatabase();
+  const sql = `UPDATE job_orders SET 
+               employer_id = ?, positionTitle = ?, country = ?, openingsCount = ?, status = ?, requirements = ?
+               WHERE id = ?`;
+               
   const params = [
     data.employer_id, 
     data.positionTitle, 
@@ -1006,22 +1007,14 @@ async function updateJobOrder(user, id, data) {
     data.openingsCount, 
     data.status, 
     data.requirements, 
-    id
+    id,
   ];
 
   try {
     await dbRun(db, sql, params);
-    
-    // Fetch updated row to return to UI
-    const getSql = `
-      SELECT j.*, e.companyName 
-      FROM job_orders j
-      LEFT JOIN employers e ON j.employer_id = e.id
-      WHERE j.id = ?
-    `;
-    const row = await dbGet(db, getSql, [id]);
-    return { success: true, id: id, data: row };
+    return { success: true, id }; // Return success immediately
   } catch (err) {
+    console.error("Update Job Error:", err.message);
     return { success: false, error: err.message };
   }
 }
@@ -1822,9 +1815,9 @@ async function deletePassportEntry(id) {
     } catch (err) { return { success: false, error: err.message }; }
 }
 
-// [NEW] Get All Active Visas for Kanban Board
 async function getAllActiveVisas() {
   const db = getDatabase();
+  // FIXED: Changed "IS NULL" to "= 0" because the default value is 0
   const sql = `
     SELECT 
       v.*, 
@@ -1833,8 +1826,8 @@ async function getAllActiveVisas() {
       c.contact
     FROM visa_tracking v
     JOIN candidates c ON v.candidate_id = c.id
-    WHERE v.IsDeleted IS NULL AND c.IsDeleted IS NULL
-    ORDER BY v.id DESC
+    WHERE v.isDeleted = 0 AND c.isDeleted = 0
+    ORDER BY v.application_date DESC
   `;
   try {
     const rows = await dbAll(db, sql, []);
