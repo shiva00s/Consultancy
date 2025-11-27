@@ -1,71 +1,90 @@
-const { autoUpdater } = require('electron-updater');
+let autoUpdater = null;
+let hasElectronUpdater = false;
+
+// Try to load electron-updater, but don't fail if not installed
+try {
+  const updaterModule = require('electron-updater');
+  autoUpdater = updaterModule.autoUpdater;
+  hasElectronUpdater = true;
+} catch (err) {
+  console.log('⚠️ electron-updater not installed. Auto-update feature disabled.');
+  hasElectronUpdater = false;
+}
+
 const { dialog } = require('electron');
-const log = require('electron-log');
 
 class AutoUpdater {
   constructor(mainWindow) {
     this.mainWindow = mainWindow;
-    this.setupUpdater();
+    
+    if (hasElectronUpdater) {
+      this.setupUpdater();
+    } else {
+      console.log('Auto-updater skipped - electron-updater package not found');
+    }
   }
 
   setupUpdater() {
-    // Configure logging
-    log.transports.file.level = 'info';
-    autoUpdater.logger = log;
+    if (!hasElectronUpdater || !autoUpdater) {
+      return;
+    }
 
-    // Configure update server (GitHub Releases)
-    autoUpdater.autoDownload = false;
-    autoUpdater.autoInstallOnAppQuit = true;
+    try {
+      // Configure update settings
+      autoUpdater.autoDownload = false;
+      autoUpdater.autoInstallOnAppQuit = true;
 
-    // Update events
-    autoUpdater.on('checking-for-update', () => {
-      log.info('Checking for update...');
-      this.sendStatusToWindow('Checking for updates...');
-    });
+      // Update events
+      autoUpdater.on('checking-for-update', () => {
+        console.log('Checking for updates...');
+        this.sendStatusToWindow('Checking for updates...');
+      });
 
-    autoUpdater.on('update-available', (info) => {
-      log.info('Update available:', info);
-      this.showUpdateAvailableDialog(info);
-    });
+      autoUpdater.on('update-available', (info) => {
+        console.log('Update available:', info);
+        this.showUpdateAvailableDialog(info);
+      });
 
-    autoUpdater.on('update-not-available', (info) => {
-      log.info('Update not available:', info);
-      this.sendStatusToWindow('You are running the latest version');
-    });
+      autoUpdater.on('update-not-available', (info) => {
+        console.log('Update not available:', info);
+      });
 
-    autoUpdater.on('error', (err) => {
-      log.error('Error in auto-updater:', err);
-      this.sendStatusToWindow(`Update error: ${err.toString()}`);
-    });
+      autoUpdater.on('error', (err) => {
+        console.error('Error in auto-updater:', err);
+      });
 
-    autoUpdater.on('download-progress', (progressObj) => {
-      const logMessage = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}%`;
-      log.info(logMessage);
-      this.sendStatusToWindow(logMessage);
-      
-      // Send progress to renderer
-      if (this.mainWindow) {
-        this.mainWindow.webContents.send('download-progress', progressObj);
-      }
-    });
+      autoUpdater.on('download-progress', (progressObj) => {
+        const logMessage = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}%`;
+        console.log(logMessage);
+        this.sendStatusToWindow(logMessage);
+        
+        if (this.mainWindow) {
+          this.mainWindow.webContents.send('download-progress', progressObj);
+        }
+      });
 
-    autoUpdater.on('update-downloaded', (info) => {
-      log.info('Update downloaded:', info);
-      this.showUpdateDownloadedDialog(info);
-    });
+      autoUpdater.on('update-downloaded', (info) => {
+        console.log('Update downloaded:', info);
+        this.showUpdateDownloadedDialog(info);
+      });
+    } catch (error) {
+      console.error('Failed to setup auto-updater:', error);
+    }
   }
 
   showUpdateAvailableDialog(info) {
+    if (!this.mainWindow) return;
+
     dialog.showMessageBox(this.mainWindow, {
       type: 'info',
       title: 'Update Available',
       message: `A new version (${info.version}) is available!`,
-      detail: `Current version: ${require('../../../package.json').version}\nNew version: ${info.version}\n\nRelease notes:\n${info.releaseNotes || 'No release notes available'}`,
+      detail: `Release notes:\n${info.releaseNotes || 'No release notes available'}`,
       buttons: ['Download Update', 'Later'],
       defaultId: 0,
       cancelId: 1
     }).then((result) => {
-      if (result.response === 0) {
+      if (result.response === 0 && autoUpdater) {
         autoUpdater.downloadUpdate();
         this.sendStatusToWindow('Downloading update...');
       }
@@ -73,35 +92,54 @@ class AutoUpdater {
   }
 
   showUpdateDownloadedDialog(info) {
+    if (!this.mainWindow) return;
+
     dialog.showMessageBox(this.mainWindow, {
       type: 'info',
       title: 'Update Ready',
       message: 'Update downloaded successfully!',
-      detail: `Version ${info.version} has been downloaded. The application will restart to install the update.`,
+      detail: `Version ${info.version} has been downloaded. Restart to install.`,
       buttons: ['Restart Now', 'Later'],
       defaultId: 0,
       cancelId: 1
     }).then((result) => {
-      if (result.response === 0) {
+      if (result.response === 0 && autoUpdater) {
         autoUpdater.quitAndInstall(false, true);
       }
     });
   }
 
   sendStatusToWindow(text) {
-    log.info(text);
+    console.log(text);
     if (this.mainWindow) {
       this.mainWindow.webContents.send('update-status', text);
     }
   }
 
   checkForUpdates() {
-    autoUpdater.checkForUpdates();
+    if (hasElectronUpdater && autoUpdater) {
+      try {
+        autoUpdater.checkForUpdates();
+      } catch (error) {
+        console.error('Check for updates failed:', error);
+      }
+    } else {
+      console.log('Auto-updater not available');
+    }
   }
 
   checkForUpdatesAndNotify() {
-    autoUpdater.checkForUpdatesAndNotify();
+    if (hasElectronUpdater && autoUpdater) {
+      try {
+        autoUpdater.checkForUpdatesAndNotify();
+      } catch (error) {
+        console.error('Check for updates and notify failed:', error);
+      }
+    }
   }
 }
 
-module.exports = { AutoUpdater };
+module.exports = { AutoUpdater, hasElectronUpdater };
+Buffer.from(fileBuffer),
+        fileName,
+        'resumes' 

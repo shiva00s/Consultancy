@@ -260,7 +260,8 @@ function closeDatabase() {
 
 module.exports = {
   initializeDatabase,
-  getDb,
+  getDb: getDatabase,        // ← Add this alias
+  getDatabase,               // ← Keep this
   closeDatabase,
   getDatabasePath
 };

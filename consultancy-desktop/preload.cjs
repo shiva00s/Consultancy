@@ -207,14 +207,21 @@ getAdvancedAnalytics: (timeRange) => ipcRenderer.invoke('get-advanced-analytics'
   uploadResume: (data) => ipcRenderer.invoke('upload-resume', data),
   uploadPhoto: (data) => ipcRenderer.invoke('upload-photo', data),
 
-   initCloudSync: (provider, config) => ipcRenderer.invoke('init-cloud-sync', provider, config),
+// Cloud Sync APIs
+  initCloudSync: (provider, config) => ipcRenderer.invoke('init-cloud-sync', provider, config),
   createBackup: () => ipcRenderer.invoke('create-backup'),
+  createLocalBackup: (destinationPath) => ipcRenderer.invoke('create-local-backup', destinationPath),
   listBackups: () => ipcRenderer.invoke('list-backups'),
   restoreBackup: (fileId) => ipcRenderer.invoke('restore-backup', fileId),
+  restoreLocalBackup: (backupPath) => ipcRenderer.invoke('restore-local-backup', backupPath),
   enableAutoSync: (schedule) => ipcRenderer.invoke('enable-auto-sync', schedule),
   disableAutoSync: () => ipcRenderer.invoke('disable-auto-sync'),
   getSyncStatus: () => ipcRenderer.invoke('get-sync-status'),
+  testCloudConnection: (provider, config) => ipcRenderer.invoke('test-cloud-connection', provider, config),
+  deleteBackup: (fileId) => ipcRenderer.invoke('delete-backup', fileId),
+  getBackupDetails: (fileId) => ipcRenderer.invoke('get-backup-details', fileId),
+  exportDatabase: (destinationPath) => ipcRenderer.invoke('export-database', destinationPath),
+  importDatabase: (sourcePath) => ipcRenderer.invoke('import-database', sourcePath),
 
   
-
 });

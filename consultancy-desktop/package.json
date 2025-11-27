@@ -76,6 +76,7 @@
     "concurrently": "^8.2.2",
     "electron": "^39.1.2",
     "electron-builder": "^24.13.3",
+    "electron-updater": "^6.6.2",
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.7",
