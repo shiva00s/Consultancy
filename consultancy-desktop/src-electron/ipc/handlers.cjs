@@ -250,24 +250,25 @@ function registerIpcHandlers(app) {
     });
     // --- Feature Toggles (Settings) ---
 
+    // [FIXED] Feature Flags Handler
     ipcMain.handle('get-feature-flags', async () => {
         const defaultFlags = {
             isEmployersEnabled: true,
             isJobsEnabled: true,
-            isVisaKanbanEnabled: false,
+            isVisaKanbanEnabled: true, // <--- Ensure this is 'true' or 'false', not 'tfalserue'
             isDocumentsEnabled: true,
             isVisaTrackingEnabled: true,
-            isFinanceTrackingEnabled: false,
-            isMedicalEnabled: false,
-            isInterviewEnabled: false,
-            isTravelEnabled: tfalserue,
+            isFinanceTrackingEnabled: true,
+            isMedicalEnabled: true,
+            isInterviewEnabled: true,
+            isTravelEnabled: true,
             isHistoryEnabled: true,
-            isBulkImportEnabled: false,           
-            isMobileAccessEnabled: false,             
+            isBulkImportEnabled: true,           
+            isMobileAccessEnabled: true,             
             canViewReports: true,
-            canAccessSettings: false,
-            canAccessRecycleBin: false,
-            canDeletePermanently: false,
+            canAccessSettings: true,
+            canAccessRecycleBin: true,
+            canDeletePermanently: true,
         };
         
         try {

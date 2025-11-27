@@ -1,20 +1,27 @@
 import React, { useState } from 'react';
-import { FiCheckSquare,FiSettings, FiUsers, FiMail, FiFileText, FiDatabase, FiSmartphone } from 'react-icons/fi';
-// [FIX] Correct Import
-import ModuleVisibilityControl from '../components/settings/ModuleVisibilityControl'; 
-import UserManagement from '../components/settings/UserManagement';
-import EmailSettings from '../components/settings/EmailSettings';
-import OfferTemplateManager from '../components/settings/OfferTemplateManager';
-import DocumentRequirementManager from '../components/settings/DocumentRequirementManager';
-import MobileConnection from '../components/settings/MobileConnection';
-import BackupUtility from '../components/settings/BackupUtility';
+import { 
+  FiSettings, FiLock, FiUsers, FiMail, FiFileText, 
+  FiSmartphone, FiDatabase, FiLayout, FiCheckSquare 
+} from 'react-icons/fi';
 import '../css/SettingsPage.css';
 
+// Components
+import FeatureToggle from '../components/settings/FeatureToggle';
+import OfferTemplateManager from '../components/settings/OfferTemplateManager';
+import EmailSettings from '../components/settings/EmailSettings';
+import MobileConnection from '../components/settings/MobileConnection';
+import UserManagement from '../components/settings/UserManagement';
+import BackupUtility from '../components/settings/BackupUtility';
+import DocumentRequirementManager from '../components/settings/DocumentRequirementManager';
+import ChangePasswordModal from "../components/modals/ChangePasswordModal";
+import LicensePricingManager from '../components/settings/LicensePricingManager';
+
+
 function SettingsPage({ user }) {
-  const [activeTab, setActiveTab] = useState('modules');
+  const [activeTab, setActiveTab] = useState('users'); 
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
-
+  // Locate const tabs = [ ... ]
 
   const tabs = [
     { id: 'users', label: 'Users', icon: <FiUsers />, component: <UserManagement currentUser={user} /> },
@@ -34,27 +41,6 @@ function SettingsPage({ user }) {
   return (
     <div className="settings-page-wrapper">
       
-<div className="settings-sidebar">
-          <button className={activeTab === 'modules' ? 'active' : ''} onClick={() => setActiveTab('modules')}><FiSettings /> Modules & Features</button>
-          <button className={activeTab === 'users' ? 'active' : ''} onClick={() => setActiveTab('users')}><FiUsers /> User Management</button>
-          <button className={activeTab === 'email' ? 'active' : ''} onClick={() => setActiveTab('email')}><FiMail /> Email Configuration</button>
-          <button className={activeTab === 'templates' ? 'active' : ''} onClick={() => setActiveTab('templates')}><FiFileText /> Offer Templates</button>
-          <button className={activeTab === 'documents' ? 'active' : ''} onClick={() => setActiveTab('documents')}><FiFileText /> Required Documents</button>
-          <button className={activeTab === 'mobile' ? 'active' : ''} onClick={() => setActiveTab('mobile')}><FiSmartphone /> Mobile Access</button>
-          <button className={activeTab === 'backup' ? 'active' : ''} onClick={() => setActiveTab('backup')}><FiDatabase /> Backup & Restore</button>
-      </div>
-      
-      <div className="settings-content">
-        {/* [FIX] Use the component */}
-        {activeTab === 'modules' && <ModuleVisibilityControl user={user} />}
-        {activeTab === 'users' && <UserManagement currentUser={user} />}
-        {activeTab === 'email' && <EmailSettings user={user} />}
-        {activeTab === 'templates' && <OfferTemplateManager user={user} />}
-        {activeTab === 'documents' && <DocumentRequirementManager user={user} />}
-        {activeTab === 'mobile' && <MobileConnection user={user} />}
-        {activeTab === 'backup' && <BackupUtility user={user} />}
-      </div>
-
       {/* --- HEADER ROW --- */}
       <div className="settings-top-bar">
         <div className="settings-title-area">
