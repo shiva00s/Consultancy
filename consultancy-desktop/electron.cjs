@@ -64,8 +64,18 @@ app.whenReady().then(async () => {
     
     // 1. Initialize database
     console.log('📦 Initializing database...');
-    await initializeDatabase();
-    console.log('✅ Database initialized');
+    try {
+      await initializeDatabase();
+      console.log('✅ Database initialized');
+    } catch (dbError) {
+      console.error('❌ Database initialization failed:', dbError);
+      console.error('Error details:', {
+        message: dbError.message,
+        stack: dbError.stack,
+        code: dbError.code
+      });
+      throw dbError; // Re-throw to be caught by outer catch
+    }
     
     // 2. Initialize file manager
     console.log('📁 Initializing file manager...');

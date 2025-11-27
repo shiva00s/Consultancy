@@ -9,6 +9,8 @@
     "electron-dev": "electron .",
     "dev": "concurrently \"npm run react-dev\" \"npm run electron-dev\"",
     "build": "vite build",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "postinstall": "npm run rebuild",
     "package": "npm run build && electron-builder"
   },
   "build": {
@@ -77,6 +79,7 @@
     "concurrently": "^8.2.2",
     "electron": "^39.1.2",
     "electron-builder": "^24.13.3",
+    "electron-rebuild": "^3.2.9",
     "electron-updater": "^6.6.2",
     "esbuild": "^0.27.0",
     "eslint": "^8.57.0",
