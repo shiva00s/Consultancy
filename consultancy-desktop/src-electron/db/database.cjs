@@ -9,6 +9,12 @@ let db = null;
  * Get user data path for database
  */
 function getDatabasePath() {
+
+  if (!db) {
+    throw new Error('Database not initialized. Call initializeDatabase() first.');
+  }
+  return db;
+
   const userDataPath = app.getPath('userData');
   const dbDir = path.join(userDataPath, 'database');
   
@@ -260,8 +266,8 @@ function closeDatabase() {
 
 module.exports = {
   initializeDatabase,
-  getDb: getDatabase,        // ← Add this alias
-  getDatabase,               // ← Keep this
+  getDb,              // ← Make sure this exists
+  getDatabase: getDb, // ← Add alias
   closeDatabase,
   getDatabasePath
 };
