@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 const initialFormData = {
   monthlySalary: '40000',
   joiningDate: new Date().toISOString().slice(0, 10),
-  acceptanceDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), // 7 days from now
+  acceptanceDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), 
 };
 
 function OfferLetterGenerator({user, candidateId, jobId }) {
@@ -18,7 +18,6 @@ function OfferLetterGenerator({user, candidateId, jobId }) {
   };
 
  const handleGenerate = async () => {
-    // Input validation
     if (!formData.monthlySalary || !formData.joiningDate || !jobId) {
       toast.error('Salary, Joining Date, and a valid Job Assignment are required.');
       return;
@@ -26,7 +25,6 @@ function OfferLetterGenerator({user, candidateId, jobId }) {
     
     setIsGenerating(true);
     
-    // Pass the state data directly to the backend as templateData
     const genRes = await window.electronAPI.generateOfferLetter({
       user,
       candidateId: candidateId,
@@ -37,7 +35,7 @@ function OfferLetterGenerator({user, candidateId, jobId }) {
     if (genRes.success) {
       toast.loading(`Generating PDF for ${genRes.candidateName}...`, { id: 'pdf-gen' });
       
-      // FIX: Changed printToPdf -> printToPDF to match preload script
+      // FIX: Correct function name is printToPDF (uppercase PDF)
       const pdfRes = await window.electronAPI.printToPDF(genRes.tempPath);
       
       toast.dismiss('pdf-gen');
