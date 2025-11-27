@@ -1,20 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiX, FiAlertTriangle } from 'react-icons/fi';
 
-function JobEditModal({user, job, employers, onClose, onSave }) {
-  const [formData, setFormData] = useState(job);
+function JobEditModal({ user, job, employers, onClose, onSave }) {
+  // Initialize with defaults to prevent "uncontrolled input" warnings
+  const [formData, setFormData] = useState({
+    employer_id: '',
+    positionTitle: '',
+    country: '',
+    openingsCount: 1,
+    status: 'Open',
+    requirements: '',
+    ...job // Spread existing job data
+  });
+  
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
-const defaultJob = {
-  id: null,
-  employer_id: "",
-  positionTitle: "",
-  jobDescription: "",
-  salary: "",
-  location: "",
-  created_at: "",
-};
 
+  // CRITICAL FIX: Update form data when the 'job' prop changes or modal opens
+  useEffect(() => {
+    if (job) {
+      setFormData(prev => ({
+        ...prev,
+        ...job,
+        // Ensure employer_id is a string or number that matches select options
+        employer_id: job.employer_id || '' 
+      }));
+    }
+  }, [job]);
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
@@ -27,7 +39,7 @@ const defaultJob = {
       setError('Employer is required.');
       return false;
     }
-    if (!formData.positionTitle || formData.positionTitle.trim() === '') {
+    if (!formData.positionTitle || String(formData.positionTitle).trim() === '') {
       setError('Position Title is required.');
       return false;
     }
@@ -44,17 +56,19 @@ const defaultJob = {
     if (!validate()) return;
 
     setIsSaving(true);
-    // Call the new backend update handler
+    
+    // Call backend
     const res = await window.electronAPI.updateJobOrder({ 
       user,
-        id: job.id, 
-        data: formData 
+      id: job.id, 
+      data: formData 
     });
 
     if (res.success) {
-      onSave(res.data); // Pass the updated job (with company name) back
+      onSave(res); // Pass result back to parent
       onClose();
     } else {
+      console.error("Update failed:", res.error);
       setError(res.error || 'Failed to save changes.');
     }
     setIsSaving(false);
@@ -65,7 +79,7 @@ const defaultJob = {
       <div className="viewer-modal-content payment-modal" onClick={(e) => e.stopPropagation()} style={{maxWidth: '600px', height: 'fit-content'}}>
         <button className="viewer-close-btn" onClick={onClose}><FiX /></button>
         <div className="viewer-header">
-          <h3>Edit Job Order: {job.positionTitle}</h3>
+          <h3>Edit Job Order: {job?.positionTitle}</h3>
         </div>
         <div className="payment-modal-body" style={{padding: '2rem'}}>
           <form onSubmit={handleSave} className="form-grid" style={{gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
@@ -75,6 +89,7 @@ const defaultJob = {
             <div className="form-group full-width">
               <label>Employer / Company</label>
               <select name="employer_id" value={formData.employer_id} onChange={handleFormChange}>
+                <option value="">-- Select Employer --</option>
                 {employers.map((emp) => (
                   <option key={emp.id} value={emp.id}>
                     {emp.companyName} ({emp.country})
@@ -85,7 +100,7 @@ const defaultJob = {
             
             <div className="form-group">
               <label>Position Title</label>
-              <input type="text" name="positionTitle" value={formData.positionTitle} onChange={handleFormChange} />
+              <input type="text" name="positionTitle" value={formData.positionTitle || ''} onChange={handleFormChange} />
             </div>
             
             <div className="form-group">
