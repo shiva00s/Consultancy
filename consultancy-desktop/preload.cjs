@@ -222,6 +222,6 @@ getAdvancedAnalytics: (timeRange) => ipcRenderer.invoke('get-advanced-analytics'
   getBackupDetails: (fileId) => ipcRenderer.invoke('get-backup-details', fileId),
   exportDatabase: (destinationPath) => ipcRenderer.invoke('export-database', destinationPath),
   importDatabase: (sourcePath) => ipcRenderer.invoke('import-database', sourcePath),
-
+bulkImportDocuments: (args) => ipcRenderer.invoke('bulk-import-documents', args),
   
 });

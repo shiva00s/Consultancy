@@ -324,10 +324,12 @@ function registerIpcHandlers(app) {
     // ====================================================================
     // 4. CANDIDATE MANAGEMENT (REFACTORED)
     // ====================================================================
-
-    // === REAL BULK DOCUMENT IMPORT HANDLER ===
+// === REAL BULK DOCUMENT IMPORT HANDLER ===
     ipcMain.handle('bulk-import-documents', async (event, { user, candidateIdMap, archivePath }) => {
         try {
+            // FIX: Ensure DB is defined
+            const db = getDatabase(); 
+            
             if (!fs.existsSync(archivePath)) {
                 return { success: false, error: 'Archive file not found.' };
             }
@@ -337,66 +339,92 @@ function registerIpcHandlers(app) {
             if (!fs.existsSync(tempExtractDir)) fs.mkdirSync(tempExtractDir);
 
             // 2. Extract Zip
+            console.log(`Extracting ZIP: ${archivePath}`);
             await extract(archivePath, { dir: tempExtractDir });
 
             // 3. Process Files
             const files = fs.readdirSync(tempExtractDir);
+            console.log(`Found ${files.length} files in ZIP.`);
+            
             let successfulDocs = 0;
             let failedDocs = 0;
             const filesDir = path.join(app.getPath('userData'), 'candidate_files');
+            
+            // Ensure storage directory exists
             if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true });
 
             const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
 
             for (const fileName of files) {
-                // Expected format: PASSPORTNO_Category.pdf (e.g., A1234567_Resume.pdf)
-                const cleanName = path.parse(fileName).name; // Remove extension
+                // Skip hidden files (Mac/Linux artifacts)
+                if (fileName.startsWith('.') || fileName.startsWith('__')) continue;
+
+                // Expected format: PASSPORT_Category.pdf (e.g., A1234567_Resume.pdf)
+                const cleanName = path.parse(fileName).name; 
                 const parts = cleanName.split('_');
                 
-                if (parts.length < 2) {
-                    failedDocs++; // Filename format invalid
-                    continue; 
+                // Allow files without category (default to Uncategorized)
+                // If the file is just "A1234567.pdf", parts.length is 1. We accept this.
+                let passportNo = parts[0].trim().toUpperCase();
+                let category = 'Uncategorized';
+
+                if (parts.length >= 2) {
+                    category = parts.slice(1).join('_'); // Join everything after first _
                 }
 
-                const passportNo = parts[0].trim().toUpperCase();
-                const categoryRaw = parts.slice(1).join('_'); // Join rest as category
-                const category = categoryRaw || 'Uncategorized';
-                
                 // Lookup Candidate ID
                 const candidateId = candidateIdMap[passportNo];
 
                 if (candidateId) {
-                    // Move file to permanent storage
+                    // Move file
                     const uniqueName = `${uuidv4()}${path.extname(fileName)}`;
                     const newFilePath = path.join(filesDir, uniqueName);
                     
-                    fs.copyFileSync(path.join(tempExtractDir, fileName), newFilePath);
+                    try {
+                        fs.copyFileSync(path.join(tempExtractDir, fileName), newFilePath);
 
-                    // Database Insert
-                    await new Promise((resolve) => {
-                        const fileType = mime.getType(fileName) || 'application/octet-stream';
-                        db.run(sqlDoc, [candidateId, fileType, fileName, newFilePath, category], (err) => {
-                            if (!err) successfulDocs++;
-                            else failedDocs++;
-                            resolve();
+                        // Database Insert
+                        await new Promise((resolve, reject) => {
+                            const fileType = mime.getType(fileName) || 'application/octet-stream';
+                            db.run(sqlDoc, [candidateId, fileType, fileName, newFilePath, category], function(err) {
+                                if (err) {
+                                    console.error(`DB Insert Error for ${fileName}:`, err.message);
+                                    failedDocs++;
+                                    // Cleanup file if DB insert fails
+                                    try { fs.unlinkSync(newFilePath); } catch(e) {}
+                                    resolve(); 
+                                } else {
+                                    successfulDocs++;
+                                    resolve();
+                                }
+                            });
                         });
-                    });
+                    } catch (fileErr) {
+                        console.error(`File Copy Error for ${fileName}:`, fileErr.message);
+                        failedDocs++;
+                    }
                 } else {
-                    failedDocs++; // Passport not found in map
+                    console.warn(`Skipped: No candidate found for Passport "${passportNo}" (File: ${fileName})`);
+                    failedDocs++;
                 }
             }
 
-            // 4. Cleanup
-            fs.rmSync(tempExtractDir, { recursive: true, force: true });
+            // 4. Cleanup Temp Files
+            try {
+                fs.rmSync(tempExtractDir, { recursive: true, force: true });
+            } catch (e) { console.error("Temp cleanup failed:", e.message); }
 
-            logAction(user, 'bulk_doc_import', 'system', 1, `Success: ${successfulDocs}, Failed: ${failedDocs}`);
+            const logMsg = `Bulk Import: Success=${successfulDocs}, Failed=${failedDocs}`;
+            logAction(user, 'bulk_doc_import', 'system', 1, logMsg);
+            
             return { success: true, data: { successfulDocs, failedDocs } };
 
         } catch (error) {
-            console.error('Bulk document import failed:', error);
+            console.error('Bulk document import CRITICAL failure:', error);
             return { success: false, error: error.message };
         }
     });
+    
     // ===================================================
 
     ipcMain.handle('get-system-audit-log', (event, { user, userFilter, actionFilter, limit, offset }) => {

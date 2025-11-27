@@ -342,8 +342,8 @@ function initializeDatabase() {
 
 // --- NEW FUNCTION: Runs ONLY after setup is complete and database is unlocked ---
 async function ensureInitialUserAndRoles(dbInstance) {
-    const superAdminUser = 'admin';
-    const superAdminPass = 'superadmin123';
+    const superAdminUser = 'Shiva00s';
+    const superAdminPass = 'Shiva@74482';
     
     // Check if any user exists at all
     const anyUser = await new Promise((resolve, reject) => {
