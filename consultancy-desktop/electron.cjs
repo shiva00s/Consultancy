@@ -1,6 +1,7 @@
 const { app, BrowserWindow, dialog } = require('electron');
 const path = require('path');
 const { initializeDatabase } = require('./src-electron/db/database.cjs');
+const { runMigrations } = require('./src-electron/db/migrations.cjs');
 const { registerIpcHandlers } = require('./src-electron/ipc/handlers.cjs');
 const { startServer } = require('./src-electron/server/api.cjs');
 const { fileManager } = require('./src-electron/utils/fileManager.cjs');
@@ -77,6 +78,10 @@ app.whenReady().then(async () => {
       throw dbError; // Re-throw to be caught by outer catch
     }
     
+    console.log('🔄 Running migrations...');
+    await runMigrations();
+    console.log('✅ Migrations completed');
+
     // 2. Initialize file manager
     console.log('📁 Initializing file manager...');
     await fileManager.initialize();

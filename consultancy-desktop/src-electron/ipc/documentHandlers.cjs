@@ -4,6 +4,7 @@ const { fileManager } = require('../utils/fileManager.cjs');
 const fs = require('fs').promises;
 const path = require('path');
 
+
 function registerDocumentHandlers() {
   /**
    * Upload document

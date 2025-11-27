@@ -160,7 +160,7 @@ function CandidatePassport({ candidateId, documents }) {
                         </h3>
                         {passportDoc && (
                             <button type="button" className="btn btn-secondary" onClick={handleViewPassport} title={`View ${passportDoc.fileName}`} style={{padding: '0 12px', fontSize: '0.75rem', height: '32px', display: 'flex', gap: '6px', alignItems: 'center'}}>
-                                <FiEye /> View Passport
+                                <FiEye /> View Doc
                             </button>
                         )}
                     </div>

@@ -33,18 +33,18 @@ const logAction = (user, action, target_type, target_id, details = null) => {
             console.error('Audit Log: Database is not initialized.');
             return;
         }
-            // FIX: Robust User Check
-        if (!user || !user.id) {
-            console.error('Audit Log: User ID missing. Skipping log.');
-            return;
-        }
         
-        // Fallback if username is missing (e.g. Mobile API context sometimes)
+        // FIX: Robust User Check
+        if (!user || !user.id) {
+            console.warn('Audit Log: User ID missing. Skipping log for action:', action);
+            return; // ← Just return, don't throw error
+        }
+
         const safeUsername = user.username || `User_${user.id}`;
 
         const sql = `INSERT INTO audit_log (user_id, username, action, target_type, target_id, details)
                      VALUES (?, ?, ?, ?, ?, ?)`;
-        
+
         db.run(sql, [user.id, safeUsername, action, target_type, target_id, details], (err) => {
             if (err) {
                 console.error('Failed to write to audit_log:', err.message);
@@ -54,7 +54,7 @@ const logAction = (user, action, target_type, target_id, details = null) => {
         console.error('Critical error in logAction:', e.message);
     }
 };
-// --- END NEW HELPER ---
+
 
 
 const extractResumeDetails = (text) => {
@@ -493,14 +493,7 @@ ipcMain.handle('add-documents', async (event, { user, candidateId, files }) => {
         return { success: false, error: error.message };
     }
 });
-    // ====================================================================
-    ipcMain.handle('delete-document', async (event, { user, docId }) => {
-        const result = await queries.deleteDocument(docId);
-        if (result.success) {
-            logAction(user, 'delete_document', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, File: ${result.fileName}`);
-        }
-        return result;
-    });
+    
     // ====================================================================
     ipcMain.handle('update-document-category', async (event, { user, docId, category }) => {
         const result = await queries.updateDocumentCategory(docId, category);
