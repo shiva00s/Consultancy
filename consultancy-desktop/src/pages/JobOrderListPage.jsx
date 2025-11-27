@@ -1,55 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   FiClipboard,
   FiPlus,
-  FiEdit2, 
-  FiTrash2, 
-} from 'react-icons/fi';
-import JobEditModal from "../components/JobEditModal";
-import toast from 'react-hot-toast';
-import useDataStore from '../store/dataStore'; 
-// REMOVED: import { shallow } from 'zustand/shallow'; 
-import useAuthStore from '../store/useAuthStore';
-import "../css/JobOrderListPage.css";
+  FiEdit2,
+  FiTrash2,
+} from "react-icons/fi";
 
+import JobEditModal from "../components/JobEditModal";
+import toast from "react-hot-toast";
+
+import useDataStore from "../store/dataStore";
+import useAuthStore from "../store/useAuthStore";
+
+import "../css/JobOrderListPage.css";
 
 function JobOrderListPage() {
   const initialForm = {
-    employer_id: '',
-    positionTitle: '',
-    country: '',
+    employer_id: "",
+    positionTitle: "",
+    country: "",
     openingsCount: 1,
-    status: 'Open',
-    requirements: '',
+    status: "Open",
+    requirements: "",
   };
-  
-  const { 
-    jobs, 
-    employers, 
-    isLoaded, 
-    addJob: addJobToStore,
-    updateJob: updateJobInStore,
-    deleteJob: deleteJobToStore
-  } = useDataStore((state) => ({
-    jobs: state.jobs,
-    employers: state.employers,
-    isLoaded: state.isLoaded,
-    addJob: state.addJob,
-    updateJob: state.updateJob,
-    deleteJob: state.deleteJob,
-  })); // FIX: Removed ', shallow'
-  
-  const { user } = useAuthStore(
-    (state) => ({ user: state.user })
-  ); // FIX: Removed ', shallow'
-  
+
+  // -----------------------------------------
+  // FIXED ZUSTAND SUBSCRIPTIONS (NO OBJECT)
+  // -----------------------------------------
+  const jobs = useDataStore((state) => state.jobs);
+  const employers = useDataStore((state) => state.employers);
+  const isLoaded = useDataStore((state) => state.isLoaded);
+
+  const addJobToStore = useDataStore((state) => state.addJob);
+  const updateJobInStore = useDataStore((state) => state.updateJob);
+  const deleteJobToStore = useDataStore((state) => state.deleteJob);
+
+  const user = useAuthStore((state) => state.user);
+
+  // -----------------------------------------
+  // COMPONENT STATES
+  // -----------------------------------------
   const [formData, setFormData] = useState(initialForm);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({});
   const [editingJob, setEditingJob] = useState(null);
 
+  // -----------------------------------------
+  // FORM CHANGES
+  // -----------------------------------------
   const handleTextChange = (e) => {
     const { name, value } = e.target;
+
     setFormData((prev) => ({ ...prev, [name]: value }));
 
     if (errors[name]) {
@@ -57,104 +58,129 @@ function JobOrderListPage() {
     }
   };
 
+  // -----------------------------------------
+  // VALIDATION
+  // -----------------------------------------
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.employer_id) {
-      newErrors.employer_id = 'You must select an employer.';
-    }
+    if (!formData.employer_id) newErrors.employer_id = "You must select an employer.";
 
-    if (!formData.positionTitle || formData.positionTitle.trim() === '') {
-      newErrors.positionTitle = 'Position Title is required.';
+    if (!formData.positionTitle || formData.positionTitle.trim() === "") {
+      newErrors.positionTitle = "Position Title is required.";
     }
 
     const openings = parseInt(formData.openingsCount, 10);
     if (isNaN(openings) || openings < 1) {
-      newErrors.openingsCount = 'Openings must be at least 1.';
+      newErrors.openingsCount = "Openings must be at least 1.";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // -----------------------------------------
+  // SUBMIT ADD JOB
+  // -----------------------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!validateForm()) {
-      toast.error('Please correct the errors in the form.');
+      toast.error("Please correct the errors in the form.");
       return;
     }
 
     setIsSaving(true);
-    const res = await window.electronAPI.addJobOrder({user, data: formData });
+    const res = await window.electronAPI.addJobOrder({ user, data: formData });
 
     if (res.success) {
       addJobToStore(res.data);
       setFormData(initialForm);
       setErrors({});
-      toast.success('Job Order added successfully!');
+      toast.success("Job Order added successfully!");
     } else {
-      toast.error(res.error || 'Failed to add job order.');
+      toast.error(res.error || "Failed to add job order.");
     }
+
     setIsSaving(false);
   };
-  
+
+  // -----------------------------------------
+  // UPDATE JOB
+  // -----------------------------------------
   const handleUpdateJob = (updatedData) => {
     updateJobInStore(updatedData.data);
     toast.success(`Job Order "${updatedData.data.positionTitle}" updated successfully!`);
   };
 
+  // -----------------------------------------
+  // DELETE JOB
+  // -----------------------------------------
   const handleDeleteJob = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to move job "${name}" to the Recycle Bin? All linked placements will also be soft-deleted.`)) return;
+    if (
+      !window.confirm(
+        `Are you sure you want to move job "${name}" to the Recycle Bin? All linked placements will also be soft-deleted.`
+      )
+    )
+      return;
 
-    const res = await window.electronAPI.deleteJobOrder({user, id });
+    const res = await window.electronAPI.deleteJobOrder({ user, id });
 
     if (res.success) {
       deleteJobToStore(id);
       toast.success(`Job Order "${name}" and linked placements moved to Recycle Bin.`);
     } else {
-      toast.error(res.error || 'Failed to delete job order.');
-    }
-  };
-  
-  // Helper function to map status to global badge class
-  const getStatusBadgeClass = (status) => {
-    switch(status) {
-        case 'Open': return 'badge-green';
-        case 'Closed': return 'badge-grey';
-        case 'On Hold': return 'badge-yellow';
-        default: return 'badge-grey';
+      toast.error(res.error || "Failed to delete job order.");
     }
   };
 
+  // -----------------------------------------
+  // STATUS BADGE STYLES
+  // -----------------------------------------
+  const getStatusBadgeClass = (status) => {
+    switch (status) {
+      case "Open":
+        return "badge-green";
+      case "Closed":
+        return "badge-grey";
+      case "On Hold":
+        return "badge-yellow";
+      default:
+        return "badge-grey";
+    }
+  };
+
+  // -----------------------------------------
+  // LOADING
+  // -----------------------------------------
   if (!isLoaded) return <p>Loading jobs and employers...</p>;
 
+  // -----------------------------------------
+  // RENDER UI
+  // -----------------------------------------
   return (
     <div className="job-page-container">
-      
       {editingJob && (
-        <JobEditModal 
+        <JobEditModal
           user={user}
           job={editingJob}
-          employers={employers} 
+          employers={employers}
           onClose={() => setEditingJob(null)}
           onSave={handleUpdateJob}
         />
       )}
-      
+
       <h1>Job Order Management</h1>
 
-      {/* --- NEW UNIFIED LAYOUT GRID --- */}
       <div className="job-layout">
-        
-        {/* Left Column: Add Job Form (Form is already wrapped in .form-card) */}
+        {/* LEFT FORM */}
         <div className="form-card">
           <h2>
             <FiPlus /> Add New Job Order
           </h2>
+
           <form onSubmit={handleSubmit}>
-            
-            <div className={`form-group ${errors.employer_id ? 'error' : ''}`}>
+            <div className={`form-group ${errors.employer_id ? "error" : ""}`}>
               <label>Employer / Company</label>
               <select
                 name="employer_id"
@@ -171,7 +197,7 @@ function JobOrderListPage() {
               {errors.employer_id && <p className="error-text">{errors.employer_id}</p>}
             </div>
 
-            <div className={`form-group ${errors.positionTitle ? 'error' : ''}`}>
+            <div className={`form-group ${errors.positionTitle ? "error" : ""}`}>
               <label>Position Title</label>
               <input
                 type="text"
@@ -179,7 +205,9 @@ function JobOrderListPage() {
                 value={formData.positionTitle}
                 onChange={handleTextChange}
               />
-              {errors.positionTitle && <p className="error-text">{errors.positionTitle}</p>}
+              {errors.positionTitle && (
+                <p className="error-text">{errors.positionTitle}</p>
+              )}
             </div>
 
             <div className="form-group">
@@ -192,16 +220,18 @@ function JobOrderListPage() {
               />
             </div>
 
-            <div className={`form-group ${errors.openingsCount ? 'error' : ''}`}>
+            <div className={`form-group ${errors.openingsCount ? "error" : ""}`}>
               <label>Number of Openings</label>
               <input
                 type="number"
-                name="openingsCount"
                 min="1"
+                name="openingsCount"
                 value={formData.openingsCount}
                 onChange={handleTextChange}
               />
-              {errors.openingsCount && <p className="error-text">{errors.openingsCount}</p>}
+              {errors.openingsCount && (
+                <p className="error-text">{errors.openingsCount}</p>
+              )}
             </div>
 
             <div className="form-group">
@@ -216,26 +246,28 @@ function JobOrderListPage() {
                 <option value="On Hold">On Hold</option>
               </select>
             </div>
-            
+
             <div className="form-group">
               <label>Requirements / Notes</label>
               <textarea
                 name="requirements"
                 value={formData.requirements}
                 onChange={handleTextChange}
-              ></textarea>
+              />
             </div>
-            <button type="submit" className="btn" disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save Job Order'}
+
+            <button className="btn" type="submit" disabled={isSaving}>
+              {isSaving ? "Saving..." : "Save Job Order"}
             </button>
           </form>
         </div>
 
-        {/* Right Column: Job List (List is already wrapped in .list-card) */}
+        {/* RIGHT LIST */}
         <div className="list-card">
           <h2>
             <FiClipboard /> Existing Job Orders ({jobs.length})
           </h2>
+
           <div className="job-list">
             {jobs.length === 0 ? (
               <p>No job orders found. Add one using the form.</p>
@@ -245,37 +277,40 @@ function JobOrderListPage() {
                   <div className="job-item-info">
                     <h3>{job.positionTitle}</h3>
                     <p>
-                      {job.companyName} - {job.country || 'N/A'}
+                      {job.companyName} - {job.country || "N/A"}
                     </p>
                   </div>
+
                   <div className="job-item-status">
-                    <span
-                      className={`status-badge ${getStatusBadgeClass(job.status)}`}
-                    >
+                    <span className={`status-badge ${getStatusBadgeClass(job.status)}`}>
                       {job.status}
                     </span>
-                    <span className="job-item-count">
-                      {job.openingsCount} Openings
-                    </span>
+                    <span className="job-item-count">{job.openingsCount} Openings</span>
                   </div>
-                  
+
                   <div className="job-item-actions">
-                    <button 
-                      className="doc-btn view" 
+                    <button
+                      className="doc-btn view"
                       title="Edit Job Order"
-                      onClick={(e) => { e.stopPropagation(); setEditingJob(job); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingJob(job);
+                      }}
                     >
                       <FiEdit2 />
                     </button>
-                    <button 
-                      className="doc-btn delete" 
+
+                    <button
+                      className="doc-btn delete"
                       title="Move to Recycle Bin"
-                      onClick={(e) => { e.stopPropagation(); handleDeleteJob(job.id, job.positionTitle); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteJob(job.id, job.positionTitle);
+                      }}
                     >
                       <FiTrash2 />
                     </button>
                   </div>
-                  
                 </div>
               ))
             )}

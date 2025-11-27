@@ -325,53 +325,106 @@ function registerIpcHandlers(app) {
     // 4. CANDIDATE MANAGEMENT (REFACTORED)
     // ====================================================================
 
-    // === NEW: BULK DOCUMENT IMPORT HANDLER (INJECTED) ===
+    // src-electron/ipc/handlers.cjs
+
+// ... (Keep existing imports at the top)
+
+    // === REAL BULK DOCUMENT IMPORT HANDLER ===
     ipcMain.handle('bulk-import-documents', async (event, { user, candidateIdMap, archivePath }) => {
-        // NOTE: candidateIdMap is { PassportNo: CandidateId, ... }
-        // This is a complex operation requiring a library like 'yauzl' (for .zip) or similar.
-        // We will implement the core structure and mock the file extraction process.
-        
         try {
+            // CRITICAL FIX: Ensure DB is defined within the handler scope
+            const db = getDatabase(); 
+            
             if (!fs.existsSync(archivePath)) {
                 return { success: false, error: 'Archive file not found.' };
             }
-            
-            logAction(user, 'start_bulk_doc_import', 'system', 1, `Archive: ${path.basename(archivePath)}, Candidates: ${Object.keys(candidateIdMap).length}`);
-            
-            // --- MOCK: Simulate document extraction and insertion ---
-            const mockFilesDir = path.join(app.getPath('userData'), 'candidate_files');
-            if (!fs.existsSync(mockFilesDir)) fs.mkdirSync(mockFilesDir, { recursive: true });
 
-            const successfulDocs = 0;
-            const failedDocs = 0;
-            // In a real app, this is where you extract the ZIP/RAR
-            // and try to match filenames (PassportNo_DocumentType.pdf) to candidateIdMap.
-            /* Example logic if we had a proper extractor library:
+            // 1. Prepare Temp Directory
+            const tempExtractDir = path.join(os.tmpdir(), `import_${uuidv4()}`);
+            if (!fs.existsSync(tempExtractDir)) fs.mkdirSync(tempExtractDir);
+
+            // 2. Extract Zip
+            console.log(`Extracting ZIP: ${archivePath}`);
+            await extract(archivePath, { dir: tempExtractDir });
+
+            // 3. Process Files
+            const files = fs.readdirSync(tempExtractDir);
+            console.log(`Found ${files.length} items in ZIP.`);
             
-            for (const file in archive) {
-                const parts = file.name.split('_');
-                // e.g., PassportNo_Resume.pdf
-                const passportNo = parts[0];
-                const docCategory = parts[1].replace(path.extname(file.name), '');
+            let successfulDocs = 0;
+            let failedDocs = 0;
+            const filesDir = path.join(app.getPath('userData'), 'candidate_files');
+            
+            // Ensure storage directory exists
+            if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true });
+
+            const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
+
+            for (const fileName of files) {
+                // Skip Mac/Linux artifacts and hidden files
+                if (fileName.startsWith('.') || fileName.startsWith('__')) continue;
+
+                const cleanName = path.parse(fileName).name; 
+                const parts = cleanName.split('_');
                 
+                // Allow files without category (PassportNo.pdf)
+                let passportNo = parts[0].trim().toUpperCase();
+                let category = 'Uncategorized';
+
+                if (parts.length >= 2) {
+                    category = parts.slice(1).join('_'); // Everything after first _ is category
+                }
+
+                // Lookup Candidate ID
                 const candidateId = candidateIdMap[passportNo];
-                
+
                 if (candidateId) {
-                    // Save file and insert into 'documents' table...
-                    successfulDocs++;
+                    // Prepare paths and copy file
+                    const uniqueName = `${uuidv4()}${path.extname(fileName)}`;
+                    const newFilePath = path.join(filesDir, uniqueName);
+                    
+                    try {
+                        // A. Copy file to permanent storage
+                        fs.copyFileSync(path.join(tempExtractDir, fileName), newFilePath);
+
+                        // B. Database Insert (Awaited Promise)
+                        await new Promise((resolve, reject) => {
+                            const fileType = mime.getType(fileName) || 'application/octet-stream';
+                            db.run(sqlDoc, [candidateId, fileType, fileName, newFilePath, category], function(err) {
+                                if (err) {
+                                    console.error(`DB Insert Failed for ${fileName}:`, err.message);
+                                    failedDocs++;
+                                    // Cleanup file if DB insert fails
+                                    try { fs.unlinkSync(newFilePath); } catch(e) {}
+                                    resolve(); 
+                                } else {
+                                    successfulDocs++;
+                                    resolve();
+                                }
+                            });
+                        });
+                    } catch (fileErr) {
+                        console.error(`File Copy Error for ${fileName}:`, fileErr.message);
+                        failedDocs++;
+                    }
                 } else {
+                    console.warn(`Skipped: No candidate found for Passport "${passportNo}" (File: ${fileName})`);
                     failedDocs++;
                 }
             }
-            */
+
+            // 4. Cleanup Temp Files
+            try {
+                fs.rmSync(tempExtractDir, { recursive: true, force: true });
+            } catch (e) { console.error("Temp cleanup failed:", e.message); }
+
+            const logMsg = `Bulk Import: Success=${successfulDocs}, Failed=${failedDocs}`;
+            logAction(user, 'bulk_doc_import', 'system', 1, logMsg);
             
-            // --- END MOCK ---
-            
-            logAction(user, 'complete_bulk_doc_import', 'system', 1, `Success: ${successfulDocs}, Failed: ${failedDocs} (Requires extraction library implementation)`);
-            // For now, return success placeholder to complete the flow.
-            return { success: true, data: { successfulDocs: 0, failedDocs: 0, message: "Structure ready, physical extraction library pending." } };
+            return { success: true, data: { successfulDocs, failedDocs } };
+
         } catch (error) {
-            console.error('Bulk document import failed:', error);
+            console.error('Bulk document import CRITICAL failure:', error);
             return { success: false, error: error.message };
         }
     });
