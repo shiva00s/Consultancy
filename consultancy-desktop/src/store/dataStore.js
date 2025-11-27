@@ -85,11 +85,21 @@ const useDataStore = create((set, get) => ({
   })),
   
   // 6. Update a job
-  updateJob: (updatedJob) => set((state) => ({
-    jobs: state.jobs.map(job => 
-      job.id === updatedJob.id ? updatedJob : job
-    ),
-  })),
+  updateJob: (updatedJob) => set((state) => {
+  if (!updatedJob || !updatedJob.id) {
+    console.error("updateJob failed: updatedJob is invalid", updatedJob);
+    return state;
+  }
+
+  return {
+    jobs: state.jobs
+      .filter(job => job && job.id !== undefined) // remove undefined items
+      .map(job =>
+        job.id === updatedJob.id ? updatedJob : job
+      ),
+  };
+}),
+
 
   // 7. Delete a job (remove from list)
   deleteJob: (id) => set((state) => ({

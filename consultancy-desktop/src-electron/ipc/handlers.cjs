@@ -618,20 +618,26 @@ ipcMain.handle('getImageBase64', (event, { filePath }) => {
         return result;
     });
     // ====================================================================
-    // src-electron/ipc/handlers.cjs
+    // --- JOB ORDER HANDLERS ---
 
-ipcMain.handle('update-job-order', async (event, { user, id, data }) => {
-    // PASS user, id, AND data to the query
-    const result = await queries.updateJobOrder(user, id, data);
-    
-    if (result.success) {
-        logAction(user, 'update_job', 'job_orders', id, `Position: ${data.positionTitle}, Status: ${data.status}`);
-    }
-    return result;
-});
-    // ====================================================================
+    ipcMain.handle('update-job-order', async (event, { user, id, data }) => {
+        // Log to debug console to confirm data arrival
+        console.log(`[IPC] Updating Job Order ID: ${id} for User: ${user?.username}`);
+        
+        // Pass user, id, and data explicitly
+        const result = await queries.updateJobOrder(user, id, data);
+        
+        if (result.success) {
+            logAction(user, 'update_job', 'job_orders', id, `Position: ${data.positionTitle}`);
+        }
+        return result;
+    });
+
     ipcMain.handle('delete-job-order', async (event, { user, id }) => {
+        console.log(`[IPC] Deleting Job Order ID: ${id}`);
+        
         const result = await queries.deleteJobOrder(user, id);
+        
         if (result.success) {
             logAction(user, 'delete_job', 'job_orders', id);
         }

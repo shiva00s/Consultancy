@@ -982,20 +982,30 @@ async function addJobOrder(user, data) {
   }
 }
 
+// --- JOB ORDER FUNCTIONS ---
+
 async function updateJobOrder(user, id, data) {
-  // 1. Feature Flag Check
+  // 1. Permission Check
   const accessCheck = await checkAdminFeatureAccess(user, 'isJobsEnabled');
   if (!accessCheck.success) return accessCheck;
 
   // 2. Validation
   const errors = {};
-  if (validateRequired(data.employer_id, 'Employer')) errors.employer_id = 'Employer is required.';
-  if (validateRequired(data.positionTitle, 'Position')) errors.positionTitle = 'Position is required.';
+  // Helper to ensure we don't crash if data is missing
+  if (!data.employer_id) errors.employer_id = 'Employer is required.';
+  if (!data.positionTitle || !data.positionTitle.trim()) errors.positionTitle = 'Position Title is required.';
   
-  if (Object.keys(errors).length > 0) return { success: false, error: "Validation failed", errors };
+  const openings = parseInt(data.openingsCount, 10);
+  if (isNaN(openings) || openings < 1) errors.openingsCount = 'Openings must be at least 1.';
+
+  if (Object.keys(errors).length > 0) {
+      return { success: false, error: "Validation failed", errors };
+  }
 
   // 3. Database Update
   const db = getDatabase();
+  
+  // NOTE: We only use ?, ?, ? placeholders. 'user' is NOT in this query.
   const sql = `UPDATE job_orders SET 
                employer_id = ?, positionTitle = ?, country = ?, openingsCount = ?, status = ?, requirements = ?
                WHERE id = ?`;
@@ -1007,12 +1017,22 @@ async function updateJobOrder(user, id, data) {
     data.openingsCount, 
     data.status, 
     data.requirements, 
-    id,
+    id, // <--- ID goes last
   ];
 
   try {
     await dbRun(db, sql, params);
-    return { success: true, id }; // Return success immediately
+    
+    // Fetch and return the updated row to update UI instantly
+    const getSql = `
+      SELECT j.*, e.companyName 
+      FROM job_orders j
+      LEFT JOIN employers e ON j.employer_id = e.id
+      WHERE j.id = ?
+    `;
+    const row = await dbGet(db, getSql, [id]);
+    return { success: true, id: id, data: row };
+    
   } catch (err) {
     console.error("Update Job Error:", err.message);
     return { success: false, error: err.message };
@@ -1020,17 +1040,24 @@ async function updateJobOrder(user, id, data) {
 }
 
 async function deleteJobOrder(user, id) {
+  // 1. Permission Check
   const accessCheck = await checkAdminFeatureAccess(user, 'isJobsEnabled');
-  if (!accessCheck.success) return accessCheck; // Block if feature disabled
+  if (!accessCheck.success) return accessCheck;
 
+  // 2. Database Soft Delete
+  const db = getDatabase();
   try {
     await dbRun(db, 'BEGIN TRANSACTION');
+    // Soft delete the job
     await dbRun(db, 'UPDATE job_orders SET isDeleted = 1 WHERE id = ?', [id]);
+    // Soft delete associated placements
     await dbRun(db, 'UPDATE placements SET isDeleted = 1 WHERE job_order_id = ?', [id]);
     await dbRun(db, 'COMMIT');
+    
     return { success: true };
   } catch (err) {
     await dbRun(db, 'ROLLBACK');
+    console.error("Delete Job Error:", err.message);
     return { success: false, error: err.message };
   }
 }
@@ -1815,15 +1842,16 @@ async function deletePassportEntry(id) {
     } catch (err) { return { success: false, error: err.message }; }
 }
 
+// --- KANBAN BOARD FUNCTIONS ---
+
+// 1. Get All Active Visas (Fixed isDeleted Logic)
 async function getAllActiveVisas() {
   const db = getDatabase();
-  // FIXED: Changed "IS NULL" to "= 0" because the default value is 0
   const sql = `
     SELECT 
-      v.*, 
+      v.id, v.candidate_id, v.country, v.visa_type, v.status, v.application_date,
       c.name as candidateName, 
-      c.passportNo,
-      c.contact
+      c.passportNo
     FROM visa_tracking v
     JOIN candidates c ON v.candidate_id = c.id
     WHERE v.isDeleted = 0 AND c.isDeleted = 0
@@ -1837,11 +1865,12 @@ async function getAllActiveVisas() {
   }
 }
 
-// [NEW] Quick Status Update for Drag-and-Drop
-async function updateVisaStatus(id, newStatus) {
+// 2. Update Visa Status (Used by Drag & Drop)
+async function updateVisaStatus(id, status) {
   const db = getDatabase();
   try {
-    await dbRun(db, 'UPDATE visa_tracking SET status = ? WHERE id = ?', [newStatus, id]);
+    // Update status directly
+    await dbRun(db, 'UPDATE visa_tracking SET status = ? WHERE id = ?', [status, id]);
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
