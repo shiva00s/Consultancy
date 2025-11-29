@@ -1,4 +1,4 @@
-/* MAIN CONTAINER */
+/* --- Container & Layout --- */
 .kanban-container {
   padding: 20px;
   height: calc(100vh - 70px);
@@ -6,16 +6,12 @@
   flex-direction: column;
   overflow: hidden;
 }
-
-/* HEADER */
 .kanban-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
 }
-
-/* SEARCH BOX */
 .kanban-search-box {
   display: flex;
   align-items: center;
@@ -31,7 +27,7 @@
   color: var(--text);
 }
 
-/* SUMMARY PILLS */
+/* --- Summary Pills --- */
 .summary-row {
   display: flex;
   gap: 10px;
@@ -50,13 +46,13 @@
 }
 .summary-pill span {
   background: var(--c);
-  color: white;
+  color: #fff;
   padding: 2px 6px;
   border-radius: 12px;
   font-size: 0.75rem;
 }
 
-/* GRID LAYOUT – 3×3 + CENTER LAST */
+/* --- Grid / Columns --- */
 .kanban-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -67,8 +63,6 @@
 .center-last-column {
   grid-column: 2;
 }
-
-/* COLUMNS */
 .kanban-column {
   background: var(--bg-secondary);
   border-radius: 12px;
@@ -91,14 +85,12 @@
   padding: 2px 8px;
   border-radius: 12px;
 }
-
-/* CARDS WRAPPER */
 .column-content {
   padding: 12px;
   overflow-y: auto;
 }
 
-/* CARD BASE */
+/* --- Card --- */
 .kanban-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -117,24 +109,13 @@
   transform: scale(0.97);
 }
 
-/* CARD TOP BAR */
-.card-top {
-  display: flex;
-  justify-content: space-between;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  margin-bottom: 6px;
-}
-
-/* FINAL COMPACT CARD DESIGN */
+/* --- Compact Card Content --- */
 .card-row-top {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
 }
-
-/* COMPACT AVATAR */
 .avatar-sm {
   width: 38px;
   height: 38px;
@@ -151,8 +132,6 @@
   height: 100%;
   object-fit: cover;
 }
-
-/* NAME + DETAILS */
 .card-name-block {
   flex: 1;
   margin-top: -2px;
@@ -161,14 +140,13 @@
   margin: 0;
   font-size: 0.9rem;
   font-weight: 600;
+  color: var(--text);
 }
 .card-meta-small {
   margin: 1px 0;
   font-size: 0.75rem;
   color: var(--text-secondary);
 }
-
-/* DATE RIGHT */
 .card-date-top {
   font-size: 0.75rem;
   font-weight: 600;
@@ -177,7 +155,7 @@
   margin-top: 2px;
 }
 
-/* REFRESH BUTTON */
+/* --- Refresh Button --- */
 .refresh-btn {
   background: var(--btn-bg);
   color: var(--btn-text);
@@ -201,7 +179,7 @@
   opacity: 0.9;
 }
 
-/* ANIMATIONS */
+/* --- Animations --- */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }

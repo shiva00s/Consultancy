@@ -223,5 +223,17 @@ getAdvancedAnalytics: (timeRange) => ipcRenderer.invoke('get-advanced-analytics'
   exportDatabase: (destinationPath) => ipcRenderer.invoke('export-database', destinationPath),
   importDatabase: (sourcePath) => ipcRenderer.invoke('import-database', sourcePath),
 bulkImportDocuments: (args) => ipcRenderer.invoke('bulk-import-documents', args),
+
+aveCandidateMulti: (payload) =>
+  ipcRenderer.invoke("save-candidate-multi", payload),
+
+readAbsoluteFileBuffer: (data) =>
+  ipcRenderer.invoke("read-absolute-file-buffer", data),
+
+
+
+
+
+
   
 });

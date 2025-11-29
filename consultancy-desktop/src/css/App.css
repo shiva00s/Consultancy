@@ -559,3 +559,11 @@ a, .btn, .result-card, .stat-card { transition: all .2s ease; }
     color: var(--danger-color);
     border-color: var(--danger-color);
 }
+.candidate-photo-preview {
+  width: 110px;
+  height: 110px;
+  border-radius: 10px;
+  margin-top: 10px;
+  object-fit: cover;
+  border: 1px solid var(--border-color);
+}

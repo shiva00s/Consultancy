@@ -1,0 +1,342 @@
+.add-candidate-container {
+  padding: 20px;
+  height: calc(100vh - 70px);
+  overflow-y: auto;
+  color: var(--text);
+}
+
+.add-title {
+  margin-bottom: 16px;
+  font-size: 1.4rem;
+}
+
+/* TOP 3-COLUMN ROW */
+.identity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.identity-box {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.section-title {
+  margin: 0;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-desc {
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Photo block */
+.photo-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.webcam-window {
+  width: 100%;
+  border-radius: 10px;
+  margin-top: 12px;
+  background: #000;
+}
+
+.photo-preview-wrap {
+  margin-top: 12px;
+}
+
+.photo-preview {
+  width: 140px;
+  height: 140px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid var(--border-color);
+}
+
+/* MAIN FORM */
+.candidate-form {
+  background: var(--bg-secondary);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-group label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text);
+}
+
+textarea {
+  min-height: 90px;
+}
+
+.full {
+  grid-column: span 3;
+}
+
+.document-box {
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+}
+
+.file-list {
+  list-style: none;
+  padding: 0;
+  margin-top: 10px;
+  max-height: 150px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border-color);
+}
+
+.file-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Buttons */
+.btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--text);
+  font-weight: 500;
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #fff;
+}
+
+.btn.small {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+}
+
+.btn.full {
+  width: 100%;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .identity-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .full {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 700px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .full {
+    grid-column: span 1;
+  }
+}
+/* --- Compact Documents Box --- */
+.documents-box {
+  height: 48px !important;
+  display: flex;
+  align-items: center;
+  padding: 0 14px !important;
+  border-radius: 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+}
+
+/* PLUS icon/button inside */
+.documents-box button {
+  height: 32px !important;
+  width: 32px !important;
+  font-size: 1rem !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: none;
+  background: var(--bg-hover);
+  color: var(--text);
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.documents-box button:hover {
+  background: var(--primary);
+  color: white;
+}
+
+/* File list */
+.file-list {
+  margin-top: 8px;
+  padding-left: 0;
+}
+
+.file-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text);
+}
+.add-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.save-btn-top {
+  padding: 10px 22px;
+  border-radius: 8px;
+  background: var(--primary-color);
+  color: white;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+.top-3col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.profile-box {
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  padding: 15px;
+  border: 1px solid var(--border-color);
+}
+
+.profile-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.profile-upload {
+  background: var(--bg-hover);
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.profile-upload input {
+  display: none;
+}
+
+.webcam-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+}
+
+.profile-preview {
+  width: 90px;
+  height: 90px;
+  border-radius: 8px;
+  margin-top: 10px;
+  object-fit: cover;
+}
+
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-top: 10px;
+}
+
+.documents-box {
+  margin-top: 20px;
+}
+
+.documents-upload {
+  height: 45px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  padding-left: 14px;
+}
+
+.add-doc-btn {
+  width: 34px;
+  height: 34px;
+  background: var(--bg-hover);
+  border: none;
+  border-radius: 8px;
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+
+.file-list {
+  list-style: none;
+  padding: 0;
+  margin-top: 10px;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.remove-file-btn {
+  color: var(--danger-color);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}

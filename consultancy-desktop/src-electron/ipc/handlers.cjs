@@ -438,52 +438,7 @@ function registerIpcHandlers(app) {
     ipcMain.handle('get-audit-log-for-candidate', (event, { candidateId }) => {
         return queries.getAuditLogForCandidate(candidateId);
     });
-// ====================================================================
-    ipcMain.handle('save-candidate-multi', async (event, { user, textData, files }) => {
-        // 1. Create candidate (this now includes duplicate checks)
-        const createResult = await queries.createCandidate(textData);
-        if (!createResult.success) {
-            return createResult; // Return the error (e.g., "Passport exists")
-        }
-        
-        const candidateId = createResult.id;
-        logAction(user, 'create_candidate', 'candidates', candidateId, `Name: ${textData.name}`);
 
-        // 2. Handle file uploads (this part stays in handlers.cjs)
-        try {
-            const filesDir = path.join(app.getPath('userData'), 'candidate_files');
-            if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true });
-
-            if (files && files.length > 0) {
-                const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
-                
-                const fileOperations = files.map((file) => {
-                    const uniqueName = `${uuidv4()}${path.extname(file.name)}`;
-                    const newFilePath = path.join(filesDir, uniqueName);
-                    fs.writeFileSync(newFilePath, Buffer.from(file.buffer));
-                    
-                    return new Promise((resolve, reject) => {
-                        db.run(
-                            sqlDoc,
-                            [candidateId, file.type, file.name, newFilePath, 'Uncategorized'],
-                            function (err) {
-                                if (err) reject(err);
-                                else {
-                                    logAction(user, 'add_document', 'candidates', candidateId, `File: ${file.name}`);
-                                    resolve();
-                                }
-                            }
-                        );
-                    });
-                });
-                await Promise.all(fileOperations);
-            }
-            return { success: true, id: candidateId };
-        } catch (error) {
-            console.error('Failed to save candidate files:', error);
-            return { success: false, error: error.message };
-        }
-    });
     // ====================================================================
     // --- Candidate Search and Listing (Local SQLite Version) ---
     ipcMain.handle('search-candidates', (event, args) => {
@@ -1708,5 +1663,133 @@ const saveDocumentFromApi = async ({ candidateId, user, fileData }) => {
         return { success: false, error: error.message };
     }
 };
+
+ipcMain.handle("add-candidate", async (event, data) => {
+  const { photoPath, ...candidate } = data;
+
+  // Insert candidate first
+  const info = db.prepare(`
+    INSERT INTO candidates (name, passportNo, country)
+    VALUES (@name, @passportNo, @country)
+  `).run(candidate);
+
+  const id = info.lastInsertRowid;
+
+  // Save photo (NO new folder, use existing userData/photos)
+  if (photoPath) {
+    try {
+      const fs = require("fs");
+      const path = require("path");
+      const destFolder = path.join(app.getPath("userData"), "photos");
+      if (!fs.existsSync(destFolder)) fs.mkdirSync(destFolder);
+
+      const ext = path.extname(photoPath);
+      const dest = path.join(destFolder, `${id}${ext}`);
+
+      fs.copyFileSync(photoPath, dest);
+
+      db.prepare(`UPDATE candidates SET photo_path=? WHERE id=?`)
+        .run(dest, id);
+    } catch (e) {
+      console.log("Photo Save Error", e);
+    }
+  }
+
+  return { success: true, id };
+});
+
+ipcMain.handle("read-absolute-file-buffer", async (e, { filePath }) => {
+  try {
+    const fs = require("fs");
+    const path = require("path");
+
+    const buf = fs.readFileSync(filePath);
+    const ext = path.extname(filePath).toLowerCase();
+
+    return {
+      success: true,
+      buffer: Array.from(buf),
+      type:
+        ext === ".png"
+          ? "image/png"
+          : ext === ".jpg" || ext === ".jpeg"
+          ? "image/jpeg"
+          : "application/octet-stream",
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("save-candidate-multi", async (event, data) => {
+  const { user, textData, files, profilePhoto } = data;
+  const fs = require("fs");
+  const path = require("path");
+
+  try {
+    // 1) INSERT CANDIDATE
+    const stmt = db.prepare(`
+      INSERT INTO candidates (
+        name, education, experience, dob, passportNo, passportExpiry,
+        contact, aadhar, status, notes, Position, created_by
+      )
+      VALUES (
+        @name, @education, @experience, @dob, @passportNo, @passportExpiry,
+        @contact, @aadhar, @status, @notes, @Position, @created_by
+      )
+    `);
+
+    const result = stmt.run({
+      ...textData,
+      created_by: user?.username || "system",
+    });
+
+    const candidateId = result.lastInsertRowid;
+
+    // 2) PREP FOLDERS
+    const root = app.getPath("userData");
+    const docFolder = path.join(root, "candidate_docs");
+    const photoFolder = path.join(root, "candidate_photos");
+
+    if (!fs.existsSync(docFolder)) fs.mkdirSync(docFolder);
+    if (!fs.existsSync(photoFolder)) fs.mkdirSync(photoFolder);
+
+    // 3) SAVE PROFILE PHOTO
+    if (profilePhoto) {
+      const { name, type, buffer } = profilePhoto;
+      const ext = name.includes(".") ? name.split(".").pop() : "jpg";
+      const finalPath = path.join(photoFolder, `${candidateId}.${ext}`);
+
+      fs.writeFileSync(finalPath, Buffer.from(buffer));
+
+      db.prepare(
+        `UPDATE candidates SET photo_path=? WHERE id=?`
+      ).run(finalPath, candidateId);
+    }
+
+    // 4) SAVE DOCUMENTS
+    const insertDoc = db.prepare(`
+      INSERT INTO candidate_files (candidate_id, file_name, file_type, file_path)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    for (const f of files) {
+      const ext = f.name.includes(".") ? f.name.split(".").pop() : "bin";
+      const outPath = path.join(
+        docFolder,
+        `${candidateId}_${Date.now()}_${f.name}`
+      );
+
+      fs.writeFileSync(outPath, Buffer.from(f.buffer));
+
+      insertDoc.run(candidateId, f.name, f.type, outPath);
+    }
+
+    return { success: true, id: candidateId };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 
     module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase  };

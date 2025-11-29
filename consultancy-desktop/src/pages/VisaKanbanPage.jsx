@@ -1,3 +1,4 @@
+// src/pages/VisaKanbanPage.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
@@ -9,7 +10,7 @@ import {
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import "../css/VisaKanban.css";
+import "../css/VisaKanban.css";  // assumes style file at that path
 
 const STATUS_ORDER = [
   "Pending",
@@ -39,8 +40,12 @@ export default function VisaKanbanPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    const res = await window.electronAPI.getAllActiveVisas();
-    res.success ? setItems(res.data) : toast.error(res.error);
+    const res = await window.electronAPI.getAllActiveVisas();  // your existing IPC
+    if (res.success) {
+      setItems(res.data);
+    } else {
+      toast.error(res.error || "Failed to load visas");
+    }
     setLoading(false);
   };
 
@@ -50,8 +55,11 @@ export default function VisaKanbanPage() {
 
   const filtered = useMemo(() => {
     if (!query) return items;
+    const q = query.toLowerCase();
     return items.filter((i) =>
-      i.candidateName.toLowerCase().includes(query.toLowerCase())
+      i.candidateName?.toLowerCase().includes(q) ||
+      i.passportNo?.toLowerCase().includes(q) ||
+      i.country?.toLowerCase().includes(q)
     );
   }, [items, query]);
 
@@ -63,14 +71,18 @@ export default function VisaKanbanPage() {
 
     const newStatus = destination.droppableId;
     const id = Number(draggableId);
-
     const updated = items.map((it) =>
       it.id === id ? { ...it, status: newStatus } : it
     );
     setItems(updated);
 
     const res = await window.electronAPI.updateVisaStatus({ id, status: newStatus });
-    !res.success && fetchData();
+    if (!res.success) {
+      toast.error("Update failed");
+      fetchData();
+    } else {
+      toast.success(`Moved to ${newStatus}`);
+    }
   };
 
   if (loading) return <div className="kanban-loading">Loading…</div>;
@@ -84,14 +96,14 @@ export default function VisaKanbanPage() {
           <FiSearch />
           <input
             type="text"
-            placeholder="Search candidate…"
+            placeholder="Search candidate/passport/country..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
 
         <button className="refresh-btn" onClick={fetchData}>
-          <FiRefreshCw /> Refresh
+          <FiRefreshCw className="spin-icon" /> Refresh
         </button>
       </div>
 
@@ -106,16 +118,13 @@ export default function VisaKanbanPage() {
 
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="kanban-grid">
-
           {STATUS_ORDER.map((status, idx) => (
             <Droppable key={status} droppableId={status}>
-              {(provided, snapshot) => (
+              {(prov, snap) => (
                 <div
-                  className={`kanban-column ${
-                    snapshot.isDraggingOver ? "drag-over" : ""
-                  } ${idx === 6 ? "center-last-column" : ""}`}
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
+                  className={`kanban-column ${snap.isDraggingOver ? "drag-over" : ""} ${idx === 6 ? "center-last-column" : ""}`}
+                  ref={prov.innerRef}
+                  {...prov.droppableProps}
                 >
                   <div className="column-header" style={{ borderTopColor: STATUS_INFO[status].color }}>
                     {STATUS_INFO[status].title}
@@ -124,65 +133,44 @@ export default function VisaKanbanPage() {
 
                   <div className="column-content">
                     {getByStatus(status).map((item, index) => (
-                      <Draggable
-                        key={item.id}
-                        draggableId={item.id.toString()}
-                        index={index}
-                      >
-                        {(provided, snap) => (
+                      <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
+                        {(p, s) => (
                           <div
-                            className={`kanban-card ${snap.isDragging ? "dragging" : ""}`}
-                            ref={provided.innerRef}
-                            {...provided.dragHandleProps}
-                            {...provided.draggableProps}
-                            onClick={() =>
-                              navigate(`/candidate/${item.candidate_id}?tab=visa`)
-                            }
+                            className={`kanban-card ${s.isDragging ? "dragging" : ""}`}
+                            ref={p.innerRef}
+                            {...p.draggableProps}
+                            {...p.dragHandleProps}
+                            onClick={() => navigate(`/candidate/${item.candidate_id}?tab=visa`)}
                           >
-                            <div className="card-top">
-                              <span>#{item.id}</span>
-                              <FiExternalLink className="open-icon" />
-                            </div>
+                            <div className="card-row-top">
+                              <div className="avatar-sm">
+                                {item.photo ? (
+                                  <img src={item.photo} alt="" />
+                                ) : (
+                                  <span>{item.candidateName?.charAt(0)}</span>
+                                )}
+                              </div>
 
-                            <div className="card-body">
+                              <div className="card-name-block">
+                                <h3 className="card-name">{item.candidateName}</h3>
+                                <p className="card-meta-small">Country: {item.country}</p>
+                                <p className="card-meta-small">Passport: {item.passportNo}</p>
+                              </div>
 
-  <div className="card-row-top">
-    <div className="avatar-sm">
-      {item.photo ? (
-        <img src={item.photo} alt="" />
-      ) : (
-        <span>{item.candidateName?.charAt(0)}</span>
-      )}
-    </div>
-
-    <div className="card-name-block">
-      <h3 className="card-name">{item.candidateName}</h3>
-      <p className="card-meta-small">Country: {item.country}</p>
-      <p className="card-meta-small">Passport: {item.passportNo}</p>
-    </div>
-
-    <div className="card-date-top">
-      {item.application_date}
-    </div>
-  </div>
-
-</div>
-
-
-                            <div className="card-footer">
-                              <span>{item.application_date}</span>
+                              <div className="card-date-top">
+                                {item.application_date}
+                              </div>
                             </div>
                           </div>
                         )}
                       </Draggable>
                     ))}
-                    {provided.placeholder}
+                    {prov.placeholder}
                   </div>
                 </div>
               )}
             </Droppable>
           ))}
-
         </div>
       </DragDropContext>
     </div>
