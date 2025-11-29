@@ -1,32 +1,46 @@
-import React, { useState, useEffect } from 'react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { FiUser, FiActivity, FiRefreshCw, FiExternalLink } from 'react-icons/fi'; // Added FiExternalLink
-import { useNavigate } from 'react-router-dom'; // Added useNavigate
-import toast from 'react-hot-toast';
-import '../css/VisaKanban.css';
+import React, { useState, useEffect, useMemo } from "react";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import {
+  FiUser,
+  FiActivity,
+  FiRefreshCw,
+  FiExternalLink,
+  FiSearch,
+} from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import "../css/VisaKanban.css";
 
-const COLUMNS = {
-  'Pending': { title: 'Pending / New', color: '#6c757d' },
-  'Documents Submitted': { title: 'Docs Submitted', color: '#ffc107' },
-  'Visa Applied': { title: 'Visa Applied', color: '#17a2b8' },
-  'Approved': { title: 'Approved', color: '#28a745' },
-  'Rejected': { title: 'Rejected', color: '#dc3545' }
+const STATUS_ORDER = [
+  "Pending",
+  "Submitted",
+  "Biometrics Done",
+  "In Progress",
+  "Approved",
+  "Rejected",
+  "Cancelled",
+];
+
+const STATUS_INFO = {
+  Pending: { title: "Pending / New", color: "#6C6F7F" },
+  Submitted: { title: "Documents Submitted", color: "#FFB400" },
+  "Biometrics Done": { title: "Biometrics Done", color: "#B16CFF" },
+  "In Progress": { title: "In Progress", color: "#00B7D6" },
+  Approved: { title: "Approved", color: "#34C759" },
+  Rejected: { title: "Rejected", color: "#FF3B30" },
+  Cancelled: { title: "Cancelled", color: "#777" },
 };
 
-function VisaKanbanPage() {
-  const [columns, setColumns] = useState(COLUMNS);
+export default function VisaKanbanPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate(); // Hook for navigation
+  const [query, setQuery] = useState("");
+  const navigate = useNavigate();
 
   const fetchData = async () => {
     setLoading(true);
     const res = await window.electronAPI.getAllActiveVisas();
-    if (res.success) {
-      setItems(res.data);
-    } else {
-      toast.error(res.error);
-    }
+    res.success ? setItems(res.data) : toast.error(res.error);
     setLoading(false);
   };
 
@@ -34,79 +48,130 @@ function VisaKanbanPage() {
     fetchData();
   }, []);
 
-  const getItemsByStatus = (status) => items.filter(i => i.status === status);
+  const filtered = useMemo(() => {
+    if (!query) return items;
+    return items.filter((i) =>
+      i.candidateName.toLowerCase().includes(query.toLowerCase())
+    );
+  }, [items, query]);
+
+  const getByStatus = (status) => filtered.filter((i) => i.status === status);
 
   const onDragEnd = async (result) => {
     const { source, destination, draggableId } = result;
     if (!destination) return;
-    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
     const newStatus = destination.droppableId;
-    const itemId = parseInt(draggableId);
+    const id = Number(draggableId);
 
-    const updatedItems = items.map(item => 
-      item.id === itemId ? { ...item, status: newStatus } : item
+    const updated = items.map((it) =>
+      it.id === id ? { ...it, status: newStatus } : it
     );
-    setItems(updatedItems);
+    setItems(updated);
 
-    const res = await window.electronAPI.updateVisaStatus({ id: itemId, status: newStatus });
-    if (!res.success) {
-      toast.error("Failed to update status");
-      fetchData();
-    } else {
-      toast.success(`Moved to ${newStatus}`);
-    }
+    const res = await window.electronAPI.updateVisaStatus({ id, status: newStatus });
+    !res.success && fetchData();
   };
 
-  if (loading) return <div className="kanban-loading">Loading Board...</div>;
+  if (loading) return <div className="kanban-loading">Loading…</div>;
 
   return (
     <div className="kanban-container">
       <div className="kanban-header">
         <h1><FiActivity /> Visa Tracking Board</h1>
-        <button className="btn btn-secondary" onClick={fetchData}><FiRefreshCw /> Refresh</button>
+
+        <div className="kanban-search-box">
+          <FiSearch />
+          <input
+            type="text"
+            placeholder="Search candidate…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+
+        <button className="refresh-btn" onClick={fetchData}>
+          <FiRefreshCw /> Refresh
+        </button>
+      </div>
+
+      <div className="summary-row">
+        {STATUS_ORDER.map((st) => (
+          <div className="summary-pill" key={st} style={{ "--c": STATUS_INFO[st].color }}>
+            {STATUS_INFO[st].title}
+            <span>{getByStatus(st).length}</span>
+          </div>
+        ))}
       </div>
 
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="kanban-board">
-          {Object.entries(columns).map(([statusId, colDef]) => (
-            <Droppable key={statusId} droppableId={statusId}>
+        <div className="kanban-grid">
+
+          {STATUS_ORDER.map((status, idx) => (
+            <Droppable key={status} droppableId={status}>
               {(provided, snapshot) => (
-                <div 
-                  className={`kanban-column ${snapshot.isDraggingOver ? 'dragging-over' : ''}`}
+                <div
+                  className={`kanban-column ${
+                    snapshot.isDraggingOver ? "drag-over" : ""
+                  } ${idx === 6 ? "center-last-column" : ""}`}
                   ref={provided.innerRef}
                   {...provided.droppableProps}
                 >
-                  <div className="column-header" style={{ borderTop: `4px solid ${colDef.color}` }}>
-                    <h3>{colDef.title}</h3>
-                    <span className="count-badge">{getItemsByStatus(statusId).length}</span>
+                  <div className="column-header" style={{ borderTopColor: STATUS_INFO[status].color }}>
+                    {STATUS_INFO[status].title}
+                    <span className="count">{getByStatus(status).length}</span>
                   </div>
-                  
+
                   <div className="column-content">
-                    {getItemsByStatus(statusId).map((item, index) => (
-                      <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
-                        {(provided, snapshot) => (
+                    {getByStatus(status).map((item, index) => (
+                      <Draggable
+                        key={item.id}
+                        draggableId={item.id.toString()}
+                        index={index}
+                      >
+                        {(provided, snap) => (
                           <div
-                            className="kanban-card"
+                            className={`kanban-card ${snap.isDragging ? "dragging" : ""}`}
                             ref={provided.innerRef}
-                            {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            style={{
-                                ...provided.draggableProps.style,
-                                opacity: snapshot.isDragging ? 0.8 : 1
-                            }}
-                            // [FIX] Click to Navigate
-                            onClick={() => navigate(`/candidate/${item.candidate_id}?tab=visa`)}
+                            {...provided.draggableProps}
+                            onClick={() =>
+                              navigate(`/candidate/${item.candidate_id}?tab=visa`)
+                            }
                           >
                             <div className="card-top">
-                                <span className="card-id">#{item.id}</span>
-                                <span className="card-country">{item.country}</span>
-                                {/* Visual indicator that it's clickable */}
-                                <FiExternalLink style={{marginLeft: 'auto', opacity: 0.5}} />
+                              <span>#{item.id}</span>
+                              <FiExternalLink className="open-icon" />
                             </div>
-                            <h4><FiUser /> {item.candidateName}</h4>
-                            <p className="card-detail">{item.passportNo}</p>
-                            <p className="card-date">{item.application_date}</p>
+
+                            <div className="card-body">
+
+  <div className="card-row-top">
+    <div className="avatar-sm">
+      {item.photo ? (
+        <img src={item.photo} alt="" />
+      ) : (
+        <span>{item.candidateName?.charAt(0)}</span>
+      )}
+    </div>
+
+    <div className="card-name-block">
+      <h3 className="card-name">{item.candidateName}</h3>
+      <p className="card-meta-small">Country: {item.country}</p>
+      <p className="card-meta-small">Passport: {item.passportNo}</p>
+    </div>
+
+    <div className="card-date-top">
+      {item.application_date}
+    </div>
+  </div>
+
+</div>
+
+
+                            <div className="card-footer">
+                              <span>{item.application_date}</span>
+                            </div>
                           </div>
                         )}
                       </Draggable>
@@ -117,10 +182,9 @@ function VisaKanbanPage() {
               )}
             </Droppable>
           ))}
+
         </div>
       </DragDropContext>
     </div>
   );
 }
-
-export default VisaKanbanPage;

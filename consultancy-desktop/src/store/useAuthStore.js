@@ -28,28 +28,43 @@ const useAuthStore = create((set, get) => ({
           finalFlags = (await window.electronAPI.getFeatureFlags()).data || {};
           
       } else if (userData.role === 'admin') {
-          // 2. Admin: Inherit Global Flags directly
-          finalFlags = (await window.electronAPI.getFeatureFlags()).data || {};
+          // 2. Admin: Get flags specifically assigned by Superadmin,
+          //    then intersect with global flags (the ceiling)
+          const globalFlags = (await window.electronAPI.getFeatureFlags()).data || {};
+          const adminAssignedFeaturesRes = await window.electronAPI.getAdminAssignedFeatures({ userId: userData.id });
+          const adminAssignedFeatures = adminAssignedFeaturesRes.data || {};
+
+          finalFlags = {};
+          Object.keys(globalFlags).forEach(key => {
+              // Feature is enabled for admin if globally enabled AND assigned by superadmin
+              finalFlags[key] = globalFlags[key] && adminAssignedFeatures[key];
+          });
           
       } else if (userData.role === 'staff') {
-          // 3. Staff: Merge Global Policy + User Overrides
+          // 3. Staff: Merge Admin's policy (which is derived from Global + Superadmin assignment) + User Overrides
           
-          // A. Get Global Flags (The Ceiling)
-          const globalFlags = (await window.electronAPI.getFeatureFlags()).data || {}; 
+          // A. Get Admin's Effective Flags (The Ceiling for Staff)
+          //    This assumes the logged-in user's direct admin's ID is available.
+          //    For simplicity, here we'll assume staff gets flags from their immediate 'parent' admin
+          //    If a staff member doesn't have a direct admin assigned, they might fall back to global flags
+          //    or a restricted default set. For now, let's assume `userData` has `adminId`.
+          //    FIXME: If userData.adminId is not available, this logic needs adjustment.
+          const adminEffectiveFlagsRes = await window.electronAPI.getAdminEffectiveFlags({ adminId: userData.adminId });
+          const adminEffectiveFlags = adminEffectiveFlagsRes.data || {}; 
 
-          // B. Get User Specific Overrides (The Assignment)
+          // B. Get User Specific Overrides (The Assignment from Admin)
           const userPermsRes = await window.electronAPI.getUserPermissions({ userId: userData.id });
           const userOverrides = userPermsRes.data || {};
 
-          // C. Merge: Only enable if enabled Globally AND enabled for Staff
-          finalFlags = { ...globalFlags }; 
+          // C. Merge: Only enable if enabled by Admin AND enabled for Staff
+          finalFlags = { ...adminEffectiveFlags }; 
           
           Object.keys(userOverrides).forEach(key => {
-              if (globalFlags[key]) { 
-                  // Only apply override if globally enabled
+              if (adminEffectiveFlags[key]) { 
+                  // Only apply override if enabled by Admin
                   finalFlags[key] = userOverrides[key]; 
               } else {
-                  // If globally disabled, force disabled for staff
+                  // If admin has it disabled, force disabled for staff
                   finalFlags[key] = false; 
               }
           });

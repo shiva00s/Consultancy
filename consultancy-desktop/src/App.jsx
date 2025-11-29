@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './components/MainLayout'; 
 import ActivationPrompt from './pages/ActivationPrompt';
-// === 1. PAGE IMPORTS (From pages/ folder) ===
 import AdvancedAnalyticsPage from './pages/AdvancedAnalyticsPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
