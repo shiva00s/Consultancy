@@ -3,7 +3,7 @@ import React from "react";
 const CandidateHeader = ({ candidate, documents = [] }) => {
   const safeDocs = Array.isArray(documents) ? documents : [];
 
-  // pick first photo-type document
+  // find first photograph document
   const photoDoc =
     safeDocs.find(
       (d) =>
@@ -12,30 +12,30 @@ const CandidateHeader = ({ candidate, documents = [] }) => {
         (d.document_name && d.document_name.toLowerCase().includes("photo"))
     ) || null;
 
-  // backend should expose a URL or we build it; adjust if you have a real URL field
-  const photoUrl = photoDoc?.previewUrl || photoDoc?.url || null;
+  // if your backend gives a path like doc.path or doc.url, use that
+  const photoUrl = photoDoc?.url || photoDoc?.path || null;
 
   return (
     <div
-      className="candidate-header"
       style={{
         display: "flex",
         gap: "20px",
-        marginBottom: "30px",
+        marginBottom: "24px",
         padding: "20px",
-        borderBottom: "2px solid var(--border-color)",
-        maxWidth: "1300px"
+        borderRadius: "10px",
+        background: "var(--card-bg)",
+        border: "1px solid var(--border-color)"
       }}
     >
       <div
-        className="avatar"
         style={{
-          width: "100px",
-          height: "100px",
+          width: "96px",
+          height: "96px",
           borderRadius: "50%",
-          background: "#ddd",
+          background: "#444",
           overflow: "hidden",
-          flexShrink: 0
+          flexShrink: 0,
+          border: "2px solid var(--border-color)"
         }}
       >
         {photoUrl ? (
@@ -47,45 +47,50 @@ const CandidateHeader = ({ candidate, documents = [] }) => {
         ) : null}
       </div>
 
-      <div className="info" style={{ flex: 1 }}>
-        <h1
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: "22px",
+              fontWeight: 600,
+              color: "var(--text-primary)"
+            }}
+          >
+            {candidate.name || "-"}
+          </h2>
+          <span
+            style={{
+              fontSize: "12px",
+              padding: "3px 8px",
+              borderRadius: "999px",
+              background: "var(--bg-secondary)",
+              color: "var(--text-secondary)"
+            }}
+          >
+            ID: #{candidate.id}
+          </span>
+        </div>
+        <div
           style={{
-            margin: 0,
-            fontSize: "28px",
-            color: "var(--text-primary)"
-          }}
-        >
-          {candidate.name || candidate.fullName || "-"}
-        </h1>
-        <p
-          style={{
+            marginTop: "6px",
+            fontSize: "13px",
             color: "var(--text-secondary)",
-            fontSize: "16px",
-            marginTop: "8px"
+            display: "flex",
+            gap: "16px",
+            flexWrap: "wrap"
           }}
         >
-          {candidate.status || "Status N/A"} | ID: {candidate.id}
-        </p>
-      </div>
-
-      <div
-        className="actions"
-        style={{ display: "flex", gap: "10px", alignItems: "center" }}
-      >
-        <button style={{ padding: "10px 20px", borderRadius: "6px" }}>
-          Edit
-        </button>
-        <button
-          style={{
-            padding: "10px 20px",
-            borderRadius: "6px",
-            background: "var(--danger)",
-            color: "#fff",
-            border: "none"
-          }}
-        >
-          Archive
-        </button>
+          <span>
+            <strong>Status:</strong> {candidate.status || "-"}
+          </span>
+          <span>
+            <strong>Passport:</strong> {candidate.passportNo || "-"}
+          </span>
+          <span>
+            <strong>Applied For:</strong> {candidate.Position || "-"}
+          </span>
+        </div>
       </div>
     </div>
   );
