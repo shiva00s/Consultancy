@@ -24,6 +24,7 @@ const { registerDocumentHandlers } = require('./documentHandlers.cjs');
 const { fileManager } = require('../utils/fileManager.cjs');
 const { registerSyncHandlers } = require('./syncHandlers.cjs');
 const { registerPermissionHandlers } = require('./permissionHandlers.cjs');
+const { enforcePermissionOrDeny } = require('../utils/rbacHelpers.cjs');
 
 
 const tempDir = path.join(os.tmpdir(), "paddle_ocr_temp");
@@ -516,22 +517,45 @@ function registerIpcHandlers(app) {
         return queries.getCandidateDetails(id);
     });
 // ====================================================================
-   ipcMain.handle('update-candidate-text', async (event, { user, id, data }) => {
-    // 🐞 FIX: Ensure user is passed to the query function's signature
-    const result = await queries.updateCandidateText(user, id, data); 
-    if (result.success) {
-        logAction(user, 'update_candidate', 'candidates', id, `Name: ${data.name}, Status: ${data.status}`);
-    }
-    return result;
-    });
+   ipcMain.handle('update-candidate-text', async (event, payload) => {
+  const { user, id, data } = payload;
+  try {
+    // RBAC: must have permission to edit candidate profile
+    const deny = await enforcePermissionOrDeny(user, 'tab_profile', 'Edit candidate profile');
+    if (deny) return deny;
+
+    // existing logic here (no change)
+    const updated = await queries.updateCandidateText({ id, data, user });
+    return { success: true, data: updated };
+  } catch (err) {
+    console.error('update-candidate-text error:', err);
+    return { success: false, error: err.message || 'Failed to update candidate' };
+  }
+});
+
 // ====================================================================
-    ipcMain.handle('delete-candidate', async (event, { user, id }) => {
-        const result = await queries.deleteCandidate(id);
-        if (result.success) {
-            logAction(user, 'delete_candidate', 'candidates', id);
-        }
-        return result;
-    });
+    // REPLACE EXISTING delete-candidate HANDLER
+ipcMain.handle('delete-candidate', async (event, payload) => {
+  const { user, id } = payload;
+  try {
+    const deny = await enforcePermissionOrDeny(
+      user,
+      'system_recycle_bin',
+      'Move candidate to Recycle Bin'
+    );
+    if (deny) return deny;
+
+    const result = await queries.softDeleteCandidate({ id, user });
+    return { success: true, data: result };
+  } catch (err) {
+    console.error('delete-candidate error:', err);
+    return {
+      success: false,
+      error: err.message || 'Failed to delete candidate'
+    };
+  }
+});
+
 // ====================================================================
     // [UPDATED] Async File Writing
 ipcMain.handle('add-documents', async (event, { user, candidateId, files }) => {
@@ -835,32 +859,60 @@ ipcMain.handle('getImageBase64', (event, { filePath }) => {
         logAction(getEventUserContext(event), 'view_candidate_finance', 'candidates', candidateId, `Viewed financials for candidate ID: ${candidateId}`);
         return queries.getCandidatePayments(candidateId);
     });
-    ipcMain.handle('add-payment', async (event, { user, data }) => {
-        const result = await queries.addPayment(user, data);
-        if (result.success) {
-            logAction(user, 'add_payment', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Desc: ${data.description}, Amount: ${data.amount_paid}, Status: ${data.status}`);
-        }
-        return result;
-    });
-// 💥 CRITICAL FIX: The queries.updatePayment function now expects a single data object.
-    ipcMain.handle('update-payment', async (event, { user, id, amount_paid, status }) => {
-        const updateData = { user, id, amount_paid, status };
-        
-        const result = await queries.updatePayment(updateData);
-        
-        if (result.success) {
-            logAction(user, 'update_payment', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Desc: ${result.description}, Amount: ${amount_paid}, Status: ${status}`);
-        }
-     
-        return result;
-    });
-    ipcMain.handle('delete-payment', async (event, { user, id }) => {
-        const result = await queries.deletePayment(user, id);
-        if (result.success) {
-            logAction(user, 'delete_payment', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Desc: ${result.description}, Amount: ${result.total_amount}`);
-        }
-        return result;
-    });
+   // REPLACE EXISTING add-payment HANDLER
+ipcMain.handle('add-payment', async (event, payload) => {
+  const { user, candidateId, paymentData } = payload;
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_financial', 'Add payment');
+    if (deny) return deny;
+
+    const result = await queries.addPayment({ user, candidateId, paymentData });
+    return { success: true, data: result };
+  } catch (err) {
+    console.error('add-payment error:', err);
+    return {
+      success: false,
+      error: err.message || 'Failed to add payment'
+    };
+  }
+});
+
+// REPLACE EXISTING update-payment HANDLER
+ipcMain.handle('update-payment', async (event, payload) => {
+  const { user, paymentId, updates } = payload;
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_financial', 'Update payment');
+    if (deny) return deny;
+
+    const result = await queries.updatePayment({ user, paymentId, updates });
+    return { success: true, data: result };
+  } catch (err) {
+    console.error('update-payment error:', err);
+    return {
+      success: false,
+      error: err.message || 'Failed to update payment'
+    };
+  }
+});
+
+// REPLACE EXISTING delete-payment HANDLER
+ipcMain.handle('delete-payment', async (event, payload) => {
+  const { user, paymentId } = payload;
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_financial', 'Delete payment');
+    if (deny) return deny;
+
+    const result = await queries.deletePayment({ user, paymentId });
+    return { success: true, data: result };
+  } catch (err) {
+    console.error('delete-payment error:', err);
+    return {
+      success: false,
+      error: err.message || 'Failed to delete payment'
+    };
+  }
+});
+
 // ====================================================================
     // 10. RECYCLE BIN MANAGEMENT (REFACTORED)
     // ====================================================================
