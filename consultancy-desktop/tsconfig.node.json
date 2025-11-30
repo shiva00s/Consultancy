@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "target": "ESNext",
+    "lib": ["ESNext"],
+    "types": ["node"],
+    "strict": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["electron.cjs", "src-electron/**/*.js"]
+}
