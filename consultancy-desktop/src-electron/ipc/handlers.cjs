@@ -23,6 +23,7 @@ const { registerAnalyticsHandlers } = require('./analyticsHandlers.cjs');
 const { registerDocumentHandlers } = require('./documentHandlers.cjs');
 const { fileManager } = require('../utils/fileManager.cjs');
 const { registerSyncHandlers } = require('./syncHandlers.cjs');
+const { registerPermissionHandlers } = require('./permissionHandlers.cjs');
 
 
 const tempDir = path.join(os.tmpdir(), "paddle_ocr_temp");
@@ -88,6 +89,7 @@ function registerIpcHandlers(app) {
     registerAnalyticsHandlers();
     registerDocumentHandlers();
     registerSyncHandlers();
+    registerPermissionHandlers();
     const db = getDatabase();
     if (!db) {
         console.error('Database is not initialized. Handlers will not be registered.');

@@ -218,4 +218,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     importDatabase: (sourcePath) => ipcRenderer.invoke('import-database', sourcePath),
 
     bulkImportDocuments: (args) => ipcRenderer.invoke('bulk-import-documents', args),
+    getUserGranularPermissions: (args) => ipcRenderer.invoke('get-user-granular-permissions', args),
+    setUserGranularPermissions: (args) => ipcRenderer.invoke('set-user-granular-permissions', args),
+    getGranterPermissions: (args) => ipcRenderer.invoke('get-granter-permissions', args),
+    
 });

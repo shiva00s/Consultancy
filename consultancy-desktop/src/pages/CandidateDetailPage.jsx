@@ -17,7 +17,7 @@ import OfferLetterGenerator from '../components/candidate-detail/OfferLetterGene
 import CandidateHistory from '../components/candidate-detail/CandidateHistory';
 import CandidateDocuments from '../components/candidate-detail/CandidateDocuments'; 
 import CandidatePassport from '../components/candidate-detail/CandidatePassport';
-import CommunicationHistory from '../components/candidate-detail/CommunicationHistory'; // 🐞 Phase 6.3 Fix
+import CommunicationHistory from '../components/candidate-detail/CommunicationHistory';
 
 const statusOptions = [
   'New', 'Documents Collected', 'Visa Applied', 'In Progress', 'Completed', 'Rejected',
@@ -35,17 +35,15 @@ function CandidateDetailPage({ user, flags }) {
   const [placements, setPlacements] = useState([]); 
   const [selectedJobForOffer, setSelectedJobForOffer] = useState(null); 
   
-  // --- Staff Permission State ---
-  const [staffPermissions, setStaffPermissions] = useState({}); 
-  const [permsLoaded, setPermsLoaded] = useState(false);
+  // --- GRANULAR PERMISSION STATE ---
+  const [granularPermissions, setGranularPermissions] = useState({});
+  const [granularPermsLoaded, setGranularPermsLoaded] = useState(false);
 
-  // Determine Initial Tab from URL
   const initialTab = searchParams.get('tab') || 'profile';
 
   // 1. Fetch Candidate Details
   const fetchDetails = useCallback(async () => {
     setLoading(true);
-    // 🐞 FIX 1: Explicitly pass user context for audit logging
     const res = await window.electronAPI.getCandidateDetails({ id, user });
     if (res.success) {
       setDetails(res.data);
@@ -56,18 +54,37 @@ function CandidateDetailPage({ user, flags }) {
     setLoading(false);
   }, [id, user]);
 
-  // 2. Fetch Staff Permissions
+  // 2. Load Granular Permissions
   useEffect(() => {
-    const loadPermissions = async () => {
-      if (user.role === 'staff') {
-        const res = await window.electronAPI.getUserPermissions({ userId: user.id });
+    const loadGranularPermissions = async () => {
+      if (user.role === 'super_admin') {
+        // Super Admin has all tab permissions
+        const allPerms = {
+          tab_profile: true,
+          tab_passport: true,
+          tab_documents: true,
+          tab_job_placements: true,
+          tab_visa_tracking: true,
+          tab_financial: true,
+          tab_medical: true,
+          tab_interview: true,
+          tab_travel: true,
+          tab_offer_letter: true,
+          tab_history: true,
+          tab_comms_log: true,
+        };
+        setGranularPermissions(allPerms);
+        setGranularPermsLoaded(true);
+      } else {
+        // Admin or Staff - fetch from database
+        const res = await window.electronAPI.getUserGranularPermissions({ userId: user.id });
         if (res.success) {
-          setStaffPermissions(res.data || {}); 
+          setGranularPermissions(res.data || {});
         }
+        setGranularPermsLoaded(true);
       }
-      setPermsLoaded(true);
     };
-    loadPermissions();
+    loadGranularPermissions();
   }, [user]);
   
   useEffect(() => {
@@ -91,18 +108,18 @@ function CandidateDetailPage({ user, flags }) {
 
   const handleDocumentsUpdate = (newDocs = [], docIdToDelete = null, isCategoryUpdate = false) => {
     setDetails(prev => {
-        let updatedDocuments = [...(prev?.documents || [])];
-        if (docIdToDelete !== null) {
-            updatedDocuments = updatedDocuments.filter(doc => doc.id !== docIdToDelete);
-        } else if (isCategoryUpdate) {
-            const updateDoc = newDocs[0];
-            updatedDocuments = updatedDocuments.map(doc => 
-                doc.id === updateDoc.id ? { ...doc, category: updateDoc.category } : doc
-            );
-        } else if (newDocs.length > 0) {
-            updatedDocuments = [...updatedDocuments, ...newDocs];
-        }
-        return { ...prev, documents: updatedDocuments };
+      let updatedDocuments = [...(prev?.documents || [])];
+      if (docIdToDelete !== null) {
+        updatedDocuments = updatedDocuments.filter(doc => doc.id !== docIdToDelete);
+      } else if (isCategoryUpdate) {
+        const updateDoc = newDocs[0];
+        updatedDocuments = updatedDocuments.map(doc => 
+          doc.id === updateDoc.id ? { ...doc, category: updateDoc.category } : doc
+        );
+      } else if (newDocs.length > 0) {
+        updatedDocuments = [...updatedDocuments, ...newDocs];
+      }
+      return { ...prev, documents: updatedDocuments };
     });
   };
 
@@ -121,21 +138,19 @@ function CandidateDetailPage({ user, flags }) {
   };
 
   const handleSave = async () => {
-    // 🐞 FIX 2: Ensure PassportNo is cleaned and uppercase before sending
     const cleanedData = {
-        ...formData,
-        passportNo: formData.passportNo 
-            ? formData.passportNo.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
-            : formData.passportNo
+      ...formData,
+      passportNo: formData.passportNo 
+        ? formData.passportNo.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+        : formData.passportNo
     };
     
-   const res = await window.electronAPI.updateCandidateText({ user, id, data: cleanedData });
+    const res = await window.electronAPI.updateCandidateText({ user, id, data: cleanedData });
     if (res.success) {
       toast.success('Details saved successfully!');
       setIsEditing(false);
       fetchDetails();
     } else {
-      // Display validation errors from backend
       toast.error(res.error);
     }
   };
@@ -178,101 +193,89 @@ function CandidateDetailPage({ user, flags }) {
     else toast.error(res.error || 'Failed to create ZIP archive.');
   };
   
-  if (loading || !permsLoaded) return <h2>Loading Candidate Details...</h2>;
+  if (loading || !granularPermsLoaded) return <h2>Loading Candidate Details...</h2>;
   if (!details) return <h2>Candidate not found.</h2>;
 
   const { candidate, documents } = details;
 
-  // --- PERMISSION CHECKER HELPER (FIXED) ---
-  const canAccess = (featureKey) => {
-      // 1. Safety Check: If flags aren't loaded yet, default to hidden or wait
-      if (!flags) return false; 
-
-      // 2. Global Switch Check (The Ceiling)
-      if (!flags[featureKey]) return false;
-
-      // 3. Role Checks
-      if (user.role === 'super_admin') return true; 
-      if (user.role === 'admin') return true;       
-      
-      // 4. Staff Delegation Check
-      if (user.role === 'staff') {
-          return staffPermissions[featureKey] === true;
-      }
-      return false;
+  // --- GRANULAR PERMISSION CHECKER ---
+  const canAccessTab = (permissionKey) => {
+    // Profile tab is always visible
+    if (permissionKey === 'tab_profile') return true;
+    
+    // Check granular permissions
+    return granularPermissions[permissionKey] === true;
   };
 
   const ProfileTabContent = (
     <div className="profile-tab-content">
-        <div className="detail-card" style={{border: 'none', margin: 0}}>
-            <div className="detail-header" style={{borderRadius: 'var(--border-radius)'}}>
-                <h2>{isEditing ? 'Edit Profile' : 'Profile Overview'}</h2>
-                <div className="header-actions">
-                    {isEditing ? (
-                        <>
-                            <button className="btn" onClick={handleSave}>Save Changes</button>
-                            <button className="btn btn-secondary" onClick={() => { setIsEditing(false); setFormData(candidate); }}>Cancel</button>
-                        </>
-                    ) : (
-                      <>
-                        <button className="btn btn-secondary" onClick={handleExportDocuments}><FiDownload /> Export Documents</button>
-                        <button className="btn" onClick={() => setIsEditing(true)}>Edit Details</button>
-                      </>
-                    )}
-                </div>
-            </div>
-            <div className="form-grid">
-                <div className="form-group"><label>Name</label><input type="text" name="name" value={formData.name} onChange={handleTextChange} readOnly={!isEditing} /></div>
-                <div className="form-group"><label>Status</label>{isEditing ? (<select name="status" value={formData.status} onChange={handleTextChange}>{statusOptions.map((opt) => (<option key={opt} value={opt}>{opt}</option>))}</select>) : (<input type="text" value={formData.status} readOnly />)}</div>
-                <div className="form-group">
-                  <div className="form-group">
-                    <label>Contact Number</label>
-                    <div style={{display: 'flex', gap: '5px'}}>
-                        <input 
-                            type="text" 
-                            name="contact" 
-                            value={formData.contact || ''} 
-                            onChange={handleTextChange} 
-                            readOnly={!isEditing} 
-                            style={{flexGrow: 1}}
-                        />
-                        {formData.contact && (
-                            <button 
-                                className="btn" 
-                                style={{backgroundColor: '#25D366', color: 'white', padding: '0 12px', minWidth: 'auto'}}
-                                title="Chat on WhatsApp"
-                                type="button" 
-                                onClick={() => {
-                                    window.open(`https://wa.me/${formData.contact.replace(/\D/g,'')}`, '_blank');
-                                    window.electronAPI.logCommunication({ 
-                                        user, 
-                                        candidateId: id, 
-                                        type: 'WhatsApp', 
-                                        details: 'Clicked Chat Button' 
-                                    });
-                                }}
-                            >
-                                <span style={{fontSize: '1.2rem', fontWeight: 'bold'}}>✆</span>
-                            </button>
-                        )}
-                    </div>
-                </div>
-                </div>
-                <div className="form-group"><label>Aadhar Number</label><input type="text" name="aadhar" value={formData.aadhar || ''} onChange={handleTextChange} readOnly={!isEditing} /></div>
-                <div className="form-group"><label>Passport No</label><input type="text" name="passportNo" value={formData.passportNo} onChange={handleTextChange} readOnly={!isEditing} /></div>
-                <div className="form-group"><label>Passport Expiry</label><input type="date" name="passportExpiry" value={formData.passportExpiry || ''} onChange={handleTextChange} readOnly={!isEditing} /></div>
-                <div className="form-group"><label>Position Applying For</label><input type="text" name="Position" value={formData.Position} onChange={handleTextChange} readOnly={!isEditing} /></div>
-                <div className="form-group"><label>Education</label><input type="text" name="education" value={formData.education || ''} onChange={handleTextChange} readOnly={!isEditing} /></div>
-                <div className="form-group"><label>Experience (years)</label><input type="number" name="experience" value={formData.experience || ''} onChange={handleTextChange} readOnly={!isEditing} /></div>
-                <div className="form-group"><label>Date of Birth</label><input type="date" name="dob" value={formData.dob || ''} onChange={handleTextChange} readOnly={!isEditing} /></div>
-                <div className="form-group full-width"><label>Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleTextChange} readOnly={!isEditing}></textarea></div>
-            </div>
+      <div className="detail-card" style={{border: 'none', margin: 0}}>
+        <div className="detail-header" style={{borderRadius: 'var(--border-radius)'}}>
+          <h2>{isEditing ? 'Edit Profile' : 'Profile Overview'}</h2>
+          <div className="header-actions">
+            {isEditing ? (
+              <>
+                <button className="btn" onClick={handleSave}>Save Changes</button>
+                <button className="btn btn-secondary" onClick={() => { setIsEditing(false); setFormData(candidate); }}>Cancel</button>
+              </>
+            ) : (
+              <>
+                <button className="btn btn-secondary" onClick={handleExportDocuments}><FiDownload /> Export Documents</button>
+                <button className="btn" onClick={() => setIsEditing(true)}>Edit Details</button>
+              </>
+            )}
+          </div>
         </div>
-        <div className="detail-card delete-zone">
-            <h3>Move Candidate to Recycle Bin</h3>
-            <p>Moves candidate and all linked records to Recycle Bin. Restore is possible.</p>
-            <button className="btn btn-danger" onClick={handleDeleteCandidate}><FiAlertTriangle /> Move to Recycle Bin</button>
+        <div className="form-grid">
+          <div className="form-group"><label>Name</label><input type="text" name="name" value={formData.name} onChange={handleTextChange} readOnly={!isEditing} /></div>
+          <div className="form-group"><label>Status</label>{isEditing ? (<select name="status" value={formData.status} onChange={handleTextChange}>{statusOptions.map((opt) => (<option key={opt} value={opt}>{opt}</option>))}</select>) : (<input type="text" value={formData.status} readOnly />)}</div>
+          <div className="form-group">
+            <label>Contact Number</label>
+            <div style={{display: 'flex', gap: '5px'}}>
+              <input 
+                type="text" 
+                name="contact" 
+                value={formData.contact || ''} 
+                onChange={handleTextChange} 
+                readOnly={!isEditing} 
+                style={{flexGrow: 1}}
+              />
+              {formData.contact && (
+                <button 
+                  className="btn" 
+                  style={{backgroundColor: '#25D366', color: 'white', padding: '0 12px', minWidth: 'auto'}}
+                  title="Chat on WhatsApp"
+                  type="button" 
+                  onClick={() => {
+                    window.open(`https://wa.me/${formData.contact.replace(/\D/g,'')}`, '_blank');
+                    window.electronAPI.logCommunication({ 
+                      user, 
+                      candidateId: id, 
+                      type: 'WhatsApp', 
+                      details: 'Clicked Chat Button' 
+                    });
+                  }}
+                >
+                  <span style={{fontSize: '1.2rem', fontWeight: 'bold'}}>✆</span>
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="form-group"><label>Aadhar Number</label><input type="text" name="aadhar" value={formData.aadhar || ''} onChange={handleTextChange} readOnly={!isEditing} /></div>
+          <div className="form-group"><label>Passport No</label><input type="text" name="passportNo" value={formData.passportNo} onChange={handleTextChange} readOnly={!isEditing} /></div>
+          <div className="form-group"><label>Passport Expiry</label><input type="date" name="passportExpiry" value={formData.passportExpiry || ''} onChange={handleTextChange} readOnly={!isEditing} /></div>
+          <div className="form-group"><label>Position Applying For</label><input type="text" name="Position" value={formData.Position} onChange={handleTextChange} readOnly={!isEditing} /></div>
+          <div className="form-group"><label>Education</label><input type="text" name="education" value={formData.education || ''} onChange={handleTextChange} readOnly={!isEditing} /></div>
+          <div className="form-group"><label>Experience (years)</label><input type="number" name="experience" value={formData.experience || ''} onChange={handleTextChange} readOnly={!isEditing} /></div>
+          <div className="form-group"><label>Date of Birth</label><input type="date" name="dob" value={formData.dob || ''} onChange={handleTextChange} readOnly={!isEditing} /></div>
+          <div className="form-group full-width"><label>Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleTextChange} readOnly={!isEditing}></textarea></div>
         </div>
+      </div>
+      <div className="detail-card delete-zone">
+        <h3>Move Candidate to Recycle Bin</h3>
+        <p>Moves candidate and all linked records to Recycle Bin. Restore is possible.</p>
+        <button className="btn btn-danger" onClick={handleDeleteCandidate}><FiAlertTriangle /> Move to Recycle Bin</button>
+      </div>
     </div>
   );
 
@@ -294,83 +297,137 @@ function CandidateDetailPage({ user, flags }) {
     </div>
   );
 
-  // --- DYNAMIC TAB FILTERING ---
+  // --- DYNAMIC TAB FILTERING WITH GRANULAR PERMISSIONS ---
   const tabConfig = [
-    { key: 'profile', title: 'Profile', icon: <FiUser />, content: ProfileTabContent, alwaysVisible: true },
+    { 
+      key: 'profile', 
+      title: 'Profile', 
+      icon: <FiUser />, 
+      content: ProfileTabContent, 
+      permKey: 'tab_profile' 
+    },
     
-    { key: 'passport', title: 'Passport Tracking', icon: <FiPackage />, content: <CandidatePassport candidateId={id} documents={documents}  />, 
-      check: 'isDocumentsEnabled' }, 
+    { 
+      key: 'passport', 
+      title: 'Passport Tracking', 
+      icon: <FiPackage />, 
+      content: <CandidatePassport candidateId={id} documents={documents} />, 
+      permKey: 'tab_passport' 
+    },
     
-    { key: 'documents', title: `Documents (${documents.length})`, icon: <FiFileText />, content: DocumentTabContent, 
-      check: 'isDocumentsEnabled' },
+    { 
+      key: 'documents', 
+      title: `Documents (${documents.length})`, 
+      icon: <FiFileText />, 
+      content: DocumentTabContent, 
+      permKey: 'tab_documents' 
+    },
     
-    { key: 'jobs', title: 'Job Placements', icon: <FiClipboard />, content: <CandidateJobs user={user} candidateId={id} onJobAssigned={handleJobAssigned} />, 
-      check: 'isJobsEnabled' },
+    { 
+      key: 'jobs', 
+      title: 'Job Placements', 
+      icon: <FiClipboard />, 
+      content: <CandidateJobs user={user} candidateId={id} onJobAssigned={handleJobAssigned} />, 
+      permKey: 'tab_job_placements' 
+    },
     
-    { key: 'visa', title: 'Visa Tracking', icon: <FiPackage />, content: <CandidateVisa user={user} candidateId={id} />, 
-      check: 'isVisaTrackingEnabled' },
+    { 
+      key: 'visa', 
+      title: 'Visa Tracking', 
+      icon: <FiPackage />, 
+      content: <CandidateVisa user={user} candidateId={id} />, 
+      permKey: 'tab_visa_tracking' 
+    },
     
-    { key: 'finance', title: 'Financial Tracking', icon: <FiDollarSign />, 
+    { 
+      key: 'finance', 
+      title: 'Financial Tracking', 
+      icon: <FiDollarSign />, 
       content: <CandidateFinance user={user} candidateId={id} flags={flags} />, 
-      check: 'isFinanceTrackingEnabled' },
+      permKey: 'tab_financial' 
+    },
     
-    { key: 'medical', title: 'Medical', icon: <FiUsers />, content: <CandidateMedical user={user} candidateId={id} />, 
-      check: 'isMedicalEnabled' }, 
+    { 
+      key: 'medical', 
+      title: 'Medical', 
+      icon: <FiUsers />, 
+      content: <CandidateMedical user={user} candidateId={id} />, 
+      permKey: 'tab_medical' 
+    },
     
-    { key: 'interview', title: 'Interview/Schedule', icon: <FiCalendar />, content: <CandidateInterview user={user} candidateId={id} />, 
-      check: 'isInterviewEnabled' },
+    { 
+      key: 'interview', 
+      title: 'Interview/Schedule', 
+      icon: <FiCalendar />, 
+      content: <CandidateInterview user={user} candidateId={id} />, 
+      permKey: 'tab_interview' 
+    },
     
-    { key: 'travel', title: 'Travel/Tickets', icon: <FiSend />, content: <CandidateTravel user={user} candidateId={id} />, 
-      check: 'isTravelEnabled' },
+    { 
+      key: 'travel', 
+      title: 'Travel/Tickets', 
+      icon: <FiSend />, 
+      content: <CandidateTravel user={user} candidateId={id} />, 
+      permKey: 'tab_travel' 
+    },
     
-    { key: 'offer', title: 'Offer Letter', icon: <FiFileText />, content: OfferLetterTabContent, 
-      check: 'isJobsEnabled' },
+    { 
+      key: 'offer', 
+      title: 'Offer Letter', 
+      icon: <FiFileText />, 
+      content: OfferLetterTabContent, 
+      permKey: 'tab_offer_letter' 
+    },
     
-    { key: 'history', title: 'History', icon: <FiClock />, content: <CandidateHistory candidateId={id} />, 
-      check: 'isHistoryEnabled' },
-      
-    // 🐞 Phase 6.3 Fix
-    { key: 'communications', title: 'Comms Log', icon: <FiMessageSquare />, 
+    { 
+      key: 'history', 
+      title: 'History', 
+      icon: <FiClock />, 
+      content: <CandidateHistory candidateId={id} />, 
+      permKey: 'tab_history' 
+    },
+    
+    { 
+      key: 'communications', 
+      title: 'Comms Log', 
+      icon: <FiMessageSquare />, 
       content: <CommunicationHistory candidateId={id} />, 
-      check: 'isHistoryEnabled' },
+      permKey: 'tab_comms_log' 
+    },
   
-  ].filter(tab => {
-      if (tab.alwaysVisible) return true;
-      return canAccess(tab.check);
-  });
+  ].filter(tab => canAccessTab(tab.permKey));
 
   return (
     <div className="detail-page-container">
-      {/* HEADER SECTION WITH NAME */}
       <div style={{
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: '20px',
-          paddingBottom: '15px',
-          borderBottom: '1px solid var(--border-color)'
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: '20px',
+        paddingBottom: '15px',
+        borderBottom: '1px solid var(--border-color)'
       }}>
-          <button 
-            onClick={() => navigate('/search')} 
-            className="btn btn-secondary back-button" 
-            style={{marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px'}}
-          >
-              <FiArrowLeft /> Back to Search
-          </button>
+        <button 
+          onClick={() => navigate('/search')} 
+          className="btn btn-secondary back-button" 
+          style={{marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px'}}
+        >
+          <FiArrowLeft /> Back to Search
+        </button>
 
-          <div style={{textAlign: 'right'}}>
-              <h1 style={{margin: '0 0 5px 0', fontSize: '1.8rem', color: 'var(--text-primary)'}}>
-                  <FiUser style={{marginRight:'10px', verticalAlign:'middle'}}/>
-                  {formData?.name || candidate.name}
-              </h1>
-              <div style={{display:'flex', gap:'15px', justifyContent:'flex-end', fontSize:'0.9rem', color:'var(--text-secondary)'}}>
-                  <span><strong>ID:</strong> #{candidate.id}</span>
-                  <span><strong>Passport:</strong> {formData?.passportNo || candidate.passportNo}</span>
-                  <span className="badge neutral" style={{padding:'2px 8px', borderRadius:'4px', background:'var(--bg-secondary)'}}>
-                      {formData?.status || candidate.status}
-                  </span>
-              </div>
+        <div style={{textAlign: 'right'}}>
+          <h1 style={{margin: '0 0 5px 0', fontSize: '1.8rem', color: 'var(--text-primary)'}}>
+            <FiUser style={{marginRight:'10px', verticalAlign:'middle'}}/>
+            {formData?.name || candidate.name}
+          </h1>
+          <div style={{display:'flex', gap:'15px', justifyContent:'flex-end', fontSize:'0.9rem', color:'var(--text-secondary)'}}>
+            <span><strong>ID:</strong> #{candidate.id}</span>
+            <span><strong>Passport:</strong> {formData?.passportNo || candidate.passportNo}</span>
+            <span className="badge neutral" style={{padding:'2px 8px', borderRadius:'4px', background:'var(--bg-secondary)'}}>
+              {formData?.status || candidate.status}
+            </span>
           </div>
+        </div>
       </div>
 
       <Tabs tabs={tabConfig} defaultActiveTab={initialTab} />
