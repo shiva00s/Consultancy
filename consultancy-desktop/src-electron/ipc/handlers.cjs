@@ -1487,25 +1487,22 @@ ipcMain.handle('get-activation-status', async () => {
           return resolve({ success: false, error: 'Invalid activation code.' });
         }
 
-        // mark activated
         db.run(
-          `UPDATE activations SET activated = 1 WHERE machineId = ?`,
-          [machineId],
-          () => {
-            db.run(
-              `INSERT OR REPLACE INTO system_settings (key, value)
-               VALUES ('license_status', 'activated')`,
-              [],
-              () => resolve({ success: true })
-            );
-          }
-        );
+  `UPDATE activations SET activated = 1 WHERE machineId = ?`,
+  [machineId],
+  () => {
+    db.run(
+      `INSERT OR REPLACE INTO system_settings (key, value)
+       VALUES ('license_status', 'activated')`,
+      [],
+      () => resolve({ success: true })
+    );
+  }
+);
       }
     );
   });
 });
-
-
 
     const convertMRZDate = (yyMMdd) => {
         // Fix common OCR error: 'O' (letter) instead of '0' (zero)

@@ -59,6 +59,20 @@ function createWindow() {
   return win;
 }
 
+async function isActivated() {
+  const db = getDatabase();
+  return new Promise((resolve) => {
+    db.get(
+      "SELECT value FROM system_settings WHERE key = 'license_status'",
+      [],
+      (err, row) => {
+        if (err || !row) return resolve(false);
+        resolve(row.value === 'activated');
+      }
+    );
+  });
+}
+
 app.whenReady().then(async () => {
   try {
     console.log('🚀 Starting Consultancy Desktop App...');
