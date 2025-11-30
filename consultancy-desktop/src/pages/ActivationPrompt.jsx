@@ -15,7 +15,7 @@ function ActivationPrompt() {
         const res = await window.electronAPI.requestActivationCode();
         if (res && res.success) {
           setMachineId(res.machineId || 'UNKNOWN');
-          toast.success('Activation code sent to admin email.');
+          toast.success('Activation code sent to email.');
         } else {
           setMachineId('ERROR: Could not fetch ID.');
           toast.error(res?.error || 'Failed to request activation code.');

@@ -1467,31 +1467,45 @@ ipcMain.handle('get-activation-status', async () => {
   return queries.getActivationStatus();
 });
 
-    ipcMain.handle('activate-application', async (event, { activationKey }) => {
-    // This is the CRITICAL verification step (Server-side simulation)
-    
-    // 1. Get current machine ID
-    const machineId = `${os.hostname().toUpperCase()}-${os.type().substring(0, 3)}-${ip.address().split('.').slice(2).join('.')}`;
-    
-    // 2. Simulate validation against the expected key format (e.g., first 5 chars of hash)
-    // NOTE: In a real app, this key would be validated against your email server's generated key.
-    const expectedKeyPrefix = '74482'; // <-- CRITICAL CHANGE: UPDATED KEY
-    
- 
-    if (!activationKey || activationKey.length !== 5 || activationKey !== expectedKeyPrefix) {
-        return { success: false, error: "Invalid activation code. Please contact support." };
-    }
-    
-    // 3. Store activation status in DB
-    const result = await queries.setActivationStatus({ activated: true, machineId: machineId });
-    
-    if (result.success) {
-        logAction({ id: 0, username: 'SYSTEM' }, 'activate_license', 'system', 1, `Application activated on Machine ID: ${machineId}`);
-    }
-    
-    return result;
+    ipcMain.handle('activate-application', async (event, enteredCode) => {
+  const db = getDatabase();
+  const machineId = getMachineIdForLicense();
+
+  return new Promise((resolve) => {
+    db.get(
+      `SELECT code FROM activations
+       WHERE machineId = ? AND activated = 0
+       ORDER BY createdAt DESC
+       LIMIT 1`,
+      [machineId],
+      (err, row) => {
+        if (err || !row) {
+          return resolve({ success: false, error: 'Invalid activation code.' });
+        }
+
+        if (String(row.code).trim() !== String(enteredCode).trim()) {
+          return resolve({ success: false, error: 'Invalid activation code.' });
+        }
+
+        // mark activated
+        db.run(
+          `UPDATE activations SET activated = 1 WHERE machineId = ?`,
+          [machineId],
+          () => {
+            db.run(
+              `INSERT OR REPLACE INTO system_settings (key, value)
+               VALUES ('license_status', 'activated')`,
+              [],
+              () => resolve({ success: true })
+            );
+          }
+        );
+      }
+    );
+  });
 });
-// --- IMPROVED OCR LOGIC ---
+
+
 
     const convertMRZDate = (yyMMdd) => {
         // Fix common OCR error: 'O' (letter) instead of '0' (zero)
