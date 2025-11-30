@@ -31,24 +31,25 @@ function RecycleBinPage({ user }) {
     }
     setLoading(true);
     
-    const [candRes, empRes, jobRes] = await Promise.all([
-      window.electronAPI.getDeletedCandidates(),
-      window.electronAPI.getDeletedEmployers(),
-      window.electronAPI.getDeletedJobOrders(),
-      window.electronAPI.getDeletedRequiredDocuments(),
-    ]);
+    const [candRes, empRes, jobRes, reqDocRes] = await Promise.all([
+  window.electronAPI.getDeletedCandidates(),
+  window.electronAPI.getDeletedEmployers(),
+  window.electronAPI.getDeletedJobOrders(),
+  window.electronAPI.getDeletedRequiredDocuments(),
+]);
 
-    if (candRes.success) setDeletedCandidates(candRes.data);
-    else toast.error(candRes.error); 
-    
-    if (empRes.success) setDeletedEmployers(empRes.data);
-    else toast.error(empRes.error); 
-    
-    if (jobRes.success) setDeletedJobs(jobRes.data);
-    else toast.error(jobRes.error); 
+if (candRes.success) setDeletedCandidates(candRes.data);
+else toast.error(candRes.error);
 
-    if (reqDocRes.success) setDeletedRequiredDocs(reqDocRes.data);
-    else toast.error(reqDocRes.error);
+if (empRes.success) setDeletedEmployers(empRes.data);
+else toast.error(empRes.error);
+
+if (jobRes.success) setDeletedJobs(jobRes.data);
+else toast.error(jobRes.error);
+
+if (reqDocRes.success) setDeletedRequiredDocs(reqDocRes.data);
+else toast.error(reqDocRes.error);
+
     
     setLoading(false);
   }, [user]); 

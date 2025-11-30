@@ -221,5 +221,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getUserGranularPermissions: (args) => ipcRenderer.invoke('get-user-granular-permissions', args),
     setUserGranularPermissions: (args) => ipcRenderer.invoke('set-user-granular-permissions', args),
     getGranterPermissions: (args) => ipcRenderer.invoke('get-granter-permissions', args),
-    
+
+    getDeletedRequiredDocuments: (args) => ipcRenderer.invoke('get-deleted-required-documents', args),
+    restoreRequiredDocument: (args) => ipcRenderer.invoke('restore-required-document', args),
+
 });
