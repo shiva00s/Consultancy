@@ -57,6 +57,7 @@
     "jsonwebtoken": "^9.0.2",
     "mime": "^4.1.0",
     "multer": "^2.0.2",
+    "node-machine-id": "^1.1.12",
     "nodemailer": "^7.0.10",
     "pdf-parse": "^2.4.5",
     "react": "^18.2.0",

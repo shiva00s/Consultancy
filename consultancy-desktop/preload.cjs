@@ -225,4 +225,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getDeletedRequiredDocuments: (args) => ipcRenderer.invoke('get-deleted-required-documents', args),
     restoreRequiredDocument: (args) => ipcRenderer.invoke('restore-required-document', args),
 
+    getLicenseStatus: () => ipcRenderer.invoke('license:get-status'),
+  activateLicense: (args) => ipcRenderer.invoke('license:activate', args),
+
 });
