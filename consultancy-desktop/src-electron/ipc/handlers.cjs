@@ -1743,4 +1743,6 @@ ipcMain.handle('get-user-role', async (event, { userId }) => {
     }
 };
 
+
+
     module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase  };
