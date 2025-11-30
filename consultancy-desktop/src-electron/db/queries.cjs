@@ -1839,6 +1839,10 @@ async function deletePermanently(id, targetType) {
       sql = 'DELETE FROM job_orders WHERE id = ?';
       identifier = 'job order';
       break;
+    case 'required_docs':
+      sql = 'DELETE FROM required_documents WHERE id = ?';
+      identifier = 'required_docs';
+      break;
     default:
       return { success: false, error: 'Invalid target type for permanent deletion.' };
   }
@@ -1864,38 +1868,93 @@ async function getRequiredDocuments() {
 }
 
 async function addRequiredDocument(name) {
-    const db = getDatabase();
-    if (!name || name.trim() === '') {
-        return { success: false, error: 'Document name is required.' };
+  const db = getDatabase();
+  if (!name || name.trim() === '') {
+    return { success: false, error: 'Document name is required.' };
+  }
+  name = name.trim();
+
+  try {
+    // 1) If an ACTIVE doc exists ⇒ block
+    const existingActive = await dbGet(
+      db,
+      "SELECT id FROM required_documents WHERE name = ? AND isDeleted = 0",
+      [name]
+    );
+    if (existingActive) {
+      return { success: false, error: 'Document name already exists in the active required list.' };
     }
-    try {
-        // 🐞 FIX 3: Check for uniqueness only against NON-DELETED records
-        const existing = await dbGet(db, "SELECT id FROM required_documents WHERE name = ? AND isDeleted = 0", [name]);
-        if (existing) {
-             return { success: false, error: 'Document name already exists in the active required list.' };
-        }
-        
-        const result = await dbRun(db, 'INSERT INTO required_documents (name) VALUES (?)', [name]);
-        const row = await dbGet(db, 'SELECT * FROM required_documents WHERE id = ?', [result.lastID]);
-        return { success: true, data: row };
-    } catch (err) {
-        if (err.message.includes('UNIQUE constraint failed')) {
-            // This catches the case where a soft-deleted item exists. 
-            // The frontend logic should usually restore/re-add instead of hitting this.
-            return { success: false, error: 'Document name already exists.' };
-        }
-        return { success: false, error: err.message };
+
+    // 2) If a SOFT-DELETED doc exists ⇒ revive instead of inserting
+    const existingDeleted = await dbGet(
+      db,
+      "SELECT id FROM required_documents WHERE name = ? AND isDeleted = 1",
+      [name]
+    );
+    if (existingDeleted) {
+      await dbRun(
+        db,
+        "UPDATE required_documents SET isDeleted = 0 WHERE id = ?",
+        [existingDeleted.id]
+      );
+      const revived = await dbGet(
+        db,
+        "SELECT * FROM required_documents WHERE id = ?",
+        [existingDeleted.id]
+      );
+      return { success: true, data: revived };
     }
+
+    // 3) Otherwise, insert new record (even if UNIQUE(name) exists, we checked earlier)
+    const result = await dbRun(
+      db,
+      "INSERT INTO required_documents (name, isDeleted) VALUES (?, 0)",
+      [name]
+    );
+    const row = await dbGet(
+      db,
+      "SELECT * FROM required_documents WHERE id = ?",
+      [result.lastID]
+    );
+    return { success: true, data: row };
+  } catch (err) {
+    if (err.message.includes('UNIQUE constraint failed')) {
+      // Fallback if constraints differ from our expectation
+      return { success: false, error: 'Document name already exists.' };
+    }
+    return { success: false, error: err.message };
+  }
 }
 
 async function deleteRequiredDocument(id) {
-    const db = getDatabase();
-    try {
-        await dbRun(db, 'UPDATE required_documents SET isDeleted = 1 WHERE id = ?', [id]);
-        return { success: true };
-    } catch (err) { return { success: false, error: err.message };
-    }
+  const db = getDatabase();
+  try {
+    await dbRun(db, 'UPDATE required_documents SET isDeleted = 1 WHERE id = ?', [id]);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 }
+
+
+// ===== Required Documents RecycleBin Helpers =====
+
+async function getDeletedRequiredDocuments() {
+  const db = getDatabase();
+  const rows = await dbAll(db,
+    "SELECT id, name FROM required_documents WHERE isDeleted = 1 ORDER BY name ASC",
+    []
+  );
+  return { success: true, data: rows };
+}
+
+async function restoreRequiredDocument(id) {
+  const db = getDatabase();
+  await dbRun(db, "UPDATE required_documents SET isDeleted = 0 WHERE id = ?", [id]);
+  return { success: true };
+}
+
+// For permanent delete, we’ll reuse deletePermanently handler with targetType = 'required_docs'
 
 
 // ====================================================================
@@ -2243,6 +2302,9 @@ module.exports = {
   getDeletedJobOrders,
   restoreJobOrder,
   deletePermanently,
+
+  getDeletedRequiredDocuments,
+  restoreRequiredDocument,
 
   // System & Utils
   getActivationStatus, 

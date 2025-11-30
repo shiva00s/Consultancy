@@ -1,18 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiMail, FiClock, FiCheckCircle, FiPhone, FiMessageSquare } from 'react-icons/fi';
+import { FiMail, FiClock, FiPhone, FiMessageSquare } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { LoadingSpinner } from '../LoadingSpinner';
 import '../../css/EmailHistory.css'; // Reuse EmailHistory styles
 
 const formatTimestamp = (isoString) => {
-    if (!isoString) return 'N/A';
-    // Attempts to parse ISO-like format and display locally
-    const date = new Date(isoString.replace(' ', 'T') + 'Z'); 
-    if (isNaN(date)) return isoString;
-    return date.toLocaleString('en-IN', {
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit', hour12: true,
-    });
+  if (!isoString) return 'N/A';
+  // Attempts to parse ISO-like format and display locally
+  const date = new Date(isoString.replace(' ', 'T') + 'Z');
+  if (isNaN(date)) return isoString;
+  return date.toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
 };
 
 function CommunicationHistory({ candidateId }) {
@@ -27,10 +31,11 @@ function CommunicationHistory({ candidateId }) {
       if (res.success) {
         setLogs(res.data);
       } else {
-        toast.error(res.error || "Failed to load communication logs.");
+        toast.error(res.error || 'Failed to load communication logs.');
       }
     } catch (error) {
       console.error('Error loading communication history:', error);
+      toast.error('Error loading communication history.');
     } finally {
       setLoading(false);
     }
@@ -39,60 +44,49 @@ function CommunicationHistory({ candidateId }) {
   useEffect(() => {
     loadCommunicationHistory();
   }, [loadCommunicationHistory]);
-  
+
   const getIcon = (type) => {
-      if (type === 'WhatsApp') return <FiMessageSquare style={{ color: '#25D366' }} />;
-      if (type === 'Call') return <FiPhone style={{ color: 'var(--primary-color)' }} />;
-      if (type === 'Email') return <FiMail style={{ color: 'var(--warning-color)' }} />;
-      return <FiClock />;
+    if (type === 'WhatsApp') return <FiMessageSquare className="comm-icon whatsapp" />;
+    if (type === 'Call') return <FiPhone className="comm-icon call" />;
+    if (type === 'Email') return <FiMail className="comm-icon email" />;
+    return <FiMessageSquare className="comm-icon" />;
   };
 
   if (loading) {
     return (
-      <div className="email-history-loading">
+      <div className="loading-container">
         <LoadingSpinner />
         <p>Loading communication history...</p>
       </div>
     );
   }
 
+  if (logs.length === 0) {
+    return (
+      <div className="empty-state">
+        <FiClock size={48} style={{ color: '#ccc' }} />
+        <p>No interactions recorded yet.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="email-history">
-      <h4 className="history-title">
-        <FiMail />
-        Interaction Log ({logs.length})
-      </h4>
-
-      <div className="email-timeline">
-        {logs.length === 0 ? (
-            <div className="email-history-empty" style={{paddingTop: '2rem'}}>
-                <FiMail style={{fontSize: '3rem', opacity: 0.5}} />
-                <p>No interactions recorded yet.</p>
+    <div className="email-history-container">
+      <div className="email-history-list">
+        {logs.map((log) => (
+          <div key={log.id} className="email-history-item">
+            <div className="email-item-header">
+              <div className="comm-type-indicator">
+                {getIcon(log.communication_type)}
+                <strong>{log.communication_type}</strong>
+              </div>
+              <span className="email-date">{formatTimestamp(log.logged_at)}</span>
             </div>
-        ) : (
-            logs.map((log) => (
-                <div key={log.id} className="email-item">
-                    <div className="email-header">
-                        <div className="email-status">
-                            {getIcon(log.type)}
-                        </div>
-
-                        <div className="email-info" style={{flex: 1}}>
-                            <h5 style={{fontWeight: 600}}>
-                                {log.type} recorded by {log.username}
-                            </h5>
-                            <p style={{fontSize: '0.85rem'}}>{log.details}</p>
-                            <div className="email-meta" style={{marginTop: '4px'}}>
-                                <span className="email-date" style={{fontSize: '0.75rem'}}>
-                                    <FiClock style={{fontSize: '0.85rem'}} />
-                                    {formatTimestamp(log.timestamp)}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            ))
-        )}
+            <div className="email-item-body">
+              <p className="comm-details">{log.details}</p>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

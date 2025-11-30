@@ -6,6 +6,7 @@ import {
   FiServer,
   FiClipboard,
   FiAlertTriangle,
+  FiFileText,
 } from 'react-icons/fi';
 import '../css/RecycleBinPage.css';
 import Tabs from '../components/Tabs';
@@ -20,7 +21,7 @@ function RecycleBinPage({ user }) {
   
   const [loading, setLoading] = useState(true);
   const [deleteModalItem, setDeleteModalItem] = useState(null); // {item: {}, type: ''}
-  
+  const [deletedRequiredDocs, setDeletedRequiredDocs] = useState([]);
   // NOTE: Assuming canDeletePermanently flag is loaded in useAuthStore
 
   const fetchAllDeleted = useCallback(async () => {
@@ -34,6 +35,7 @@ function RecycleBinPage({ user }) {
       window.electronAPI.getDeletedCandidates(),
       window.electronAPI.getDeletedEmployers(),
       window.electronAPI.getDeletedJobOrders(),
+      window.electronAPI.getDeletedRequiredDocuments(),
     ]);
 
     if (candRes.success) setDeletedCandidates(candRes.data);
@@ -44,6 +46,9 @@ function RecycleBinPage({ user }) {
     
     if (jobRes.success) setDeletedJobs(jobRes.data);
     else toast.error(jobRes.error); 
+
+    if (reqDocRes.success) setDeletedRequiredDocs(reqDocRes.data);
+    else toast.error(reqDocRes.error);
     
     setLoading(false);
   }, [user]); 
@@ -62,9 +67,25 @@ function RecycleBinPage({ user }) {
     } else if (targetType === 'employers') {
         setDeletedEmployers(prev => prev.filter(e => e.id !== id));
     } else if (targetType === 'job_orders') {
-        setDeletedJobs(prev => prev.filter(j => j.id !== id));
-    }
+        setDeletedJobs(prev => prev.filter(j => j.id !== id));    
+    } else if (targetType === 'required_docs') {
+    setDeletedRequiredDocs(prev => prev.filter(d => d.id !== id));
+  }
   };
+
+  const handleRestoreRequiredDoc = async (docId, name) => {
+  if (window.confirm(`Restore required document: ${name}?`)) {
+    const res = await window.electronAPI.restoreRequiredDocument({ user, id: docId });
+    if (res.success) {
+      toast.success(`Required document "${name}" restored.`);
+      setDeletedRequiredDocs(prev => prev.filter(d => d.id !== docId));
+    } else {
+      toast.error(res.error);
+    }
+  }
+};
+
+
 
   const handleRestoreCandidate = async (candidateId, name) => {
     if (window.confirm(`Are you sure you want to restore candidate: ${name}?`)) {
@@ -105,6 +126,26 @@ function RecycleBinPage({ user }) {
   // Helper to check the flag locally for UI display
   const canDeletePermanently = user.role === 'super_admin'; 
   
+  const renderRequiredDocsList = () => (
+  <div className="recycle-list-content">
+    {loading ? <p>Loading...</p> : deletedRequiredDocs.length === 0 ? (
+      <p>No deleted required documents found.</p>
+    ) : (
+      <ul className="recycle-list">
+        {deletedRequiredDocs.map(doc => (
+          <li key={doc.id} className="recycle-item">
+            <div className="item-info">
+              <strong>{doc.name}</strong>
+            </div>
+            {renderItemActions(doc, 'required_docs', handleRestoreRequiredDoc)}
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+);
+
+
   const renderItemActions = (item, type, restoreHandler) => (
     <div className="item-actions">
         {canDeletePermanently && (
@@ -206,6 +247,12 @@ function RecycleBinPage({ user }) {
       icon: <FiClipboard />,
       content: renderJobList(),
     },
+    {
+    key: 'required_docs',
+    title: `Required Docs (${deletedRequiredDocs.length})`,
+    icon: <FiFileText />,
+    content: renderRequiredDocsList(),
+  },
   ];
 
   return (

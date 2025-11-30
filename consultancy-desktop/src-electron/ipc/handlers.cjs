@@ -1924,6 +1924,18 @@ ipcMain.handle('get-user-role', async (event, { userId }) => {
     }
 };
 
+// Required Documents RecycleBin
+ipcMain.handle('get-deleted-required-documents', () => {
+  return queries.getDeletedRequiredDocuments();
+});
+
+ipcMain.handle('restore-required-document', async (event, { user, id }) => {
+  const result = await queries.restoreRequiredDocument(id);
+  if (result.success) {
+    logAction(user, 'restore_required_doc', 'settings', id);
+  }
+  return result;
+});
 
 
     module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase  };

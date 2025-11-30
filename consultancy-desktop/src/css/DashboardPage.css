@@ -405,3 +405,27 @@
 }
 
 .danger-highlight strong { color: var(--danger-color); }
+.candidate-status-card {
+  background: var(--bg-secondary, #fff);
+  color: var(--text-primary, #111827);
+}
+
+.donut-chart {
+  background: transparent;
+}
+
+.donut-segment-new {
+  fill: var(--chart-segment-1);
+}
+
+.donut-segment-visa-applied {
+  fill: var(--chart-segment-2);
+}
+
+.donut-ring-bg {
+  fill: var(--chart-ring-bg);
+}
+
+.candidate-status-legend-label {
+  color: var(--chart-label);
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   FiGrid, FiClock, FiSearch, FiUserPlus, FiLogOut, FiBriefcase, FiServer,
@@ -9,6 +9,8 @@ import {
 import toast from 'react-hot-toast';
 import '../css/MainLayout.css';
 import ChangePasswordModal from './modals/ChangePasswordModal';
+import KeyboardShortcutsGuide from './KeyboardShortcutsGuide';
+import { useGlobalShortcuts } from '../hooks/useKeyboardShortcuts';
 
 const getInitialCollapseState = () => {
   const storedState = localStorage.getItem('sidebarCollapsed');
@@ -46,19 +48,21 @@ function SubMenu({ title, icon, children, isCollapsed }) {
 function MainLayout({ children, onLogout, user, flags }) {
   const navigate = useNavigate();
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(getInitialCollapseState()); 
+  const [isCollapsed, setIsCollapsed] = useState(getInitialCollapseState());
   const [theme, setTheme] = useState(getInitialTheme());
   const [globalSearchTerm, setGlobalSearchTerm] = useState('');
-  
-  // NEW: Granular Permissions State
   const [granularPermissions, setGranularPermissions] = useState({});
   const [permsLoaded, setPermsLoaded] = useState(false);
 
-  // Load Granular Permissions
+  const globalSearchRef = useRef(null);
+
+  // Use global keyboard shortcuts for navigation, search, etc
+  useGlobalShortcuts(navigate, user);
+
+  // Granular Permissions (unchanged)
   useEffect(() => {
     const loadPermissions = async () => {
       if (user.role === 'super_admin') {
-        // Super Admin has everything
         setGranularPermissions({
           candidate_search: true,
           add_candidate: true,
@@ -82,28 +86,23 @@ function MainLayout({ children, onLogout, user, flags }) {
     loadPermissions();
   }, [user]);
 
-  const canAccess = (permKey) => {
-    return granularPermissions[permKey] === true;
-  };
+  const canAccess = (permKey) => granularPermissions[permKey] === true;
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
   };
-  
+
   useEffect(() => {
     document.body.dataset.theme = theme;
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Security Polling: Auto-logout if role changes
   useEffect(() => {
     const checkRoleStatus = async () => {
       if (!window.electronAPI || typeof window.electronAPI.getUserRole !== 'function') return;
       if (!user || !user.id) return;
-      
       try {
         const res = await window.electronAPI.getUserRole({ userId: user.id });
-        
         if (res.success) {
           if (res.role !== user.role) {
             toast.error("Your permissions have changed. You must log in again.");
@@ -119,7 +118,6 @@ function MainLayout({ children, onLogout, user, flags }) {
         console.warn("Role check failed silently:", error);
       }
     };
-
     checkRoleStatus();
     const interval = setInterval(checkRoleStatus, 60000);
     return () => clearInterval(interval);
@@ -137,7 +135,7 @@ function MainLayout({ children, onLogout, user, flags }) {
     if (role === 'admin') return 'Admin';
     return 'Staff';
   };
-  
+
   const displayedRole = user ? getDisplayRole(user.role) : 'Guest';
   const username = user ? user.username : 'Unknown';
 
@@ -154,26 +152,22 @@ function MainLayout({ children, onLogout, user, flags }) {
 
   const handlePasswordChangeLogout = onLogout;
 
-  // Check if Management section should be visible
-  const isManagementVisible = () => {
-    return canAccess('employers') ||
-           canAccess('job_orders') ||
-           canAccess('visa_board') ||
-           canAccess('bulk_import');
-  };
+  const isManagementVisible = () =>
+    canAccess('employers') ||
+    canAccess('job_orders') ||
+    canAccess('visa_board') ||
+    canAccess('bulk_import');
 
-  // Check if System section should be visible
-  const isSystemVisible = () => {
-    return canAccess('system_reports') ||
-           canAccess('system_audit_log') ||
-           canAccess('system_modules') ||
-           canAccess('system_recycle_bin') ||
-           user.role === 'super_admin' || // Always show settings for super admin
-           user.role === 'admin'; // Always show settings for admin
-  };
+  const isSystemVisible = () =>
+    canAccess('system_reports') ||
+    canAccess('system_audit_log') ||
+    canAccess('system_modules') ||
+    canAccess('system_recycle_bin') ||
+    user.role === 'super_admin' ||
+    user.role === 'admin';
 
   if (!permsLoaded) {
-    return <div style={{padding: '2rem'}}>Loading application...</div>;
+    return <div style={{ padding: '2rem' }}>Loading application...</div>;
   }
 
   return (
@@ -187,27 +181,30 @@ function MainLayout({ children, onLogout, user, flags }) {
           <div className="sidebar-header">
             <FiBriefcase className="sidebar-logo" />
             <h3>Consultancy App</h3>
-            <button 
-              onClick={toggleTheme} 
-              className="theme-icon-toggle" 
+            <button
+              onClick={toggleTheme}
+              className="theme-icon-toggle"
               title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
               {theme === 'dark' ? <FiMoon /> : <FiSun />}
             </button>
+            {/* Keyboard Shortcuts Trigger */}
+            <KeyboardShortcutsGuide />
           </div>
-          
+
           <div className="global-search-bar">
             <FiSearch />
-            <input 
+            <input
               type="text"
               placeholder="Global Search..."
               value={globalSearchTerm}
               onChange={(e) => setGlobalSearchTerm(e.target.value)}
               onKeyDown={handleGlobalSearch}
               title="Press Enter to search candidates"
+              ref={globalSearchRef}
             />
           </div>
-          
+
           <ul className="sidebar-nav">
             {/* Dashboard - Always visible */}
             <li>
@@ -216,7 +213,7 @@ function MainLayout({ children, onLogout, user, flags }) {
                 <span>Dashboard</span>
               </NavLink>
             </li>
-            
+
             {/* Candidates Section */}
             <SubMenu title="Candidates" icon={<FiSearch />} isCollapsed={isCollapsed}>
               {canAccess('candidate_search') && (
@@ -244,7 +241,7 @@ function MainLayout({ children, onLogout, user, flags }) {
                 </li>
               )}
             </SubMenu>
-            
+
             {/* Management Section */}
             {isManagementVisible() && (
               <SubMenu title="Management" icon={<FiBriefcase />} isCollapsed={isCollapsed}>
@@ -274,7 +271,7 @@ function MainLayout({ children, onLogout, user, flags }) {
                 )}
               </SubMenu>
             )}
-            
+
             {/* System Settings Section */}
             {isSystemVisible() && (
               <SubMenu title="System Settings" icon={<FiSettings />} isCollapsed={isCollapsed}>
@@ -294,15 +291,14 @@ function MainLayout({ children, onLogout, user, flags }) {
                     </NavLink>
                   </li>
                 )}
-               {/*  {canAccess('system_modules') && (
+                {/* {canAccess('system_modules') && (
                   <li>
                     <NavLink to="/system-modules">
                       <FiPackage />
                       <span>Modules</span>
                     </NavLink>
                   </li>
-                )}
-                Settings - Always visible for Admin and Super Admin */}
+                )} */}
                 {(user.role === 'super_admin' || user.role === 'admin') && (
                   <li>
                     <NavLink to="/settings">
@@ -323,7 +319,7 @@ function MainLayout({ children, onLogout, user, flags }) {
             )}
           </ul>
         </div>
-        
+
         <div className="sidebar-footer">
           <div className="user-info-badge">
             <FiUserCheck />
@@ -332,25 +328,26 @@ function MainLayout({ children, onLogout, user, flags }) {
               <strong>{username} ({displayedRole})</strong>
             </div>
           </div>
-          
+
           <button onClick={handleLogoutClick} className="logout-button">
             <FiLogOut />
             <span>Logout</span>
           </button>
         </div>
       </nav>
-      
+
       <main className="main-content">{children}</main>
-      
+
       {isPasswordModalOpen && (
-        <ChangePasswordModal 
+        <ChangePasswordModal
           user={user}
           onClose={() => setIsPasswordModalOpen(false)}
-          onPasswordChange={handlePasswordChangeLogout} 
+          onPasswordChange={handlePasswordChangeLogout}
         />
       )}
     </div>
   );
 }
+
 
 export default MainLayout;

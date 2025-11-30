@@ -565,3 +565,22 @@ a, .btn, .result-card, .stat-card { transition: all .2s ease; }
     color: var(--danger-color);
     border-color: var(--danger-color);
 }
+:root {
+  /* existing vars... */
+
+  --chart-bg: #020617;
+  --chart-ring-bg: #0b1120;
+  --chart-segment-1: #38bdf8; /* sky */
+  --chart-segment-2: #6366f1; /* indigo */
+  --chart-label: #f9fafb;
+}
+
+[data-theme="light"] {
+  /* existing light vars... */
+
+  --chart-bg: #ffffff;
+  --chart-ring-bg: #e5e7eb;
+  --chart-segment-1: #2563eb; /* darker blue for light bg */
+  --chart-segment-2: #16a34a; /* green */
+  --chart-label: #111827;
+}
