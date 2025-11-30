@@ -1,0 +1,165 @@
+/* ================================== */
+/* === SHARED STATUS BADGES === */
+/* ================================== */
+
+/* --- Base --- */
+.status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 12px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* --- Colors (Semantic) --- */
+.badge-blue {
+  background-color: #007bff;
+  color: #fff;
+}
+.badge-green {
+  background-color: #28a745;
+  color: #fff;
+}
+.badge-red {
+  background-color: #dc3545;
+  color: #fff;
+}
+.badge-yellow {
+  background-color: #ffc107;
+  color: #121212;
+}
+.badge-grey {
+  background-color: #6c757d;
+  color: #fff;
+}
+.badge-cyan {
+  background-color: #17a2b8;
+  color: #fff;
+}
+
+/* --- Custom File Input (NOTE: Styles defined in App.css for central control) --- */
+.custom-file-input { display: flex; align-items: center; gap: 12px; } 
+
+.custom-file-input .file-input-label { 
+    display: inline-flex; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 8px; 
+    padding: 8px 14px; 
+    font-size: 0.95rem; 
+    font-weight: 500; 
+    border: none; 
+    border-radius: var(--border-radius); 
+    cursor: pointer; 
+    
+    background-color: var(--secondary-color);
+    color: var(--text-on-primary); 
+    min-height: 36px; 
+    box-sizing: border-box; 
+    transition: background-color 0.2s; 
+    white-space: nowrap; 
+} 
+.custom-file-input .file-input-label:hover { 
+    background-color: var(--secondary-hover);
+} 
+.custom-file-input input[type="file"] { display: none; } 
+.custom-file-input .file-name-display { font-size: 0.9rem; color: var(--text-primary); font-style: italic; }
+
+/* ================================== */
+/* === SHARED LAYOUT CARDS === */
+/* ================================== */
+
+/* Base card for forms or lists */
+.form-card,
+.list-card,
+.module-list-card,
+.module-form-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1.2rem 1.4rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  height: fit-content;
+}
+
+/* Standard card heading */
+.form-card h2,
+.list-card h2,
+.module-list-card h3, 
+.module-form-card h3 { 
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0 0 0.9rem 0;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ================================== */
+/* === SHARED ACTION BUTTONS (.doc-btn) - ICON BUTTONS === */
+/* ================================== */
+
+/* Standard icon-only button (e.g., in lists) */
+.doc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-secondary); 
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color); 
+  border-radius: var(--border-radius);
+  width: 30px; 
+  height: 30px; 
+  font-size: 0.9rem; 
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0; 
+}
+
+/* --- INJECTED FIX: BASE VISIBILITY FOR ACTION BUTTONS --- */
+.doc-btn.view,
+.doc-btn.delete {
+    background-color: var(--bg-tertiary); /* Give it a noticeable background */
+    border-color: var(--border-color);
+    color: var(--text-secondary); 
+}
+/* --- END INJECTED FIX --- */
+
+
+.doc-btn:hover { 
+  color: var(--text-primary); 
+  border-color: var(--primary-color); 
+  background-color: var(--bg-input); 
+}
+
+/* --- HOVER STATES (Color Invert) --- */
+.doc-btn.view:hover { 
+  background-color: var(--primary-color); 
+  color: var(--text-on-primary); 
+  border-color: var(--primary-color); 
+}
+
+.doc-btn.delete:hover { 
+  background-color: var(--danger-color); 
+  color: var(--text-on-primary); 
+  border-color: var(--danger-color); 
+}
+
+.doc-btn:disabled { 
+  opacity: 0.5; 
+  cursor: not-allowed; 
+}
+
+/* --- INJECTED FIX: ICON COLORS (Applied to default state) --- */
+.doc-btn.view svg {
+  color: var(--primary-color); /* Ensures the View icon is always blue */
+}
+
+.doc-btn.delete svg {
+  color: var(--danger-color); /* Ensures the Delete icon is always red */
+}
+/* --- END INJECTED FIX --- */

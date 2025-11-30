@@ -6,6 +6,10 @@ import { formatCurrency } from '../utils/format';
 import useAuthStore from '../store/useAuthStore'; 
 import { useShallow } from 'zustand/react/shallow'; 
 
+// 🐞 FIX: Import Chart Components
+import DoughnutChart from '../components/charts/DoughnutChart'; 
+import BarChart from '../components/charts/BarChart'; 
+
 function DashboardPage() {
   const navigate = useNavigate(); 
   const { user } = useAuthStore(useShallow(state => ({ user: state.user })));
@@ -62,7 +66,7 @@ function DashboardPage() {
   }, [fetchStats, user]);
 
   // --- NAVIGATION HANDLERS ---
- const goToSearch = (status = '') => {
+  const goToSearch = (status = '') => {
     // URL Encode ensures spaces in "Visa Applied" don't break the link
     const query = status ? `?status=${encodeURIComponent(status)}` : '';
     navigate(`/search${query}`);
@@ -76,6 +80,34 @@ function DashboardPage() {
     navigate('/employers');
   };
   // ---------------------------
+  
+  // 🐞 CHART DATA TRANSFORMATION
+  const statusChartData = {
+    labels: stats.byStatus.map(s => s.status),
+    datasets: [{
+      data: stats.byStatus.map(s => s.count),
+      backgroundColor: [
+        'var(--color-cyan)', 'var(--color-yellow)', 'var(--color-blue)', 
+        'var(--color-purple)', 'var(--color-green)', 'var(--color-red)'
+      ],
+      hoverBackgroundColor: [
+        'var(--primary-color)', 'var(--warning-color)', 'var(--info-color)',
+        'var(--text-secondary)', 'var(--success-color)', 'var(--danger-color)'
+      ],
+    }]
+  };
+  
+  const topPositionsChartData = {
+      labels: stats.topPositions.map(p => p.Position),
+      datasets: [{
+          label: 'Candidates',
+          data: stats.topPositions.map(p => p.count),
+          backgroundColor: 'rgba(0, 123, 255, 0.7)',
+          borderColor: 'var(--primary-color)',
+          borderWidth: 1
+      }]
+  };
+  // ------------------------------------
 
   if (loading) {
     return <h2>Loading Dashboard...</h2>;
@@ -165,6 +197,34 @@ function DashboardPage() {
           {isStaff ? staffStatsGrid : managerStatsGrid}
       </div>
       
+      {/* --- CHART SECTION (New 2-column layout) --- */}
+      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px'}}>
+
+          {/* --- Candidate Status Doughnut Chart --- */}
+          <div className="dashboard-section-card">
+              <h3><FiUsers /> Candidate Status</h3>
+              <div style={{height: '250px'}}>
+                  {stats.byStatus.length > 0 ? (
+                      <DoughnutChart data={statusChartData} options={{ maintainAspectRatio: false }} />
+                  ) : (
+                      <p className="small-text">No data available for charting.</p>
+                  )}
+              </div>
+          </div>
+
+          {/* --- Top Positions Bar Chart --- */}
+          <div className="dashboard-section-card">
+              <h3><FiTrendingUp /> Top Positions</h3>
+              <div style={{height: '250px'}}>
+                  {stats.topPositions.length > 0 ? (
+                      <BarChart data={topPositionsChartData} options={{ indexAxis: 'y', maintainAspectRatio: false, scales: { x: { beginAtZero: true } } }} />
+                  ) : (
+                      <p className="small-text">No positions recorded.</p>
+                  )}
+              </div>
+          </div>
+      </div>
+      
       {/* --- CANDIDATE STATUS BREAKDOWN (Visible to all) --- */}
       <div className="status-breakdown">
         <h3>Candidate Status Breakdown</h3>
@@ -227,7 +287,7 @@ function DashboardPage() {
               </ul>
             </div>
 
-            {/* Top Positions */}
+            {/* Top Positions (Moved to Chart Above) - Keep this section for future expansion if needed */}
             <div className="top-positions-breakdown dashboard-section-card">
               <h3><FiTrendingUp /> Top 5 Recruitment Positions</h3>
               <ul className="report-list">
@@ -240,7 +300,7 @@ function DashboardPage() {
                   ))
                 ) : <p className="small-text">No positions recorded.</p>}
               </ul>
-            </div>
+            </div> 
           </>
       )}
       

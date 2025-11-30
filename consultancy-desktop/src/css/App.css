@@ -17,6 +17,9 @@
   --text-primary: #f1f1f1;
   --text-secondary: #a0a0a0;
   --text-on-primary: #ffffff;
+  --purple-color: #9333ea;
+  --cyan-color: #00bcd4;
+  --warning-color: #ffc107;
 
   /* Sizing */
   --sidebar-width: 260px;
@@ -35,6 +38,9 @@
   --text-primary: #212529;
   --text-secondary: #6c757d;
   --text-on-primary: #ffffff;
+  --purple-color: #9333ea;
+  --cyan-color: #00bcd4;
+  --warning-color: #ffc107;
 }
 /* --- End Light Theme --- */
 

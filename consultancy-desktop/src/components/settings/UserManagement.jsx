@@ -27,6 +27,7 @@ function UserManagement({ currentUser }) {
       useShallow(state => ({ featureFlags: state.featureFlags }))
   );
 
+  
   const isSuperAdmin = currentUser && currentUser.role === 'super_admin';
   const isAdmin = currentUser && currentUser.role === 'admin'; 
   const isManager = isSuperAdmin || isAdmin; 

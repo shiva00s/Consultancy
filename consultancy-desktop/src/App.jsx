@@ -18,12 +18,10 @@ import BulkImportPage from './pages/BulkImportPage';
 import SystemAuditLogPage from './pages/SystemAuditLogPage'; 
 import VisaKanbanPage from './pages/VisaKanbanPage';
 
-// ============================================
-
-// === 2. COMPONENT IMPORTS (From components/ folder) ===
+// === NEW/MISSING COMPONENT IMPORTS ===
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
-import ModuleVisibilityControl from './components/settings/ModuleVisibilityControl'; // Import the Settings component
+import ModuleVisibilityControl from './components/settings/ModuleVisibilityControl'; 
 // ========================================================
 
 // --- ZUSTAND IMPORTS ---
@@ -50,7 +48,7 @@ function App() {
       reset: state.reset
     }))
   );
-const [isActivated, setIsActivated] = useState(true); 
+  const [isActivated, setIsActivated] = useState(true); 
   const [activationLoading, setActivationLoading] = useState(true);
 // --- NEW: Activation Status Check ---
   useEffect(() => {
@@ -125,6 +123,8 @@ if (activationLoading) {
                       
                       {/* FIX: Settings Page and Modules now correctly receive the 'user' prop */}
                       <Route path="/settings" element={<SettingsPage user={user} />} />
+                      
+                      
                       <Route path="/system-modules" element={<ModuleVisibilityControl user={user} />} />
                       
                       <Route path="/recycle-bin" element={<RecycleBinPage user={user} />} />

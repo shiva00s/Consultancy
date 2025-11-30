@@ -127,12 +127,14 @@ function MainLayout({ children, onLogout, user, flags }) {
 
     if (user.role === 'super_admin') return true;
 
-    if (linkKey === 'dashboard' || linkKey === 'search' || linkKey === 'add') {
-      return true;
+    if (user.role === 'admin') {
+        if (linkKey === 'dashboard' || linkKey === 'search' || linkKey === 'add') {
+          return true;
+        }
     }
 
-    if (user.role === 'staff') {
-        return false; // Block management/system links for staff
+    if (user.role === 'staff' && (linkKey === 'dashboard' || linkKey === 'search' || linkKey === 'add')) {
+        return true;
     }
 
     if (user.role === 'admin') {

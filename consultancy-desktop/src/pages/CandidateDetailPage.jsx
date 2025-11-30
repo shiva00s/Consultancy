@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  FiUser, FiFileText, FiPackage, FiClipboard, FiDollarSign, FiUsers, FiCalendar, FiSend, FiClock, FiArrowLeft, FiDownload, FiAlertTriangle
+  FiUser, FiFileText, FiPackage, FiClipboard, FiDollarSign, FiUsers, FiCalendar, FiSend, FiClock, FiArrowLeft, FiDownload, FiAlertTriangle, FiMessageSquare
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -17,6 +17,7 @@ import OfferLetterGenerator from '../components/candidate-detail/OfferLetterGene
 import CandidateHistory from '../components/candidate-detail/CandidateHistory';
 import CandidateDocuments from '../components/candidate-detail/CandidateDocuments'; 
 import CandidatePassport from '../components/candidate-detail/CandidatePassport';
+import CommunicationHistory from '../components/candidate-detail/CommunicationHistory'; // 🐞 Phase 6.3 Fix
 
 const statusOptions = [
   'New', 'Documents Collected', 'Visa Applied', 'In Progress', 'Completed', 'Rejected',
@@ -44,7 +45,8 @@ function CandidateDetailPage({ user, flags }) {
   // 1. Fetch Candidate Details
   const fetchDetails = useCallback(async () => {
     setLoading(true);
-    const res = await window.electronAPI.getCandidateDetails({ id });
+    // 🐞 FIX 1: Explicitly pass user context for audit logging
+    const res = await window.electronAPI.getCandidateDetails({ id, user });
     if (res.success) {
       setDetails(res.data);
       setFormData(res.data.candidate);
@@ -52,7 +54,7 @@ function CandidateDetailPage({ user, flags }) {
       toast.error(res.error);
     }
     setLoading(false);
-  }, [id]);
+  }, [id, user]);
 
   // 2. Fetch Staff Permissions
   useEffect(() => {
@@ -119,12 +121,21 @@ function CandidateDetailPage({ user, flags }) {
   };
 
   const handleSave = async () => {
-   const res = await window.electronAPI.updateCandidateText({ user, id, data: formData });
+    // 🐞 FIX 2: Ensure PassportNo is cleaned and uppercase before sending
+    const cleanedData = {
+        ...formData,
+        passportNo: formData.passportNo 
+            ? formData.passportNo.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+            : formData.passportNo
+    };
+    
+   const res = await window.electronAPI.updateCandidateText({ user, id, data: cleanedData });
     if (res.success) {
       toast.success('Details saved successfully!');
       setIsEditing(false);
       fetchDetails();
     } else {
+      // Display validation errors from backend
       toast.error(res.error);
     }
   };
@@ -316,6 +327,11 @@ function CandidateDetailPage({ user, flags }) {
       check: 'isJobsEnabled' },
     
     { key: 'history', title: 'History', icon: <FiClock />, content: <CandidateHistory candidateId={id} />, 
+      check: 'isHistoryEnabled' },
+      
+    // 🐞 Phase 6.3 Fix
+    { key: 'communications', title: 'Comms Log', icon: <FiMessageSquare />, 
+      content: <CommunicationHistory candidateId={id} />, 
       check: 'isHistoryEnabled' },
   
   ].filter(tab => {

@@ -4,6 +4,13 @@ import toast from 'react-hot-toast';
 
 const medicalStatusOptions = ['Pending', 'Fit', 'Unfit', 'Cancelled'];
 
+// --- NEW HANDLER INJECTION (Temporary Placeholder) ---
+const handleNewFileChange = (e) => {
+    // Placeholder to make JSX valid. File logic will be implemented later.
+    console.warn("New file selected, actual upload logic is pending implementation.");
+};
+// ----------------------------------------------------
+
 function MedicalEditModal({user, medical, onClose, onSave }) {
   const [formData, setFormData] = useState(medical);
   const [isSaving, setIsSaving] = useState(false);
@@ -88,10 +95,20 @@ function MedicalEditModal({user, medical, onClose, onSave }) {
                 <div className="form-group full-width">
                     <label>Current Certificate File</label>
                     <a className="doc-item" onClick={() => window.electronAPI.openFileExternally({ path: formData.certificate_path })} style={{cursor: 'pointer', background: 'var(--bg-input)'}}>
-                        <FiDownload /> {formData.certificate_path.split('/').pop()} (Click to View)
+                        <FiDownload /> {formData.certificate_path.split(/[/\\]/).pop()} (Click to View)
                     </a>
                 </div>
             )}
+            
+            <div className="form-group full-width">
+                <label htmlFor="new-cert-file">Upload New Certificate (Replaces Existing)</label>
+                <input 
+                    type="file" 
+                    id="new-cert-file" 
+                    name="new_certificate_file" 
+                    onChange={handleNewFileChange} 
+                />
+            </div>
             
             <button type="submit" className="btn full-width" disabled={isSaving} style={{gridColumn: '1 / -1'}}>
               {isSaving ? 'Saving...' : 'Save Medical Changes'}
