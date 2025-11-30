@@ -8,17 +8,25 @@ function ActivationPrompt() {
   const [activationKey, setActivationKey] = useState('');
   const [isActivating, setIsActivating] = useState(false);
 
-  const generateId = async () => {
-    const res = await window.electronAPI.getLicenseStatus(); // { activated, machineId }
-    if (res.success) {
-      setMachineId(res.data.machineId || 'UNKNOWN');
-    } else {
-      setMachineId('ERROR: Could not fetch ID.');
-    }
-  };
-
   useEffect(() => {
-    generateId();
+    const init = async () => {
+      try {
+        // Request code + send email on first open
+        const res = await window.electronAPI.requestActivationCode();
+        if (res && res.success) {
+          setMachineId(res.machineId || 'UNKNOWN');
+          toast.success('Activation code sent to admin email.');
+        } else {
+          setMachineId('ERROR: Could not fetch ID.');
+          toast.error(res?.error || 'Failed to request activation code.');
+        }
+      } catch (err) {
+        console.error('requestActivationCode error:', err);
+        setMachineId('ERROR: Could not fetch ID.');
+        toast.error('Failed to request activation code.');
+      }
+    };
+    init();
   }, []);
 
   const handleActivate = async (e) => {
@@ -31,17 +39,20 @@ function ActivationPrompt() {
     }
 
     setIsActivating(true);
-    const res = await window.electronAPI.activateLicense({ code });
-
-    if (res.success) {
-      toast.success('Activation successful! Restarting application...');
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-    } else {
-      toast.error(res.error || 'Activation failed.');
+    try {
+      const res = await window.electronAPI.activateApplication(code);
+      if (res && res.success) {
+        toast.success('Activation successful! Restarting application...');
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        toast.error(res?.error || 'Activation failed.');
+      }
+    } catch (err) {
+      console.error('activateApplication error:', err);
+      toast.error('Activation failed.');
+    } finally {
+      setIsActivating(false);
     }
-    setIsActivating(false);
   };
 
   const handleCopy = () => {

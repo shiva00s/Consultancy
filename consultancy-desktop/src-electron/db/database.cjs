@@ -40,6 +40,8 @@ function setupDatabase(dbInstance) {
         if (err) console.error('Error creating system_settings table:', err.message);
       });
 
+      
+
       // 2. Candidates Table
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS candidates (

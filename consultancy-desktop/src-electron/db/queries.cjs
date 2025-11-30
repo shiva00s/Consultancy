@@ -1988,19 +1988,6 @@ async function restoreRequiredDocument(id) {
 // 11. LICENSING/ACTIVATION FUNCTIONS (NEW)
 // ====================================================================
 
-async function getActivationStatus() {
-    const db = getDatabase();
-    try {
-        const row = await dbGet(db, "SELECT value FROM system_settings WHERE key = 'license_status'", []);
-        if (row && row.value) {
-            return { success: true, status: JSON.parse(row.value) };
-        }
-        // Default to not activated on clean install
-        return { success: true, status: { activated: false, machineId: null } };
-    } catch (err) {
-        return { success: false, error: err.message };
-    }
-}
 
 async function setActivationStatus(statusData) {
     const db = getDatabase();
@@ -2231,7 +2218,53 @@ async function getDashboardStats() {
     }
 }
 
+async function savePendingActivation({ machineId, code, email }) {
+  const sql = `
+    INSERT INTO activations (machineId, code, activated, createdAt)
+    VALUES (?, ?, 0, datetime('now'))
+    ON CONFLICT(machineId) DO UPDATE SET
+      code = excluded.code,
+      activated = 0,
+      createdAt = excluded.createdAt
+  `;
+  await dbRun(getDatabase(), sql, [machineId, code]);
+  return { success: true };
+}
 
+async function getPendingActivation(machineId) {
+  const row = await dbGet(
+    getDatabase(),
+    'SELECT * FROM activations WHERE machineId = ?',
+    [machineId]
+  );
+  return row || null;
+}
+
+async function markActivationUsed(machineId) {
+  await dbRun(
+    getDatabase(),
+    'UPDATE activations SET activated = 1 WHERE machineId = ?',
+    [machineId]
+  );
+  return { success: true };
+}
+
+async function getActivationStatus() {
+  const db = getDatabase();
+  const row = await dbGet(
+    db,
+    'SELECT machineId, activated FROM activations LIMIT 1',
+    []
+  );
+  if (!row) {
+    return { success: true, activated: 0, machineId: null };
+  }
+  return {
+    success: true,
+    activated: row.activated,
+    machineId: row.machineId,
+  };
+}
 
 
 module.exports = {
@@ -2239,7 +2272,10 @@ module.exports = {
   dbRun,
   dbGet,
   dbAll,
-
+  savePendingActivation,
+  getPendingActivation,
+  markActivationUsed,
+  getActivationStatus,
   // User & Auth Functions
   getJwtSecret, // [NEW]
   verifyActivationKey, // [NEW]
@@ -2334,7 +2370,7 @@ module.exports = {
   restoreRequiredDocument,
 
   // System & Utils
-  getActivationStatus, 
+
   setActivationStatus, 
   getSuperAdminFeatureFlags,
   logCommunication,

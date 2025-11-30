@@ -53,7 +53,7 @@ function App() {
   useEffect(() => {
     const checkLicense = async () => {
       try {
-        const res = await window.electronAPI.getLicenseStatus();
+        const res = await window.electronAPI.getActivationStatus();
         if (res.success && res.data) {
           setIsActivated(!!res.data.activated);
         } else {

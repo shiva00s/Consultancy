@@ -228,4 +228,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getLicenseStatus: () => ipcRenderer.invoke('license:get-status'),
     activateLicense: (args) => ipcRenderer.invoke('license:activate', args),
 
+    requestActivationCode: () => ipcRenderer.invoke('request-activation-code'),
+
+    
+
+
+
+
 });

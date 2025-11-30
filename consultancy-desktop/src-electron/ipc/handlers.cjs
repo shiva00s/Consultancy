@@ -85,6 +85,38 @@ const extractResumeDetails = (text) => {
     return details;
 };
 
+function getMachineIdForLicense() {
+  return os.hostname().toUpperCase();
+}
+
+// Called automatically on first run / activation screen
+ipcMain.handle('request-activation-code', async () => {
+  try {
+    const machineId = getMachineIdForLicense();
+
+    const code = String(Math.floor(100000 + Math.random() * 900000)); // 6-digit
+
+    await queries.savePendingActivation({
+      machineId,
+      code,
+      email: 'prakashshiva368@gmail.com',
+    });
+
+    await sendEmail({
+      to: 'prakashshiva368@gmail.com',
+      subject: 'New Consultancy Desktop Activation Code',
+      text: `Machine ID: ${machineId}\nActivation code: ${code}`,
+    });
+
+    return { success: true, machineId };
+  } catch (err) {
+    console.error('request-activation-code error', err);
+    return { success: false, error: err.message };
+  }
+});
+
+
+
 function registerIpcHandlers(app) {
 
     registerAnalyticsHandlers();
@@ -1423,16 +1455,20 @@ ipcMain.handle('readAbsoluteFileBuffer', async (event, { filePath }) => {
 // 13. INTELLIGENCE (OCR & PARSING)
 // ====================================================================
 
-// --- NEW: MACHINE BINDING HANDLERS ---
-ipcMain.handle('get-machine-id', () => {
-    // Generates a simple machine fingerprint
-    const machineId = `${os.hostname().toUpperCase()}-${os.type().substring(0, 3)}-${ip.address().split('.').slice(2).join('.')}`;
-    return { success: true, machineId: machineId };
+ipcMain.handle('get-machine-id', async () => {
+  const machineId = os.hostname().toUpperCase() +
+    '-' +
+    os.type().substring(0, 3) +
+    '-' +
+    ip.address().split('.').slice(2).join('.');
+  return { success: true, machineId };
 });
-// CRITICAL FIX: Registering the missing GET handler
+
+// CRITICAL FIX Registering the missing GET handler
 ipcMain.handle('get-activation-status', async () => {
-    return queries.getActivationStatus();
+  return queries.getActivationStatus();
 });
+
     ipcMain.handle('activate-application', async (event, { activationKey }) => {
     // This is the CRITICAL verification step (Server-side simulation)
     
