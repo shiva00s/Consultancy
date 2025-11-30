@@ -89,32 +89,30 @@ function getMachineIdForLicense() {
   return os.hostname().toUpperCase();
 }
 
-// Called automatically on first run / activation screen
 ipcMain.handle('request-activation-code', async () => {
   try {
     const machineId = getMachineIdForLicense();
+    const code = String(Math.floor(100000 + Math.random() * 900000));
 
-    const code = String(Math.floor(100000 + Math.random() * 900000)); // 6-digit
+    await queries.savePendingActivation({ machineId, code, email: 'prakashshiva368@gmail.com' });
 
-    await queries.savePendingActivation({
-      machineId,
-      code,
-      email: 'prakashshiva368@gmail.com',
-    });
-
-    await sendEmail({
+    // Try to send email, but ignore failure
+    const emailResult = await sendEmail({
       to: 'prakashshiva368@gmail.com',
       subject: 'New Consultancy Desktop Activation Code',
       text: `Machine ID: ${machineId}\nActivation code: ${code}`,
     });
 
-    return { success: true, machineId };
+    if (!emailResult.success) {
+      console.warn('Activation email failed:', emailResult.error);
+    }
+
+    return { success: true, machineId, code }; // include code for debug if you want
   } catch (err) {
     console.error('request-activation-code error', err);
     return { success: false, error: err.message };
   }
 });
-
 
 
 function registerIpcHandlers(app) {
