@@ -5,6 +5,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
+
 import '../css/CandidateDetailPage.css';
 import Tabs from '../components/Tabs'; 
 import CandidateFinance from '../components/candidate-detail/CandidateFinance';
@@ -18,9 +19,11 @@ import CandidateHistory from '../components/candidate-detail/CandidateHistory';
 import CandidateDocuments from '../components/candidate-detail/CandidateDocuments'; 
 import CandidatePassport from '../components/candidate-detail/CandidatePassport';
 
+
 const statusOptions = [
   'New', 'Documents Collected', 'Visa Applied', 'In Progress', 'Completed', 'Rejected',
 ];
+
 
 function CandidateDetailPage({ user, flags }) { 
   const { id } = useParams();
@@ -38,8 +41,10 @@ function CandidateDetailPage({ user, flags }) {
   const [staffPermissions, setStaffPermissions] = useState({}); 
   const [permsLoaded, setPermsLoaded] = useState(false);
 
+
   // Determine Initial Tab from URL
   const initialTab = searchParams.get('tab') || 'profile';
+
 
   // 1. Fetch Candidate Details
   const fetchDetails = useCallback(async () => {
@@ -53,6 +58,7 @@ function CandidateDetailPage({ user, flags }) {
     }
     setLoading(false);
   }, [id]);
+
 
   // 2. Fetch Staff Permissions
   useEffect(() => {
@@ -87,6 +93,7 @@ function CandidateDetailPage({ user, flags }) {
     fetchPlacements();
   }, [id, fetchDetails]);
 
+
   const handleDocumentsUpdate = (newDocs = [], docIdToDelete = null, isCategoryUpdate = false) => {
     setDetails(prev => {
         let updatedDocuments = [...(prev?.documents || [])];
@@ -104,6 +111,7 @@ function CandidateDetailPage({ user, flags }) {
     });
   };
 
+
   const handleJobAssigned = (newJobId) => {
     setSelectedJobForOffer(newJobId); 
     const fetchPlacements = async () => {
@@ -113,10 +121,12 @@ function CandidateDetailPage({ user, flags }) {
     fetchPlacements();
   };
 
+
   const handleTextChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
 
   const handleSave = async () => {
    const res = await window.electronAPI.updateCandidateText({ user, id, data: formData });
@@ -128,6 +138,7 @@ function CandidateDetailPage({ user, flags }) {
       toast.error(res.error);
     }
   };
+
 
   const handleDeleteCandidate = async () => {
     if (window.confirm('Are you sure you want to move this candidate to the Recycle Bin?')) {
@@ -141,6 +152,7 @@ function CandidateDetailPage({ user, flags }) {
     }
   };
 
+
   const handleExportDocuments = async () => {
     toast.loading('Preparing ZIP...', { id: 'zip-status' });
     const dialogResult = await window.electronAPI.showSaveDialog({
@@ -149,6 +161,7 @@ function CandidateDetailPage({ user, flags }) {
       buttonLabel: 'Save ZIP',
       filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
     });
+
 
     if (dialogResult.canceled || !dialogResult.filePath) {
       toast.dismiss('zip-status');
@@ -163,6 +176,7 @@ function CandidateDetailPage({ user, flags }) {
     });
     toast.dismiss('zip-status');
 
+
     if (res.success) toast.success(`Documents successfully exported!`);
     else toast.error(res.error || 'Failed to create ZIP archive.');
   };
@@ -170,15 +184,19 @@ function CandidateDetailPage({ user, flags }) {
   if (loading || !permsLoaded) return <h2>Loading Candidate Details...</h2>;
   if (!details) return <h2>Candidate not found.</h2>;
 
+
   const { candidate, documents } = details;
+
 
   // --- PERMISSION CHECKER HELPER (FIXED) ---
   const canAccess = (featureKey) => {
       // 1. Safety Check: If flags aren't loaded yet, default to hidden or wait
       if (!flags) return false; 
 
+
       // 2. Global Switch Check (The Ceiling)
       if (!flags[featureKey]) return false;
+
 
       // 3. Role Checks
       if (user.role === 'super_admin') return true; 
@@ -190,6 +208,7 @@ function CandidateDetailPage({ user, flags }) {
       }
       return false;
   };
+
 
   const ProfileTabContent = (
     <div className="profile-tab-content">
@@ -265,6 +284,7 @@ function CandidateDetailPage({ user, flags }) {
     </div>
   );
 
+
   const DocumentTabContent = (
     <CandidateDocuments user={user} candidateId={id} documents={documents} onDocumentsUpdate={handleDocumentsUpdate} />
   );
@@ -282,6 +302,7 @@ function CandidateDetailPage({ user, flags }) {
       <OfferLetterGenerator user={user} candidateId={id} jobId={selectedJobForOffer} />
     </div>
   );
+
 
   // --- DYNAMIC TAB FILTERING ---
   const tabConfig = [
@@ -323,53 +344,47 @@ function CandidateDetailPage({ user, flags }) {
       return canAccess(tab.check);
   });
 
-  return (
-  <div className="detail-page-container">
-    {/* HEADER SECTION WITH NAME */}
-    <div style={{
-      display: 'flex', 
-      justifyContent: 'space-between', 
-      alignItems: 'center', 
-      marginBottom: '20px',
-      paddingBottom: '15px',
-      borderBottom: '1px solid var(--border-color)'
-    }}>
-      <h1 style={{margin: '0 0 5px 0', fontSize: '1.8rem', color: 'var(--text-primary)'}}>
-        <FiUser style={{marginRight:'10px', verticalAlign:'middle'}}/>
-        {formData?.name || candidate.name}
-      </h1>
-      <div style={{display:'flex', gap:'15px', justifyContent:'flex-end', fontSize:'0.9rem', color:'var(--text-secondary)'}}>
-        <span><strong>ID:</strong> #{candidate.id}</span>
-        <span><strong>Passport:</strong> {formData?.passportNo || candidate.passportNo}</span>
-        <span className="badge neutral" style={{padding:'2px 8px', borderRadius:'4px', background:'var(--bg-secondary)'}}>
-          {formData?.status || candidate.status}
-        </span>
-      </div>
-      <button 
-        onClick={() => navigate('/search')} 
-        className="btn btn-secondary back-button" 
-        style={{marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px'}}
-      >
-        <FiArrowLeft /> Back to Search
-      </button>
-    </div>
 
-    {/* TABS SECTION */}
-    <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between'}}>
-      <div style={{width: '30%'}}>
-        <Tabs tabs={tabConfig} defaultActiveTab={initialTab} />
-      </div>
-      <div style={{width: '70%'}}>
-        {/* TAB CONTENT */}
-        {tabConfig.map((tab, index) => (
-          <div key={index} style={{display: tab.key === initialTab ? 'block' : 'none'}}>
-            {tab.content}
+  return (
+    <div className="detail-page-container">
+      {/* HEADER SECTION WITH NAME */}
+      <div style={{
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '20px',
+          paddingBottom: '15px',
+          borderBottom: '1px solid var(--border-color)'
+      }}>
+          <button 
+            onClick={() => navigate('/search')} 
+            className="btn btn-secondary back-button" 
+            style={{marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px'}}
+          >
+              <FiArrowLeft /> Back to Search
+          </button>
+
+
+          <div style={{textAlign: 'right'}}>
+              <h1 style={{margin: '0 0 5px 0', fontSize: '1.8rem', color: 'var(--text-primary)'}}>
+                  <FiUser style={{marginRight:'10px', verticalAlign:'middle'}}/>
+                  {formData?.name || candidate.name}
+              </h1>
+              <div style={{display:'flex', gap:'15px', justifyContent:'flex-end', fontSize:'0.9rem', color:'var(--text-secondary)'}}>
+                  <span><strong>ID:</strong> #{candidate.id}</span>
+                  <span><strong>Passport:</strong> {formData?.passportNo || candidate.passportNo}</span>
+                  <span className="badge neutral" style={{padding:'2px 8px', borderRadius:'4px', background:'var(--bg-secondary)'}}>
+                      {formData?.status || candidate.status}
+                  </span>
+              </div>
           </div>
-        ))}
       </div>
+
+
+      <Tabs tabs={tabConfig} defaultActiveTab={initialTab} />
     </div>
-  </div>
-);
+  );
 }
+
 
 export default CandidateDetailPage;
