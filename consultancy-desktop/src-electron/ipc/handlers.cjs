@@ -23,7 +23,7 @@ const { registerAnalyticsHandlers } = require('./analyticsHandlers.cjs');
 const { registerDocumentHandlers } = require('./documentHandlers.cjs');
 const { fileManager } = require('../utils/fileManager.cjs');
 const { registerSyncHandlers } = require('./syncHandlers.cjs');
-const { registerPermissionHandlers } = require('./permissionHandlers.cjs');
+const { registerPermissionHandlers } = require('../utils/permissionHandlers.cjs');
 const { enforcePermissionOrDeny } = require('../utils/rbacHelpers.cjs');
 
 
@@ -737,119 +737,262 @@ ipcMain.handle('getImageBase64', (event, { filePath }) => {
 // ====================================================================
     // 8. SUB-MODULES (REFACTORED)
     // ====================================================================
+ipcMain.handle('add-passport-entry', async (event, { user, data }) => {
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_passport', 'Add passport entry');
+    if (deny) return deny;
 
-   
-    ipcMain.handle('add-passport-entry', async (event, { user, data }) => {
-        const result = await queries.addPassportEntry(data);
-        if (result.success) {
-            logAction(user, 'add_passport_entry', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Status: ${data.passport_status}, Docket: ${data.docket_number}`);
-        }
-        return result;
-    });
+    const result = await queries.addPassportEntry(data);
+    if (result.success) {
+      logAction(user, 'add_passport_entry', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Status: ${data.passport_status}, Docket: ${data.docket_number}`);
+    }
+    return result;
+  } catch (err) {
+    console.error('add-passport-entry error:', err);
+    return { success: false, error: err.message || 'Failed to add passport entry' };
+  }
+});
+
+ipcMain.handle('update-passport-entry', async (event, { user, id, data }) => {
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_passport', 'Update passport entry');
+    if (deny) return deny;
+
+    const result = await queries.updatePassportEntry(id, data);
+    if (result.success) {
+      logAction(user, 'update_passport_entry', 'candidates', data.candidate_id, `Updated Passport ID: ${id}`);
+    }
+    return result;
+  } catch (err) {
+    console.error('update-passport-entry error:', err);
+    return { success: false, error: err.message || 'Failed to update passport entry' };
+  }
+});
+
+ipcMain.handle('delete-passport-entry', async (event, { user, id }) => {
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_passport', 'Delete passport entry');
+    if (deny) return deny;
+
+    const result = await queries.deletePassportEntry(id);
+    if (result.success) {
+      logAction(user, 'delete_passport_entry', 'candidates', 0, `Deleted Passport ID: ${id}`);
+    }
+    return result;
+  } catch (err) {
+    console.error('delete-passport-entry error:', err);
+    return { success: false, error: err.message || 'Failed to delete passport entry' };
+  }
+});
+
 // ===================================================
     ipcMain.handle('get-visa-tracking', (event, { candidateId }) => {
         return queries.getVisaTracking(candidateId);
     });
     ipcMain.handle('add-visa-entry', async (event, { user, data }) => {
-        const result = await queries.addVisaEntry(data);
-        if (result.success) {
-            logAction(user, 'add_visa', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Country: ${data.country}, Status: ${data.status}`);
-        }
-        return result;
-    });
-// --- NEW: Update Visa Entry Handler ---
-    ipcMain.handle('update-visa-entry', async (event, { user, id, data }) => {
-        const result = await queries.updateVisaEntry(id, data);
-        if (result.success) {
-            logAction(user, 'update_visa', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Country: ${data.country}, Status: ${data.status}`);
-        }
-        return result;
-    });
-    ipcMain.handle('delete-visa-entry', async (event, { user, id }) => {
-        const result = await queries.deleteVisaEntry(id);
-        if (result.success) {
-            logAction(user, 'delete_visa', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Country: ${result.country}`);
-        }
-        return result;
-    });
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_visa_tracking', 'Add visa entry');
+    if (deny) return deny;
+
+    const result = await queries.addVisaEntry(data);
+    if (result.success) {
+      logAction(user, 'add_visa', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Country: ${data.country}, Status: ${data.status}`);
+    }
+    return result;
+  } catch (err) {
+    console.error('add-visa-entry error:', err);
+    return { success: false, error: err.message || 'Failed to add visa entry' };
+  }
+});
+
+ipcMain.handle('update-visa-entry', async (event, { user, id, data }) => {
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_visa_tracking', 'Update visa entry');
+    if (deny) return deny;
+
+    const result = await queries.updateVisaEntry(id, data);
+    if (result.success) {
+      logAction(user, 'update_visa', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Country: ${data.country}, Status: ${data.status}`);
+    }
+    return result;
+  } catch (err) {
+    console.error('update-visa-entry error:', err);
+    return { success: false, error: err.message || 'Failed to update visa entry' };
+  }
+});
+
+ipcMain.handle('delete-visa-entry', async (event, { user, id }) => {
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_visa_tracking', 'Delete visa entry');
+    if (deny) return deny;
+
+    const result = await queries.deleteVisaEntry(id);
+    if (result.success) {
+      logAction(user, 'delete_visa', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Country: ${result.country}`);
+    }
+    return result;
+  } catch (err) {
+    console.error('delete-visa-entry error:', err);
+    return { success: false, error: err.message || 'Failed to delete visa entry' };
+  }
+});
+
 // --- Medical Tracking ---
     ipcMain.handle('get-medical-tracking', (event, { candidateId }) => {
         return queries.getMedicalTracking(candidateId);
     });
     ipcMain.handle('add-medical-entry', async (event, { user, data }) => {
-        const result = await queries.addMedicalEntry(data);
-        if(result.success) {
-            logAction(user, 'add_medical', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Date: ${data.test_date}, Status: ${data.status}`);
-        }
-        return result;
-    });
-// --- NEW: Update Medical Entry Handler ---
-    ipcMain.handle('update-medical-entry', async (event, { user, id, data }) => {
-        const result = await queries.updateMedicalEntry(id, data);
-        if(result.success) {
-            logAction(user, 'update_medical', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Date: ${data.test_date}, Status: ${data.status}`);
-        }
-        return result;
-    });
-    ipcMain.handle('delete-medical-entry', async (event, { user, id }) => {
-        const result = await queries.deleteMedicalEntry(id);
-        if(result.success) {
-            logAction(user, 'delete_medical', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Date: ${result.test_date}, Status: ${result.status}`);
-        }
-        return result;
-    });
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_medical', 'Add medical entry');
+    if (deny) return deny;
+
+    const result = await queries.addMedicalEntry(data);
+    if (result.success) {
+      logAction(user, 'add_medical', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Date: ${data.test_date}, Status: ${data.status}`);
+    }
+    return result;
+  } catch (err) {
+    console.error('add-medical-entry error:', err);
+    return { success: false, error: err.message || 'Failed to add medical entry' };
+  }
+});
+
+ipcMain.handle('update-medical-entry', async (event, { user, id, data }) => {
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_medical', 'Update medical entry');
+    if (deny) return deny;
+
+    const result = await queries.updateMedicalEntry(id, data);
+    if (result.success) {
+      logAction(user, 'update_medical', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Date: ${data.test_date}, Status: ${data.status}`);
+    }
+    return result;
+  } catch (err) {
+    console.error('update-medical-entry error:', err);
+    return { success: false, error: err.message || 'Failed to update medical entry' };
+  }
+});
+
+ipcMain.handle('delete-medical-entry', async (event, { user, id }) => {
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_medical', 'Delete medical entry');
+    if (deny) return deny;
+
+    const result = await queries.deleteMedicalEntry(id);
+    if (result.success) {
+      logAction(user, 'delete_medical', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Date: ${result.test_date}, Status: ${result.status}`);
+    }
+    return result;
+  } catch (err) {
+    console.error('delete-medical-entry error:', err);
+    return { success: false, error: err.message || 'Failed to delete medical entry' };
+  }
+});
+
 // --- Travel Tracking ---
     ipcMain.handle('get-travel-tracking', (event, { candidateId }) => {
         return queries.getTravelTracking(candidateId);
     });
-    ipcMain.handle('add-travel-entry', async (event, { user, data }) => {
-        const result = await queries.addTravelEntry(data);
-        if(result.success) {
-            logAction(user, 'add_travel', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Date: ${data.travel_date}, Route: ${data.departure_city} to ${data.arrival_city}`);
-        }
-        return result;
-    });
-// --- NEW: Update Travel Entry Handler ---
-    ipcMain.handle('update-travel-entry', async (event, { user, id, data }) => {
-        const result = await queries.updateTravelEntry(id, data);
-        if(result.success) {
-            logAction(user, 'update_travel', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Date: ${data.travel_date}, Route: ${data.departure_city} to ${data.arrival_city}`);
-        }
-        return result;
-    });
-    ipcMain.handle('delete-travel-entry', async (event, { user, id }) => {
-        const result = await queries.deleteTravelEntry(id);
-        if(result.success) {
-            logAction(user, 'delete_travel', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Date: ${result.travel_date}`);
-        }
-        return result;
-    });
+   ipcMain.handle('add-travel-entry', async (event, { user, data }) => {
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_travel', 'Add travel entry');
+    if (deny) return deny;
+
+    const result = await queries.addTravelEntry(data);
+    if (result.success) {
+      logAction(user, 'add_travel', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Date: ${data.travel_date}, Route: ${data.departure_city} to ${data.arrival_city}`);
+    }
+    return result;
+  } catch (err) {
+    console.error('add-travel-entry error:', err);
+    return { success: false, error: err.message || 'Failed to add travel entry' };
+  }
+});
+
+ipcMain.handle('update-travel-entry', async (event, { user, id, data }) => {
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_travel', 'Update travel entry');
+    if (deny) return deny;
+
+    const result = await queries.updateTravelEntry(id, data);
+    if (result.success) {
+      logAction(user, 'update_travel', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Date: ${data.travel_date}, Route: ${data.departure_city} to ${data.arrival_city}`);
+    }
+    return result;
+  } catch (err) {
+    console.error('update-travel-entry error:', err);
+    return { success: false, error: err.message || 'Failed to update travel entry' };
+  }
+});
+
+ipcMain.handle('delete-travel-entry', async (event, { user, id }) => {
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_travel', 'Delete travel entry');
+    if (deny) return deny;
+
+    const result = await queries.deleteTravelEntry(id);
+    if (result.success) {
+      logAction(user, 'delete_travel', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Date: ${result.travel_date}`);
+    }
+    return result;
+  } catch (err) {
+    console.error('delete-travel-entry error:', err);
+    return { success: false, error: err.message || 'Failed to delete travel entry' };
+  }
+});
+
 // --- Interview Tracking ---
     ipcMain.handle('get-interview-tracking', (event, { candidateId }) => {
         return queries.getInterviewTracking(candidateId);
     });
-    ipcMain.handle('add-interview-entry', async (event, { user, data }) => {
-        const result = await queries.addInterviewEntry(data);
-        if(result.success) {
-            logAction(user, 'add_interview', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Date: ${data.interview_date}, Round: ${data.round}, Status: ${data.status}`);
-        }
-        return result;
-    });
-// --- NEW: Update Interview Entry Handler ---
-    ipcMain.handle('update-interview-entry', async (event, { user, id, data }) => {
-        const result = await queries.updateInterviewEntry(id, data);
-        if(result.success) {
-            logAction(user, 'update_interview', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Date: ${data.interview_date}, Round: ${data.round}, Status: ${data.status}`);
-        }
-        return result;
-    });
-    ipcMain.handle('delete-interview-entry', async (event, { user, id }) => {
-        const result = await queries.deleteInterviewEntry(id);
-        if(result.success) {
-            logAction(user, 'delete_interview', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Date: ${result.interview_date}, Round: ${result.round}`);
-        }
-        return result;
-    });
+   ipcMain.handle('add-interview-entry', async (event, { user, data }) => {
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_interview', 'Add interview entry');
+    if (deny) return deny;
+
+    const result = await queries.addInterviewEntry(data);
+    if (result.success) {
+      logAction(user, 'add_interview', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Date: ${data.interview_date}, Round: ${data.round}, Status: ${data.status}`);
+    }
+    return result;
+  } catch (err) {
+    console.error('add-interview-entry error:', err);
+    return { success: false, error: err.message || 'Failed to add interview entry' };
+  }
+});
+
+ipcMain.handle('update-interview-entry', async (event, { user, id, data }) => {
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_interview', 'Update interview entry');
+    if (deny) return deny;
+
+    const result = await queries.updateInterviewEntry(id, data);
+    if (result.success) {
+      logAction(user, 'update_interview', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Date: ${data.interview_date}, Round: ${data.round}, Status: ${data.status}`);
+    }
+    return result;
+  } catch (err) {
+    console.error('update-interview-entry error:', err);
+    return { success: false, error: err.message || 'Failed to update interview entry' };
+  }
+});
+
+ipcMain.handle('delete-interview-entry', async (event, { user, id }) => {
+  try {
+    const deny = await enforcePermissionOrDeny(user, 'tab_interview', 'Delete interview entry');
+    if (deny) return deny;
+
+    const result = await queries.deleteInterviewEntry(id);
+    if (result.success) {
+      logAction(user, 'delete_interview', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Date: ${result.interview_date}, Round: ${result.round}`);
+    }
+    return result;
+  } catch (err) {
+    console.error('delete-interview-entry error:', err);
+    return { success: false, error: err.message || 'Failed to delete interview entry' };
+  }
+});
+
 // ====================================================================
     // 9. FINANCIAL TRACKING (REFACTORED)
     // ====================================================================
@@ -1693,21 +1836,7 @@ ipcMain.handle('restore-database', async (event, { user }) => {
         return { success: false, error: err.message };
     }
 });
-// --- MISSING HANDLERS ADDED BELOW ---
-    ipcMain.handle('update-passport-entry', async (event, { user, id, data }) => {
-        const result = await queries.updatePassportEntry(id, data); // Ensure this function exists in queries.cjs
-        if (result.success) {
-            logAction(user, 'update_passport_entry', 'candidates', data.candidate_id, `Updated Passport ID: ${id}`);
-        }
-        return result;
-    });
-    ipcMain.handle('delete-passport-entry', async (event, { user, id }) => {
-        const result = await queries.deletePassportEntry(id); // Ensure this function exists in queries.cjs
-        if (result.success) {
-            logAction(user, 'delete_passport_entry', 'candidates', 0, `Deleted Passport ID: ${id}`);
-        }
-        return result;
-    });
+
 // ------------------------------------
 
     // [NEW] Test SMTP Handler

@@ -4,6 +4,7 @@ import { FiSearch, FiEdit, FiUser, FiChevronLeft, FiChevronRight } from 'react-i
 import toast from 'react-hot-toast';
 import '../css/CandidateListPage.css';
 
+
 const statusOptions = [
   'New', 'Documents Collected', 'Visa Applied', 'In Progress', 'Completed', 'Rejected',
 ];

@@ -294,7 +294,7 @@ function MainLayout({ children, onLogout, user, flags }) {
                     </NavLink>
                   </li>
                 )}
-                {canAccess('system_modules') && (
+               {/*  {canAccess('system_modules') && (
                   <li>
                     <NavLink to="/system-modules">
                       <FiPackage />
@@ -302,7 +302,7 @@ function MainLayout({ children, onLogout, user, flags }) {
                     </NavLink>
                   </li>
                 )}
-                {/* Settings - Always visible for Admin and Super Admin */}
+                Settings - Always visible for Admin and Super Admin */}
                 {(user.role === 'super_admin' || user.role === 'admin') && (
                   <li>
                     <NavLink to="/settings">
