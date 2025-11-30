@@ -758,69 +758,88 @@ async function getCandidateDetails(id) {
   }
 }
 
-// MODIFIED: Uses structured error return for all validation/duplicate failures
 async function updateCandidateText(id, data) {
   const db = getDatabase();
-// --- Permission Check ---
-  const accessCheck = await checkUserDelegatedAccess(data.user, 'isDocumentsEnabled');
-  if (!accessCheck.success) return accessCheck;
-// --- End Permission Check ---
 
-// --- Validation ---
+  // --- Permission Check ---
+  const accessCheck = await checkUserDelegatedAccess(data.user, 'isCandidateEditingEnabled');
+  if (!accessCheck.success) return accessCheck;
+
+  // --- Validation ---
   const errors = {};
-  if (validateRequired(data.name, 'Candidate Name')) errors.name = validateRequired(data.name, 'Candidate Name');
-  if (validateRequired(data.passportNo, 'Passport No')) errors.passportNo = validateRequired(data.passportNo, 'Passport No');
-  if (validateRequired(data.Position, 'Position')) errors.Position = validateRequired(data.Position, 'Position');
-  if (Object.keys(errors).length > 0) {
-      return { success: false, error: "Validation failed", errors: errors };
+
+  const reqName = validateRequired(data.name, 'Candidate Name');
+  if (reqName) errors.name = reqName;
+
+  const reqPass = validateRequired(data.passportNo, 'Passport No');
+  if (reqPass) errors.passportNo = reqPass;
+
+  const reqPos = validateRequired(data.Position, 'Position');
+  if (reqPos) errors.Position = reqPos;
+
+  // Aadhaar validation (format + checksum)
+  if (data.aadhar) {
+    if (!/^\d{12}$/.test(data.aadhar)) {
+      errors.aadhar = 'Aadhar must be exactly 12 digits.';
+    } else if (!validateVerhoeff(data.aadhar)) {
+      errors.aadhar = 'Invalid Aadhaar Number (Checksum failed).';
+    }
   }
-// --- End Validation ---
+
+  if (Object.keys(errors).length > 0) {
+    return { success: false, error: "Validation failed", errors };
+  }
 
   try {
+    // --- Duplicate Check ---
     let checkSql = 'SELECT passportNo, aadhar FROM candidates WHERE (passportNo = ?';
-    const errors = {}; // Re-initialize errors for duplicates check
     const params = [data.passportNo];
-    
+
     if (data.aadhar) {
-        checkSql += ' OR aadhar = ?';
-        params.push(data.aadhar);
+      checkSql += ' OR aadhar = ?';
+      params.push(data.aadhar);
     }
+
     checkSql += ') AND isDeleted = 0 AND id != ?';
     params.push(id);
 
     const existing = await dbGet(db, checkSql, params);
+
     if (existing) {
       if (existing.passportNo === data.passportNo) {
         errors.passportNo = `Passport No ${data.passportNo} already exists for another candidate.`;
       }
-      if (data.aadhar) {
-      if (!/^\d{12}$/.test(data.aadhar)) {
-          errors.aadhar = 'Aadhar must be exactly 12 digits.';
-      } else if (!validateVerhoeff(data.aadhar)) {
-          errors.aadhar = 'Invalid Aadhaar Number (Checksum failed). Please check for typos.';
+      if (existing.aadhar === data.aadhar) {
+        errors.aadhar = `Aadhar ${data.aadhar} already exists for another candidate.`;
       }
-  }
+
       if (Object.keys(errors).length > 0) {
-        return { success: false, error: "Duplicate field value detected.", errors: errors };
+        return { success: false, error: "Duplicate field value detected", errors };
       }
     }
 
-    const sql = `UPDATE candidates SET
-      name = ?, education = ?, experience = ?, dob = ?, 
-      passportNo = ?, passportExpiry = ?, contact = ?, aadhar = ?,
-      status = ?, notes = ?, Position = ?
-    WHERE id = ?`;
+    // --- Update Query ---
+    const sql = `
+      UPDATE candidates SET
+        name = ?, education = ?, experience = ?, dob = ?, 
+        passportNo = ?, passportExpiry = ?, contact = ?, aadhar = ?,
+        status = ?, notes = ?, Position = ?
+      WHERE id = ?
+    `;
+
     const updateParams = [
       data.name, data.education, data.experience, data.dob,
       data.passportNo, data.passportExpiry, data.contact, data.aadhar,
-      data.status, data.notes, data.Position, id,
+      data.status, data.notes, data.Position, id
     ];
+
     await dbRun(db, sql, updateParams);
+
     return { success: true };
 
   } catch (err) {
     if (err.message.includes('UNIQUE constraint failed')) {
-       return { success: false, error: `A unique field (like Passport) already exists.`, field: 'passportNo' };
+      return { success: false, error: "Duplicate value exists", field: "passportNo" };
     }
     return { success: false, error: err.message };
   }

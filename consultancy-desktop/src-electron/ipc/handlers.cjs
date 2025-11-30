@@ -1132,6 +1132,7 @@ ipcMain.handle('readAbsoluteFileBuffer', async (event, { filePath }) => {
             });
         });
     });
+    
     ipcMain.handle('import-candidates-from-file', async (event, { user, filePath, mapping }) => {
         const db = getDatabase();
         const rows = [];
@@ -1204,6 +1205,7 @@ ipcMain.handle('readAbsoluteFileBuffer', async (event, { filePath }) => {
         logAction(user, 'bulk_import_complete', 'system', 1, `Success: ${results.successfulCount}, Failed: ${results.failedCount}`);
         return { success: true, data: results };
     });
+
     ipcMain.handle('get-excel-sheets', async (event, { filePath }) => {
         try {
             if (!fs.existsSync(filePath)) {

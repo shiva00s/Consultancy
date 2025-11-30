@@ -48,4 +48,30 @@ function validateVerhoeff(aadhaarNumber) {
     return c === 0;
 }
 
+function validateCandidate(candidate) {
+  const errors = {};
+
+  if (!candidate.name || !candidate.name.trim()) {
+    errors.name = 'Name is required';
+  }
+
+  if (!candidate.passportNo || !candidate.passportNo.trim()) {
+    errors.passportNo = 'Passport number is required';
+  }
+
+  // Contact: allow 7–15 digits, but optional
+  if (candidate.contact &&
+      !/^\d{7,15}$/.test(String(candidate.contact))) {
+    errors.contact = 'Contact must be 7–15 digits';
+  }
+
+  // Example: do NOT enforce extra rules on status, notes, etc.
+
+  if (Object.keys(errors).length) {
+    return { success: false, errors, error: 'Validation failed' };
+  }
+  return { success: true };
+}
+
+
 module.exports = { validateVerhoeff };
