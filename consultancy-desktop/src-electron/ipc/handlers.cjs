@@ -1746,6 +1746,32 @@ ipcMain.handle('get-user-role', async (event, { userId }) => {
     }
 };
 
+ipcMain.handle('license:get-status', async () => {
+  const lic = readLicense();
+  return {
+    success: true,
+    data: {
+      activated: !!lic.activated,
+      code: lic.code || null,
+      machineId: getMachineInfo(),
+    },
+  };
+});
 
+ipcMain.handle('license:activate', async (event, { code }) => {
+  const machineId = getMachineInfo();
+  const cleanCode = String(code || '').trim();
+
+  // TODO: replace with your real rule or server validation.
+  // Example demo rule: first 6 chars of hashed machine id
+  if (cleanCode.length !== 6) {
+    return { success: false, error: 'Activation code must be 6 digits.' };
+  }
+
+  // Here you can call your server API if needed.
+  // If valid:
+  writeLicense({ activated: true, code: cleanCode, machineId });
+  return { success: true };
+});
 
     module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase  };

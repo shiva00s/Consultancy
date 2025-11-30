@@ -762,27 +762,27 @@ async function updateCandidateText(id, data) {
   const db = getDatabase();
 
   // --- Permission Check ---
-  const accessCheck = await checkUserDelegatedAccess(data.user, 'isCandidateEditingEnabled');
+  const accessCheck = await checkUserDelegatedAccess(data.user, "isCandidateEditingEnabled");
   if (!accessCheck.success) return accessCheck;
 
   // --- Validation ---
   const errors = {};
 
-  const reqName = validateRequired(data.name, 'Candidate Name');
+  const reqName = validateRequired(data.name, "Candidate Name");
   if (reqName) errors.name = reqName;
 
-  const reqPass = validateRequired(data.passportNo, 'Passport No');
+  const reqPass = validateRequired(data.passportNo, "Passport No");
   if (reqPass) errors.passportNo = reqPass;
 
-  const reqPos = validateRequired(data.Position, 'Position');
+  const reqPos = validateRequired(data.Position, "Position");
   if (reqPos) errors.Position = reqPos;
 
-  // Aadhaar validation (format + checksum)
+  // Aadhaar format + checksum
   if (data.aadhar) {
     if (!/^\d{12}$/.test(data.aadhar)) {
-      errors.aadhar = 'Aadhar must be exactly 12 digits.';
+      errors.aadhar = "Aadhaar must be exactly 12 digits.";
     } else if (!validateVerhoeff(data.aadhar)) {
-      errors.aadhar = 'Invalid Aadhaar Number (Checksum failed).';
+      errors.aadhar = "Invalid Aadhaar Number (Checksum failed).";
     }
   }
 
@@ -792,58 +792,66 @@ async function updateCandidateText(id, data) {
 
   try {
     // --- Duplicate Check ---
-    let checkSql = 'SELECT passportNo, aadhar FROM candidates WHERE (passportNo = ?';
-    const params = [data.passportNo];
+    let sqlCheck = `
+      SELECT passportNo, aadhar 
+      FROM candidates 
+      WHERE isDeleted = 0
+      AND id != ?
+      AND (passportNo = ? OR aadhar = ?)
+    `;
 
-    if (data.aadhar) {
-      checkSql += ' OR aadhar = ?';
-      params.push(data.aadhar);
-    }
-
-    checkSql += ') AND isDeleted = 0 AND id != ?';
-    params.push(id);
-
-    const existing = await dbGet(db, checkSql, params);
+    const existing = await dbGet(
+      db,
+      sqlCheck,
+      [id, data.passportNo, data.aadhar || null]
+    );
 
     if (existing) {
       if (existing.passportNo === data.passportNo) {
-        errors.passportNo = `Passport No ${data.passportNo} already exists for another candidate.`;
+        errors.passportNo = `Passport No ${data.passportNo} already exists.`;
       }
-      if (existing.aadhar === data.aadhar) {
-        errors.aadhar = `Aadhar ${data.aadhar} already exists for another candidate.`;
+      if (existing.aadhar && existing.aadhar === data.aadhar) {
+        errors.aadhar = `Aadhaar ${data.aadhar} already exists.`;
       }
 
-      if (Object.keys(errors).length > 0) {
-        return { success: false, error: "Duplicate field value detected", errors };
-      }
+      return { success: false, error: "Duplicate field value detected", errors };
     }
 
     // --- Update Query ---
     const sql = `
       UPDATE candidates SET
-        name = ?, education = ?, experience = ?, dob = ?, 
+        name = ?, education = ?, experience = ?, dob = ?,
         passportNo = ?, passportExpiry = ?, contact = ?, aadhar = ?,
         status = ?, notes = ?, Position = ?
       WHERE id = ?
     `;
 
-    const updateParams = [
-      data.name, data.education, data.experience, data.dob,
-      data.passportNo, data.passportExpiry, data.contact, data.aadhar,
-      data.status, data.notes, data.Position, id
+    const params = [
+      data.name,
+      data.education,
+      data.experience,
+      data.dob,
+      data.passportNo,
+      data.passportExpiry,
+      data.contact,
+      data.aadhar,
+      data.status,
+      data.notes,
+      data.Position,
+      id
     ];
 
-    await dbRun(db, sql, updateParams);
+    await dbRun(db, sql, params);
 
     return { success: true };
-
   } catch (err) {
-    if (err.message.includes('UNIQUE constraint failed')) {
-      return { success: false, error: "Duplicate value exists", field: "passportNo" };
-    }
-    return { success: false, error: err.message };
+    return {
+      success: false,
+      error: err.message || "Update failed"
+    };
   }
 }
+
 
 async function deleteCandidate(id) {
   const db = getDatabase();
