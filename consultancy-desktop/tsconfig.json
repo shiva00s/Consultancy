@@ -17,6 +17,6 @@
       "~/*": ["src/*"]
     }
   },
-  "include": ["src/**/*", "src-electron/utils/rbacHelpers.cjs", "src/services", "src-electron/services/permissionService.cjs"],
+  "include": ["src/**/*", "src-electron/utils/rbacHelpers.cjs"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

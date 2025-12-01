@@ -18,8 +18,6 @@ function setupDatabase(dbInstance) {
         }
       });
 
-      
-
       // 1. Users Table
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS users (
@@ -424,172 +422,6 @@ function setupDatabase(dbInstance) {
         if (err) console.error('Error creating business_theme table:', err.message);
       });
 
-            // RBAC: modules and permissions
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS modules (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          module_key TEXT UNIQUE NOT NULL,
-          module_name TEXT NOT NULL,
-          module_type TEXT NOT NULL,      -- 'core' | 'tracking' | 'settings' | 'system'
-          parent_key TEXT,
-          route TEXT,
-          icon TEXT,
-          is_enabled INTEGER DEFAULT 1,
-          order_index INTEGER DEFAULT 0
-        );
-      `, (err) => {
-        if (err) console.error('Error creating modules table:', err.message);
-      });
-
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS module_dependencies (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          module_key TEXT NOT NULL,
-          requires_module_key TEXT NOT NULL
-        );
-      `, (err) => {
-        if (err) console.error('Error creating module_dependencies table:', err.message);
-      });
-
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS role_permissions (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          user_id INTEGER NOT NULL,
-          module_key TEXT NOT NULL,
-          granted_by INTEGER,
-          granted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE(user_id, module_key),
-          FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-        );
-      `, (err) => {
-        if (err) console.error('Error creating role_permissions table:', err.message);
-      });
-
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS default_staff_permissions (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          module_key TEXT NOT NULL,
-          is_default INTEGER DEFAULT 1
-        );
-      `, (err) => {
-        if (err) console.error('Error creating default_staff_permissions table:', err.message);
-      });
-
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS permission_audit_log (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          action TEXT NOT NULL,
-          module_key TEXT,
-          target_user_id INTEGER,
-          performed_by INTEGER,
-          details TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-      `, (err) => {
-        if (err) console.error('Error creating permission_audit_log table:', err.message);
-      });
-
-      // Seed modules once
-      dbInstance.get('SELECT COUNT(*) AS count FROM modules', (err, row) => {
-        if (err) {
-          console.error('Failed to count modules:', err.message);
-          return;
-        }
-        if (row && row.count > 0) return;
-
-        const stmt = dbInstance.prepare(`
-          INSERT INTO modules
-            (module_key, module_name, module_type, parent_key, route, icon, is_enabled, order_index)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-
-        const seedModules = [
-          ['core.candidate.search', 'Candidate Search', 'core', null, '/search', 'FiSearch', 1, 1],
-          ['core.candidate.add', 'Add New Candidate', 'core', null, '/add', 'FiUserPlus', 1, 2],
-          ['core.bulk_import', 'Bulk Import', 'core', null, '/import', 'FiUploadCloud', 1, 3],
-          ['core.employers', 'Employers', 'core', null, '/employers', 'FiServer', 1, 4],
-          ['core.job_orders', 'Job Orders', 'core', null, '/jobs', 'FiClipboard', 1, 5],
-          ['core.visa_board', 'Visa Board', 'core', null, '/visa-board', 'FiBriefcase', 1, 6],
-
-          ['tab.profile', 'Profile', 'tracking', null, null, null, 1, 10],
-          ['tab.passport', 'Passport', 'tracking', null, null, null, 1, 11],
-          ['tab.documents', 'Documents', 'tracking', null, null, null, 1, 12],
-          ['tab.job_placements', 'Job Placements', 'tracking', null, null, null, 1, 13],
-          ['tab.visa_tracking', 'Visa Tracking', 'tracking', null, null, null, 1, 14],
-          ['tab.financial', 'Financial', 'tracking', null, null, null, 1, 15],
-          ['tab.medical', 'Medical', 'tracking', null, null, null, 1, 16],
-          ['tab.interview', 'Interview', 'tracking', null, null, null, 1, 17],
-          ['tab.travel', 'Travel', 'tracking', null, null, null, 1, 18],
-          ['tab.offer_letter', 'Offer Letter', 'tracking', null, null, null, 1, 19],
-          ['tab.history', 'History', 'tracking', null, null, null, 1, 20],
-          ['tab.comms_log', 'Communication Log', 'tracking', null, null, null, 1, 21],
-
-          ['settings.users', 'Users', 'settings', null, '/settings/users', 'FiUsers', 1, 30],
-          ['settings.required_docs', 'Required Docs', 'settings', null, '/settings/docs', 'FiClipboard', 1, 31],
-          ['settings.email', 'Email', 'settings', null, '/settings/email', 'FiMail', 1, 32],
-          ['settings.templates', 'Templates', 'settings', null, '/settings/templates', 'FiFileText', 1, 33],
-          ['settings.mobile_app', 'Mobile App', 'settings', null, '/settings/mobile', 'FiSmartphone', 1, 34],
-          ['settings.backup', 'Backup', 'settings', null, '/settings/backup', 'FiDatabase', 1, 35],
-
-          ['access.view_reports', 'View Reports', 'system', null, '/reports', 'FiBarChart2', 1, 40],
-          ['access.audit_log', 'System Audit Log', 'system', null, '/system-audit', 'FiClock', 1, 41],
-          ['access.modules', 'Modules', 'system', null, '/system-modules', 'FiPackage', 1, 42],
-          ['access.recycle_bin', 'Recycle Bin', 'system', null, '/recycle-bin', 'FiTrash2', 1, 43],
-        ];
-
-        seedModules.forEach(vals => stmt.run(vals));
-        stmt.finalize();
-        console.log('Seeded modules table');
-      });
-
-      // Seed default staff permissions
-      dbInstance.get('SELECT COUNT(*) AS count FROM default_staff_permissions', (err, row) => {
-        if (err) {
-          console.error('Failed to count default_staff_permissions:', err.message);
-          return;
-        }
-        if (row && row.count > 0) return;
-
-        const stmt = dbInstance.prepare(
-          'INSERT INTO default_staff_permissions (module_key, is_default) VALUES (?, 1)'
-        );
-        const defaults = [
-          'core.candidate.search',
-          'tab.profile',
-          'tab.passport',
-          'tab.documents',
-          'tab.history',
-        ];
-        defaults.forEach(k => stmt.run(k));
-        stmt.finalize();
-        console.log('Seeded default_staff_permissions');
-      });
-
-            dbInstance.get('SELECT COUNT(*) AS count FROM default_staff_permissions', (err, row) => {
-        if (err) {
-          console.error('Failed to count default_staff_permissions:', err.message);
-          return;
-        }
-        if (row && row.count > 0) return;
-
-        const stmt = dbInstance.prepare(
-          'INSERT INTO default_staff_permissions (module_key, is_default) VALUES (?, 1)'
-        );
-
-        const staffDefaults = [
-          'core.candidate.search',
-          'tab.profile',
-          'tab.passport',
-          'tab.documents',
-          'tab.history',
-        ];
-
-        staffDefaults.forEach(k => stmt.run(k));
-        stmt.finalize();
-        console.log('Seeded default_staff_permissions');
-      });
-
-
       // --- Final Commit ---
       dbInstance.run('COMMIT', (err) => {
         if (err) {
@@ -718,8 +550,6 @@ async function ensureInitialUserAndRoles(dbInstance) {
   // 3) END
   return dbInstance;
 }
-
-
 
 
 function getDatabase() {

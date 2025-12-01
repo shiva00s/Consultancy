@@ -58,7 +58,7 @@ class PermissionService {
         }
       });
     });
-  } 
+  }
 
   /**
    * Get user permissions (for Staff)
@@ -89,26 +89,24 @@ class PermissionService {
   /**
    * Get permissions for a user with hierarchy check
    */
-  // Get permissions for a user with hierarchy check
-async getEffectivePermissions(userId, userRole) {
-  // SuperAdmin gets EVERYTHING, even if disabled
-  if (userRole === 'super_admin') {
-    return await this.getAllModules();   // no is_enabled filter
+  async getEffectivePermissions(userId, userRole) {
+    // SuperAdmin gets everything
+    if (userRole === 'super_admin') {
+      return await this.getAllModules();
+    }
+
+    // Admin gets all enabled modules
+    if (userRole === 'admin') {
+      return await this.getEnabledModules();
+    }
+
+    // Staff gets only granted permissions within enabled modules
+    if (userRole === 'staff') {
+      return await this.getUserPermissions(userId);
+    }
+
+    return [];
   }
-
-  // Admin gets all ENABLED modules
-  if (userRole === 'admin') {
-    return await this.getEnabledModules();  // WHERE m.isEnabled = 1
-  }
-
-  // Staff gets only granted permissions within enabled modules
-  if (userRole === 'staff') {
-    return await this.getUserPermissions(userId); // join role_permissions + enabled modules
-  }
-
-  return [];
-}
-
 
   /**
    * Check if user has permission for a module

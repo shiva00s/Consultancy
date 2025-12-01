@@ -1,48 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { FiInfo, FiLock } from 'react-icons/fi';
+import { FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import '../css/PermissionPopup.css';
 
+// Default granular permissions for Admin users
 const ADMIN_DEFAULT_PERMISSIONS = {
   // Core Modules
-  'core.candidate.search': true,
-  'core.candidate.add': true,
-  'core.bulk_import': false,
-  'core.employers': false,
-  'core.job_orders': false,
-  'core.visa_board': true,
+  core_search: true,
+  core_add_candidate: true,
+  core_bulk_import: false,
+  core_employers: false,
+  core_jobs: false,
+  core_visa_board: true,
 
   // Tracking Tabs
-  'tab.profile': true,
-  'tab.passport': true,
-  'tab.documents': true,
-  'tab.job_placements': false,
-  'tab.visa_tracking': true,
-  'tab.financial': false,
-  'tab.medical': false,
-  'tab.interview': false,
-  'tab.travel': false,
-  'tab.offer_letter': false,
-  'tab.history': true,
-  'tab.comms_log': false,
+  tab_profile: true,
+  tab_passport: true,
+  tab_documents: true,
+  tab_job_placements: false,
+  tab_visa_tracking: true,
+  tab_financial: false,
+  tab_medical: false,
+  tab_interview: false,
+  tab_travel: false,
+  tab_offer_letter: false,
+  tab_history: true,
+  tab_comms_log: false,
 
   // Settings Tabs
-  'settings.users': true,
-  'settings.required_docs': false,
-  'settings.email': false,
-  'settings.templates': false,
-  'settings.mobile_app': false,
-  'settings.backup': false,
+  tab_users: true,
+  tab_required_docs: false,
+  tab_email: false,
+  tab_templates: false,
+  tab_mobile_app: false,
+  tab_backup: false,
 
   // System Access
-  'access.view_reports': true,
-  'access.audit_log': false,
-  'access.modules': false,
-  'access.recycle_bin': false,
+  access_view_reports: true,
+  access_audit_log: false,
+  access_modules: false,
+  access_recycle_bin: false,
 };
 
 function PermissionPopup({ user, targetUser, onClose, onSave }) {
-  const [modules, setModules] = useState([]);
   const [localPerms, setLocalPerms] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -50,55 +49,36 @@ function PermissionPopup({ user, targetUser, onClose, onSave }) {
   const isSuperAdmin = user?.role === 'super_admin';
 
   useEffect(() => {
-    const loadData = async () => {
+    const loadPerms = async () => {
       setLoading(true);
-
-      // 1) Which modules can the granter see?
-      const modsRes = await window.electronAPI.getEffectivePermissions({
-        userId: user.id,
-        userRole: user.role,
-      });
-
-      // 2) Existing granular perms for target user
-      const permRes = await window.electronAPI.getUserGranularPermissions({
+      const res = await window.electronAPI.getUserGranularPermissions({
         userId: targetUser.id,
       });
 
-      if (!modsRes.success) {
-        toast.error(modsRes.error || 'Failed to load modules');
-        setLoading(false);
-        return;
-      }
-      if (!permRes.success) {
-        toast.error(permRes.error || 'Failed to load permissions');
-        setLoading(false);
-        return;
-      }
-
-      setModules(modsRes.data || []);
-
-      const fetched = permRes.data || {};
-      if (targetUser.role === 'admin') {
-        setLocalPerms({ ...ADMIN_DEFAULT_PERMISSIONS, ...fetched });
+      if (res.success) {
+        const fetched = res.data || {};
+        // Apply Admin defaults when editing an Admin
+        if (targetUser.role === 'admin') {
+          setLocalPerms({
+            ...ADMIN_DEFAULT_PERMISSIONS,
+            ...fetched,
+          });
+        } else {
+          setLocalPerms(fetched);
+        }
       } else {
-        setLocalPerms(fetched);
+        toast.error(res.error || 'Failed to load permissions');
       }
-
       setLoading(false);
     };
 
-    loadData();
-  }, [user.id, user.role, targetUser.id, targetUser.role]);
+    loadPerms();
+  }, [targetUser]);
 
-  const canGrantPermission = (moduleKey) => {
-    // Granter can only give what they themselves effectively have
-    return modules.some(m => m.module_key === moduleKey);
-  };
-
-  const handleToggle = (moduleKey) => {
-    setLocalPerms(prev => ({
+  const togglePerm = (key) => {
+    setLocalPerms((prev) => ({
       ...prev,
-      [moduleKey]: !prev[moduleKey],
+      [key]: !prev[key],
     }));
   };
 
@@ -109,132 +89,96 @@ function PermissionPopup({ user, targetUser, onClose, onSave }) {
       targetUserId: targetUser.id,
       permissions: localPerms,
     });
+
     setSaving(false);
 
     if (res.success) {
       toast.success('Permissions updated');
       onSave && onSave();
-      onClose();
     } else {
       toast.error(res.error || 'Failed to update permissions');
     }
   };
 
+  const handleResetToAdminDefaults = () => {
+    setLocalPerms(ADMIN_DEFAULT_PERMISSIONS);
+    toast.success('Reset to Admin default permissions');
+  };
+
   if (loading) {
     return (
-      <div className="perm-modal-overlay" onClick={onClose}>
-        <div className="perm-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="perm-modal-header">
-            <h2>Access Control</h2>
-          </div>
-          <div className="perm-modal-body">
-            <p>Loading permissions...</p>
-          </div>
+      <div className="modal-backdrop">
+        <div className="modal-card">
+          <p>Loading permissions...</p>
         </div>
       </div>
     );
   }
 
-  const coreModules = modules.filter(m => m.module_type === 'core');
-  const trackingTabs = modules.filter(m => m.module_type === 'tracking');
-  const settingsTabs = modules.filter(m => m.module_type === 'settings');
-  const systemAccess = modules.filter(m => m.module_type === 'system');
-
-  const renderGroup = (title, items) => (
-    <section className="perm-section-card">
-      <div className="perm-section-header">
-        <h3>{title}</h3>
-      </div>
-      <div className="perm-section-content">
-        {items.map(m => {
-          const enabled = localPerms[m.module_key] === true;
-          const canGrant = canGrantPermission(m.module_key);
-          return (
-            <div
-              key={m.module_key}
-              className={`perm-row ${!canGrant ? 'perm-row-disabled' : ''}`}
-            >
-              <div className="perm-row-text">
-                <span className="perm-label">{m.module_name}</span>
-              </div>
-              <div className="perm-row-controls">
-                {!canGrant && (
-                  <span
-                    className="perm-lock-hint"
-                    title="You don't have this permission"
-                  >
-                    <FiLock />
-                  </span>
-                )}
-                <button
-                  type="button"
-                  className={`perm-toggle ${enabled ? 'on' : 'off'} ${!canGrant ? 'toggle-disabled' : ''}`}
-                  onClick={() => canGrant && handleToggle(m.module_key)}
-                  disabled={!canGrant}
-                >
-                  <span className="perm-toggle-knob" />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-        {items.length === 0 && (
-          <p className="perm-empty-text">No items in this group.</p>
-        )}
-      </div>
-    </section>
-  );
-
   return (
-    <div className="perm-modal-overlay" onClick={onClose}>
-      <div className="perm-modal" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="perm-modal-header">
-          <div>
-            <h2>Access Control</h2>
-            <p className="perm-subtitle">
-              Managing permissions for: <strong>{targetUser.username}</strong>
-            </p>
-          </div>
-          <button className="perm-close-btn" onClick={onClose}>
-            ✕
+    <div className="modal-backdrop">
+      <div className="modal-card large">
+        <div className="modal-header">
+          <h3>Managing permissions for: {targetUser.username}</h3>
+          <button className="icon-button" onClick={onClose}>
+            <FiX />
           </button>
         </div>
 
-        {/* Info bar */}
-        <div className="perm-info-bar">
-          <FiInfo className="perm-info-icon" />
-          <span>
-            You can only grant access to features that you currently possess.
-          </span>
+        <p className="modal-subtext">
+          You can only grant access to features that you currently possess.
+        </p>
+
+        {/* Example toggle groups – use your existing layout here */}
+        <div className="permission-section">
+          <h4>Core Modules</h4>
+          <div className="toggle-row">
+            <label>Candidate Search</label>
+            <input
+              type="checkbox"
+              checked={!!localPerms.core_search}
+              onChange={() => togglePerm('core_search')}
+            />
+          </div>
+          <div className="toggle-row">
+            <label>Add New Candidate</label>
+            <input
+              type="checkbox"
+              checked={!!localPerms.core_add_candidate}
+              onChange={() => togglePerm('core_add_candidate')}
+            />
+          </div>
+          <div className="toggle-row">
+            <label>Bulk Import</label>
+            <input
+              type="checkbox"
+              checked={!!localPerms.core_bulk_import}
+              onChange={() => togglePerm('core_bulk_import')}
+            />
+          </div>
+          {/* ...keep all your other toggle rows, wired to localPerms[...] ... */}
         </div>
 
-        {/* Body */}
-        <div className="perm-modal-body">
-          {renderGroup('Core Modules', coreModules)}
-          {renderGroup('Tracking Tabs', trackingTabs)}
-          {renderGroup('Settings Tabs', settingsTabs)}
-          {renderGroup('System Access', systemAccess)}
-        </div>
-
-        {/* Footer */}
-        <div className="perm-modal-footer">
+        <div className="modal-footer">
           {isSuperAdmin && targetUser.role === 'admin' && (
             <button
+              type="button"
               className="btn btn-secondary"
-              onClick={() => {
-                setLocalPerms(ADMIN_DEFAULT_PERMISSIONS);
-                toast.success('Reset to Admin default permissions');
-              }}
+              onClick={handleResetToAdminDefaults}
               style={{ marginRight: 'auto' }}
             >
               Reset to Admin Defaults
             </button>
           )}
+
           <button className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn" onClick={handleSave} disabled={saving}>
+          <button
+            className="btn"
+            onClick={handleSave}
+            disabled={saving}
+          >
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>

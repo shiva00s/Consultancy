@@ -331,30 +331,7 @@ function registerIpcHandlers(app) {
         }
     });
 // ====================================================================
-
-ipcMain.handle('get-deleted-required-documents', async () => {
-  try {
-    const rows = await db.all(
-      'SELECT * FROM required_documents WHERE is_deleted = 1 ORDER BY name ASC'
-    );
-    return { success: true, data: rows };
-  } catch (err) {
-    console.error('get-deleted-required-documents failed', err);
-    return { success: false, error: err.message };
-  }
-});
-
-ipcMain.handle('restore-required-document', async (event, { user, id }) => {
-  try {
-    await fileManager.restoreRequiredDocument({ user, id }); // implement this
-    return { success: true };
-  } catch (err) {
-    console.error('restore-required-document failed', err);
-    return { success: false, error: err.message };
-  }
-});
-
-ipcMain.handle('save-feature-flags', async (event, { user, flags }) => {
+    ipcMain.handle('save-feature-flags', async (event, { user, flags }) => {
         // SECURITY: Only Super Admin can modify global toggles
         if (!user || user.role !== 'super_admin') {
             return { success: false, error: 'Access Denied: Only Super Admin can modify system modules.' };
@@ -1872,5 +1849,26 @@ function registerAuditHandlers() {
 
   console.log('✅ Audit log handler registered');
 }
+
+ipcMain.handle('get-deleted-required-documents', async () => {
+  return new Promise((resolve) => {
+    const query = `
+      SELECT
+        id,
+        name
+      FROM required_documents
+      WHERE isDeleted = 1
+      ORDER BY isDeleted DESC
+    `;
+
+    db.all(query, [], (err, rows) => {
+      if (err) {
+        console.error('get-deleted-required-documents error:', err);
+        return resolve({ success: false, error: err.message });
+      }
+      resolve({ success: true, data: rows });
+    });
+  });
+});
 
     module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase  };

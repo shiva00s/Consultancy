@@ -10,17 +10,19 @@ import {
 } from 'react-icons/fi';
 import '../css/RecycleBinPage.css';
 import Tabs from '../components/Tabs';
-import toast from 'react-hot-toast';
-import PermanentDeleteModal from '../components/modals/PermanentDeleteModal';
+import toast from 'react-hot-toast'; 
+import PermanentDeleteModal from "../components/modals/PermanentDeleteModal";
+
 
 function RecycleBinPage({ user }) {
   const [deletedCandidates, setDeletedCandidates] = useState([]);
   const [deletedEmployers, setDeletedEmployers] = useState([]);
   const [deletedJobs, setDeletedJobs] = useState([]);
-  const [deletedRequiredDocs, setDeletedRequiredDocs] = useState([]);
-
+  
   const [loading, setLoading] = useState(true);
-  const [deleteModalItem, setDeleteModalItem] = useState(null); // { item, type }
+  const [deleteModalItem, setDeleteModalItem] = useState(null); // {item: {}, type: ''}
+  const [deletedRequiredDocs, setDeletedRequiredDocs] = useState([]);
+  // NOTE: Assuming canDeletePermanently flag is loaded in useAuthStore
 
   const fetchAllDeleted = useCallback(async () => {
     if (!user || !user.id) {
@@ -28,194 +30,148 @@ function RecycleBinPage({ user }) {
       return;
     }
     setLoading(true);
-
+    
     const [candRes, empRes, jobRes, reqDocRes] = await Promise.all([
-      window.electronAPI.getDeletedCandidates(),
-      window.electronAPI.getDeletedEmployers(),
-      window.electronAPI.getDeletedJobOrders(),
-      window.electronAPI.getDeletedRequiredDocuments(),
-    ]);
+  window.electronAPI.getDeletedCandidates(),
+  window.electronAPI.getDeletedEmployers(),
+  window.electronAPI.getDeletedJobOrders(),
+  window.electronAPI.getDeletedRequiredDocuments(),
+]);
 
-    if (candRes.success && Array.isArray(candRes.data)) {
-      setDeletedCandidates(candRes.data);
-    } else if (!candRes.success) {
-      toast.error(candRes.error);
-    }
+if (candRes.success) setDeletedCandidates(candRes.data);
+else toast.error(candRes.error);
 
-    if (empRes.success && Array.isArray(empRes.data)) {
-      setDeletedEmployers(empRes.data);
-    } else if (!empRes.success) {
-      toast.error(empRes.error);
-    }
+if (empRes.success) setDeletedEmployers(empRes.data);
+else toast.error(empRes.error);
 
-    if (jobRes.success && Array.isArray(jobRes.data)) {
-      setDeletedJobs(jobRes.data);
-    } else if (!jobRes.success) {
-      toast.error(jobRes.error);
-    }
+if (jobRes.success) setDeletedJobs(jobRes.data);
+else toast.error(jobRes.error);
 
-    // normalize required docs result to an array
-    if (reqDocRes.success) {
-      const docs =
-        Array.isArray(reqDocRes.data)
-          ? reqDocRes.data
-          : Array.isArray(reqDocRes.data?.rows)
-          ? reqDocRes.data.rows
-          : [];
-      setDeletedRequiredDocs(docs);
-    } else {
-      toast.error(reqDocRes.error);
-    }
+if (reqDocRes.success) setDeletedRequiredDocs(reqDocRes.data);
+else toast.error(reqDocRes.error);
 
+    
     setLoading(false);
-  }, [user]);
+  }, [user]); 
 
   useEffect(() => {
     fetchAllDeleted();
   }, [fetchAllDeleted]);
-
+  
+  // --- DELETE HANDLER (POST-MODAL) ---
   const handlePermanentDelete = (id, targetType) => {
-    setDeleteModalItem(null);
-
+    setDeleteModalItem(null); // Close modal
+    
+    // Optimistic removal from the correct array
     if (targetType === 'candidates') {
-      setDeletedCandidates(prev => prev.filter(c => c.id !== id));
+        setDeletedCandidates(prev => prev.filter(c => c.id !== id));
     } else if (targetType === 'employers') {
-      setDeletedEmployers(prev => prev.filter(e => e.id !== id));
+        setDeletedEmployers(prev => prev.filter(e => e.id !== id));
     } else if (targetType === 'job_orders') {
-      setDeletedJobs(prev => prev.filter(j => j.id !== id));
+        setDeletedJobs(prev => prev.filter(j => j.id !== id));    
     } else if (targetType === 'required_docs') {
-      setDeletedRequiredDocs(prev => prev.filter(d => d.id !== id));
-    }
+    setDeletedRequiredDocs(prev => prev.filter(d => d.id !== id));
+  }
   };
 
   const handleRestoreRequiredDoc = async (docId, name) => {
-    if (window.confirm(`Restore required document: ${name}?`)) {
-      const res = await window.electronAPI.restoreRequiredDocument({
-        user,
-        id: docId,
-      });
-      if (res.success) {
-        toast.success(`Required document "${name}" restored.`);
-        setDeletedRequiredDocs(prev => prev.filter(d => d.id !== docId));
-      } else {
-        toast.error(res.error);
-      }
+  if (window.confirm(`Restore required document: ${name}?`)) {
+    const res = await window.electronAPI.restoreRequiredDocument({ user, id: docId });
+    if (res.success) {
+      toast.success(`Required document "${name}" restored.`);
+      setDeletedRequiredDocs(prev => prev.filter(d => d.id !== docId));
+    } else {
+      toast.error(res.error);
     }
-  };
+  }
+};
+
+
 
   const handleRestoreCandidate = async (candidateId, name) => {
     if (window.confirm(`Are you sure you want to restore candidate: ${name}?`)) {
-      const res = await window.electronAPI.restoreCandidate({
-        user,
-        id: candidateId,
-      });
+      const res = await window.electronAPI.restoreCandidate({user, id: candidateId });
       if (res.success) {
-        toast.success(`Candidate ${name} restored successfully.`);
+        toast.success(`Candidate ${name} restored successfully.`); 
         setDeletedCandidates(prev => prev.filter(c => c.id !== candidateId));
       } else {
-        toast.error(res.error);
+        toast.error(res.error); 
       }
     }
   };
-
+  
   const handleRestoreEmployer = async (employerId, name) => {
-    if (
-      window.confirm(
-        `Are you sure you want to restore employer: ${name}? This will also restore their associated jobs.`
-      )
-    ) {
-      const res = await window.electronAPI.restoreEmployer({
-        user,
-        id: employerId,
-      });
+    if (window.confirm(`Are you sure you want to restore employer: ${name}? This will also restore their associated jobs.`)) {
+      const res = await window.electronAPI.restoreEmployer({user, id: employerId });
       if (res.success) {
-        toast.success(`Employer ${name} and linked jobs restored.`);
-        fetchAllDeleted();
+        toast.success(`Employer ${name} and linked jobs restored.`); 
+        fetchAllDeleted(); // Refresh all lists
       } else {
-        toast.error(res.error);
+        toast.error(res.error); 
       }
     }
   };
-
+  
   const handleRestoreJob = async (jobId, name) => {
-    if (
-      window.confirm(
-        `Are you sure you want to restore job: ${name}? This will also restore its linked placements.`
-      )
-    ) {
-      const res = await window.electronAPI.restoreJobOrder({
-        user,
-        id: jobId,
-      });
+    if (window.confirm(`Are you sure you want to restore job: ${name}? This will also restore its linked placements.`)) {
+      const res = await window.electronAPI.restoreJobOrder({user, id: jobId });
       if (res.success) {
-        toast.success(`Job ${name} and linked placements restored.`);
-        fetchAllDeleted();
+        toast.success(`Job ${name} and linked placements restored.`); 
+        fetchAllDeleted(); // Refresh all lists
       } else {
-        toast.error(res.error);
+        toast.error(res.error); 
       }
     }
   };
+  
+  // Helper to check the flag locally for UI display
+  const canDeletePermanently = user.role === 'super_admin'; 
+  
+  const renderRequiredDocsList = () => (
+  <div className="recycle-list-content">
+    {loading ? <p>Loading...</p> : deletedRequiredDocs.length === 0 ? (
+      <p>No deleted required documents found.</p>
+    ) : (
+      <ul className="recycle-list">
+        {deletedRequiredDocs.map(doc => (
+          <li key={doc.id} className="recycle-item">
+            <div className="item-info">
+              <strong>{doc.name}</strong>
+            </div>
+            {renderItemActions(doc, 'required_docs', handleRestoreRequiredDoc)}
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+);
 
-  const canDeletePermanently = user.role === 'super_admin';
 
   const renderItemActions = (item, type, restoreHandler) => (
     <div className="item-actions">
-      {canDeletePermanently && (
+        {canDeletePermanently && (
+            <button
+              className="doc-btn delete"
+              title={`Permanently Delete ${type}`}
+              onClick={() => setDeleteModalItem({ item: item, type: type })}
+            >
+              <FiAlertTriangle />
+            </button>
+        )}
         <button
-          className="doc-btn delete"
-          title={`Permanently Delete ${type}`}
-          onClick={() => setDeleteModalItem({ item, type })}
+            className="doc-btn view"
+            onClick={() => restoreHandler(item.id, item.name || item.companyName || item.positionTitle)}
+            title={`Restore ${type}`}
         >
-          <FiAlertTriangle />
+            <FiRotateCcw />
         </button>
-      )}
-      <button
-        className="doc-btn view"
-        onClick={() =>
-          restoreHandler(
-            item.id,
-            item.name || item.companyName || item.positionTitle
-          )
-        }
-        title={`Restore ${type}`}
-      >
-        <FiRotateCcw />
-      </button>
     </div>
   );
 
-  const renderRequiredDocsList = () => {
-    const docs = Array.isArray(deletedRequiredDocs)
-      ? deletedRequiredDocs
-      : [];
-
-    return (
-      <div className="recycle-list-content">
-        {loading ? (
-          <p>Loading...</p>
-        ) : docs.length === 0 ? (
-          <p>No deleted required documents found.</p>
-        ) : (
-          <ul className="recycle-list">
-            {docs.map(doc => (
-              <li key={doc.id} className="recycle-item">
-                <div className="item-info">
-                  <strong>{doc.name}</strong>
-                </div>
-                {renderItemActions(doc, 'required_docs', handleRestoreRequiredDoc)}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    );
-  };
 
   const renderCandidateList = () => (
     <div className="recycle-list-content">
-      {loading ? (
-        <p>Loading...</p>
-      ) : deletedCandidates.length === 0 ? (
+      {loading ? <p>Loading...</p> : deletedCandidates.length === 0 ? (
         <p>No deleted candidates found.</p>
       ) : (
         <ul className="recycle-list">
@@ -232,12 +188,10 @@ function RecycleBinPage({ user }) {
       )}
     </div>
   );
-
+  
   const renderEmployerList = () => (
     <div className="recycle-list-content">
-      {loading ? (
-        <p>Loading...</p>
-      ) : deletedEmployers.length === 0 ? (
+      {loading ? <p>Loading...</p> : deletedEmployers.length === 0 ? (
         <p>No deleted employers found.</p>
       ) : (
         <ul className="recycle-list">
@@ -254,12 +208,10 @@ function RecycleBinPage({ user }) {
       )}
     </div>
   );
-
+  
   const renderJobList = () => (
     <div className="recycle-list-content">
-      {loading ? (
-        <p>Loading...</p>
-      ) : deletedJobs.length === 0 ? (
+      {loading ? <p>Loading...</p> : deletedJobs.length === 0 ? (
         <p>No deleted jobs found.</p>
       ) : (
         <ul className="recycle-list">
@@ -297,47 +249,34 @@ function RecycleBinPage({ user }) {
       content: renderJobList(),
     },
     {
-      key: 'required_docs',
-      title: `Required Docs (${deletedRequiredDocs.length || 0})`,
-      icon: <FiFileText />,
-      content: renderRequiredDocsList(),
-    },
+    key: 'required_docs',
+    title: `Required Docs (${deletedRequiredDocs.length})`,
+    icon: <FiFileText />,
+    content: renderRequiredDocsList(),
+  },
   ];
 
   return (
     <div className="recycle-bin-container">
-      {deleteModalItem && (
-        <PermanentDeleteModal
-          user={user}
-          item={deleteModalItem.item}
-          targetType={deleteModalItem.type}
-          onClose={() => setDeleteModalItem(null)}
-          onPermanentDelete={id =>
-            handlePermanentDelete(id, deleteModalItem.type)
-          }
-        />
-      )}
-
-      <h1>
-        <FiTrash2 /> Recycle Bin
-      </h1>
-
+        {deleteModalItem && (
+            <PermanentDeleteModal
+              user={user}
+                item={deleteModalItem.item}
+                targetType={deleteModalItem.type}
+                onClose={() => setDeleteModalItem(null)}
+                onPermanentDelete={(id) => handlePermanentDelete(id, deleteModalItem.type)}
+            />
+        )}
+      <h1><FiTrash2 /> Recycle Bin</h1>
       {canDeletePermanently && (
-        <p
-          className="form-message danger"
-          style={{ marginBottom: '1.5rem' }}
-        >
-          <FiAlertTriangle /> SUPER ADMIN WARNING: You have permission for
-          permanent deletion (red trash icon). Use with extreme caution.
-        </p>
+          <p className="form-message danger" style={{marginBottom: '1.5rem'}}>
+              <FiAlertTriangle /> **SUPER ADMIN WARNING**: You have permission for **Permanent Deletion** (red trash icon). Use with extreme caution.
+          </p>
       )}
-
-      <p>
-        Items moved to the recycle bin. Restoring an item will also restore its
-        associated records (e.g., jobs, placements, documents).
-      </p>
+      <p>Items moved to the recycle bin. Restoring an item will also restore its associated records (e.g., jobs, placements, documents).</p>
 
       <Tabs tabs={tabs} defaultActiveTab="candidates" />
+      
     </div>
   );
 }
