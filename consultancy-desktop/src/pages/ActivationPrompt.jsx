@@ -11,23 +11,37 @@ function ActivationPrompt() {
   useEffect(() => {
     const init = async () => {
       try {
-        // Request code + send email on first open
-        const res = await window.electronAPI.requestActivationCode();
+        const res = await window.electronAPI.getActivationStatus();
         if (res && res.success) {
           setMachineId(res.machineId || 'UNKNOWN');
-          toast.success('Activation code sent to email.');
         } else {
           setMachineId('ERROR: Could not fetch ID.');
-          toast.error(res?.error || 'Failed to request activation code.');
         }
       } catch (err) {
-        console.error('requestActivationCode error:', err);
+        console.error('getActivationStatus error:', err);
         setMachineId('ERROR: Could not fetch ID.');
-        toast.error('Failed to request activation code.');
       }
     };
     init();
   }, []);
+
+  const handleRequestCode = async () => {
+    try {
+      setIsActivating(true);
+      const res = await window.electronAPI.requestActivationCode();
+      if (res && res.success) {
+        setMachineId(res.machineId || 'UNKNOWN');
+        toast.success('Activation code sent to email.');
+      } else {
+        toast.error(res?.error || 'Failed to request activation code.');
+      }
+    } catch (err) {
+      console.error('requestActivationCode error:', err);
+      toast.error('Failed to request activation code.');
+    } finally {
+      setIsActivating(false);
+    }
+  };
 
   const handleActivate = async (e) => {
     e.preventDefault();
@@ -87,6 +101,16 @@ function ActivationPrompt() {
             Copy
           </button>
         </div>
+
+        <button
+          type="button"
+          className="btn btn-full-width"
+          onClick={handleRequestCode}
+          disabled={isActivating || machineId.startsWith('ERROR')}
+          style={{ marginBottom: '12px' }}
+        >
+          {isActivating ? 'Sending code...' : 'Email Activation Code'}
+        </button>
 
         <form onSubmit={handleActivate} className="login-form">
           <div className="form-group">
