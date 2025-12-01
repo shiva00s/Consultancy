@@ -5,14 +5,9 @@ const permissionService = require('../services/permissionService.cjs')
 function registerPermissionHandlers() {
     const db = getDatabase();
 
-    ipcMain.handle('get-effective-permissions', async (event, { userId, userRole }) => {
-  try {
-    const data = await permissionService.getEffectivePermissions(userId, userRole);
-    return { success: true, data };
-  } catch (error) {
-    console.error('get-effective-permissions error:', error);
-    return { success: false, error: error.message };
-  }
+   ipcMain.handle('get-effective-permissions', async (event, { userId, userRole }) => {
+  const perms = await permissionService.getEffectivePermissions(userId, userRole);
+  return perms; // array of { module_key, module_name, module_type, is_enabled }
 });
 
 

@@ -62,6 +62,21 @@ function MainLayout({ children, onLogout, user, flags }) {
   // Granular Permissions (unchanged)
   useEffect(() => {
     const loadPermissions = async () => {
+
+      const res = await window.electronAPI.getEffectivePermissions({
+        userId: user.id,
+        userRole: user.role,
+      });
+      if (res.success && Array.isArray(res.data)) {
+        const map = {};
+        res.data.forEach(m => {
+          if (m.is_enabled) map[m.module_key] = true;
+        });
+        setGranularPermissions(map);
+      }
+      setPermsLoaded(true);
+      return;
+
       if (user.role === 'super_admin') {
         setGranularPermissions({
           candidate_search: true,
@@ -291,14 +306,14 @@ function MainLayout({ children, onLogout, user, flags }) {
                     </NavLink>
                   </li>
                 )}
-                {/* {canAccess('system_modules') && (
+                {canAccess('system_modules') && (
                   <li>
                     <NavLink to="/system-modules">
                       <FiPackage />
                       <span>Modules</span>
                     </NavLink>
                   </li>
-                )} */}
+                )} 
                 {(user.role === 'super_admin' || user.role === 'admin') && (
                   <li>
                     <NavLink to="/settings">
