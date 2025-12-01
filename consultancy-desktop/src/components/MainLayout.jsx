@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { NavLink, useNavigate, Outlet } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   FiGrid, FiClock, FiSearch, FiUserPlus, FiLogOut, FiBriefcase, FiServer,
-  FiClipboard, FiSettings, FiBarChart2, FiUserCheck,
-  FiTrash2, FiChevronLeft, FiPackage, FiUploadCloud, FiSun, FiMoon, FiChevronDown
+  FiClipboard, FiSettings, FiLock, FiBarChart2, FiUserCheck,
+  FiTrash2, FiChevronLeft, FiPackage, FiUploadCloud, FiSun, FiMoon,
+  FiChevronDown, FiChevronRight, FiUsers
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import '../css/MainLayout.css';
@@ -32,11 +33,11 @@ function SubMenu({ title, icon, children, isCollapsed }) {
 
   return (
     <li className={isOpen && !isCollapsed ? 'submenu-open' : ''}>
-      <button type="button" onClick={handleToggle} className="submenu-toggle">
+      <a onClick={handleToggle} className="submenu-toggle">
         {icon}
         <span>{title}</span>
         <FiChevronDown className="submenu-arrow" />
-      </button>
+      </a>
       <ul className="submenu-content">
         {children}
       </ul>
@@ -44,7 +45,7 @@ function SubMenu({ title, icon, children, isCollapsed }) {
   );
 }
 
-function MainLayout({ onLogout, user }) {
+function MainLayout({ children, onLogout, user, flags }) {
   const navigate = useNavigate();
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(getInitialCollapseState());
@@ -55,37 +56,37 @@ function MainLayout({ onLogout, user }) {
 
   const globalSearchRef = useRef(null);
 
+  // Use global keyboard shortcuts for navigation, search, etc
   useGlobalShortcuts(navigate, user);
 
-  // Load effective permissions from main process
+  // Granular Permissions (unchanged)
   useEffect(() => {
-    if (!user || !user.id) return;
-
     const loadPermissions = async () => {
-      try {
-        const res = await window.electronAPI.getEffectivePermissions({
-          userId: user.id,
-          userRole: user.role,
+      if (user.role === 'super_admin') {
+        setGranularPermissions({
+          candidate_search: true,
+          add_candidate: true,
+          bulk_import: true,
+          employers: true,
+          job_orders: true,
+          visa_board: true,
+          system_reports: true,
+          system_audit_log: true,
+          system_modules: true,
+          system_recycle_bin: true,
         });
-
-        if (res.success && Array.isArray(res.data)) {
-          const map = {};
-          res.data.forEach(m => {
-            map[m.module_key] = true;
-          });
-          setGranularPermissions(map);
+      } else {
+        const res = await window.electronAPI.getUserGranularPermissions({ userId: user.id });
+        if (res.success) {
+          setGranularPermissions(res.data || {});
         }
-      } catch (e) {
-        console.error('Failed to load permissions', e);
-      } finally {
-        setPermsLoaded(true);
       }
+      setPermsLoaded(true);
     };
-
     loadPermissions();
-  }, [user?.id, user?.role]);
+  }, [user]);
 
-  const canAccess = (key) => granularPermissions[key] === true;
+  const canAccess = (permKey) => granularPermissions[permKey] === true;
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
@@ -96,7 +97,6 @@ function MainLayout({ onLogout, user }) {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Auto‑logout if role changed or user deleted
   useEffect(() => {
     const checkRoleStatus = async () => {
       if (!window.electronAPI || typeof window.electronAPI.getUserRole !== 'function') return;
@@ -105,20 +105,19 @@ function MainLayout({ onLogout, user }) {
         const res = await window.electronAPI.getUserRole({ userId: user.id });
         if (res.success) {
           if (res.role !== user.role) {
-            toast.error('Your permissions have changed. You must log in again.');
+            toast.error("Your permissions have changed. You must log in again.");
             onLogout();
             navigate('/login');
           }
         } else if (res.error === 'User not found') {
-          toast.error('This account no longer exists.');
+          toast.error("This account no longer exists.");
           onLogout();
           navigate('/login');
         }
       } catch (error) {
-        console.warn('Role check failed silently:', error);
+        console.warn("Role check failed silently:", error);
       }
     };
-
     checkRoleStatus();
     const interval = setInterval(checkRoleStatus, 60000);
     return () => clearInterval(interval);
@@ -153,18 +152,17 @@ function MainLayout({ onLogout, user }) {
 
   const handlePasswordChangeLogout = onLogout;
 
-  // visibility helpers
   const isManagementVisible = () =>
-    canAccess('core.employers') ||
-    canAccess('core.job_orders') ||
-    canAccess('core.visa_board') ||
-    canAccess('core.bulk_import');
+    canAccess('employers') ||
+    canAccess('job_orders') ||
+    canAccess('visa_board') ||
+    canAccess('bulk_import');
 
   const isSystemVisible = () =>
-    canAccess('access.view_reports') ||
-    canAccess('access.audit_log') ||
-    canAccess('access.modules') ||
-    canAccess('access.recycle_bin') ||
+    canAccess('system_reports') ||
+    canAccess('system_audit_log') ||
+    canAccess('system_modules') ||
+    canAccess('system_recycle_bin') ||
     user.role === 'super_admin' ||
     user.role === 'admin';
 
@@ -174,7 +172,7 @@ function MainLayout({ onLogout, user }) {
 
   return (
     <div className={`layout-container ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
-      <nav className="sidebar">
+      <nav className={`sidebar`}>
         <div className="sidebar-scrollable-area">
           <button className="sidebar-toggle-btn" onClick={handleToggleCollapse}>
             <FiChevronLeft />
@@ -190,6 +188,7 @@ function MainLayout({ onLogout, user }) {
             >
               {theme === 'dark' ? <FiMoon /> : <FiSun />}
             </button>
+            {/* Keyboard Shortcuts Trigger */}
             <KeyboardShortcutsGuide />
           </div>
 
@@ -207,7 +206,7 @@ function MainLayout({ onLogout, user }) {
           </div>
 
           <ul className="sidebar-nav">
-            {/* Dashboard (root "/") */}
+            {/* Dashboard - Always visible */}
             <li>
               <NavLink to="/" end>
                 <FiGrid />
@@ -215,30 +214,27 @@ function MainLayout({ onLogout, user }) {
               </NavLink>
             </li>
 
-            {/* Candidates */}
+            {/* Candidates Section */}
             <SubMenu title="Candidates" icon={<FiSearch />} isCollapsed={isCollapsed}>
-              {canAccess('core.candidate.search') && (
+              {canAccess('candidate_search') && (
                 <li>
-                  {/* DashboardPage route: path="/"  ; search list: path="search" */}
-                  <NavLink to="search">
+                  <NavLink to="/search">
                     <FiSearch />
                     <span>Candidate Search</span>
                   </NavLink>
                 </li>
               )}
-              {canAccess('core.candidate.add') && (
+              {canAccess('add_candidate') && (
                 <li>
-                  {/* AddCandidatePage: path="add" */}
-                  <NavLink to="add">
+                  <NavLink to="/add">
                     <FiUserPlus />
                     <span>Add New Candidate</span>
                   </NavLink>
                 </li>
               )}
-              {canAccess('core.bulk_import') && (
+              {canAccess('bulk_import') && (
                 <li>
-                  {/* BulkImportPage: path="import" (super_admin only route) */}
-                  <NavLink to="import">
+                  <NavLink to="/import">
                     <FiUploadCloud />
                     <span>Bulk Import</span>
                   </NavLink>
@@ -246,31 +242,28 @@ function MainLayout({ onLogout, user }) {
               )}
             </SubMenu>
 
-            {/* Management */}
+            {/* Management Section */}
             {isManagementVisible() && (
               <SubMenu title="Management" icon={<FiBriefcase />} isCollapsed={isCollapsed}>
-                {canAccess('core.employers') && (
+                {canAccess('employers') && (
                   <li>
-                    {/* EmployerListPage: path="employers" */}
-                    <NavLink to="employers">
+                    <NavLink to="/employers">
                       <FiServer />
                       <span>Employers</span>
                     </NavLink>
                   </li>
                 )}
-                {canAccess('core.job_orders') && (
+                {canAccess('job_orders') && (
                   <li>
-                    {/* JobOrderListPage: path="jobs" */}
-                    <NavLink to="jobs">
+                    <NavLink to="/jobs">
                       <FiClipboard />
                       <span>Job Orders</span>
                     </NavLink>
                   </li>
                 )}
-                {canAccess('core.visa_board') && (
+                {canAccess('visa_board') && (
                   <li>
-                    {/* VisaKanbanPage: path="visa-board" */}
-                    <NavLink to="visa-board">
+                    <NavLink to="/visa-board">
                       <FiBriefcase />
                       <span>Visa Board</span>
                     </NavLink>
@@ -279,49 +272,44 @@ function MainLayout({ onLogout, user }) {
               </SubMenu>
             )}
 
-            {/* System Settings */}
+            {/* System Settings Section */}
             {isSystemVisible() && (
               <SubMenu title="System Settings" icon={<FiSettings />} isCollapsed={isCollapsed}>
-                {canAccess('access.view_reports') && (
+                {canAccess('system_reports') && (
                   <li>
-                    {/* ReportsPage: path="reports" */}
-                    <NavLink to="reports">
+                    <NavLink to="/reports">
                       <FiBarChart2 />
                       <span>Reports</span>
                     </NavLink>
                   </li>
                 )}
-                {canAccess('access.audit_log') && (
+                {canAccess('system_audit_log') && (
                   <li>
-                    {/* SystemAuditLogPage: path="system-audit" */}
-                    <NavLink to="system-audit">
+                    <NavLink to="/system-audit">
                       <FiClock />
                       <span>Audit Log</span>
                     </NavLink>
                   </li>
                 )}
-                {canAccess('access.modules') && (
+                {/* {canAccess('system_modules') && (
                   <li>
-                    {/* ModuleVisibilityControl: path="system-modules" */}
-                    <NavLink to="system-modules">
+                    <NavLink to="/system-modules">
                       <FiPackage />
                       <span>Modules</span>
                     </NavLink>
                   </li>
-                )}
+                )} */}
                 {(user.role === 'super_admin' || user.role === 'admin') && (
                   <li>
-                    {/* SettingsPage: path="settings" */}
-                    <NavLink to="settings">
+                    <NavLink to="/settings">
                       <FiSettings />
                       <span>Settings</span>
                     </NavLink>
                   </li>
                 )}
-                {canAccess('access.recycle_bin') && (
+                {canAccess('system_recycle_bin') && (
                   <li>
-                    {/* RecycleBinPage: path="recycle-bin" */}
-                    <NavLink to="recycle-bin">
+                    <NavLink to="/recycle-bin">
                       <FiTrash2 />
                       <span>Recycle Bin</span>
                     </NavLink>
@@ -348,9 +336,7 @@ function MainLayout({ onLogout, user }) {
         </div>
       </nav>
 
-      <main className="main-content">
-        <Outlet />
-      </main>
+      <main className="main-content">{children}</main>
 
       {isPasswordModalOpen && (
         <ChangePasswordModal
@@ -362,5 +348,6 @@ function MainLayout({ onLogout, user }) {
     </div>
   );
 }
+
 
 export default MainLayout;
