@@ -172,3 +172,11 @@
   color: white;
   border-color: var(--danger-color);
 }
+.settings-page-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;              /* was calc(100vh - 60px) */
+  margin: 0;                 /* remove negative margins */
+  background-color: var(--bg-primary);
+  overflow: hidden;
+}

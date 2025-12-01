@@ -332,11 +332,11 @@ function registerIpcHandlers(app) {
     });
 // ====================================================================
 
-
-
 ipcMain.handle('get-deleted-required-documents', async () => {
   try {
-    const rows = await recycleBinService.getDeletedRequiredDocuments();
+    const rows = await db.all(
+      'SELECT * FROM required_documents WHERE is_deleted = 1 ORDER BY name ASC'
+    );
     return { success: true, data: rows };
   } catch (err) {
     console.error('get-deleted-required-documents failed', err);
@@ -346,14 +346,13 @@ ipcMain.handle('get-deleted-required-documents', async () => {
 
 ipcMain.handle('restore-required-document', async (event, { user, id }) => {
   try {
-    await recycleBinService.restoreRequiredDocument({ user, id });
+    await fileManager.restoreRequiredDocument({ user, id }); // implement this
     return { success: true };
   } catch (err) {
     console.error('restore-required-document failed', err);
     return { success: false, error: err.message };
   }
 });
-
 
 ipcMain.handle('save-feature-flags', async (event, { user, flags }) => {
         // SECURITY: Only Super Admin can modify global toggles
