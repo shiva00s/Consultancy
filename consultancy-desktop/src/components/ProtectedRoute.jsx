@@ -1,36 +1,28 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
+// src/hooks/usePermission.js
 import useAuthStore from '../store/useAuthStore';
-import usePermission from '../hooks/usePermission';
+import usePermissionStore from '../store/usePermissionStore';
 
-function ProtectedRoute({ moduleKey, children }) {
-  const { user, isAuthenticated } = useAuthStore();
-  const { hasPermission } = usePermission();
+const usePermission = () => {
+  const user = useAuthStore(state => state.user);
+  const permissions = usePermissionStore(state => state.permissions || []);
 
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/login" replace />;
-  }
+  const hasPermission = moduleKey => {
+    if (!moduleKey) return true;
 
-  // 1) Super Admin: full access, no checks
-  if (user.role === 'super_admin') {
-    return children;
-  }
+    // Super Admin: always allowed
+    if (user?.role === 'super_admin') return true;
 
-  // 2) Admin: full access to all pages (no blocking)
-  if (user.role === 'admin') {
-    return children;
-  }
+    // Admin: always allowed
+    if (user?.role === 'admin') return true;
 
-  // 3) Staff: strict permission check
-  if (moduleKey && !hasPermission(moduleKey)) {
-    return (
-      <div className="page-access-denied">
-        Access Denied.
-      </div>
-    );
-  }
+    // Staff: must have explicit permission in permissions array
+    const perm = permissions.find(p => p.module_key === moduleKey);
+    if (!perm) return false;
 
-  return children;
-}
+    return perm.is_enabled !== false && perm.is_enabled !== 0;
+  };
 
-export default ProtectedRoute;
+  return { hasPermission };
+};
+
+export default usePermission;

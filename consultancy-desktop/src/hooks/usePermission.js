@@ -1,3 +1,4 @@
+// consultancy-desktop/src/hooks/usePermission.js
 import useAuthStore from '../store/useAuthStore';
 import usePermissionStore from '../store/usePermissionStore';
 
@@ -8,15 +9,16 @@ const usePermission = () => {
   const hasPermission = moduleKey => {
     if (!moduleKey) return true;
 
-    // Super Admin: always allowed
+    // SUPER ADMIN: always allowed
     if (user?.role === 'super_admin') return true;
 
-    // Admin: always allowed (we are not blocking admin anywhere)
+    // ADMIN: always allowed
     if (user?.role === 'admin') return true;
 
-    // Staff: must have explicit permission
+    // STAFF: must have explicit permission
     const perm = permissions.find(p => p.module_key === moduleKey);
     if (!perm) return false;
+
     return perm.is_enabled !== false && perm.is_enabled !== 0;
   };
 
