@@ -331,7 +331,31 @@ function registerIpcHandlers(app) {
         }
     });
 // ====================================================================
-    ipcMain.handle('save-feature-flags', async (event, { user, flags }) => {
+
+
+
+ipcMain.handle('get-deleted-required-documents', async () => {
+  try {
+    const rows = await recycleBinService.getDeletedRequiredDocuments();
+    return { success: true, data: rows };
+  } catch (err) {
+    console.error('get-deleted-required-documents failed', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('restore-required-document', async (event, { user, id }) => {
+  try {
+    await recycleBinService.restoreRequiredDocument({ user, id });
+    return { success: true };
+  } catch (err) {
+    console.error('restore-required-document failed', err);
+    return { success: false, error: err.message };
+  }
+});
+
+
+ipcMain.handle('save-feature-flags', async (event, { user, flags }) => {
         // SECURITY: Only Super Admin can modify global toggles
         if (!user || user.role !== 'super_admin') {
             return { success: false, error: 'Access Denied: Only Super Admin can modify system modules.' };

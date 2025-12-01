@@ -18,6 +18,7 @@
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
 }
+
 .settings-top-bar h1 {
   margin: 0;
   font-size: 1.4rem;
@@ -25,6 +26,7 @@
   align-items: center;
   gap: 10px;
 }
+
 .btn-compact {
   padding: 6px 12px;
   font-size: 0.9rem;
@@ -77,7 +79,6 @@
 }
 
 /* --- UNIFORM INPUTS (Compact) --- */
-/* Ensures all forms loaded inside this area look consistent */
 .settings-content-area input:not([type="checkbox"]),
 .settings-content-area select,
 .settings-content-area textarea {
@@ -85,15 +86,15 @@
   border: 1px solid var(--border-color);
   color: var(--text-primary);
   border-radius: var(--border-radius);
-  padding: 8px 12px; /* Compact padding */
+  padding: 8px 12px;
   font-size: 0.9rem;
   width: 100%;
   box-sizing: border-box;
-  min-height: 38px; /* Uniform height */
+  min-height: 38px;
 }
 
 .settings-content-area .btn {
-  min-height: 38px; /* Match input height */
+  min-height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -101,15 +102,17 @@
 
 /* Hide the duplicate H2 headers inside components if they exist */
 .settings-content-area .settings-section-card h2 {
-    display: none; /* We already show the active tab via the tab bar */
+  display: none;
 }
+
 .settings-content-area .settings-section-card {
-    border: none;
-    background: transparent;
-    padding: 0;
-    margin: 0;
-    box-shadow: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
 }
+
 /* --- SHARED LIST STYLING (Users & Documents) --- */
 .user-list {
   list-style: none;
@@ -147,23 +150,25 @@
 
 /* Fix button alignment in lists */
 .user-item-actions .doc-btn {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--border-color);
-    background-color: var(--bg-tertiary);
-    border-radius: 4px;
-    cursor: pointer;
-    color: var(--text-secondary);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-tertiary);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
 }
+
 .user-item-actions .doc-btn:hover {
-    background-color: var(--bg-secondary);
-    color: var(--text-primary);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
 }
+
 .user-item-actions .doc-btn.delete:hover {
-    background-color: var(--danger-color);
-    color: white;
-    border-color: var(--danger-color);
+  background-color: var(--danger-color);
+  color: white;
+  border-color: var(--danger-color);
 }

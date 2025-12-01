@@ -244,7 +244,7 @@
 }
 .perm-section-content {
   display: grid;
-  grid-template-columns: repeat(7 , 5fr); /* 4 columns, adjust to 5 if needed */
+  grid-template-columns: repeat(6 , 5fr); /* 4 columns, adjust to 5 if needed */
   gap: 8px 18px;
   /* For mobile fallback */
   @media (max-width: 700px) {

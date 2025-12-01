@@ -107,81 +107,75 @@ function App() {
   }
 
   // --- Normal app once activated ---
-  return (
-    <ErrorBoundary>
-      <Routes>
+return (
+  <ErrorBoundary>
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          isAuthenticated ? (
+            <Navigate to="/" replace />
+          ) : (
+            <LoginPage onLogin={handleLogin} />
+          )
+        }
+      />
+
+      {/* Protected app shell */}
+      <Route
+        path="/"
+        element={
+          isAuthenticated && featureFlags ? (
+            <MainLayout onLogout={handleLogout} user={user} />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      >
+        {/* ALWAYS ALLOWED ROUTES */}
+        <Route index element={<DashboardPage />} />
+        <Route path="search" element={<CandidateListPage />} />
+        <Route path="add" element={<AddCandidatePage />} />
         <Route
-          path="/login"
-          element={
-            isAuthenticated ? (
-              <Navigate to="/" replace />
-            ) : (
-              <LoginPage onLogin={handleLogin} />
-            )
-          }
+          path="candidate/:id"
+          element={<CandidateDetailPage user={user} flags={featureFlags} />}
         />
 
+        {/* PROTECTED SYSTEM ROUTES (Admin or Super Admin) */}
         <Route
-          path="/*"
           element={
-            isAuthenticated && featureFlags ? (
-              <MainLayout onLogout={handleLogout} user={user} flags={featureFlags}>
-                <Routes>
-                  {/* --- ALWAYS ALLOWED ROUTES --- */}
-                  <Route path="/" element={<DashboardPage />} />
-                  <Route path="/search" element={<CandidateListPage />} />
-                  <Route path="/add" element={<AddCandidatePage />} />
-                  <Route
-                    path="/candidate/:id"
-                    element={<CandidateDetailPage user={user} flags={featureFlags} />}
-                  />
-
-                  {/* --- PROTECTED SYSTEM ROUTES (Admin or Super Admin) --- */}
-                  <Route
-                    element={
-                      <ProtectedRoute user={user} allowedRoles={['admin', 'super_admin']} />
-                    }
-                  >
-                    <Route path="/reports" element={<ReportsPage />} />
-
-                    <Route path="/settings" element={<SettingsPage user={user} />} />
-
-                    <Route
-                      path="/system-modules"
-                      element={<ModuleVisibilityControl user={user} />}
-                    />
-
-                    <Route path="/recycle-bin" element={<RecycleBinPage user={user} />} />
-                    <Route path="/employers" element={<EmployerListPage />} />
-                    <Route path="/jobs" element={<JobOrderListPage />} />
-                    <Route path="/system-audit" element={<SystemAuditLogPage />} />
-                    <Route path="/visa-board" element={<VisaKanbanPage />} />
-                    <Route
-                      path="/advanced-analytics"
-                      element={<AdvancedAnalyticsPage />}
-                    />
-                  </Route>
-
-                  {/* --- PROTECTED HIGH-RISK ROUTES (Super Admin ONLY) --- */}
-                  <Route
-                    element={
-                      <ProtectedRoute user={user} allowedRoles={['super_admin']} />
-                    }
-                  >
-                    <Route path="/import" element={<BulkImportPage />} />
-                  </Route>
-
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </MainLayout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
+            <ProtectedRoute user={user} allowedRoles={['admin', 'super_admin']} />
           }
-        />
-      </Routes>
-    </ErrorBoundary>
-  );
+        >
+          <Route path="reports" element={<ReportsPage />} />
+          <Route path="settings" element={<SettingsPage user={user} />} />
+          <Route
+            path="system-modules"
+            element={<ModuleVisibilityControl user={user} />}
+          />
+          <Route path="recycle-bin" element={<RecycleBinPage user={user} />} />
+          <Route path="employers" element={<EmployerListPage />} />
+          <Route path="jobs" element={<JobOrderListPage />} />
+          <Route path="system-audit" element={<SystemAuditLogPage />} />
+          <Route path="visa-board" element={<VisaKanbanPage />} />
+          <Route
+            path="advanced-analytics"
+            element={<AdvancedAnalyticsPage />}
+          />
+        </Route>
+
+        {/* SUPER ADMIN ONLY */}
+        <Route
+          element={<ProtectedRoute user={user} allowedRoles={['super_admin']} />}
+        >
+          <Route path="import" element={<BulkImportPage />} />
+        </Route>
+
+        {/* Catch-all inside app */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
+  </ErrorBoundary>
+);
 }
-
 export default App;
