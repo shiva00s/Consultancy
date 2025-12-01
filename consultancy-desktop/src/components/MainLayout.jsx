@@ -1,33 +1,46 @@
-import React, { useState, useEffect, useRef } from 'react';
+// src/layouts/MainLayout.jsx
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  FiGrid, FiClock, FiSearch, FiUserPlus, FiLogOut, FiBriefcase, FiServer,
-  FiClipboard, FiSettings, FiLock, FiBarChart2, FiUserCheck,
-  FiTrash2, FiChevronLeft, FiPackage, FiUploadCloud, FiSun, FiMoon,
-  FiChevronDown, FiChevronRight, FiUsers
+  FiGrid,
+  FiClock,
+  FiSearch,
+  FiUserPlus,
+  FiLogOut,
+  FiBriefcase,
+  FiServer,
+  FiClipboard,
+  FiSettings,
+  FiBarChart2,
+  FiUserCheck,
+  FiTrash2,
+  FiChevronLeft,
+  FiPackage,
+  FiUploadCloud,
+  FiSun,
+  FiMoon,
+  FiChevronDown,
 } from 'react-icons/fi';
-import toast from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 import '../css/MainLayout.css';
-import ChangePasswordModal from './modals/ChangePasswordModal';
-import KeyboardShortcutsGuide from './KeyboardShortcutsGuide';
-import { useGlobalShortcuts } from '../hooks/useKeyboardShortcuts';
 
-const getInitialCollapseState = () => {
-  const storedState = localStorage.getItem('sidebarCollapsed');
-  return storedState ? JSON.parse(storedState) : false;
-};
+function getInitialCollapseState() {
+  const stored = localStorage.getItem('sidebarCollapsed');
+  return stored ? JSON.parse(stored) : false;
+}
 
-const getInitialTheme = () => {
-  const storedTheme = localStorage.getItem('theme');
-  return storedTheme || 'dark';
-};
+function getInitialTheme() {
+  const stored = localStorage.getItem('theme');
+  return stored || 'dark';
+}
 
 function SubMenu({ title, icon, children, isCollapsed }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleToggle = () => {
+  const handleToggle = e => {
     if (!isCollapsed) {
-      setIsOpen(!isOpen);
+      e.preventDefault();
+      setIsOpen(prev => !prev);
     }
   };
 
@@ -36,57 +49,89 @@ function SubMenu({ title, icon, children, isCollapsed }) {
       <a onClick={handleToggle} className="submenu-toggle">
         {icon}
         <span>{title}</span>
-        <FiChevronDown className="submenu-arrow" />
+        {!isCollapsed && <FiChevronDown className="submenu-arrow" />}
       </a>
-      <ul className="submenu-content">
-        {children}
-      </ul>
+      <ul className="submenu-content">{children}</ul>
     </li>
   );
 }
 
 function MainLayout({ children, onLogout, user, flags }) {
   const navigate = useNavigate();
+
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(getInitialCollapseState());
-  const [theme, setTheme] = useState(getInitialTheme());
+  const [isCollapsed, setIsCollapsed] = useState(getInitialCollapseState);
+  const [theme, setTheme] = useState(getInitialTheme);
   const [globalSearchTerm, setGlobalSearchTerm] = useState('');
+
+  // Granular permissions for STAFF; for super_admin/admin we set everything true
   const [granularPermissions, setGranularPermissions] = useState({});
   const [permsLoaded, setPermsLoaded] = useState(false);
 
-  const globalSearchRef = useRef(null);
-
-  // Use global keyboard shortcuts for navigation, search, etc
-  useGlobalShortcuts(navigate, user);
-
-  // Granular Permissions (unchanged)
+  // Load granular permissions
   useEffect(() => {
     const loadPermissions = async () => {
+      if (!user) return;
+
+      // Super Admin: everything on sidebar
       if (user.role === 'super_admin') {
         setGranularPermissions({
-          candidate_search: true,
-          add_candidate: true,
-          bulk_import: true,
+          candidatesearch: true,
+          addcandidate: true,
+          bulkimport: true,
           employers: true,
-          job_orders: true,
-          visa_board: true,
-          system_reports: true,
-          system_audit_log: true,
-          system_modules: true,
-          system_recycle_bin: true,
+          joborders: true,
+          visaboard: true,
+          systemreports: true,
+          systemauditlog: true,
+          systemmodules: true,
+          systemrecyclebin: true,
         });
-      } else {
-        const res = await window.electronAPI.getUserGranularPermissions({ userId: user.id });
+        setPermsLoaded(true);
+        return;
+      }
+
+      // Admin: same sidebar as super admin
+      if (user.role === 'admin') {
+        setGranularPermissions({
+          candidatesearch: true,
+          addcandidate: true,
+          bulkimport: true,
+          employers: false,
+          joborders: false,
+          visaboard: false,
+          systemreports: true,
+          systemauditlog: true,
+          systemmodules: false,
+          systemrecyclebin: true,
+        });
+        setPermsLoaded(true);
+        return;
+      }
+
+      // Staff: load real granular permissions from DB
+      try {
+        const res = await window.electronAPI.getUserGranularPermissions({
+          userId: user.id,
+        });
         if (res.success) {
           setGranularPermissions(res.data || {});
         }
+      } catch (err) {
+        console.error('Error fetching granular permissions:', err);
+      } finally {
+        setPermsLoaded(true);
       }
-      setPermsLoaded(true);
     };
+
     loadPermissions();
   }, [user]);
 
-  const canAccess = (permKey) => granularPermissions[permKey] === true;
+  const canAccess = permKey => {
+    if (!permKey) return true;
+    // for super_admin/admin we already set all keys to true above
+    return granularPermissions[permKey] === true;
+  };
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
@@ -97,40 +142,42 @@ function MainLayout({ children, onLogout, user, flags }) {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  // Role polling (existing logic kept)
   useEffect(() => {
     const checkRoleStatus = async () => {
       if (!window.electronAPI || typeof window.electronAPI.getUserRole !== 'function') return;
       if (!user || !user.id) return;
+
       try {
         const res = await window.electronAPI.getUserRole({ userId: user.id });
         if (res.success) {
           if (res.role !== user.role) {
-            toast.error("Your permissions have changed. You must log in again.");
+            toast.error('Your permissions have changed. You must log in again.');
             onLogout();
             navigate('/login');
           }
         } else if (res.error === 'User not found') {
-          toast.error("This account no longer exists.");
+          toast.error('This account no longer exists.');
           onLogout();
           navigate('/login');
         }
       } catch (error) {
-        console.warn("Role check failed silently:", error);
+        console.warn('Role check failed silently', error);
       }
     };
-    checkRoleStatus();
+
     const interval = setInterval(checkRoleStatus, 60000);
     return () => clearInterval(interval);
   }, [user, onLogout, navigate]);
 
-  const handleGlobalSearch = (e) => {
+  const handleGlobalSearch = e => {
     if (e.key === 'Enter' && globalSearchTerm.trim() !== '') {
-      navigate(`/search?q=${globalSearchTerm}`);
+      navigate(`/search?q=${encodeURIComponent(globalSearchTerm.trim())}`);
       setGlobalSearchTerm('');
     }
   };
 
-  const getDisplayRole = (role) => {
+  const getDisplayRole = role => {
     if (role === 'super_admin') return 'Super Admin';
     if (role === 'admin') return 'Admin';
     return 'Staff';
@@ -150,21 +197,30 @@ function MainLayout({ children, onLogout, user, flags }) {
     localStorage.setItem('sidebarCollapsed', JSON.stringify(newState));
   };
 
-  const handlePasswordChangeLogout = onLogout;
+  const handlePasswordChangeLogout = () => {
+    onLogout();
+    navigate('/login');
+  };
 
-  const isManagementVisible = () =>
-    canAccess('employers') ||
-    canAccess('job_orders') ||
-    canAccess('visa_board') ||
-    canAccess('bulk_import');
+  const isManagementVisible = () => {
+    return (
+      canAccess('employers') ||
+      canAccess('joborders') ||
+      canAccess('visaboard') ||
+      canAccess('bulkimport')
+    );
+  };
 
-  const isSystemVisible = () =>
-    canAccess('system_reports') ||
-    canAccess('system_audit_log') ||
-    canAccess('system_modules') ||
-    canAccess('system_recycle_bin') ||
-    user.role === 'super_admin' ||
-    user.role === 'admin';
+  const isSystemVisible = () => {
+    return (
+      canAccess('systemreports') ||
+      canAccess('systemauditlog') ||
+      canAccess('systemmodules') ||
+      canAccess('systemrecyclebin') ||
+      user.role === 'super_admin' ||
+      user.role === 'admin'
+    );
+  };
 
   if (!permsLoaded) {
     return <div style={{ padding: '2rem' }}>Loading application...</div>;
@@ -172,7 +228,7 @@ function MainLayout({ children, onLogout, user, flags }) {
 
   return (
     <div className={`layout-container ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
-      <nav className={`sidebar`}>
+      <nav className="sidebar">
         <div className="sidebar-scrollable-area">
           <button className="sidebar-toggle-btn" onClick={handleToggleCollapse}>
             <FiChevronLeft />
@@ -188,8 +244,6 @@ function MainLayout({ children, onLogout, user, flags }) {
             >
               {theme === 'dark' ? <FiMoon /> : <FiSun />}
             </button>
-            {/* Keyboard Shortcuts Trigger */}
-            <KeyboardShortcutsGuide />
           </div>
 
           <div className="global-search-bar">
@@ -198,15 +252,14 @@ function MainLayout({ children, onLogout, user, flags }) {
               type="text"
               placeholder="Global Search..."
               value={globalSearchTerm}
-              onChange={(e) => setGlobalSearchTerm(e.target.value)}
+              onChange={e => setGlobalSearchTerm(e.target.value)}
               onKeyDown={handleGlobalSearch}
               title="Press Enter to search candidates"
-              ref={globalSearchRef}
             />
           </div>
 
           <ul className="sidebar-nav">
-            {/* Dashboard - Always visible */}
+            {/* Dashboard */}
             <li>
               <NavLink to="/" end>
                 <FiGrid />
@@ -214,9 +267,9 @@ function MainLayout({ children, onLogout, user, flags }) {
               </NavLink>
             </li>
 
-            {/* Candidates Section */}
+            {/* Candidates */}
             <SubMenu title="Candidates" icon={<FiSearch />} isCollapsed={isCollapsed}>
-              {canAccess('candidate_search') && (
+              {canAccess('candidatesearch') && (
                 <li>
                   <NavLink to="/search">
                     <FiSearch />
@@ -224,7 +277,7 @@ function MainLayout({ children, onLogout, user, flags }) {
                   </NavLink>
                 </li>
               )}
-              {canAccess('add_candidate') && (
+              {canAccess('addcandidate') && (
                 <li>
                   <NavLink to="/add">
                     <FiUserPlus />
@@ -232,7 +285,7 @@ function MainLayout({ children, onLogout, user, flags }) {
                   </NavLink>
                 </li>
               )}
-              {canAccess('bulk_import') && (
+              {canAccess('bulkimport') && (
                 <li>
                   <NavLink to="/import">
                     <FiUploadCloud />
@@ -242,7 +295,7 @@ function MainLayout({ children, onLogout, user, flags }) {
               )}
             </SubMenu>
 
-            {/* Management Section */}
+            {/* Management */}
             {isManagementVisible() && (
               <SubMenu title="Management" icon={<FiBriefcase />} isCollapsed={isCollapsed}>
                 {canAccess('employers') && (
@@ -253,7 +306,7 @@ function MainLayout({ children, onLogout, user, flags }) {
                     </NavLink>
                   </li>
                 )}
-                {canAccess('job_orders') && (
+                {canAccess('joborders') && (
                   <li>
                     <NavLink to="/jobs">
                       <FiClipboard />
@@ -261,7 +314,7 @@ function MainLayout({ children, onLogout, user, flags }) {
                     </NavLink>
                   </li>
                 )}
-                {canAccess('visa_board') && (
+                {canAccess('visaboard') && (
                   <li>
                     <NavLink to="/visa-board">
                       <FiBriefcase />
@@ -272,10 +325,10 @@ function MainLayout({ children, onLogout, user, flags }) {
               </SubMenu>
             )}
 
-            {/* System Settings Section */}
+            {/* System Settings */}
             {isSystemVisible() && (
               <SubMenu title="System Settings" icon={<FiSettings />} isCollapsed={isCollapsed}>
-                {canAccess('system_reports') && (
+                {canAccess('systemreports') && (
                   <li>
                     <NavLink to="/reports">
                       <FiBarChart2 />
@@ -283,7 +336,7 @@ function MainLayout({ children, onLogout, user, flags }) {
                     </NavLink>
                   </li>
                 )}
-                {canAccess('system_audit_log') && (
+                {canAccess('systemauditlog') && (
                   <li>
                     <NavLink to="/system-audit">
                       <FiClock />
@@ -291,31 +344,35 @@ function MainLayout({ children, onLogout, user, flags }) {
                     </NavLink>
                   </li>
                 )}
-                {/* {canAccess('system_modules') && (
+                {canAccess('systemmodules') && (
                   <li>
                     <NavLink to="/system-modules">
                       <FiPackage />
                       <span>Modules</span>
                     </NavLink>
                   </li>
-                )} */}
-                {(user.role === 'super_admin' || user.role === 'admin') && (
-                  <li>
-                    <NavLink to="/settings">
-                      <FiSettings />
-                      <span>Settings</span>
-                    </NavLink>
-                  </li>
-                )}
-                {canAccess('system_recycle_bin') && (
-                  <li>
-                    <NavLink to="/recycle-bin">
-                      <FiTrash2 />
-                      <span>Recycle Bin</span>
-                    </NavLink>
-                  </li>
                 )}
               </SubMenu>
+            )}
+
+            {/* Settings – always for super_admin/admin */}
+            {(user.role === 'super_admin' || user.role === 'admin') && (
+              <li>
+                <NavLink to="/settings">
+                  <FiSettings />
+                  <span>Settings</span>
+                </NavLink>
+              </li>
+            )}
+
+            {/* Recycle Bin */}
+            {canAccess('systemrecyclebin') && (
+              <li>
+                <NavLink to="/recycle-bin">
+                  <FiTrash2 />
+                  <span>Recycle Bin</span>
+                </NavLink>
+              </li>
             )}
           </ul>
         </div>
@@ -325,10 +382,11 @@ function MainLayout({ children, onLogout, user, flags }) {
             <FiUserCheck />
             <div className="user-info-text-wrapper">
               <span>Logged in as:</span>
-              <strong>{username} ({displayedRole})</strong>
+              <strong>
+                {username} ({displayedRole})
+              </strong>
             </div>
           </div>
-
           <button onClick={handleLogoutClick} className="logout-button">
             <FiLogOut />
             <span>Logout</span>
@@ -348,6 +406,5 @@ function MainLayout({ children, onLogout, user, flags }) {
     </div>
   );
 }
-
 
 export default MainLayout;
