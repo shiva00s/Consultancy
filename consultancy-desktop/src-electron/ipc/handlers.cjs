@@ -25,6 +25,7 @@ const { fileManager } = require('../utils/fileManager.cjs');
 const { registerSyncHandlers } = require('./syncHandlers.cjs');
 const { registerPermissionHandlers } = require('../utils/permissionHandlers.cjs');
 const { enforcePermissionOrDeny } = require('../utils/rbacHelpers.cjs');
+const { getMachineId } = require('../utils/machineId.cjs');
 
 
 const tempDir = path.join(os.tmpdir(), "paddle_ocr_temp");
@@ -1462,47 +1463,62 @@ ipcMain.handle('get-machine-id', async () => {
   return { success: true, machineId };
 });
 
-// CRITICAL FIX Registering the missing GET handler
-ipcMain.handle('get-activation-status', async () => {
-  return queries.getActivationStatus();
-});
+// -------- LICENSE / ACTIVATION IPC --------
 
-    ipcMain.handle('activate-application', async (event, enteredCode) => {
+ipcMain.handle('get-activation-status', async () => {
   const db = getDatabase();
-  const machineId = getMachineIdForLicense();
 
   return new Promise((resolve) => {
     db.get(
-      `SELECT code FROM activations
-       WHERE machineId = ? AND activated = 0
-       ORDER BY createdAt DESC
-       LIMIT 1`,
-      [machineId],
-      (err, row) => {
-        if (err || !row) {
-          return resolve({ success: false, error: 'Invalid activation code.' });
-        }
-
-        if (String(row.code).trim() !== String(enteredCode).trim()) {
-          return resolve({ success: false, error: 'Invalid activation code.' });
-        }
-
-        db.run(
-  `UPDATE activations SET activated = 1 WHERE machineId = ?`,
-  [machineId],
-  () => {
-    db.run(
-      `INSERT OR REPLACE INTO system_settings (key, value)
-       VALUES ('license_status', 'activated')`,
+      "SELECT value, extra FROM system_settings WHERE key = 'license_status'",
       [],
-      () => resolve({ success: true })
-    );
-  }
-);
+      async (err, row) => {
+        if (err) {
+          console.error('getActivationStatus error:', err);
+          return resolve({ success: false, data: null });
+        }
+
+        const activated = row?.value === 'activated';
+        // your existing machine-id util; adjust name if different
+        const machineId = await getMachineId(); 
+
+        resolve({
+          success: true,
+          data: { activated, machineId },
+        });
       }
     );
   });
 });
+
+ipcMain.handle('activate-application', async (event, code) => {
+  const db = getDatabase();
+
+  // TODO: add your real validation here
+  const isValid = typeof code === 'string' && code.length === 6;
+  if (!isValid) {
+    return { success: false, error: 'Invalid activation code.' };
+  }
+
+  return new Promise((resolve) => {
+    db.run(
+      "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('license_status', 'activated')",
+      [],
+      (err) => {
+        if (err) {
+          console.error('activateApplication update error:', err);
+          return resolve({ success: false, error: 'Failed to save license.' });
+        }
+
+        resolve({ success: true, data: { activated: true } });
+      }
+    );
+  });
+});
+
+
+// -------- END LICENSE / ACTIVATION IPC --------
+
 
     const convertMRZDate = (yyMMdd) => {
         // Fix common OCR error: 'O' (letter) instead of '0' (zero)
