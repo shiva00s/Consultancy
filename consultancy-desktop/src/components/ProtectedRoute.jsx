@@ -1,32 +1,36 @@
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { Navigate } from 'react-router-dom';
+import useAuthStore from '../store/useAuthStore';
+import usePermission from '../hooks/usePermission';
 
-/**
- * Component to protect routes based on user role.
- * @param {object} user - The current logged-in user object.
- * @param {string[]} allowedRoles - Array of roles allowed to view the page (e.g., ['admin', 'super_admin']).
- * @returns {JSX.Element}
- */
-function ProtectedRoute({ user, allowedRoles }) {
-  // 1. Not Authenticated: Redirect to login
-  if (!user) {
+function ProtectedRoute({ moduleKey, children }) {
+  const { user, isAuthenticated } = useAuthStore();
+  const { hasPermission } = usePermission();
+
+  if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
   }
 
-  // 2. Unauthorized: Redirect to dashboard
-  if (!allowedRoles.includes(user.role)) {
-    // Show a toast message to the user
-    toast.error(`Access Denied. Your role (${user.role}) is not permitted to view this page.`, {
-        id: 'access-denied', // Prevents multiple rapid toasts
-        duration: 3000
-    });
-    // Redirect to the default dashboard
-    return <Navigate to="/" replace />;
+  // 1) Super Admin: full access, no checks
+  if (user.role === 'super_admin') {
+    return children;
   }
 
-  // 3. Authorized: Render the nested route component
-  return <Outlet />;
+  // 2) Admin: full access to all pages (no blocking)
+  if (user.role === 'admin') {
+    return children;
+  }
+
+  // 3) Staff: strict permission check
+  if (moduleKey && !hasPermission(moduleKey)) {
+    return (
+      <div className="page-access-denied">
+        Access Denied.
+      </div>
+    );
+  }
+
+  return children;
 }
 
 export default ProtectedRoute;
