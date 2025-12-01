@@ -1,6 +1,6 @@
 const { ipcMain } = require('electron');
 const { getDatabase } = require('../db/database.cjs');
-const permissionService = require('../services/permissionService.cjs')
+const permissionService = require('../services/permissionService.js')
 
 function registerPermissionHandlers() {
     const db = getDatabase();
