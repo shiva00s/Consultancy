@@ -6,10 +6,14 @@ function registerPermissionHandlers() {
     const db = getDatabase();
 
    ipcMain.handle('get-effective-permissions', async (event, { userId, userRole }) => {
-  const perms = await permissionService.getEffectivePermissions(userId, userRole);
-  return perms; // array of { module_key, module_name, module_type, is_enabled }
+  try {
+    const modules = await permissionService.getEffectivePermissions(userId, userRole);
+    return { success: true, data: modules };
+  } catch (e) {
+    console.error('get-effective-permissions failed', e);
+    return { success: false, error: e.message };
+  }
 });
-
 
     // ==========================================
     // GET USER GRANULAR PERMISSIONS

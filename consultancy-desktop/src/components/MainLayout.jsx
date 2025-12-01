@@ -60,9 +60,11 @@ function MainLayout({ children, onLogout, user, flags }) {
   useGlobalShortcuts(navigate, user);
 
   // Granular Permissions (unchanged)
-  useEffect(() => {
-    const loadPermissions = async () => {
+ useEffect(() => {
+  if (!user || !user.id) return;
 
+  const loadPermissions = async () => {
+    try {
       const res = await window.electronAPI.getEffectivePermissions({
         userId: user.id,
         userRole: user.role,
@@ -70,36 +72,22 @@ function MainLayout({ children, onLogout, user, flags }) {
       if (res.success && Array.isArray(res.data)) {
         const map = {};
         res.data.forEach(m => {
-          if (m.is_enabled) map[m.module_key] = true;
+          // Super Admin: getEffectivePermissions already returns all, including disabled.
+          // Admin / Staff: service already filtered disabled ones.
+          map[m.module_key] = true;
         });
         setGranularPermissions(map);
       }
+    } catch (e) {
+      console.error('Failed to load permissions', e);
+    } finally {
       setPermsLoaded(true);
-      return;
+    }
+  };
 
-      if (user.role === 'super_admin') {
-        setGranularPermissions({
-          candidate_search: true,
-          add_candidate: true,
-          bulk_import: true,
-          employers: true,
-          job_orders: true,
-          visa_board: true,
-          system_reports: true,
-          system_audit_log: true,
-          system_modules: true,
-          system_recycle_bin: true,
-        });
-      } else {
-        const res = await window.electronAPI.getUserGranularPermissions({ userId: user.id });
-        if (res.success) {
-          setGranularPermissions(res.data || {});
-        }
-      }
-      setPermsLoaded(true);
-    };
-    loadPermissions();
-  }, [user]);
+  loadPermissions();
+}, [user?.id, user?.role]);
+
 
   const canAccess = (permKey) => granularPermissions[permKey] === true;
 
