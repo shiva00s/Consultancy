@@ -167,19 +167,20 @@ ipcMain.handle('log-audit-event', async (event, payload) => {
       }
 
       return await new Promise((resolve) => {
-        db.run(
-          `INSERT INTO audit_logs (user_id, action, candidate_id, details, created_at)
-           VALUES (?, ?, ?, ?, datetime('now'))`,
-          [userId, action, candidateId || null, details || null],
-          (err) => {
-            if (err) {
-              console.error('Audit Log insert error:', err);
-              return resolve({ success: false, error: 'Failed to write audit log' });
-            }
-            resolve({ success: true });
-          }
-        );
-      });
+  db.run(
+    `INSERT INTO audit_log (user_id, action, details)
+     VALUES (?, ?, ?)`,
+    [userId, action, details || null],
+    (err) => {
+      if (err) {
+        console.error('Audit Log insert error:', err);
+        return resolve({ success: false, error: 'Failed to write audit log' });
+      }
+      resolve({ success: true });
+    }
+  );
+});
+
     } catch (error) {
       console.error('Audit Log handler error:', error);
       return { success: false, error: error.message };

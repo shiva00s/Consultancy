@@ -757,28 +757,78 @@ ipcMain.handle('getImageBase64', (event, { filePath }) => {
     ipcMain.handle('get-visa-tracking', (event, { candidateId }) => {
         return queries.getVisaTracking(candidateId);
     });
-    ipcMain.handle('add-visa-entry', async (event, { user, data }) => {
-        const result = await queries.addVisaEntry(data);
-        if (result.success) {
-            logAction(user, 'add_visa', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Country: ${data.country}, Status: ${data.status}`);
-        }
-        return result;
+    ipcMain.handle('add-visa-entry', async (event, { user, visaData }) => {
+  if (!user || !user.id) {
+    return { success: false, error: 'User is not authenticated.' };
+  }
+
+  try {
+    const sql = `
+      INSERT INTO visa_board (candidate_id, visa_type, status, created_by)
+      VALUES (?, ?, ?, ?)
+    `;
+    
+    await new Promise((resolve, reject) => {
+      db.run(sql, [visaData.candidateId, visaData.visaType, visaData.status, user.id], function (err) {
+        if (err) return reject(err);
+        resolve({ id: this.lastID });
+      });
     });
-// --- NEW: Update Visa Entry Handler ---
-    ipcMain.handle('update-visa-entry', async (event, { user, id, data }) => {
-        const result = await queries.updateVisaEntry(id, data);
-        if (result.success) {
-            logAction(user, 'update_visa', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Country: ${data.country}, Status: ${data.status}`);
-        }
-        return result;
+
+    return { success: true };
+  } catch (err) {
+    console.error('add-visa-entry error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('update-visa-entry', async (event, { user, entryId, updates }) => {
+  if (!user || !user.id) {
+    return { success: false, error: 'User is not authenticated.' };
+  }
+
+  try {
+    const sql = `
+      UPDATE visa_board
+      SET status = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `;
+
+    await new Promise((resolve, reject) => {
+      db.run(sql, [updates.status, user.id, entryId], function (err) {
+        if (err) return reject(err);
+        resolve();
+      });
     });
-    ipcMain.handle('delete-visa-entry', async (event, { user, id }) => {
-        const result = await queries.deleteVisaEntry(id);
-        if (result.success) {
-            logAction(user, 'delete_visa', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Country: ${result.country}`);
-        }
-        return result;
+
+    return { success: true };
+  } catch (err) {
+    console.error('update-visa-entry error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('delete-visa-entry', async (event, { user, entryId }) => {
+  if (!user || !user.id) {
+    return { success: false, error: 'User is not authenticated.' };
+  }
+
+  try {
+    const sql = `DELETE FROM visa_board WHERE id = ?`;
+
+    await new Promise((resolve, reject) => {
+      db.run(sql, [entryId], function (err) {
+        if (err) return reject(err);
+        resolve();
+      });
     });
+
+    return { success: true };
+  } catch (err) {
+    console.error('delete-visa-entry error:', err);
+    return { success: false, error: err.message };
+  }
+});
 // --- Medical Tracking ---
     ipcMain.handle('get-medical-tracking', (event, { candidateId }) => {
         return queries.getMedicalTracking(candidateId);
@@ -926,29 +976,53 @@ ipcMain.handle('getImageBase64', (event, { filePath }) => {
         }
         return result;
     });
-// --- NEW: Permanent Deletion Handler ---
-    ipcMain.handle('delete-permanently', async (event, { user, id, targetType }) => {
-        // Only Super Admin should be able to perform this high-risk action
-        if (user.role !== 'super_admin') {
-            return { success: false, error: 'Access Denied: Only Super Admins can perform permanent deletion.' };
-        }
-        
-        
-        
-        // Check if the feature flag allows even SA to delete permanently (optional layer)
-        const flagRes = await queries.getFeatureFlags();
-        if (flagRes.success && !flagRes.data.canDeletePermanently) {
-            // If the flag is disabled, even the SA should be cautious
-            console.warn(`SA attempted permanent delete while flag is disabled.`);
-        }
 
-     
-        const result = await queries.deletePermanently(id, targetType);
-        if (result.success) {
-            logAction(user, 'delete_permanently', targetType, id, `Permanently deleted ${targetType} ID: ${id}`);
-        }
-        return result;
+    // --- NEW: Permanent Deletion Handler ---
+ipcMain.handle('delete-permanently', async (event, { user, id, targetType }) => {
+  try {
+    // Only Super Admin should be able to perform this high-risk action
+    if (user.role !== 'super_admin') {
+      return {
+        success: false,
+        error: 'Access Denied: Only Super Admins can perform permanent deletion.',
+      };
+    }
+
+    // Decide which table to delete from based on targetType
+    let tableName;
+
+    switch (targetType) {
+      case 'required_doc':
+      case 'required_docs':
+        tableName = 'required_documents';
+        break;
+      case 'candidate':
+      case 'candidates':
+        tableName = 'candidates';
+        break;
+      case 'job':
+      case 'jobs':
+        tableName = 'jobs';
+        break;
+      default:
+        return { success: false, error: `Unknown target type: ${targetType}` };
+    }
+
+    await new Promise((resolve, reject) => {
+      const sql = `DELETE FROM ${tableName} WHERE id = ?`;
+      db.run(sql, [id], function (err) {
+        if (err) return reject(err);
+        resolve();
+      });
     });
+
+    return { success: true };
+  } catch (err) {
+    console.error('delete-permanently error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
 // ====================================================================
     // 11. FILE-SYSTEM HANDLERS (Utility, ZIP, PDF, Import)
     // ====================================================================
@@ -1824,22 +1898,18 @@ function registerAuditHandlers() {
 
       return await new Promise((resolve, reject) => {
         db.run(
-          `INSERT INTO audit_logs (user_id, action, candidate_id, details, created_at)
-           VALUES (?, ?, ?, ?, datetime('now'))`,
-          [
-            userId,
-            action,
-            candidateId || null,
-            details || null,
-          ],
-          (err) => {
-            if (err) {
-              console.error('Audit Log insert error:', err);
-              return resolve({ success: false, error: 'Failed to write audit log' });
-            }
-            resolve({ success: true });
-          }
-        );
+  `INSERT INTO audit_log (user_id, action, details)
+   VALUES (?, ?, ?)`,
+  [userId, action, details || null],
+  (err) => {
+    if (err) {
+      console.error("Audit Log insert error:", err);
+      return resolve({ success: false, error: "Failed to write audit log" });
+    }
+    resolve({ success: true });
+  }
+);
+
       });
     } catch (error) {
       console.error('Audit Log handler error:', error);
@@ -1867,6 +1937,20 @@ ipcMain.handle('get-deleted-required-documents', async () => {
         return resolve({ success: false, error: err.message });
       }
       resolve({ success: true, data: rows });
+    });
+  });
+});
+
+ipcMain.handle('restore-required-document', async (event, { id }) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE required_documents
+      SET isDeleted = 0
+      WHERE id = ?
+    `;
+    db.run(sql, [id], function (err) {
+      if (err) return reject(err);
+      resolve({ success: true });
     });
   });
 });
