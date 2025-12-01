@@ -82,7 +82,7 @@ function RegisterPage() {
             <select value={role} onChange={(e) => setRole(e.target.value)} disabled={loading}>
               <option value="staff">Staff</option>
               <option value="admin">Admin</option>
-              <option value="super_admin">Super Admin</option>
+            
             </select>
           </div>
           

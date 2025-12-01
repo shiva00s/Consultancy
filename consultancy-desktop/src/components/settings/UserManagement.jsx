@@ -9,7 +9,7 @@ import { useShallow } from 'zustand/react/shallow';
 const roleOptions = [
   { value: 'staff', label: 'Staff (Data Entry)' },
   { value: 'admin', label: 'Admin (Manager/Delegated)' },
-  { value: 'super_admin', label: 'Super Admin (System Owner)' },
+  //{ value: 'super_admin', label: 'Super Admin (System Owner)' },
 ];
 
 const initialUserForm = { username: '', password: '', role: 'staff' };

@@ -229,9 +229,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
     activateLicense: (args) => ipcRenderer.invoke('license:activate', args),
 
     requestActivationCode: () => ipcRenderer.invoke('request-activation-code'),
-
+    logAuditEvent: (payload) => ipcRenderer.invoke('log-audit-event', payload), 
     
+getAdminAssignedFeatures: (payload) =>
+    ipcRenderer.invoke('get-admin-assigned-features', payload),
 
+  getAdminEffectiveFlags: (payload) =>
+    ipcRenderer.invoke('get-admin-effective-flags', payload),
 
 
 

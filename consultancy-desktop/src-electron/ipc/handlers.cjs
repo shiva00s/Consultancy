@@ -1469,21 +1469,19 @@ ipcMain.handle('get-activation-status', async () => {
 
   return new Promise((resolve) => {
     db.get(
-      "SELECT value, extra FROM system_settings WHERE key = 'license_status'",
+      "SELECT value FROM system_settings WHERE key = 'license_status'",
       [],
-      async (err, row) => {
+      (err, row) => {
         if (err) {
           console.error('getActivationStatus error:', err);
           return resolve({ success: false, data: null });
         }
 
         const activated = row?.value === 'activated';
-        // your existing machine-id util; adjust name if different
-        const machineId = await getMachineId(); 
 
         resolve({
           success: true,
-          data: { activated, machineId },
+          data: { activated },
         });
       }
     );
@@ -1493,11 +1491,12 @@ ipcMain.handle('get-activation-status', async () => {
 ipcMain.handle('activate-application', async (event, code) => {
   const db = getDatabase();
 
-  // TODO: add your real validation here
-  const isValid = typeof code === 'string' && code.length === 6;
-  if (!isValid) {
+  const trimmed = typeof code === 'string' ? code.trim() : '';
+  if (trimmed.length !== 6) {
     return { success: false, error: 'Invalid activation code.' };
   }
+
+  // TODO: here you can also verify code against your activations table if needed
 
   return new Promise((resolve) => {
     db.run(
@@ -1806,32 +1805,49 @@ ipcMain.handle('get-user-role', async (event, { userId }) => {
     }
 };
 
-ipcMain.handle('license:get-status', async () => {
-  const lic = readLicense();
-  return {
-    success: true,
-    data: {
-      activated: !!lic.activated,
-      code: lic.code || null,
-      machineId: getMachineInfo(),
-    },
-  };
-});
+function registerAuditHandlers() {
+  const db = getDatabase();
 
-ipcMain.handle('license:activate', async (event, { code }) => {
-  const machineId = getMachineInfo();
-  const cleanCode = String(code || '').trim();
+  ipcMain.handle('log-audit-event', async (event, payload) => {
+    try {
+      const { userId, action, candidateId, details } = payload || {};
 
-  // TODO: replace with your real rule or server validation.
-  // Example demo rule: first 6 chars of hashed machine id
-  if (cleanCode.length !== 6) {
-    return { success: false, error: 'Activation code must be 6 digits.' };
-  }
+      if (!userId) {
+        console.warn(`Audit Log: User ID missing. Skipping log for action: ${action}`);
+        return { success: false, error: 'User ID required' };
+      }
 
-  // Here you can call your server API if needed.
-  // If valid:
-  writeLicense({ activated: true, code: cleanCode, machineId });
-  return { success: true };
-});
+      if (!action) {
+        console.warn('Audit Log: Action missing. Skipping log entry.');
+        return { success: false, error: 'Action required' };
+      }
+
+      return await new Promise((resolve, reject) => {
+        db.run(
+          `INSERT INTO audit_logs (user_id, action, candidate_id, details, created_at)
+           VALUES (?, ?, ?, ?, datetime('now'))`,
+          [
+            userId,
+            action,
+            candidateId || null,
+            details || null,
+          ],
+          (err) => {
+            if (err) {
+              console.error('Audit Log insert error:', err);
+              return resolve({ success: false, error: 'Failed to write audit log' });
+            }
+            resolve({ success: true });
+          }
+        );
+      });
+    } catch (error) {
+      console.error('Audit Log handler error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  console.log('✅ Audit log handler registered');
+}
 
     module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase  };

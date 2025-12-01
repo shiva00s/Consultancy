@@ -1,5 +1,6 @@
 const { ipcMain } = require('electron');
 const { getDatabase } = require('../db/database.cjs');
+const permissionService = require('../services/permissionService.cjs')
 
 function registerPermissionHandlers() {
     const db = getDatabase();
@@ -150,5 +151,60 @@ function registerPermissionHandlers() {
 
     console.log('✅ Permission handlers registered');
 }
+
+ipcMain.handle('log-audit-event', async (event, payload) => {
+    try {
+      const { userId, action, candidateId, details } = payload || {};
+
+      if (!userId) {
+        console.warn(`Audit Log: User ID missing. Skipping log for action: ${action}`);
+        return { success: false, error: 'User ID required' };
+      }
+
+      if (!action) {
+        console.warn('Audit Log: Action missing. Skipping log entry.');
+        return { success: false, error: 'Action required' };
+      }
+
+      return await new Promise((resolve) => {
+        db.run(
+          `INSERT INTO audit_logs (user_id, action, candidate_id, details, created_at)
+           VALUES (?, ?, ?, ?, datetime('now'))`,
+          [userId, action, candidateId || null, details || null],
+          (err) => {
+            if (err) {
+              console.error('Audit Log insert error:', err);
+              return resolve({ success: false, error: 'Failed to write audit log' });
+            }
+            resolve({ success: true });
+          }
+        );
+      });
+    } catch (error) {
+      console.error('Audit Log handler error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('get-admin-assigned-features', async (event, { userId }) => {
+  try {
+    const flags = await permissionService.getDefaultStaffPermissions(); // or your own method
+    return { success: true, data: flags };
+  } catch (error) {
+    console.error('get-admin-assigned-features error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-admin-effective-flags', async (event, { userId, role }) => {
+  try {
+    // Use your existing logic; this just needs to return a { [flagKey]: boolean } map
+    const modules = await permissionService.getEffectivePermissions(userId, role);
+    return { success: true, data: modules };
+  } catch (error) {
+    console.error('get-admin-effective-flags error:', error);
+    return { success: false, error: error.message };
+  }
+});
 
 module.exports = { registerPermissionHandlers };

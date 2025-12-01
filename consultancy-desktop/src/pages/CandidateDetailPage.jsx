@@ -106,6 +106,16 @@ function CandidateDetailPage({ user, flags }) {
     fetchPlacements();
   }, [id, fetchDetails]);
 
+  useEffect(() => {
+    if (!details || !user?.id) return;
+
+    window.electronAPI.logAuditEvent({
+      action: 'view_candidate_details',
+      userId: user.id,
+      candidateId: details.candidate.id,
+    });
+  }, [details, user]);
+
   const handleDocumentsUpdate = (newDocs = [], docIdToDelete = null, isCategoryUpdate = false) => {
     setDetails(prev => {
       let updatedDocuments = [...(prev?.documents || [])];
