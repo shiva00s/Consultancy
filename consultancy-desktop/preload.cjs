@@ -237,6 +237,7 @@ getAdminAssignedFeatures: (payload) =>
   getAdminEffectiveFlags: (payload) =>
     ipcRenderer.invoke('get-admin-effective-flags', payload),
 
-
+getEffectivePermissions: (payload) =>
+    ipcRenderer.invoke('get-effective-permissions', payload),
 
 });
