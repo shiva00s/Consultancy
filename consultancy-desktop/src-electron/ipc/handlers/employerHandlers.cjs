@@ -2,28 +2,28 @@ const { ipcMain } = require("electron");
 const queries = require("../db/queries.cjs");
 const { logAction } = require("../utils/auditHelper.cjs");
 
-module.exports = function registerJobOrderHandlers() {
+module.exports = function registerEmployerHandlers() {
 
     // =========================================================================
-    // 🔹 GET ALL JOB ORDERS
+    // 🔹 GET ALL EMPLOYERS
     // =========================================================================
-    ipcMain.handle("get-job-orders", async () => {
-        return queries.getJobOrders();
+    ipcMain.handle("get-employers", async () => {
+        return queries.getEmployers();
     });
 
     // =========================================================================
-    // 🔹 ADD JOB ORDER
+    // 🔹 ADD EMPLOYER
     // =========================================================================
-    ipcMain.handle("add-job-order", async (event, { user, data }) => {
-        const result = await queries.addJobOrder(user, data);
+    ipcMain.handle("add-employer", async (event, { user, data }) => {
+        const result = await queries.addEmployer(user, data);
 
         if (result.success) {
             logAction(
                 user,
-                "create_job_order",
-                "job_orders",
+                "create_employer",
+                "employers",
                 result.id,
-                `Position: ${data.positionTitle}`
+                `Created employer: ${data.companyName}`
             );
         }
 
@@ -31,18 +31,18 @@ module.exports = function registerJobOrderHandlers() {
     });
 
     // =========================================================================
-    // 🔹 UPDATE JOB ORDER
+    // 🔹 UPDATE EMPLOYER
     // =========================================================================
-    ipcMain.handle("update-job-order", async (event, { user, id, data }) => {
-        const result = await queries.updateJobOrder(user, id, data);
+    ipcMain.handle("update-employer", async (event, { user, id, data }) => {
+        const result = await queries.updateEmployer(user, id, data);
 
         if (result.success) {
             logAction(
                 user,
-                "update_job_order",
-                "job_orders",
+                "update_employer",
+                "employers",
                 id,
-                `Updated Position: ${data.positionTitle}, Status: ${data.status}`
+                `Updated employer: ${data.companyName}`
             );
         }
 
@@ -50,33 +50,33 @@ module.exports = function registerJobOrderHandlers() {
     });
 
     // =========================================================================
-    // 🔹 DELETE JOB ORDER
+    // 🔹 DELETE EMPLOYER
     // =========================================================================
-    ipcMain.handle("delete-job-order", async (event, { user, id }) => {
-        const result = await queries.deleteJobOrder(user, id);
+    ipcMain.handle("delete-employer", async (event, { user, id }) => {
+        const result = await queries.deleteEmployer(user, id);
 
         if (result.success) {
-            logAction(user, "delete_job_order", "job_orders", id);
+            logAction(user, "delete_employer", "employers", id);
         }
 
         return result;
     });
 
     // =========================================================================
-    // 🔹 GET DELETED JOB ORDERS (RECYCLE BIN)
+    // 🔹 GET DELETED EMPLOYERS (RECYCLE BIN)
     // =========================================================================
-    ipcMain.handle("get-deleted-job-orders", async () => {
-        return queries.getDeletedJobOrders();
+    ipcMain.handle("get-deleted-employers", async () => {
+        return queries.getDeletedEmployers();
     });
 
     // =========================================================================
-    // 🔹 RESTORE JOB ORDER FROM RECYCLE BIN
+    // 🔹 RESTORE EMPLOYER FROM RECYCLE BIN
     // =========================================================================
-    ipcMain.handle("restore-job-order", async (event, { user, id }) => {
-        const result = await queries.restoreJobOrder(id);
+    ipcMain.handle("restore-employer", async (event, { user, id }) => {
+        const result = await queries.restoreEmployer(id);
 
         if (result.success) {
-            logAction(user, "restore_job_order", "job_orders", id);
+            logAction(user, "restore_employer", "employers", id);
         }
 
         return result;

@@ -1,166 +1,213 @@
-const { BrowserWindow, dialog, shell, app } = require('electron');
-const path = require('path');
-const fs = require('fs');
-const os = require('os');
-const archiver = require('archiver');
-const extract = require('extract-zip');
-const ip = require('ip');
-const { sendEmail } = require('../../utils/emailSender.cjs');
-const { getDatabase } = require('../../db/database.cjs'); // Ensure this path is correct
+const { ipcMain, dialog, BrowserWindow, shell, app } = require("electron");
+const path = require("path");
+const fs = require("fs");
+const os = require("os");
+const ip = require("ip");
+const extract = require("extract-zip");
+const { v4: uuidv4 } = require("uuid");
+const archiver = require("archiver");
 
-const registerSystemHandlers = (ipcMain, dependencies) => {
-    const { logAction, queries } = dependencies;
+const queries = require("../db/queries.cjs");
+const { getDatabase } = require("../db/database.cjs");
+const { logAction } = require("../utils/auditHelper.cjs");
+const { sendEmail } = require("../utils/emailSender.cjs");
 
-    ipcMain.handle('show-save-dialog', (event, options) => {
+module.exports = function registerSystemHandlers() {
+
+    // -------------------------------------------------------------
+    // DIALOGS
+    // -------------------------------------------------------------
+    ipcMain.handle("show-save-dialog", (event, options) => {
         const win = BrowserWindow.fromWebContents(event.sender);
         return dialog.showSaveDialog(win, options);
     });
 
-    ipcMain.handle('show-open-dialog', (event, options) => {
+    ipcMain.handle("show-open-dialog", (event, options) => {
         const win = BrowserWindow.fromWebContents(event.sender);
         return dialog.showOpenDialog(win, options);
     });
 
-    ipcMain.handle('backup-database', async (event, { user, destinationPath }) => {
-        if (!user || user.role === 'staff') {
-            return { success: false, error: 'Access Denied: Staff cannot perform database backups.' };
+    // -------------------------------------------------------------
+    // MACHINE ID
+    // -------------------------------------------------------------
+    ipcMain.handle("get-machine-id", () => {
+        const machineId =
+            os.hostname().toUpperCase() +
+            "-" +
+            os.type().substring(0, 3) +
+            "-" +
+            ip.address().split(".").slice(2).join(".");
+
+        return { success: true, machineId };
+    });
+
+    // -------------------------------------------------------------
+    // GET SERVER IP (Mobile API)
+    // -------------------------------------------------------------
+    ipcMain.handle("get-server-ip", () => {
+        return { ip: ip.address(), port: 3000 };
+    });
+
+    // -------------------------------------------------------------
+    // BACKUP DATABASE (ZIP)
+    // -------------------------------------------------------------
+    ipcMain.handle("backup-database", async (event, { user, destinationPath }) => {
+        if (!user || user.role === "staff") {
+            return { success: false, error: "Access Denied: Staff cannot perform backup." };
         }
 
-        const userDataPath = app.getPath('userData');
-        const dbPath = path.join(userDataPath, 'consultancy.db');
-        const filesDir = path.join(userDataPath, 'candidate_files');
+        const userData = app.getPath("userData");
+        const dbPath = path.join(userData, "consultancy.db");
+        const filesDir = path.join(userData, "candidate_files");
 
         if (!fs.existsSync(dbPath)) {
-            return { success: false, error: 'Source database file not found.' };
-        }
-        if (!fs.existsSync(filesDir)) {
-            console.warn('candidate_files directory not found, creating backup without it.');
+            return { success: false, error: "Database file missing." };
         }
 
         try {
             const output = fs.createWriteStream(destinationPath);
-            const archive = archiver('zip', { zlib: { level: 9 } });
-
-            archive.on('warning', (err) => {
-                if (err.code !== 'ENOENT') console.warn('Archiver warning:', err);
-            });
-            archive.on('error', (err) => {
-                console.error('Archiver error:', err);
-                throw err;
-            });
+            const archive = archiver("zip", { zlib: { level: 9 } });
             archive.pipe(output);
-            archive.file(dbPath, { name: 'consultancy.db' });
+
+            archive.file(dbPath, { name: "consultancy.db" });
+
             if (fs.existsSync(filesDir)) {
-                archive.directory(filesDir, 'candidate_files');
+                archive.directory(filesDir, "candidate_files");
             }
+
             await archive.finalize();
-            logAction(user, 'create_backup', 'system', 1, `Backup created: ${destinationPath}`);
+
+            logAction(user, "create_backup", "system", 1, `Backup created at ${destinationPath}`);
             return { success: true };
         } catch (err) {
-            console.error('Database backup failed:', err);
             return { success: false, error: err.message };
         }
     });
 
-    ipcMain.handle('get-machine-id', () => {
-        const machineId = `${os.hostname().toUpperCase()}-${os.type().substring(0, 3)}-${ip.address().split('.').slice(2).join('.')}`;
-        return { success: true, machineId: machineId };
-    });
-
-    ipcMain.handle('get-activation-status', async () => {
-        return queries.getActivationStatus();
-    });
-
-    ipcMain.handle('activate-application', async (event, { activationKey }) => {
-        const machineId = `${os.hostname().toUpperCase()}-${os.type().substring(0, 3)}-${ip.address().split('.').slice(2).join('.')}`;
-        const expectedKeyPrefix = '74482';
-
-        if (!activationKey || activationKey.length !== 5 || activationKey !== expectedKeyPrefix) {
-            return { success: false, error: "Invalid activation code. Please contact support." };
+    // -------------------------------------------------------------
+    // RESTORE DATABASE (ZIP → Replace DB)
+    // -------------------------------------------------------------
+    ipcMain.handle("restore-database", async (event, { user }) => {
+        if (user.role !== "super_admin") {
+            return { success: false, error: "Access Denied." };
         }
-        
-        const result = await queries.setActivationStatus({ activated: true, machineId: machineId });
-        
-        if (result.success) {
-            logAction({ id: 0, username: 'SYSTEM' }, 'activate_license', 'system', 1, `Application activated on Machine ID: ${machineId}`);
-        }
-        
-        return result;
-    });
-
-    ipcMain.handle('restore-database', async (event, { user }) => {
-        if (user.role !== 'super_admin') return { success: false, error: 'Access Denied.' };
 
         const win = BrowserWindow.fromWebContents(event.sender);
-        const result = await dialog.showOpenDialog(win, {
-            title: 'Select Backup File',
-            filters: [{ name: 'Zip Backup', extensions: ['zip'] }],
-            properties: ['openFile']
+        const res = await dialog.showOpenDialog(win, {
+            title: "Select Backup ZIP",
+            filters: [{ name: "Zip Backup", extensions: ["zip"] }],
+            properties: ["openFile"]
         });
 
-        if (result.canceled || result.filePaths.length === 0) return { success: false, error: 'Cancelled' };
+        if (res.canceled || res.filePaths.length === 0) {
+            return { success: false, error: "Cancelled." };
+        }
 
-        const backupPath = result.filePaths[0];
-        const userDataPath = app.getPath('userData');
-        const tempRestore = path.join(os.tmpdir(), 'consultancy_restore');
+        const backup = res.filePaths[0];
+        const tempExtract = path.join(os.tmpdir(), "restore_" + uuidv4());
+        const userData = app.getPath("userData");
 
         try {
-            await extract(backupPath, { dir: tempRestore });
+            await extract(backup, { dir: tempExtract });
 
-            if (!fs.existsSync(path.join(tempRestore, 'consultancy.db'))) {
-                 return { success: false, error: 'Invalid Backup: consultancy.db missing.' };
-            }
-            
-            // Forcing app restart for a cleaner database swap.
-            // In a real scenario, you'd close the DB connection here before copying.
-
-            fs.copyFileSync(path.join(tempRestore, 'consultancy.db'), path.join(userDataPath, 'consultancy.db'));
-            
-            const filesSrc = path.join(tempRestore, 'candidate_files');
-            const filesDest = path.join(userDataPath, 'candidate_files');
-            
-            if (fs.existsSync(filesSrc)) {
-                // Node 16.7+ has fs.cpSync, for older Node, this would be a manual copy or using fs-extra
-                // For now, assume fs.cpSync is available or similar recursive copy is handled.
-                // Alternatively, warn user to manually copy. For a production-ready app, use fs-extra or similar.
-                try {
-                    fs.cpSync(filesSrc, filesDest, { recursive: true, force: true });
-                } catch (cpErr) {
-                    console.warn(`Could not copy candidate_files recursively: ${cpErr.message}. User might need to copy manually.`);
-                }
+            const newDb = path.join(tempExtract, "consultancy.db");
+            if (!fs.existsSync(newDb)) {
+                return { success: false, error: "Invalid Backup: DB missing." };
             }
 
-            logAction(user, 'system_restore', 'system', 1, 'Database restored from backup.');
-            
+            fs.copyFileSync(newDb, path.join(userData, "consultancy.db"));
+
+            const srcFiles = path.join(tempExtract, "candidate_files");
+            const destFiles = path.join(userData, "candidate_files");
+
+            if (fs.existsSync(srcFiles)) {
+                // Node 16+ only
+                // fs.cpSync(srcFiles, destFiles, { recursive: true });
+            }
+
+            logAction(user, "system_restore", "system", 1, "Database restored.");
+
             app.relaunch();
             app.exit(0);
 
             return { success: true };
         } catch (err) {
             return { success: false, error: err.message };
-        } finally {
-            // Clean up temporary directory
-            if (fs.existsSync(tempRestore)) {
-                fs.rmSync(tempRestore, { recursive: true, force: true });
-            }
         }
     });
 
-    ipcMain.handle('test-smtp-connection', async (event, { config }) => {
-        const nodemailer = require('nodemailer');
+    // -------------------------------------------------------------
+    // LICENSE: GET ACTIVATION STATUS
+    // -------------------------------------------------------------
+    ipcMain.handle("get-activation-status", async () => {
+        const db = getDatabase();
+
+        return new Promise((resolve) => {
+            db.get(
+                "SELECT value FROM system_settings WHERE key = 'license_status'",
+                [],
+                (err, row) => {
+                    if (err) {
+                        return resolve({ success: false, data: null });
+                    }
+                    resolve({
+                        success: true,
+                        data: { activated: row?.value === "activated" }
+                    });
+                }
+            );
+        });
+    });
+
+    // -------------------------------------------------------------
+    // LICENSE: ACTIVATE WITH CODE
+    // -------------------------------------------------------------
+    ipcMain.handle("activate-application", async (event, code) => {
+        const db = getDatabase();
+        const clean = typeof code === "string" ? code.trim() : "";
+
+        if (clean.length !== 6) {
+            return { success: false, error: "Invalid code." };
+        }
+
+        return new Promise((resolve) => {
+            db.run(
+                "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('license_status', 'activated')",
+                [],
+                (err) => {
+                    if (err) {
+                        return resolve({ success: false, error: "Failed to save license." });
+                    }
+                    resolve({ success: true, data: { activated: true } });
+                }
+            );
+        });
+    });
+
+    // -------------------------------------------------------------
+    // REQUEST ACTIVATION CODE (EMAIL)
+    // -------------------------------------------------------------
+    ipcMain.handle("request-activation-code", async () => {
         try {
-            const transporter = nodemailer.createTransport({
-                host: config.host,
-                port: parseInt(config.port),
-                secure: config.secure,
-                auth: { user: config.user, pass: config.pass },
+            const machineId = os.hostname().toUpperCase();
+            const code = String(Math.floor(100000 + Math.random() * 900000));
+
+            await queries.savePendingActivation({
+                machineId,
+                code,
+                email: "prakashshiva368@gmail.com"
             });
-            await transporter.verify();
-            return { success: true };
+
+            await sendEmail({
+                to: "prakashshiva368@gmail.com",
+                subject: "Consultancy Desktop Activation Code",
+                text: `Machine ID: ${machineId}\nActivation Code: ${code}`
+            });
+
+            return { success: true, machineId, code };
         } catch (err) {
             return { success: false, error: err.message };
         }
     });
-};
 
-module.exports = { registerSystemHandlers };
+};
