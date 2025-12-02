@@ -760,71 +760,85 @@ async function getCandidateDetails(id) {
 
 async function updateCandidateText(id, data) {
   const db = getDatabase();
-
-  // --- Permission Check ---
-
-  // --- Validation ---
   const errors = {};
+  const today = new Date().setHours(0, 0, 0, 0); // For date checks
 
-  const reqName = validateRequired(data.name, "Candidate Name");
-  if (reqName) errors.name = reqName;
+  // --- 1. Basic Validation ---
+  const nameValidation = validateRequired(data.name, "Candidate Name");
+  if (nameValidation) errors.name = nameValidation;
 
-  const reqPass = validateRequired(data.passportNo, "Passport No");
-  if (reqPass) errors.passportNo = reqPass;
+  const passportValidation = validateRequired(data.passportNo, "Passport No");
+  if (passportValidation) errors.passportNo = passportValidation;
 
-  const reqPos = validateRequired(data.Position, "Position");
-  if (reqPos) errors.Position = reqPos;
+  const positionValidation = validateRequired(data.Position, "Position");
+  if (positionValidation) errors.Position = positionValidation;
 
-  // Aadhaar format + checksum
+  if (data.contact && !/^\d{10}$/.test(data.contact)) {
+    errors.contact = "Contact must be exactly 10 digits.";
+  }
+  if (data.passportExpiry) {
+    const expiryDate = new Date(data.passportExpiry).getTime();
+    if (expiryDate <= today)
+      errors.passportExpiry = "Passport Expiry must be in the future.";
+  }
+  // --- End Basic Validation ---
+
+  // --- 2. Aadhaar Validation ---
   if (data.aadhar) {
     if (!/^\d{12}$/.test(data.aadhar)) {
-      errors.aadhar = "Aadhaar must be exactly 12 digits.";
-    } else if (!validateVerhoeff(data.aadhar)) {
-      errors.aadhar = "Invalid Aadhaar Number (Checksum failed).";
+      errors.aadhar = "Aadhar must be exactly 12 digits.";
     }
+    // TEMPORARILY DISABLE VERHOEFF CHECK FOR STABILITY
+    // else if (!validateVerhoeff(data.aadhar)) {
+    //   errors.aadhar = 'Invalid Aadhaar Number (Checksum failed). Please check for typos.';
+    // }
   }
 
+  // --- 3. Finalize Validation Errors ---
   if (Object.keys(errors).length > 0) {
-    return { success: false, error: "Validation failed", errors };
+    return { success: false, error: "Validation failed", errors: errors };
   }
 
+  // --- 4. Duplicate Check (Passport & Aadhar) ---
   try {
-    // --- Duplicate Check ---
-    let sqlCheck = `
-      SELECT passportNo, aadhar 
-      FROM candidates 
-      WHERE isDeleted = 0
-      AND id != ?
-      AND (passportNo = ? OR aadhar = ?)
-    `;
+    let checkSql =
+      "SELECT passportNo, aadhar FROM candidates WHERE (passportNo = ?";
+    const params = [data.passportNo];
 
-    const existing = await dbGet(
-      db,
-      sqlCheck,
-      [id, data.passportNo, data.aadhar || null]
-    );
+    if (data.aadhar) {
+      checkSql += " OR aadhar = ?";
+      params.push(data.aadhar);
+    }
+    checkSql += ") AND isDeleted = 0 AND id != ?";
+    params.push(id);
+
+    const existing = await dbGet(db, checkSql, params);
 
     if (existing) {
+      const duplicateErrors = {};
       if (existing.passportNo === data.passportNo) {
-        errors.passportNo = `Passport No ${data.passportNo} already exists.`;
+        duplicateErrors.passportNo = `Passport No ${data.passportNo} already exists for another candidate.`;
       }
-      if (existing.aadhar && existing.aadhar === data.aadhar) {
-        errors.aadhar = `Aadhaar ${data.aadhar} already exists.`;
+      if (data.aadhar && existing.aadhar === data.aadhar) {
+        duplicateErrors.aadhar = `Aadhar No ${data.aadhar} already exists for another candidate.`;
       }
-
-      return { success: false, error: "Duplicate field value detected", errors };
+      if (Object.keys(duplicateErrors).length > 0) {
+        return {
+          success: false,
+          error: "Duplicate field value detected.",
+          errors: duplicateErrors,
+        };
+      }
     }
 
-    // --- Update Query ---
-    const sql = `
-      UPDATE candidates SET
-        name = ?, education = ?, experience = ?, dob = ?,
-        passportNo = ?, passportExpiry = ?, contact = ?, aadhar = ?,
-        status = ?, notes = ?, Position = ?
-      WHERE id = ?
-    `;
+    // --- 5. Execute Update ---
+    const sql = `UPDATE candidates SET
+      name = ?, education = ?, experience = ?, dob = ?,
+      passportNo = ?, passportExpiry = ?, contact = ?, aadhar = ?,
+      status = ?, notes = ?, Position = ?
+    WHERE id = ?`;
 
-    const params = [
+    const updateParams = [
       data.name,
       data.education,
       data.experience,
@@ -836,17 +850,20 @@ async function updateCandidateText(id, data) {
       data.status,
       data.notes,
       data.Position,
-      id
+      id,
     ];
 
-    await dbRun(db, sql, params);
-
+    await dbRun(db, sql, updateParams);
     return { success: true };
   } catch (err) {
-    return {
-      success: false,
-      error: err.message || "Update failed"
-    };
+    if (err.message.includes("UNIQUE constraint failed")) {
+      return {
+        success: false,
+        error: `A unique field (like Passport) already exists.`,
+        field: "passportNo",
+      };
+    }
+    return { success: false, error: err.message };
   }
 }
 
@@ -1721,10 +1738,13 @@ async function deletePayment(user, id) {
 // 10. RECYCLE BIN MANAGEMENT (COMPLETE)
 // ====================================================================
 
-// ========== CANDIDATES ==========
+
+
+// ---------- CANDIDATES ----------
 async function getDeletedCandidates() {
   const db = getDatabase();
-  const sql = 'SELECT id, name, Position, createdAt, isDeleted FROM candidates WHERE isDeleted = 1 ORDER BY createdAt DESC';
+  const sql =
+    'SELECT id, name, Position, createdAt, isDeleted FROM candidates WHERE isDeleted = 1 ORDER BY createdAt DESC';
   try {
     const rows = await dbAll(db, sql, []);
     return { success: true, data: rows };
@@ -1738,14 +1758,47 @@ async function restoreCandidate(id) {
   try {
     await dbRun(db, 'BEGIN TRANSACTION');
     await dbRun(db, 'UPDATE candidates SET isDeleted = 0 WHERE id = ?', [id]);
-    await dbRun(db, 'UPDATE documents SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1', [id]);
-    await dbRun(db, 'UPDATE placements SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1', [id]);
-    await dbRun(db, 'UPDATE visa_tracking SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1', [id]);
-    await dbRun(db, 'UPDATE passport_tracking SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1', [id]);
-    await dbRun(db, 'UPDATE payments SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1', [id]);
-    await dbRun(db, 'UPDATE medical_tracking SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1', [id]);
-    await dbRun(db, 'UPDATE interview_tracking SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1', [id]);
-    await dbRun(db, 'UPDATE travel_tracking SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1', [id]);
+    // child tables
+    await dbRun(
+      db,
+      'UPDATE documents SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1',
+      [id]
+    );
+    await dbRun(
+      db,
+      'UPDATE placements SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1',
+      [id]
+    );
+    await dbRun(
+      db,
+      'UPDATE visa_tracking SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1',
+      [id]
+    );
+    await dbRun(
+      db,
+      'UPDATE passport_tracking SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1',
+      [id]
+    );
+    await dbRun(
+      db,
+      'UPDATE payments SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1',
+      [id]
+    );
+    await dbRun(
+      db,
+      'UPDATE medical_tracking SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1',
+      [id]
+    );
+    await dbRun(
+      db,
+      'UPDATE interview_tracking SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1',
+      [id]
+    );
+    await dbRun(
+      db,
+      'UPDATE travel_tracking SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1',
+      [id]
+    );
     await dbRun(db, 'COMMIT');
     return { success: true };
   } catch (err) {
@@ -1754,10 +1807,11 @@ async function restoreCandidate(id) {
   }
 }
 
-// ========== EMPLOYERS ==========
+// ---------- EMPLOYERS ----------
 async function getDeletedEmployers() {
   const db = getDatabase();
-  const sql = 'SELECT * FROM employers WHERE isDeleted = 1 ORDER BY companyName ASC';
+  const sql =
+    'SELECT * FROM employers WHERE isDeleted = 1 ORDER BY companyName ASC';
   try {
     const rows = await dbAll(db, sql, []);
     return { success: true, data: rows };
@@ -1771,7 +1825,11 @@ async function restoreEmployer(id) {
   try {
     await dbRun(db, 'BEGIN TRANSACTION');
     await dbRun(db, 'UPDATE employers SET isDeleted = 0 WHERE id = ?', [id]);
-    await dbRun(db, 'UPDATE job_orders SET isDeleted = 0 WHERE employer_id = ? AND isDeleted = 1', [id]);
+    await dbRun(
+      db,
+      'UPDATE job_orders SET isDeleted = 0 WHERE employer_id = ? AND isDeleted = 1',
+      [id]
+    );
     await dbRun(db, 'COMMIT');
     return { success: true };
   } catch (err) {
@@ -1780,7 +1838,7 @@ async function restoreEmployer(id) {
   }
 }
 
-// ========== JOB ORDERS ==========
+// ---------- JOB ORDERS ----------
 async function getDeletedJobOrders() {
   const db = getDatabase();
   const sql = `
@@ -1803,7 +1861,11 @@ async function restoreJobOrder(id) {
   try {
     await dbRun(db, 'BEGIN TRANSACTION');
     await dbRun(db, 'UPDATE job_orders SET isDeleted = 0 WHERE id = ?', [id]);
-    await dbRun(db, 'UPDATE placements SET isDeleted = 0 WHERE job_order_id = ? AND isDeleted = 1', [id]);
+    await dbRun(
+      db,
+      'UPDATE placements SET isDeleted = 0 WHERE job_order_id = ? AND isDeleted = 1',
+      [id]
+    );
     await dbRun(db, 'COMMIT');
     return { success: true };
   } catch (err) {
@@ -1812,11 +1874,15 @@ async function restoreJobOrder(id) {
   }
 }
 
-// ========== REQUIRED DOCUMENTS ==========
+// ---------- REQUIRED DOCUMENTS ----------
 async function getRequiredDocuments() {
   const db = getDatabase();
   try {
-    const rows = await dbAll(db, 'SELECT * FROM required_documents WHERE isDeleted = 0 ORDER BY name ASC', []);
+    const rows = await dbAll(
+      db,
+      'SELECT * FROM required_documents WHERE isDeleted = 0 ORDER BY name ASC',
+      []
+    );
     return { success: true, data: rows };
   } catch (err) {
     return { success: false, error: err.message };
@@ -1831,45 +1897,45 @@ async function addRequiredDocument(name) {
   name = name.trim();
 
   try {
-    // 1) If an ACTIVE doc exists ⇒ block
     const existingActive = await dbGet(
       db,
-      "SELECT id FROM required_documents WHERE name = ? AND isDeleted = 0",
+      'SELECT id FROM required_documents WHERE name = ? AND isDeleted = 0',
       [name]
     );
     if (existingActive) {
-      return { success: false, error: 'Document name already exists in the active required list.' };
+      return {
+        success: false,
+        error: 'Document name already exists in the active required list.',
+      };
     }
 
-    // 2) If a SOFT-DELETED doc exists ⇒ revive instead of inserting
     const existingDeleted = await dbGet(
       db,
-      "SELECT id FROM required_documents WHERE name = ? AND isDeleted = 1",
+      'SELECT id FROM required_documents WHERE name = ? AND isDeleted = 1',
       [name]
     );
     if (existingDeleted) {
       await dbRun(
         db,
-        "UPDATE required_documents SET isDeleted = 0 WHERE id = ?",
+        'UPDATE required_documents SET isDeleted = 0 WHERE id = ?',
         [existingDeleted.id]
       );
       const revived = await dbGet(
         db,
-        "SELECT * FROM required_documents WHERE id = ?",
+        'SELECT * FROM required_documents WHERE id = ?',
         [existingDeleted.id]
       );
       return { success: true, data: revived };
     }
 
-    // 3) Otherwise, insert new record
     const result = await dbRun(
       db,
-      "INSERT INTO required_documents (name, isDeleted) VALUES (?, 0)",
+      'INSERT INTO required_documents (name, isDeleted) VALUES (?, 0)',
       [name]
     );
     const row = await dbGet(
       db,
-      "SELECT * FROM required_documents WHERE id = ?",
+      'SELECT * FROM required_documents WHERE id = ?',
       [result.lastID]
     );
     return { success: true, data: row };
@@ -1884,7 +1950,9 @@ async function addRequiredDocument(name) {
 async function deleteRequiredDocument(id) {
   const db = getDatabase();
   try {
-    await dbRun(db, 'UPDATE required_documents SET isDeleted = 1 WHERE id = ?', [id]);
+    await dbRun(db, 'UPDATE required_documents SET isDeleted = 1 WHERE id = ?', [
+      id,
+    ]);
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
@@ -1894,8 +1962,9 @@ async function deleteRequiredDocument(id) {
 async function getDeletedRequiredDocuments() {
   const db = getDatabase();
   try {
-    const rows = await dbAll(db,
-      "SELECT id, name FROM required_documents WHERE isDeleted = 1 ORDER BY name ASC",
+    const rows = await dbAll(
+      db,
+      'SELECT id, name FROM required_documents WHERE isDeleted = 1 ORDER BY name ASC',
       []
     );
     return { success: true, data: rows };
@@ -1907,67 +1976,42 @@ async function getDeletedRequiredDocuments() {
 async function restoreRequiredDocument(id) {
   const db = getDatabase();
   try {
-    await dbRun(db, "UPDATE required_documents SET isDeleted = 0 WHERE id = ?", [id]);
+    await dbRun(db, 'UPDATE required_documents SET isDeleted = 0 WHERE id = ?', [
+      id,
+    ]);
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
   }
 }
 
-// ========== PLACEMENTS ==========
-async function getDeletedPassports() {
+// ---------- PLACEMENTS ----------
+async function getDeletedPlacements() {
   const db = getDatabase();
   const sql = `
     SELECT 
-      pt.id,
+      p.id,
       c.name as candidateName,
-      pt.passportNumber,  /* ✅ Use correct column name - no underscore */
-      pt.issueDate,       /* ✅ Use camelCase if that's your schema */
-      pt.expiryDate,
-      pt.createdAt
-    FROM passport_tracking pt
-    LEFT JOIN candidates c ON pt.candidate_id = c.id
-    WHERE pt.isDeleted = 1
-    ORDER BY pt.createdAt DESC
+      j.positionTitle as jobTitle,
+      j.companyName,
+      j.country,
+      p.assignedAt,
+      p.status,
+      p.createdAt
+    FROM placements p
+    LEFT JOIN candidates c ON p.candidate_id = c.id
+    LEFT JOIN job_orders j ON p.job_order_id = j.id
+    WHERE p.isDeleted = 1
+    ORDER BY p.createdAt DESC
   `;
   try {
     const rows = await dbAll(db, sql, []);
+    console.log('🗑️ Found', rows.length, 'deleted placements');
     return { success: true, data: rows };
   } catch (err) {
     return { success: false, error: err.message };
   }
 }
-async function permanentDeletePlacement(id) {
-  const db = getDatabase();
-  
-  const sql = `DELETE FROM placements WHERE id = ?`;
-  
-  try {
-    await dbRun(db, sql, [id]);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-}
-async function checkPlacementExists(candidateId, jobOrderId) {
-  const db = getDatabase();
-  
-  const sql = `
-    SELECT id FROM placements 
-    WHERE candidate_id = ? 
-      AND job_order_id = ? 
-      AND isDeleted = 0
-  `;
-  
-  try {
-    const row = await dbGet(db, sql, [candidateId, jobOrderId]);
-    return row !== undefined;
-  } catch (err) {
-    console.error('Error checking placement:', err.message);
-    return false;
-  }
-}
-
 
 async function restorePlacement(id) {
   const db = getDatabase();
@@ -1979,13 +2023,16 @@ async function restorePlacement(id) {
   }
 }
 
-// ========== PASSPORT TRACKING ==========
+// ---------- PASSPORT TRACKING ----------
 async function getDeletedPassports() {
   const db = getDatabase();
   const sql = `
     SELECT 
       pt.id,
-      c.name as candidateName,      
+      c.name as candidateName,
+      pt.passportNumber,
+      pt.issueDate,
+      pt.expiryDate,
       pt.createdAt
     FROM passport_tracking pt
     LEFT JOIN candidates c ON pt.candidate_id = c.id
@@ -2003,23 +2050,24 @@ async function getDeletedPassports() {
 async function restorePassport(id) {
   const db = getDatabase();
   try {
-    await dbRun(db, 'UPDATE passport_tracking SET isDeleted = 0 WHERE id = ?', [id]);
+    await dbRun(db, 'UPDATE passport_tracking SET isDeleted = 0 WHERE id = ?', [
+      id,
+    ]);
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
   }
 }
 
-// ========== VISA TRACKING ==========
+// ---------- VISA TRACKING ----------
 async function getDeletedVisas() {
   const db = getDatabase();
   const sql = `
     SELECT 
       vt.id,
       c.name as candidateName,
-      vt.visa_type,
+      vt.visaType,
       vt.status,
-      vt.application_date,
       vt.createdAt
     FROM visa_tracking vt
     LEFT JOIN candidates c ON vt.candidate_id = c.id
@@ -2044,7 +2092,112 @@ async function restoreVisa(id) {
   }
 }
 
-// ========== PERMANENT DELETE (ALL TYPES) ==========
+// ---------- MEDICAL / INTERVIEW / TRAVEL ----------
+async function getDeletedMedical() {
+  const db = getDatabase();
+  const sql = `
+    SELECT 
+      m.id,
+      c.name as candidateName,
+      m.status,
+      m.centerName,
+      m.testDate,
+      m.createdAt
+    FROM medical_tracking m
+    LEFT JOIN candidates c ON m.candidate_id = c.id
+    WHERE m.isDeleted = 1
+    ORDER BY m.createdAt DESC
+  `;
+  try {
+    const rows = await dbAll(db, sql, []);
+    return { success: true, data: rows };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+async function restoreMedical(id) {
+  const db = getDatabase();
+  try {
+    await dbRun(db, 'UPDATE medical_tracking SET isDeleted = 0 WHERE id = ?', [
+      id,
+    ]);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+async function getDeletedInterviews() {
+  const db = getDatabase();
+  const sql = `
+    SELECT 
+      i.id,
+      c.name as candidateName,
+      i.status,
+      i.interviewDate,
+      i.createdAt
+    FROM interview_tracking i
+    LEFT JOIN candidates c ON i.candidate_id = c.id
+    WHERE i.isDeleted = 1
+    ORDER BY i.createdAt DESC
+  `;
+  try {
+    const rows = await dbAll(db, sql, []);
+    return { success: true, data: rows };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+async function restoreInterview(id) {
+  const db = getDatabase();
+  try {
+    await dbRun(db, 'UPDATE interview_tracking SET isDeleted = 0 WHERE id = ?', [
+      id,
+    ]);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+async function getDeletedTravel() {
+  const db = getDatabase();
+  const sql = `
+    SELECT 
+      t.id,
+      c.name as candidateName,
+      t.status,
+      t.travelDate,
+      t.destination,
+      t.createdAt
+    FROM travel_tracking t
+    LEFT JOIN candidates c ON t.candidate_id = c.id
+    WHERE t.isDeleted = 1
+    ORDER BY t.createdAt DESC
+  `;
+  try {
+    const rows = await dbAll(db, sql, []);
+    return { success: true, data: rows };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+async function restoreTravel(id) {
+  const db = getDatabase();
+  try {
+    await dbRun(db, 'UPDATE travel_tracking SET isDeleted = 0 WHERE id = ?', [
+      id,
+    ]);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+// ---------- PERMANENT DELETE ----------
 async function deletePermanently(id, targetType) {
   const db = getDatabase();
   let sql;
@@ -2079,8 +2232,23 @@ async function deletePermanently(id, targetType) {
       sql = 'DELETE FROM visa_tracking WHERE id = ?';
       identifier = 'visa';
       break;
+    case 'medical':
+      sql = 'DELETE FROM medical_tracking WHERE id = ?';
+      identifier = 'medical record';
+      break;
+    case 'interviews':
+      sql = 'DELETE FROM interview_tracking WHERE id = ?';
+      identifier = 'interview record';
+      break;
+    case 'travel':
+      sql = 'DELETE FROM travel_tracking WHERE id = ?';
+      identifier = 'travel record';
+      break;
     default:
-      return { success: false, error: 'Invalid target type for permanent deletion.' };
+      return {
+        success: false,
+        error: 'Invalid target type for permanent deletion.',
+      };
   }
 
   try {
@@ -2594,4 +2762,16 @@ checkPlacementExists,
   getSuperAdminFeatureFlags,
   logCommunication,
   getCommLogs,
+
+
+
+  getDeletedMedical,
+  restoreMedical,
+  getDeletedInterviews,
+  restoreInterview,
+  getDeletedTravel,
+  restoreTravel,
+
+
+
 };

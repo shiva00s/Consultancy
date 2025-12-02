@@ -885,6 +885,9 @@ ipcMain.handle('getImageBase64', (event, { filePath }) => {
         }
         return result;
     });
+
+
+
 // 💥 CRITICAL FIX: The queries.updatePayment function now expects a single data object.
     ipcMain.handle('update-payment', async (event, { user, id, amount_paid, status }) => {
         const updateData = { user, id, amount_paid, status };
@@ -909,140 +912,187 @@ ipcMain.handle('getImageBase64', (event, { filePath }) => {
 // ====================================================================
 
 // --- CANDIDATES ---
-ipcMain.handle('get-deleted-candidates', (event) => {
-    return queries.getDeletedCandidates();
+ipcMain.handle('get-deleted-candidates', () => {
+  return queries.getDeletedCandidates();
 });
 ipcMain.handle('restore-candidate', async (event, { user, id }) => {
-    const result = await queries.restoreCandidate(id);
-    if (result.success) {
-        logAction(user, 'restore_candidate', 'candidates', id);
-    }
-    return result;
+  const result = await queries.restoreCandidate(id);
+  if (result.success) {
+    logAction(user, 'restore_candidate', 'candidates', id);
+  }
+  return result;
 });
 
 // --- EMPLOYERS ---
-ipcMain.handle('get-deleted-employers', (event) => {
-    return queries.getDeletedEmployers();
+ipcMain.handle('get-deleted-employers', () => {
+  return queries.getDeletedEmployers();
 });
 ipcMain.handle('restore-employer', async (event, { user, id }) => {
-    const result = await queries.restoreEmployer(id);
-    if (result.success) {
-        logAction(user, 'restore_employer', 'employers', id);
-    }
-    return result;
+  const result = await queries.restoreEmployer(id);
+  if (result.success) {
+    logAction(user, 'restore_employer', 'employers', id);
+  }
+  return result;
 });
 
 // --- JOB ORDERS ---
-ipcMain.handle('get-deleted-job-orders', (event) => {
-    return queries.getDeletedJobOrders();
+ipcMain.handle('get-deleted-job-orders', () => {
+  return queries.getDeletedJobOrders();
 });
 ipcMain.handle('restore-job-order', async (event, { user, id }) => {
-    const result = await queries.restoreJobOrder(id);
-    if (result.success) {
-        logAction(user, 'restore_job', 'job_orders', id);
-    }
-    return result;
+  const result = await queries.restoreJobOrder(id);
+  if (result.success) {
+    logAction(user, 'restore_job', 'job_orders', id);
+  }
+  return result;
 });
-
-
 
 // --- PLACEMENTS ---
-ipcMain.handle('get-deleted-placements', (event) => {
-    return queries.getDeletedPlacements();
+ipcMain.handle('get-deleted-placements', () => {
+  return queries.getDeletedPlacements();
 });
 ipcMain.handle('restore-placement', async (event, { user, id }) => {
-    const result = await queries.restorePlacement(id);
-    if (result.success) {
-        logAction(user, 'restore_placement', 'placements', id);
-    }
-    return result;
+  const result = await queries.restorePlacement(id);
+  if (result.success) {
+    logAction(user, 'restore_placement', 'placements', id);
+  }
+  return result;
 });
 
 // --- PASSPORTS ---
-ipcMain.handle('get-deleted-passports', (event) => {
-    return queries.getDeletedPassports();
+ipcMain.handle('get-deleted-passports', () => {
+  return queries.getDeletedPassports();
 });
 ipcMain.handle('restore-passport', async (event, { user, id }) => {
-    const result = await queries.restorePassport(id);
-    if (result.success) {
-        logAction(user, 'restore_passport', 'passport_tracking', id);
-    }
-    return result;
+  const result = await queries.restorePassport(id);
+  if (result.success) {
+    logAction(user, 'restore_passport', 'passport_tracking', id);
+  }
+  return result;
 });
 
 // --- VISAS ---
-ipcMain.handle('get-deleted-visas', (event) => {
-    return queries.getDeletedVisas();
+ipcMain.handle('get-deleted-visas', () => {
+  return queries.getDeletedVisas();
 });
 ipcMain.handle('restore-visa', async (event, { user, id }) => {
-    const result = await queries.restoreVisa(id);
-    if (result.success) {
-        logAction(user, 'restore_visa', 'visa_tracking', id);
-    }
-    return result;
+  const result = await queries.restoreVisa(id);
+  if (result.success) {
+    logAction(user, 'restore_visa', 'visa_tracking', id);
+  }
+  return result;
+});
+
+// --- MEDICAL ---
+ipcMain.handle('get-deleted-medical', () => {
+  return queries.getDeletedMedical();
+});
+ipcMain.handle('restore-medical', async (event, { user, id }) => {
+  const result = await queries.restoreMedical(id);
+  if (result.success) {
+    logAction(user, 'restore_medical', 'medical_tracking', id);
+  }
+  return result;
+});
+
+// --- INTERVIEWS ---
+ipcMain.handle('get-deleted-interviews', () => {
+  return queries.getDeletedInterviews();
+});
+ipcMain.handle('restore-interview', async (event, { user, id }) => {
+  const result = await queries.restoreInterview(id);
+  if (result.success) {
+    logAction(user, 'restore_interview', 'interview_tracking', id);
+  }
+  return result;
+});
+
+// --- TRAVEL ---
+ipcMain.handle('get-deleted-travel', () => {
+  return queries.getDeletedTravel();
+});
+ipcMain.handle('restore-travel', async (event, { user, id }) => {
+  const result = await queries.restoreTravel(id);
+  if (result.success) {
+    logAction(user, 'restore_travel', 'travel_tracking', id);
+  }
+  return result;
 });
 
 // --- PERMANENT DELETION (SUPER ADMIN ONLY) ---
 ipcMain.handle('delete-permanently', async (event, { user, id, targetType }) => {
-    try {
-        if (user.role !== 'super_admin') {
-            return {
-                success: false,
-                error: 'Access Denied: Only Super Admins can perform permanent deletion.',
-            };
-        }
-
-        let tableName;
-
-        switch (targetType) {
-            case 'required_doc':
-            case 'required_docs':
-                tableName = 'required_documents';
-                break;
-            case 'candidate':
-            case 'candidates':
-                tableName = 'candidates';
-                break;
-            case 'employer':
-            case 'employers':
-                tableName = 'employers';
-                break;
-            case 'job':
-            case 'jobs':
-            case 'job_orders':
-                tableName = 'jobs';
-                break;
-            case 'placement':
-            case 'placements':
-                tableName = 'placements';
-                break;
-            case 'passport':
-            case 'passports':
-                tableName = 'passport_tracking';
-                break;
-            case 'visa':
-            case 'visas':
-                tableName = 'visa_tracking';
-                break;
-            default:
-                return { success: false, error: `Unknown target type: ${targetType}` };
-        }
-
-        await new Promise((resolve, reject) => {
-            const sql = `DELETE FROM ${tableName} WHERE id = ?`;
-            db.run(sql, [id], function (err) {
-                if (err) return reject(err);
-                resolve();
-            });
-        });
-
-        logAction(user, 'permanent_delete', tableName, id);
-        return { success: true };
-    } catch (err) {
-        console.error('delete-permanently error:', err);
-        return { success: false, error: err.message };
+  try {
+    if (!user || user.role !== 'super_admin') {
+      return {
+        success: false,
+        error: 'Access Denied: Only Super Admins can perform permanent deletion.',
+      };
     }
+
+    let tableName;
+
+    switch (targetType) {
+      case 'required_doc':
+      case 'required_docs':
+        tableName = 'required_documents';
+        break;
+      case 'candidate':
+      case 'candidates':
+        tableName = 'candidates';
+        break;
+      case 'employer':
+      case 'employers':
+        tableName = 'employers';
+        break;
+      case 'job':
+      case 'jobs':
+      case 'job_orders':
+        tableName = 'job_orders'; // fixed
+        break;
+      case 'placement':
+      case 'placements':
+        tableName = 'placements';
+        break;
+      case 'passport':
+      case 'passports':
+        tableName = 'passport_tracking';
+        break;
+      case 'visa':
+      case 'visas':
+        tableName = 'visa_tracking';
+        break;
+      case 'medical':
+      case 'medical_records':
+        tableName = 'medical_tracking';
+        break;
+      case 'interview':
+      case 'interviews':
+        tableName = 'interview_tracking';
+        break;
+      case 'travel':
+      case 'travels':
+        tableName = 'travel_tracking';
+        break;
+      default:
+        return { success: false, error: `Unknown target type: ${targetType}` };
+    }
+
+    await new Promise((resolve, reject) => {
+      const sql = `DELETE FROM ${tableName} WHERE id = ?`;
+      db.run(sql, [id], function (err) {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+
+    logAction(user, 'permanent_delete', tableName, id);
+    return { success: true };
+  } catch (err) {
+    console.error('delete-permanently error:', err);
+    return { success: false, error: err.message };
+  }
 });
+
 
 
 // ====================================================================
@@ -1987,26 +2037,28 @@ ipcMain.handle('restore-required-document', async (event, { id }) => {
     });
   });
 });
-ipcMain.handle('upload-resume', async (event, { fileBuffer, fileName }) => {
+
+ipcMain.handle('get-candidate-finance', async (event, { user, candidateId }) => {
   try {
-    if (!fileBuffer) {
-      return { success: false, error: 'fileBuffer is required' };
+    // ✅ optional hard check: require authenticated user
+    if (!user || !user.id) {
+      console.warn('get-candidate-finance called without valid user');
+      // still return data, just don’t log, or you can block:
+      // return { success: false, error: 'Authentication required' };
+    } else {
+      logAction(
+        user,
+        'view_candidate_finance',
+        'candidates',
+        candidateId,
+        `Viewed finance for candidate ID: ${candidateId}`
+      );
     }
 
-    // Ensure we pass a Buffer or Uint8Array to saveFile
-    const buffer = Buffer.isBuffer(fileBuffer)
-      ? fileBuffer
-      : Buffer.from(fileBuffer);
-
-    const result = await fileManager.saveFile(
-      buffer,      // fileBuffer
-      fileName,    // originalName
-      'resumes'    // category
-    );
-
-    return { success: true, data: result };
+    const result = await queries.getCandidateFinance(candidateId);
+    return result; // { success, data, error }
   } catch (err) {
-    console.error('upload-resume failed:', err);
+    console.error('get-candidate-finance error:', err);
     return { success: false, error: err.message };
   }
 });
