@@ -273,6 +273,7 @@ restoreTravel: (payload) => ipcRenderer.invoke('restore-travel', payload),
 
 // Recycle Bin - Interview
 restoreInterview: (payload) => ipcRenderer.invoke('restore-interview', payload),
-
+ sendWhatsAppBulk: (numbers, message) =>
+        ipcRenderer.invoke("send-whatsapp-bulk", { numbers, message })
 
 });
