@@ -254,5 +254,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
     requestActivationCode: () => ipcRenderer.invoke("request-activation-code"),
     logAuditEvent: (payload) => ipcRenderer.invoke("log-audit-event", payload),
+    getAdminAssignedFeatures: (payload) =>
+    ipcRenderer.invoke('get-admin-assigned-features', payload),
+    uploadResume: (payload) => ipcRenderer.invoke('upload-resume', payload),
 
 });

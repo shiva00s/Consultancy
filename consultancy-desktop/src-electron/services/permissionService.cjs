@@ -30,6 +30,8 @@ class PermissionService {
     });
   }
 
+  
+
   /**
    * Get enabled modules only (for non-SuperAdmin)
    */

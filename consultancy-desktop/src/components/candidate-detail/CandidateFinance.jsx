@@ -20,8 +20,11 @@ function CandidateFinance({ user, candidateId, flags }) {
   const [isSavingPayment, setIsSavingPayment] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
 
-  // [FIX] Strict Permission Check (Default to false if flags are missing)
-  const isFinanceEnabled = flags ? flags.isFinanceTrackingEnabled : false;
+  const isFinanceEnabled =
+  user?.role === "super_admin"
+    ? true
+    : flags?.isFinanceTrackingEnabled ?? false;
+
 
   const fetchPayments = useCallback(async () => {
     setLoading(true);

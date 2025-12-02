@@ -1536,7 +1536,15 @@ ipcMain.handle('readAbsoluteFileBuffer', async (event, { filePath }) => {
         }
     });
 
-    
+    ipcMain.handle('get-admin-assigned-features', async (event, { userId }) => {
+    try {
+      const features = await getAdminAssignedFeatures(userId);
+      return { success: true, features };
+    } catch (err) {
+      console.error('get-admin-assigned-features failed:', err);
+      return { success: false, error: err.message };
+    }
+  });
 
     ipcMain.handle('send-email', async (event, { user, to, subject, body, attachments }) => {
     try {
@@ -1979,5 +1987,31 @@ ipcMain.handle('restore-required-document', async (event, { id }) => {
     });
   });
 });
+ipcMain.handle('upload-resume', async (event, { fileBuffer, fileName }) => {
+  try {
+    if (!fileBuffer) {
+      return { success: false, error: 'fileBuffer is required' };
+    }
+
+    // Ensure we pass a Buffer or Uint8Array to saveFile
+    const buffer = Buffer.isBuffer(fileBuffer)
+      ? fileBuffer
+      : Buffer.from(fileBuffer);
+
+    const result = await fileManager.saveFile(
+      buffer,      // fileBuffer
+      fileName,    // originalName
+      'resumes'    // category
+    );
+
+    return { success: true, data: result };
+  } catch (err) {
+    console.error('upload-resume failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+
+
 
     module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase  };

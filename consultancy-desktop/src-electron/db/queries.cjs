@@ -2442,12 +2442,30 @@ async function softDeletePlacement(id) {
   }
 }
 
+async function getAdminAssignedFeatures(userId) {
+  const db = getDatabase();
+
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT f.key
+      FROM feature_flags f
+      INNER JOIN user_features uf ON uf.feature_id = f.id
+      WHERE uf.user_id = ?
+        AND f.isDeleted = 0
+    `;
+    db.all(sql, [userId], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows.map(r => r.key));
+    });
+  });
+}
 
 module.exports = {
   // DB Helpers
   dbRun,
   dbGet,
   dbAll,
+  getAdminAssignedFeatures,
   savePendingActivation,
   getPendingActivation,
   markActivationUsed,

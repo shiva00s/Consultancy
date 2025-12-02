@@ -11,6 +11,20 @@ const getInitialFlags = () => {
   return flagsJson ? JSON.parse(flagsJson) : null;
 };
 
+const fetchAdminFeatures = async (user) => {
+  try {
+    const res = await window.electronAPI.getAdminAssignedFeatures({ userId: user.id });
+    if (res.success) {
+      set({ featureFlags: res.features });
+    } else {
+      console.error('Failed to fetch features:', res.error);
+    }
+  } catch (err) {
+    console.error('Failed to fetch features:', err);
+  }
+};
+
+
 const useAuthStore = create((set, get) => ({
   user: getInitialUser(),
   featureFlags: getInitialFlags(),
