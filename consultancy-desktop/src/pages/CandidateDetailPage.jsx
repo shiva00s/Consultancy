@@ -148,11 +148,27 @@ function CandidateDetailPage({ user, flags }) {
   };
 
   const handleSave = async () => {
+    // FIX 1: Ensure required fields are explicitly strings, even if null/undefined in state
+    const dataToSend = {
+        name: formData.name || '',
+        Position: formData.Position || '',
+        passportNo: formData.passportNo || '', 
+        contact: formData.contact || '',
+        aadhar: formData.aadhar || '',
+        passportExpiry: formData.passportExpiry || '',
+        education: formData.education || '',
+        experience: formData.experience || '',
+        dob: formData.dob || '',
+        status: formData.status || 'New',
+        notes: formData.notes || '',
+    };
+    
+    // FIX 2: Apply the initial frontend cleaning to the guaranteed string
     const cleanedData = {
-      ...formData,
-      passportNo: formData.passportNo 
-        ? formData.passportNo.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
-        : formData.passportNo
+      ...dataToSend,
+      passportNo: dataToSend.passportNo 
+        ? dataToSend.passportNo.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+        : '' 
     };
     
     const res = await window.electronAPI.updateCandidateText({ user, id, data: cleanedData });
@@ -161,7 +177,12 @@ function CandidateDetailPage({ user, flags }) {
       setIsEditing(false);
       fetchDetails();
     } else {
-      toast.error(res.error);
+      // IMPROVEMENT: Display specific field errors if available
+      const errorMsg = res.errors 
+        ? Object.values(res.errors).join(' | ') 
+        : res.error || 'Failed to save details.';
+        
+      toast.error(errorMsg);
     }
   };
 

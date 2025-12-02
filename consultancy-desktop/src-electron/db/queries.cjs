@@ -758,67 +758,67 @@ async function getCandidateDetails(id) {
   }
 }
 
-
-// MODIFIED: Uses structured error return for all validation/duplicate failures
 async function updateCandidateText(id, data) {
   const db = getDatabase();
   const errors = {};
   const today = new Date().setHours(0, 0, 0, 0);
 
-  // --- PASSPORT CLEANING & Consistency FIX ---
+  // --- 1. CONSISTENT DATA CLEANING (NEW LOGIC) ---
   const cleanPassportNo = data.passportNo
     ? data.passportNo
         .trim()
         .replace(/[^A-Z0-9]/gi, "")
         .toUpperCase()
-    : "";
-  // -------------------------------------------
+    : ""; // Ensures it's an empty string if data.passportNo is null/undefined
+  // ----------------------------------------------------
 
-  // --- 1. Basic Validation ---
+  // --- 2. Basic Validation (Using cleanPassportNo for passport checks) ---
   const nameValidation = validateRequired(data.name, "Candidate Name");
   if (nameValidation) errors.name = nameValidation;
 
-  const passportValidation = validateRequired(cleanPassportNo, "Passport No");
-  if (passportValidation) {
-    errors.passportNo = passportValidation;
+  // VALIDATION FIX: Use the cleaned value for passport validation
+  const passportRequiredValidation = validateRequired(cleanPassportNo, "Passport No");
+  if (passportRequiredValidation) {
+    errors.passportNo = passportRequiredValidation;
   } else if (!/^[A-Z0-9]{6,15}$/.test(cleanPassportNo)) {
     errors.passportNo =
       "Passport No must be 6-15 letters or numbers (no special characters).";
   }
-  
+
   const positionValidation = validateRequired(data.Position, "Position");
   if (positionValidation) errors.Position = positionValidation;
+
   if (data.contact && !/^\d{10}$/.test(data.contact)) {
     errors.contact = "Contact must be exactly 10 digits.";
   }
+
   if (data.passportExpiry) {
     const expiryDate = new Date(data.passportExpiry).getTime();
-    if (expiryDate <= today)
-      errors.passportExpiry = "Passport Expiry must be in the future.";
+    // Robust check for invalid date (NaN) or expired date
+    if (isNaN(expiryDate) || expiryDate <= today) 
+      errors.passportExpiry = "Passport Expiry must be a valid date in the future.";
   }
   // --- End Basic Validation ---
 
-  // --- 2. Aadhaar Validation ---
+  // --- 3. Aadhaar Validation ---
   if (data.aadhar) {
     if (!/^\d{12}$/.test(data.aadhar)) {
       errors.aadhar = "Aadhar must be exactly 12 digits.";
     }
-    // TEMPORARILY DISABLE VERHOEFF CHECK FOR STABILITY
-    // else if (!validateVerhoeff(data.aadhar)) {
-    //   errors.aadhar = 'Invalid Aadhaar Number (Checksum failed). Please check for typos.';
-    // }
+    // ... Verhoeff check commented out ...
   }
 
-  // --- 3. Finalize Validation Errors ---
+  // --- 4. Finalize Validation Errors ---
   if (Object.keys(errors).length > 0) {
     return { success: false, error: "Validation failed", errors: errors };
   }
 
-  // --- 4. Duplicate Check (Passport & Aadhar) ---
+  // --- 5. Duplicate Check (Passport & Aadhar) ---
   try {
     let checkSql =
       "SELECT passportNo, aadhar FROM candidates WHERE (passportNo = ?";
-    const params = [cleanPassportNo]; // USE CLEANED PASSPORT NO HERE
+    // DUPLICATE CHECK FIX: Use the cleaned value for the check
+    const params = [cleanPassportNo]; 
 
     if (data.aadhar) {
       checkSql += " OR aadhar = ?";
@@ -831,7 +831,7 @@ async function updateCandidateText(id, data) {
 
     if (existing) {
       const duplicateErrors = {};
-      // Compare against the cleaned passport number
+      // DUPLICATE CHECK FIX: Compare against the cleaned passport number
       if (existing.passportNo === cleanPassportNo) { 
         duplicateErrors.passportNo = `Passport No ${cleanPassportNo} already exists for another candidate.`;
       }
@@ -847,7 +847,7 @@ async function updateCandidateText(id, data) {
       }
     }
 
-    // --- 5. Execute Update ---
+    // --- 6. Execute Update ---
     const sql = `UPDATE candidates SET
       name = ?, education = ?, experience = ?, dob = ?,
       passportNo = ?, passportExpiry = ?, contact = ?, aadhar = ?,
@@ -859,7 +859,7 @@ async function updateCandidateText(id, data) {
       data.education,
       data.experience,
       data.dob,
-      cleanPassportNo, // USE CLEANED PASSPORT NO FOR DB INSERT
+      cleanPassportNo, // DATABASE FIX: Use CLEANED PASSPORT NO for DB INSERT
       data.passportExpiry,
       data.contact,
       data.aadhar,
@@ -881,8 +881,6 @@ async function updateCandidateText(id, data) {
     return { success: false, error: err.message };
   }
 }
-
-
 
 async function deleteCandidate(id) {
   const db = getDatabase();
