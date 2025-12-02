@@ -1,0 +1,130 @@
+/* MAIN PAGE LAYOUT */
+.whatsapp-container {
+  padding: 24px;
+  font-family: 'Inter', sans-serif;
+}
+
+/* PAGE TITLE */
+.whatsapp-title {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  color: #1f2937; /* gray-800 */
+}
+
+/* FILTER WRAPPER */
+.whatsapp-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+/* INPUTS & SELECTS */
+.whatsapp-input,
+.whatsapp-select {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db; /* gray-300 */
+  border-radius: 6px;
+  background: white;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.whatsapp-input:focus,
+.whatsapp-select:focus {
+  border-color: #2563eb; /* blue-600 */
+}
+
+/* APPLY FILTER BUTTON */
+.whatsapp-apply-btn {
+  padding: 10px 16px;
+  background: #2563eb; /* blue-600 */
+  color: white;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.whatsapp-apply-btn:hover {
+  background: #1d4ed8; /* blue-700 */
+}
+
+/* TABLE CONTAINER */
+.whatsapp-table-container {
+  margin-top: 24px;
+  border: 1px solid #e5e7eb; /* gray-200 */
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+/* TABLE */
+.whatsapp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+/* TABLE HEAD */
+.whatsapp-table thead {
+  background: #f3f4f6; /* gray-100 */
+}
+
+.whatsapp-table th {
+  padding: 12px;
+  font-weight: 600;
+  text-align: left;
+  color: #374151; /* gray-700 */
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* TABLE BODY */
+.whatsapp-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #4b5563; /* gray-600 */
+}
+
+.whatsapp-table tr:hover {
+  background: #f9fafb; /* gray-50 */
+}
+
+/* MESSAGE BOX */
+.whatsapp-message {
+  width: 100%;
+  margin-top: 24px;
+  padding: 14px;
+  height: 140px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  outline: none;
+  resize: none;
+  font-size: 15px;
+}
+
+.whatsapp-message:focus {
+  border-color: #2563eb;
+}
+
+/* FLOATING BUTTON */
+.whatsapp-send-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 14px 22px;
+  border-radius: 9999px;
+  background: #22c55e; /* green-500 */
+  color: white;
+  font-size: 16px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.whatsapp-send-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.25);
+}

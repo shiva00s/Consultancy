@@ -17,6 +17,7 @@ import RecycleBinPage from './pages/RecycleBinPage';
 import BulkImportPage from './pages/BulkImportPage';
 import SystemAuditLogPage from './pages/SystemAuditLogPage';
 import VisaKanbanPage from './pages/VisaKanbanPage';
+import WhatsAppBulkPage from "./pages/WhatsAppBulkPage.jsx";
 
 // === NEW/MISSING COMPONENT IMPORTS ===
 import ErrorBoundary from './components/ErrorBoundary';
@@ -143,6 +144,7 @@ function App() {
                     }
                   >
                     <Route path="/reports" element={<ReportsPage />} />
+                    <Route path="/whatsapp-bulk" element={<WhatsAppBulkPage />} />
 
                     <Route path="/settings" element={<SettingsPage user={user} />} />
 

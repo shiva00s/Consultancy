@@ -283,6 +283,14 @@ function MainLayout({ children, onLogout, user, flags }) {
                     </NavLink>
                   </li>
                 )}
+                {canAccess('whats_app') && (
+                   <li>
+      <NavLink to="/whatsapp-bulk">
+        <FiSend />
+        <span>WhatsApp Bulk</span>
+      </NavLink>
+    </li>
+                )}
                 {canAccess('system_audit_log') && (
                   <li>
                     <NavLink to="/system-audit">

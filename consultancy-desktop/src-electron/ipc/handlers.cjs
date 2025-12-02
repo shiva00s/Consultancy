@@ -25,7 +25,7 @@ const { fileManager } = require('../utils/fileManager.cjs');
 const { registerSyncHandlers } = require('./syncHandlers.cjs');
 const { registerPermissionHandlers } = require('../utils/permissionHandlers.cjs');
 const { enforcePermissionOrDeny } = require('../utils/rbacHelpers.cjs');
-const sendWhatsAppBulk = require("../sendWhatsAppBulk.cjs");
+const sendWhatsAppBulk = require("./sendWhatsAppBulk.cjs");
 
 
 const tempDir = path.join(os.tmpdir(), "paddle_ocr_temp");
