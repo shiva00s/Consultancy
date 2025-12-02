@@ -1,30 +1,28 @@
 const { shell } = require("electron");
+const path = require("path");
 
-/**
- * Bulk WhatsApp Sender
- * Opens WhatsApp Desktop if installed, otherwise WhatsApp Web.
- * Sends the same message to all provided numbers.
- */
 module.exports = (event, payload) => {
-    try {
-        const { numbers, message } = payload;
+  try {
+    const { numbers, message, mediaPath } = payload;
 
-        if (!Array.isArray(numbers) || numbers.length === 0) {
-            return { success: false, error: "No numbers provided" };
-        }
+    const encodedMessage = encodeURIComponent(message || "");
 
-        const encodedMessage = encodeURIComponent(message || "");
+    // Open WhatsApp chat for each number
+    numbers.forEach(num => {
+      const clean = String(num).replace(/\D/g, "");
+      const url = `https://wa.me/${clean}?text=${encodedMessage}`;
+      shell.openExternal(url);
+    });
 
-        numbers.forEach((num) => {
-            if (!num) return;
-            const clean = String(num).replace(/\D/g, ""); // remove non-digits
-            const url = `https://wa.me/${clean}?text=${encodedMessage}`;
-            shell.openExternal(url);
-        });
-
-        return { success: true };
-    } catch (err) {
-        console.error("WhatsApp Bulk Error:", err);
-        return { success: false, error: err.message };
+    // If user selected a file, open folder to help them attach it
+    if (mediaPath) {
+      const folder = path.dirname(mediaPath);
+      shell.openPath(folder);   // Opens File Explorer
     }
+
+    return { success: true };
+  } catch (err) {
+    console.error("WhatsApp Bulk Error:", err);
+    return { success: false, error: err.message };
+  }
 };

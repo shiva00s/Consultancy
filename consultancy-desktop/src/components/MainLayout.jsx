@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  FiGrid, FiClock, FiSearch, FiUserPlus, FiLogOut, FiBriefcase, FiServer,
+  FiGrid, FiSend ,FiClock, FiSearch, FiUserPlus, FiLogOut, FiBriefcase, FiServer,
   FiClipboard, FiSettings, FiLock, FiBarChart2, FiUserCheck,
   FiTrash2, FiChevronLeft, FiPackage, FiUploadCloud, FiSun, FiMoon,
   FiChevronDown, FiChevronRight, FiUsers
@@ -283,13 +283,13 @@ function MainLayout({ children, onLogout, user, flags }) {
                     </NavLink>
                   </li>
                 )}
-                {canAccess('whats_app') && (
+                {canAccess('system_modules') && (
                    <li>
-      <NavLink to="/whatsapp-bulk">
-        <FiSend />
-        <span>WhatsApp Bulk</span>
-      </NavLink>
-    </li>
+                  <NavLink to="/whatsapp-bulk">
+                   <FiSend />
+                     <span>WhatsApp Bulk</span>
+                  </NavLink>
+                    </li>
                 )}
                 {canAccess('system_audit_log') && (
                   <li>

@@ -22,7 +22,7 @@ function WhatsAppBulkPage() {
   // Zustand stores
   const user = useAuthStore(state => state.user);
   const employers = useDataStore(state => state.employers);
-
+const [mediaFile, setMediaFile] = useState(null);
   // Filters
   const [nameFilter, setNameFilter] = useState('');
   const [positionFilter, setPositionFilter] = useState('');
@@ -111,7 +111,12 @@ function WhatsAppBulkPage() {
       return;
     }
 
-    window.electronAPI.sendWhatsAppBulk(numbers, message);
+   window.electronAPI.sendWhatsAppBulk({
+  numbers,
+  message,
+  mediaPath: mediaFile?.path || null
+});
+
 
     toast.success("Opening WhatsApp chats...");
   };
@@ -199,23 +204,88 @@ function WhatsAppBulkPage() {
         </form>
       </div>
 
-      {/* TABLE */}
+      
+<div className="whatsapp-input-box">
+
+  {/* Attach Media */}
+  <div className="attach-row">
+    <label className="media-upload-button">
+      📎 Attach Media
+      <input
+        type="file"
+        accept="image/*,.pdf"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const file = e.target.files[0];
+          if (file) {
+            setMediaFile(file);
+          }
+        }}
+      />
+    </label>
+  </div>
+
+  {/* Show selected media */}
+  {mediaFile && (
+    <div className="media-preview-box">
+      <span>📄 {mediaFile.name}</span>
+      <button className="remove-media-btn" onClick={() => setMediaFile(null)}>✖</button>
+    </div>
+  )}
+
+  {/* Text Message Area */}
+  <textarea
+    className="whatsapp-message"
+    placeholder="Type WhatsApp message here..."
+    value={message}
+    onChange={(e) => setMessage(e.target.value)}
+  />
+
+  {/* Send Button INSIDE box */}
+  <button className="whatsapp-send-inside" onClick={sendWhatsApp}>
+    <FiSend size={18} style={{ marginRight: 6 }} />
+    Send WhatsApp
+  </button>
+</div>
+
+
+
+
+{/* TABLE */}
       <div className="report-results-section">
         <h3><FiFileText /> Candidates ({list.length} Records)</h3>
 
         <div className="report-table-container">
           <table className="report-table">
             <thead>
-              <tr>
-                <th></th>
-                <th>Candidate Name</th>
-                <th>Passport No</th>
-                <th>Position</th>
-                <th>Employer</th>
-                <th>Status</th>
-                <th>Contact</th>
-              </tr>
-            </thead>
+  <tr>
+    <th>
+      <input
+        type="checkbox"
+        checked={list.length > 0 && list.every(row => selected[row.id])}
+        onChange={() => {
+          const allSelected = list.every(row => selected[row.id]);
+          const updated = {};
+
+          if (!allSelected) {
+            list.forEach(row => {
+              updated[row.id] = row.contact; 
+            });
+          }
+
+          setSelected(updated);
+        }}
+      />
+    </th>
+    <th>Candidate Name</th>
+    <th>Passport No</th>
+    <th>Position</th>
+    <th>Employer</th>
+    <th>Status</th>
+    <th>Contact</th>
+  </tr>
+</thead>
+
 
             <tbody>
               {list.length === 0 ? (
@@ -248,22 +318,10 @@ function WhatsAppBulkPage() {
         </div>
       </div>
 
-      {/* MESSAGE BOX */}
-      <div style={{ marginTop: "2rem" }}>
-        <textarea
-          className="whatsapp-message"
-          placeholder="Type WhatsApp message here..."
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-        />
-      </div>
-
-      {/* FLOATING SEND BUTTON */}
-      <button className="whatsapp-send-btn" onClick={sendWhatsApp}>
-        <FiSend size={18} style={{ marginRight: 6 }} />
-        Send WhatsApp
-      </button>
     </div>
+
+
+
   );
 }
 

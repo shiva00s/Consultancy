@@ -557,7 +557,7 @@ async function getDetailedReportList(user, filters = {}) {
   // and the JOINs must be optional (LEFT) to include unassigned candidates.
   let sql = `
     SELECT
-      c.id, c.name, c.passportNo, c.Position, c.status,
+      c.id, c.name, c.passportNo, c.Position, c.status,c.contact,
       e.companyName,
       COALESCE(SUM(p.total_amount), 0) as totalDue,
       COALESCE(SUM(p.amount_paid), 0) as totalPaid
