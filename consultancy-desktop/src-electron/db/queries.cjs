@@ -840,7 +840,7 @@ async function updateCandidateText(id, data) {
     }
     return { success: false, error: err.message };
   }
-}
+} 
 
 async function deleteCandidate(id) {
   const db = getDatabase();
