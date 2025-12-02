@@ -759,6 +759,129 @@ async function getCandidateDetails(id) {
 }
 
 
+// MODIFIED: Uses structured error return for all validation/duplicate failures
+async function updateCandidateText(id, data) {
+  const db = getDatabase();
+  const errors = {};
+  const today = new Date().setHours(0, 0, 0, 0);
+
+  // --- PASSPORT CLEANING & Consistency FIX ---
+  const cleanPassportNo = data.passportNo
+    ? data.passportNo
+        .trim()
+        .replace(/[^A-Z0-9]/gi, "")
+        .toUpperCase()
+    : "";
+  // -------------------------------------------
+
+  // --- 1. Basic Validation ---
+  const nameValidation = validateRequired(data.name, "Candidate Name");
+  if (nameValidation) errors.name = nameValidation;
+
+  const passportValidation = validateRequired(cleanPassportNo, "Passport No");
+  if (passportValidation) {
+    errors.passportNo = passportValidation;
+  } else if (!/^[A-Z0-9]{6,15}$/.test(cleanPassportNo)) {
+    errors.passportNo =
+      "Passport No must be 6-15 letters or numbers (no special characters).";
+  }
+  
+  const positionValidation = validateRequired(data.Position, "Position");
+  if (positionValidation) errors.Position = positionValidation;
+  if (data.contact && !/^\d{10}$/.test(data.contact)) {
+    errors.contact = "Contact must be exactly 10 digits.";
+  }
+  if (data.passportExpiry) {
+    const expiryDate = new Date(data.passportExpiry).getTime();
+    if (expiryDate <= today)
+      errors.passportExpiry = "Passport Expiry must be in the future.";
+  }
+  // --- End Basic Validation ---
+
+  // --- 2. Aadhaar Validation ---
+  if (data.aadhar) {
+    if (!/^\d{12}$/.test(data.aadhar)) {
+      errors.aadhar = "Aadhar must be exactly 12 digits.";
+    }
+    // TEMPORARILY DISABLE VERHOEFF CHECK FOR STABILITY
+    // else if (!validateVerhoeff(data.aadhar)) {
+    //   errors.aadhar = 'Invalid Aadhaar Number (Checksum failed). Please check for typos.';
+    // }
+  }
+
+  // --- 3. Finalize Validation Errors ---
+  if (Object.keys(errors).length > 0) {
+    return { success: false, error: "Validation failed", errors: errors };
+  }
+
+  // --- 4. Duplicate Check (Passport & Aadhar) ---
+  try {
+    let checkSql =
+      "SELECT passportNo, aadhar FROM candidates WHERE (passportNo = ?";
+    const params = [cleanPassportNo]; // USE CLEANED PASSPORT NO HERE
+
+    if (data.aadhar) {
+      checkSql += " OR aadhar = ?";
+      params.push(data.aadhar);
+    }
+    checkSql += ") AND isDeleted = 0 AND id != ?";
+    params.push(id);
+
+    const existing = await dbGet(db, checkSql, params);
+
+    if (existing) {
+      const duplicateErrors = {};
+      // Compare against the cleaned passport number
+      if (existing.passportNo === cleanPassportNo) { 
+        duplicateErrors.passportNo = `Passport No ${cleanPassportNo} already exists for another candidate.`;
+      }
+      if (data.aadhar && existing.aadhar === data.aadhar) {
+        duplicateErrors.aadhar = `Aadhar No ${data.aadhar} already exists for another candidate.`;
+      }
+      if (Object.keys(duplicateErrors).length > 0) {
+        return {
+          success: false,
+          error: "Duplicate field value detected.",
+          errors: duplicateErrors,
+        };
+      }
+    }
+
+    // --- 5. Execute Update ---
+    const sql = `UPDATE candidates SET
+      name = ?, education = ?, experience = ?, dob = ?,
+      passportNo = ?, passportExpiry = ?, contact = ?, aadhar = ?,
+      status = ?, notes = ?, Position = ?
+    WHERE id = ?`;
+
+    const updateParams = [
+      data.name,
+      data.education,
+      data.experience,
+      data.dob,
+      cleanPassportNo, // USE CLEANED PASSPORT NO FOR DB INSERT
+      data.passportExpiry,
+      data.contact,
+      data.aadhar,
+      data.status,
+      data.notes,
+      data.Position,
+      id,
+    ];
+    await dbRun(db, sql, updateParams);
+    return { success: true };
+  } catch (err) {
+    if (err.message.includes("UNIQUE constraint failed")) {
+      return {
+        success: false,
+        error: `A unique field (like Passport) already exists.`,
+        field: "passportNo",
+      };
+    }
+    return { success: false, error: err.message };
+  }
+}
+
 
 
 async function deleteCandidate(id) {
@@ -2058,11 +2181,11 @@ async function getDeletedVisas() {
 
 async function restoreInterview(id) {
   const db = getDatabase();
+  const sql = `UPDATE interview_tracking SET isDeleted = 0 WHERE id = ?`;
+
   try {
-    await dbRun(db, 'UPDATE interview_tracking SET isDeleted = 0 WHERE id = ?', [
-      id,
-    ]);
-    return { success: true };
+    const result = await dbRun(db, sql, [id]);
+    return { success: result.changes > 0 };
   } catch (err) {
     return { success: false, error: err.message };
   }

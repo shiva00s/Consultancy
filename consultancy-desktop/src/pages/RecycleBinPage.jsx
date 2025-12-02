@@ -499,20 +499,7 @@ function RecycleBinPage({ user }) {
       <h1>
         <FiTrash2 /> Recycle Bin
       </h1>
-      {canDeletePermanently && (
-        <p
-          className="form-message danger"
-          style={{ marginBottom: '1.5rem' }}
-        >
-          <FiAlertTriangle /> <strong>SUPER ADMIN WARNING</strong>: You have
-          permission for <strong>Permanent Deletion</strong> (red icon). Use
-          with extreme caution.
-        </p>
-      )}
-      <p>
-        Items moved to the recycle bin. Restoring an item will also restore its
-        associated records (e.g., jobs, placements, documents, tracking).
-      </p>
+      
 
       <Tabs tabs={tabs} defaultActiveTab="candidates" />
     </div>

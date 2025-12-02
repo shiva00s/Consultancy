@@ -262,6 +262,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getDeletedMedical: () => ipcRenderer.invoke('get-deleted-medical'),
     getDeletedInterviews: () => ipcRenderer.invoke('get-deleted-interviews'),
     getDeletedTravel: () => ipcRenderer.invoke('get-deleted-travel'),
+    restoreInterview: (payload) =>
+    ipcRenderer.invoke('restore-interview', payload),
+    
+// Recycle Bin - Medical
+restoreMedical: (payload) => ipcRenderer.invoke('restore-medical', payload),
+
+// Recycle Bin - Travel
+restoreTravel: (payload) => ipcRenderer.invoke('restore-travel', payload),
+
+// Recycle Bin - Interview
+restoreInterview: (payload) => ipcRenderer.invoke('restore-interview', payload),
 
 
 });
