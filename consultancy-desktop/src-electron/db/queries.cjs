@@ -761,64 +761,23 @@ async function getCandidateDetails(id) {
 async function updateCandidateText(id, data) {
   const db = getDatabase();
   const errors = {};
-  const today = new Date().setHours(0, 0, 0, 0);
-
-  // --- 1. CONSISTENT DATA CLEANING (NEW LOGIC) ---
+  
+  // --- 1. CONSISTENT DATA CLEANING (Only consistency check remains) ---
   const cleanPassportNo = data.passportNo
     ? data.passportNo
         .trim()
         .replace(/[^A-Z0-9]/gi, "")
         .toUpperCase()
-    : ""; // Ensures it's an empty string if data.passportNo is null/undefined
+    : "";
+  // ALL OTHER VALIDATION CHECKS REMOVED for "relaxation"
   // ----------------------------------------------------
 
-  // --- 2. Basic Validation (Using cleanPassportNo for passport checks) ---
-  const nameValidation = validateRequired(data.name, "Candidate Name");
-  if (nameValidation) errors.name = nameValidation;
-
-  // VALIDATION FIX: Use the cleaned value for passport validation
-  const passportRequiredValidation = validateRequired(cleanPassportNo, "Passport No");
-  if (passportRequiredValidation) {
-    errors.passportNo = passportRequiredValidation;
-  } else if (!/^[A-Z0-9]{6,15}$/.test(cleanPassportNo)) {
-    errors.passportNo =
-      "Passport No must be 6-15 letters or numbers (no special characters).";
-  }
-
-  const positionValidation = validateRequired(data.Position, "Position");
-  if (positionValidation) errors.Position = positionValidation;
-
-  if (data.contact && !/^\d{10}$/.test(data.contact)) {
-    errors.contact = "Contact must be exactly 10 digits.";
-  }
-
-  if (data.passportExpiry) {
-    const expiryDate = new Date(data.passportExpiry).getTime();
-    // Robust check for invalid date (NaN) or expired date
-    if (isNaN(expiryDate) || expiryDate <= today) 
-      errors.passportExpiry = "Passport Expiry must be a valid date in the future.";
-  }
-  // --- End Basic Validation ---
-
-  // --- 3. Aadhaar Validation ---
-  if (data.aadhar) {
-    if (!/^\d{12}$/.test(data.aadhar)) {
-      errors.aadhar = "Aadhar must be exactly 12 digits.";
-    }
-    // ... Verhoeff check commented out ...
-  }
-
-  // --- 4. Finalize Validation Errors ---
-  if (Object.keys(errors).length > 0) {
-    return { success: false, error: "Validation failed", errors: errors };
-  }
-
-  // --- 5. Duplicate Check (Passport & Aadhar) ---
+  // --- 2. Duplicate Check (Passport & Aadhar) ---
+  // We keep this to prevent a critical database UNIQUE constraint failure.
   try {
     let checkSql =
       "SELECT passportNo, aadhar FROM candidates WHERE (passportNo = ?";
-    // DUPLICATE CHECK FIX: Use the cleaned value for the check
-    const params = [cleanPassportNo]; 
+    const params = [cleanPassportNo]; // USE CLEANED PASSPORT NO HERE
 
     if (data.aadhar) {
       checkSql += " OR aadhar = ?";
@@ -831,7 +790,7 @@ async function updateCandidateText(id, data) {
 
     if (existing) {
       const duplicateErrors = {};
-      // DUPLICATE CHECK FIX: Compare against the cleaned passport number
+      // Compare against the cleaned passport number
       if (existing.passportNo === cleanPassportNo) { 
         duplicateErrors.passportNo = `Passport No ${cleanPassportNo} already exists for another candidate.`;
       }
@@ -841,13 +800,14 @@ async function updateCandidateText(id, data) {
       if (Object.keys(duplicateErrors).length > 0) {
         return {
           success: false,
-          error: "Duplicate field value detected.",
+          error: "Duplicate field value detected. Update aborted to prevent database error.",
           errors: duplicateErrors,
         };
       }
     }
 
-    // --- 6. Execute Update ---
+    // --- 3. Execute Update ---
+    // The query and params remain the same, ensuring the update happens
     const sql = `UPDATE candidates SET
       name = ?, education = ?, experience = ?, dob = ?,
       passportNo = ?, passportExpiry = ?, contact = ?, aadhar = ?,
@@ -859,7 +819,7 @@ async function updateCandidateText(id, data) {
       data.education,
       data.experience,
       data.dob,
-      cleanPassportNo, // DATABASE FIX: Use CLEANED PASSPORT NO for DB INSERT
+      cleanPassportNo, // MUST USE CLEANED PASSPORT NO FOR DB INSERT
       data.passportExpiry,
       data.contact,
       data.aadhar,
