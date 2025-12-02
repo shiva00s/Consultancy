@@ -1,130 +1,91 @@
-const { ipcMain } = require("electron");
-const { getDatabase } = require("../db/database.cjs");
-const queries = require("../db/queries.cjs");
-const { logAction } = require("../utils/auditHelper.cjs");
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
+const Tesseract = require('tesseract.js');
 
-module.exports = function registerFeatureFlagHandlers() {
-    const db = getDatabase();
+const tempDir = path.join(os.tmpdir(), "paddle_ocr_temp");
+if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
-    // =========================================================================
-    // 🔹 GET FEATURE FLAGS (Super Admin Global Toggles)
-    // =========================================================================
-    ipcMain.handle("get-feature-flags", async () => {
-        const defaultFlags = {
-            isEmployersEnabled: true,
-            isJobsEnabled: true,
-            isVisaKanbanEnabled: true,
-            isDocumentsEnabled: true,
-            isVisaTrackingEnabled: true,
-            isFinanceTrackingEnabled: true,
-            isMedicalEnabled: true,
-            isInterviewEnabled: true,
-            isTravelEnabled: true,
-            isHistoryEnabled: true,
-            isBulkImportEnabled: true,
-            isMobileAccessEnabled: true,
-            canViewReports: true,
-            canAccessSettings: true,
-            canAccessRecycleBin: true,
-            canDeletePermanently: true
+const convertMRZDate = (yyMMdd) => {
+    const clean = yyMMdd.replace(/O/g, '0');
+    
+    if (!/^\d{6}$/.test(clean)) return null;
+    
+    const year = parseInt(clean.substring(0, 2), 10);
+    const month = clean.substring(2, 4);
+    const day = clean.substring(4, 6);
+
+    const fullYear = year >= 50 ? 1900 + year : 2000 + year;
+    
+    return `${fullYear}-${month}-${day}`;
+};
+
+const parsePassportDataRobust = (rawText) => {
+    if (!rawText) return null;
+
+    const cleanText = rawText.toUpperCase().replace(/[^A-Z0-9<]/g, '');
+
+    const pattern = /([A-Z0-9<]{9})[\dO][A-Z<]{3}([\dO]{6})[\dO][FM<]([\dO]{6})[\dO]/;
+    
+    const match = cleanText.match(pattern);
+
+    if (match) {
+        const rawPassport = match[1].replace(/</g, '');
+        const rawDob = match[2];
+        const rawExpiry = match[3];
+
+        return {
+            documentType: 'PASSPORT',
+            passportNo: rawPassport,
+            dob: convertMRZDate(rawDob),
+            expiry: convertMRZDate(rawExpiry),
         };
+    }
+    
+    return null;
+};
 
+const registerOcrHandlers = (ipcMain) => {
+    ipcMain.handle('ocr-scan-passport', async (event, { fileBuffer }) => { 
+        if (!fileBuffer) { 
+            return { success: false, error: 'No file buffer provided for OCR.' };
+        }
+        
+        const buffer = Buffer.from(fileBuffer); 
+        let worker;
+        
         try {
-            const row = await queries.dbGet(
-                db,
-                "SELECT features FROM users WHERE role = 'super_admin' LIMIT 1",
-                []
-            );
+            const repoTessPath = path.join(__dirname, '..', '..', '..'); // Adjust path to find eng.traineddata
+            const localEng = path.join(repoTessPath, 'eng.traineddata');
+            const workerOptions = {};
 
-            if (!row || !row.features) {
-                return { success: true, data: defaultFlags };
+            if (fs.existsSync(localEng)) {
+                workerOptions.langPath = repoTessPath;
             }
 
-            const merged = { ...defaultFlags, ...JSON.parse(row.features) };
-            return { success: true, data: merged };
+            worker = await Tesseract.createWorker('eng', undefined, workerOptions);
+            
+            const { data: { text } } = await worker.recognize(buffer);
+            
+            const passportData = parsePassportDataRobust(text);
+
+            if (passportData) {
+                return { success: true, data: { passport: passportData, rawText: text } };
+            }
+
+            return {
+                success: true,
+                data: { passport: null, rawText: text }, 
+                error: 'Could not detect valid Passport Pattern (MRZ) in image.',
+            };
 
         } catch (err) {
-            return { success: false, error: err.message };
+            console.error("OCR FAILED - Exception:", err);
+            return { success: false, error: `OCR Engine Error: ${err.message}` };
+        } finally {
+            if (worker) await worker.terminate(); 
         }
     });
-
-    // =========================================================================
-    // 🔹 SAVE FEATURE FLAGS (Super Admin ONLY)
-    // =========================================================================
-    ipcMain.handle("save-feature-flags", async (event, { user, flags }) => {
-        if (!user || user.role !== "super_admin") {
-            return { success: false, error: "Access Denied." };
-        }
-
-        try {
-            const json = JSON.stringify(flags);
-            await queries.dbRun(
-                db,
-                "UPDATE users SET features = ? WHERE role = 'super_admin'",
-                [json]
-            );
-
-            logAction(user, "update_feature_flags", "settings", 1, "System features updated");
-
-            return { success: true };
-
-        } catch (err) {
-            return { success: false, error: err.message };
-        }
-    });
-
-    // =========================================================================
-    // 🔹 GET USER PERMISSIONS (Delegated)
-    // =========================================================================
-    ipcMain.handle("get-user-permissions", (event, { userId }) => {
-        return queries.getUserPermissions(userId);
-    });
-
-    // =========================================================================
-    // 🔹 SAVE USER PERMISSIONS (Admin → Staff)
-    // =========================================================================
-    ipcMain.handle("save-user-permissions", async (event, { user, userId, flags }) => {
-        const result = await queries.saveUserPermissions(userId, flags);
-
-        if (result.success) {
-            logAction(
-                user,
-                "update_user_permissions",
-                "users",
-                userId,
-                `Updated delegated flags`
-            );
-        }
-
-        return result;
-    });
-
-    // =========================================================================
-    // 🔹 GET ADMIN-ASSIGNED FEATURES (For Staff)
-    // =========================================================================
-    ipcMain.handle("get-admin-assigned-features", async (event, { userId }) => {
-        try {
-            const features = await queries.getAdminAssignedFeatures(userId);
-            return { success: true, features };
-        } catch (err) {
-            return { success: false, error: err.message };
-        }
-    });
-
-    // =========================================================================
-    // 🔹 GET USER ROLE (Quick lookup)
-    // =========================================================================
-    ipcMain.handle("get-user-role", async (event, { userId }) => {
-        try {
-            const row = await queries.dbGet(db, "SELECT role FROM users WHERE id = ?", [userId]);
-
-            if (!row) return { success: false, error: "User not found" };
-
-            return { success: true, role: row.role };
-
-        } catch (err) {
-            return { success: false, error: err.message };
-        }
-    });
-
 };
+
+module.exports = { registerOcrHandlers };

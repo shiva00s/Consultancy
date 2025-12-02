@@ -1,105 +1,37 @@
-const { ipcMain } = require("electron");
-const queries = require("../db/queries.cjs");
-const { logAction } = require("../utils/auditHelper.cjs");
+const registerFinanceHandlers = (ipcMain, dependencies) => {
+    const { logAction, queries } = dependencies;
 
-module.exports = function registerFinanceHandlers() {
-
-    // =========================================================================
-    // 🔹 GET ALL PAYMENTS FOR A CANDIDATE
-    // =========================================================================
-    ipcMain.handle("get-candidate-payments", async (event, { user, candidateId }) => {
-        if (user) {
-            logAction(
-                user,
-                "view_candidate_finance",
-                "finance",
-                candidateId,
-                `Viewed payments`
-            );
-        }
+    ipcMain.handle('get-candidate-payments', (event, { candidateId }) => {
         return queries.getCandidatePayments(candidateId);
     });
 
-    // =========================================================================
-    // 🔹 ADD PAYMENT ENTRY
-    // =========================================================================
-    ipcMain.handle("add-payment", async (event, { user, data }) => {
+    ipcMain.handle('add-payment', async (event, { user, data }) => {
         const result = await queries.addPayment(user, data);
-
         if (result.success) {
-            logAction(
-                user,
-                "add_payment",
-                "finance",
-                data.candidate_id,
-                `Amount: ${data.amount_paid}, Status: ${data.status}`
-            );
+            logAction(user, 'add_payment', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Desc: ${data.description}, Amount: ${data.amount_paid}, Status: ${data.status}`);
         }
-
         return result;
     });
 
-    // =========================================================================
-    // 🔹 UPDATE PAYMENT
-    // =========================================================================
-    ipcMain.handle("update-payment", async (event, { user, id, amount_paid, status }) => {
-
-        const updateData = {
-            id,
-            amount_paid,
-            status,
-            user
-        };
-
+    ipcMain.handle('update-payment', async (event, { user, id, amount_paid, status }) => {
+        const updateData = { user, id, amount_paid, status };
+        
         const result = await queries.updatePayment(updateData);
-
+        
         if (result.success) {
-            logAction(
-                user,
-                "update_payment",
-                "finance",
-                result.candidateId,
-                `Updated payment ID ${id}`
-            );
+            logAction(user, 'update_payment', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Desc: ${result.description}, Amount: ${amount_paid}, Status: ${status}`);
         }
-
+        
         return result;
     });
 
-    // =========================================================================
-    // 🔹 DELETE PAYMENT
-    // =========================================================================
-    ipcMain.handle("delete-payment", async (event, { user, id }) => {
+    ipcMain.handle('delete-payment', async (event, { user, id }) => {
         const result = await queries.deletePayment(user, id);
-
         if (result.success) {
-            logAction(
-                user,
-                "delete_payment",
-                "finance",
-                result.candidateId,
-                `Deleted payment ID ${id}`
-            );
+            logAction(user, 'delete_payment', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Desc: ${result.description}, Amount: ${result.total_amount}`);
         }
-
         return result;
     });
-
-    // =========================================================================
-    // 🔹 GET FULL FINANCIAL SUMMARY FOR CANDIDATE
-    // =========================================================================
-    ipcMain.handle("get-candidate-finance", async (event, { user, candidateId }) => {
-        if (user && user.id) {
-            logAction(
-                user,
-                "view_candidate_finance",
-                "finance",
-                candidateId,
-                `Viewed finance summary`
-            );
-        }
-
-        return queries.getCandidateFinance(candidateId);
-    });
-
 };
+
+module.exports = { registerFinanceHandlers };

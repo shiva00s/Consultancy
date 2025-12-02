@@ -1237,68 +1237,44 @@ async function getUnassignedJobs(candidateId) {
       const rows = await dbAll(db, sql, [candidateId]);
       return { success: true, data: rows };
   } catch (err) {
-    if (err.message.includes("UNIQUE constraint failed")) {
-        return { 
-            success: false, 
-            error: "This candidate is already assigned to this job." 
-        };
-    }
-
-    return { success: false, error: "Could not assign candidate. Please try again." };
+      return { success: false, error: err.message };
   }
 }
 
+// In your assignCandidateToJob function
 async function assignCandidateToJob(candidateId, jobOrderId) {
   const db = getDatabase();
-
-  // 1️⃣ Check duplicate (active only)
+  
+  // ✅ Check for ACTIVE assignments only (exclude soft-deleted)
   const checkSql = `
-    SELECT id FROM placements
-    WHERE candidate_id = ? AND job_order_id = ?
-    AND isDeleted = 0
+    SELECT id FROM placements 
+    WHERE candidate_id = ? 
+      AND job_order_id = ? 
+      AND isDeleted = 0  /* ✅ Only check active placements */
   `;
+  
   const existing = await dbGet(db, checkSql, [candidateId, jobOrderId]);
-
+  
   if (existing) {
-    return { success: false, error: "Candidate already assigned to this job." };
+    return { 
+      success: false, 
+      error: 'Candidate already assigned to this job.' 
+    };
   }
 
-  // 2️⃣ Insert placement
+  // Proceed with assignment...
   const insertSql = `
     INSERT INTO placements (candidate_id, job_order_id, assignedAt, status)
     VALUES (?, ?, datetime('now'), 'Assigned')
   `;
-
-  const result = await dbRun(db, insertSql, [candidateId, jobOrderId]);
-  const placementId = result.lastID;
-
-  // 3️⃣ Fetch FULL joined placement info for UI (PREVENTS CRASH)
-  const fetchSql = `
-    SELECT 
-      p.id AS placementId,
-      p.candidate_id,
-      p.job_order_id,
-      p.assignedAt,
-      p.status AS placementStatus,
-      c.name AS candidateName,
-      j.positionTitle,
-      j.country,
-      e.companyName
-    FROM placements p
-    LEFT JOIN candidates c ON p.candidate_id = c.id
-    LEFT JOIN job_orders j ON p.job_order_id = j.id
-    LEFT JOIN employers e ON j.employer_id = e.id
-    WHERE p.id = ?
-  `;
-
-  const row = await dbGet(db, fetchSql, [placementId]);
-
-  return {
-    success: true,
-    data: row
-  };
+  
+  try {
+    await dbRun(db, insertSql, [candidateId, jobOrderId]);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 }
-
 
 
 async function removeCandidateFromJob(placementId) {

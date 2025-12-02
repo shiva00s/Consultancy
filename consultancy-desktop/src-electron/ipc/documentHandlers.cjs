@@ -1,152 +1,139 @@
-const { ipcMain, dialog, BrowserWindow } = require("electron");
-const fs = require("fs");
-const path = require("path");
-const mime = require("mime");
-const extract = require("extract-zip");
-const Tesseract = require("tesseract.js");
-const ejs = require("ejs");
-const { v4: uuidv4 } = require("uuid");
-const { getDatabase } = require("../db/database.cjs");
-const queries = require("../db/queries.cjs");
-const { logAction } = require("../utils/auditHelper.cjs");
+const { ipcMain, dialog } = require('electron');
+const { getDb } = require('../db/database.cjs');
+const { fileManager } = require('../utils/fileManager.cjs');
+const fs = require('fs').promises;
+const path = require('path');
 
-module.exports = function registerDocumentHandlers(app) {
 
-    const db = getDatabase();
+function registerDocumentHandlers() {
+  /**
+   * Upload document
+   */
+  
 
-    // =====================================================================
-    // 🔹 READ OFFER LETTER TEMPLATE
-    // =====================================================================
-    ipcMain.handle("read-offer-template", async () => {
-        try {
-            const templatePath = path.join(app.getAppPath(), "src-electron", "templates", "offer_letter_template.ejs");
+ 
+  /**
+   * Delete document
+   */
+  ipcMain.handle('delete-document', async (event, documentId) => {
+    const db = getDb();
 
-            if (!fs.existsSync(templatePath)) {
-                return { success: false, error: "Template file not found." };
-            }
+    try {
+      const document = db.prepare('SELECT * FROM documents WHERE id = ?').get(documentId);
+      
+      if (!document) {
+        throw new Error('Document not found');
+      }
 
-            const content = fs.readFileSync(templatePath, "utf8");
-            return { success: true, content };
+      // Delete file
+      await fileManager.deleteFile(document.file_path, 'documents');
 
-        } catch (err) {
-            return { success: false, error: err.message };
-        }
+      // Delete from database
+      db.prepare('DELETE FROM documents WHERE id = ?').run(documentId);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to delete document:', error);
+      throw error;
+    }
+  });
+
+  /**
+   * Open file picker dialog
+   */
+  ipcMain.handle('open-file-dialog', async (event, options) => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: options?.filters || [
+        { name: 'All Files', extensions: ['*'] },
+        { name: 'Documents', extensions: ['pdf', 'doc', 'docx'] },
+        { name: 'Images', extensions: ['jpg', 'jpeg', 'png'] }
+      ]
     });
 
-    // =====================================================================
-    // 🔹 WRITE / UPDATE OFFER LETTER TEMPLATE
-    // =====================================================================
-    ipcMain.handle("write-offer-template", async (event, { user, content }) => {
-        try {
-            if (user.role !== "super_admin") {
-                return { success: false, error: "Access denied." };
-            }
+    if (result.canceled) {
+      return { success: false };
+    }
 
-            const templatePath = path.join(app.getAppPath(), "src-electron", "templates", "offer_letter_template.ejs");
-            fs.writeFileSync(templatePath, content);
+    const filePath = result.filePaths[0];
+    const fileBuffer = await fs.readFile(filePath);
+    const fileName = path.basename(filePath);
 
-            logAction(user, "update_offer_template", "system", 1);
-            return { success: true };
+    return {
+      success: true,
+      fileBuffer: Array.from(fileBuffer),
+      fileName,
+      filePath
+    };
+  });
 
-        } catch (err) {
-            return { success: false, error: err.message };
+  /**
+   * Upload resume with parsing
+   */
+  ipcMain.handle('upload-resume', async (event, data) => {
+    const { candidateId, fileBuffer, fileName } = data;
+    const db = getDb();
+
+    try {
+      // Save resume
+      const fileInfo = await fileManager.saveFile(
+        Buffer.from(fileBuffer),
+        fileName,
+        'resumes'
+      );
+
+      // Update candidate resume path
+      db.prepare('UPDATE candidates SET resume_path = ? WHERE id = ?')
+        .run(fileInfo.filename, candidateId);
+
+      // Save to documents table
+      const result = db.prepare(`
+        INSERT INTO documents (candidate_id, document_type, document_name, file_path)
+        VALUES (?, ?, ?, ?)
+      `).run(candidateId, 'resume', fileInfo.originalName, fileInfo.filename);
+
+      return {
+        success: true,
+        resumePath: fileInfo.filename,
+        document: {
+          id: result.lastInsertRowid,
+          ...fileInfo
         }
-    });
+      };
+    } catch (error) {
+      console.error('Failed to upload resume:', error);
+      throw error;
+    }
+  });
 
-    // =====================================================================
-    // 🔹 PRINT HTML TO PDF
-    // =====================================================================
-    ipcMain.handle("print-to-pdf", async (event, url) => {
-        const win = BrowserWindow.fromWebContents(event.sender);
-        const printWindow = new BrowserWindow({ show: false });
-        
-        try {
-            await printWindow.loadURL(url);
+  /**
+   * Upload candidate photo
+   */
+  ipcMain.handle('upload-photo', async (event, data) => {
+    const { candidateId, fileBuffer, fileName } = data;
+    const db = getDb();
 
-            const pdfBuffer = await printWindow.webContents.printToPDF({
-                printBackground: true
-            });
+    try {
+      // Save photo
+      const fileInfo = await fileManager.saveFile(
+        Buffer.from(fileBuffer),
+        fileName,
+        'photos'
+      );
 
-            const saveDialog = await dialog.showSaveDialog(win, {
-                title: "Save PDF",
-                defaultPath: "offer_letter.pdf",
-                filters: [{ name: "PDF", extensions: ["pdf"] }]
-            });
+      // Update candidate photo path
+      db.prepare('UPDATE candidates SET photo_path = ? WHERE id = ?')
+        .run(fileInfo.filename, candidateId);
 
-            if (saveDialog.canceled) {
-                printWindow.close();
-                return { success: false, error: "Cancelled." };
-            }
+      return {
+        success: true,
+        photoPath: fileInfo.filename
+      };
+    } catch (error) {
+      console.error('Failed to upload photo:', error);
+      throw error;
+    }
+  });
+}
 
-            fs.writeFileSync(saveDialog.filePath, pdfBuffer);
-            printWindow.close();
-
-            return { success: true, filePath: saveDialog.filePath };
-
-        } catch (err) {
-            if (printWindow) printWindow.close();
-            return { success: false, error: err.message };
-        }
-    });
-
-    // =====================================================================
-    // 🔹 READ ABSOLUTE FILE BUFFER (PDF / IMAGE)
-    // =====================================================================
-    ipcMain.handle("readAbsoluteFileBuffer", async (event, { filePath }) => {
-        try {
-            if (!filePath || !fs.existsSync(filePath)) {
-                return { success: false, error: "File not found." };
-            }
-
-            const buffer = fs.readFileSync(filePath);
-            const type = mime.getType(filePath) || "application/octet-stream";
-
-            return { success: true, buffer, type };
-
-        } catch (err) {
-            return { success: false, error: err.message };
-        }
-    });
-
-    // =====================================================================
-    // 🔹 ZIP CANDIDATE DOCUMENTS
-    // =====================================================================
-    ipcMain.handle("zip-candidate-documents", async (event, { user, candidateId, destinationPath }) => {
-        try {
-            return await queries.zipCandidateDocuments(candidateId, destinationPath);
-        } catch (err) {
-            return { success: false, error: err.message };
-        }
-    });
-
-    // =====================================================================
-    // 🔹 OCR PASSPORT SCAN (MRZ Reader)
-    // =====================================================================
-    ipcMain.handle("ocr-scan-passport", async (event, { fileBuffer }) => {
-        if (!fileBuffer) {
-            return { success: false, error: "No file provided." };
-        }
-
-        let worker;
-
-        try {
-            worker = await Tesseract.createWorker("eng");
-
-            const { data: { text } } = await worker.recognize(Buffer.from(fileBuffer));
-
-            const result = queries.parsePassportMRZ(text);
-
-            return {
-                success: true,
-                data: result || null,
-                rawText: text
-            };
-
-        } catch (err) {
-            return { success: false, error: err.message };
-        } finally {
-            if (worker) await worker.terminate();
-        }
-    });
-
-};
+module.exports = { registerDocumentHandlers };

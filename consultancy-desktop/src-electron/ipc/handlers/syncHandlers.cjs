@@ -1,7 +1,7 @@
 const { ipcMain } = require('electron');
-const { cloudSync } = require('../utils/cloudSync.cjs');
-const { getDatabasePath } = require('../db/database.cjs');
-const { fileManager } = require('../utils/fileManager.cjs');
+const { cloudSync } = require('../../utils/cloudSync.cjs');
+const { getDatabasePath } = require('../../db/database.cjs');
+const { fileManager } = require('../../utils/fileManager.cjs');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -118,7 +118,7 @@ function registerSyncHandlers() {
       console.log('Backup downloaded:', tempBackupPath);
 
       // Close database connection before restore
-      const { closeDatabase } = require('../db/database.cjs');
+      const { closeDatabase } = require('../../db/database.cjs');
       closeDatabase();
 
       // Restore backup
@@ -151,7 +151,7 @@ function registerSyncHandlers() {
       const uploadsPath = fileManager.getUploadsPath();
 
       // Close database connection
-      const { closeDatabase } = require('../db/database.cjs');
+      const { closeDatabase } = require('../../db/database.cjs');
       closeDatabase();
 
       // Restore
@@ -264,7 +264,7 @@ function registerSyncHandlers() {
   ipcMain.handle('test-cloud-connection', async (event, provider, config) => {
     try {
       // Create temporary instance to test
-      const { CloudSync } = require('../utils/cloudSync.cjs');
+      const { CloudSync } = require('../../utils/cloudSync.cjs');
       const testSync = new CloudSync();
       
       const result = await testSync.initialize(provider, config);
@@ -337,7 +337,7 @@ function registerSyncHandlers() {
       const dbPath = getDatabasePath();
       
       // Close database connection
-      const { closeDatabase } = require('../db/database.cjs');
+      const { closeDatabase } = require('../../db/database.cjs');
       closeDatabase();
       
       // Backup current database

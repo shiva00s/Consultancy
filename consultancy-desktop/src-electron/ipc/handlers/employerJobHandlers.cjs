@@ -1,85 +1,81 @@
-const { ipcMain } = require("electron");
-const queries = require("../db/queries.cjs");
-const { logAction } = require("../utils/auditHelper.cjs");
+const registerEmployerJobHandlers = (ipcMain, dependencies) => {
+    const { logAction, queries } = dependencies;
 
-module.exports = function registerJobOrderHandlers() {
+    ipcMain.handle('get-employers', (event) => {
+        return queries.getEmployers();
+    });
 
-    // =========================================================================
-    // 🔹 GET ALL JOB ORDERS
-    // =========================================================================
-    ipcMain.handle("get-job-orders", async () => {
+    ipcMain.handle('add-employer', async (event, { user, data }) => {
+        const result = await queries.addEmployer(user, data);
+        if (result.success) {
+            logAction(user, 'create_employer', 'employers', result.id, `Name: ${data.companyName}`);
+        }
+        return result;
+    });
+
+    ipcMain.handle('update-employer', async (event, { user, id, data }) => {
+        const result = await queries.updateEmployer(user, id, data);
+        if (result.success) {
+            logAction(user, 'update_employer', 'employers', id, `Name: ${data.companyName}`);
+        }
+        return result;
+    });
+
+    ipcMain.handle('delete-employer', async (event, { user, id }) => {
+        const result = await queries.deleteEmployer(user, id);
+        if (result.success) {
+            logAction(user, 'delete_employer', 'employers', id);
+        }
+        return result;
+    });
+
+    ipcMain.handle('get-job-orders', (event) => {
         return queries.getJobOrders();
     });
 
-    // =========================================================================
-    // 🔹 ADD JOB ORDER
-    // =========================================================================
-    ipcMain.handle("add-job-order", async (event, { user, data }) => {
+    ipcMain.handle('add-job-order', async (event, { user, data }) => {
         const result = await queries.addJobOrder(user, data);
-
         if (result.success) {
-            logAction(
-                user,
-                "create_job_order",
-                "job_orders",
-                result.id,
-                `Position: ${data.positionTitle}`
-            );
+            logAction(user, 'create_job', 'job_orders', result.id, `Position: ${data.positionTitle}`);
         }
-
         return result;
     });
 
-    // =========================================================================
-    // 🔹 UPDATE JOB ORDER
-    // =========================================================================
-    ipcMain.handle("update-job-order", async (event, { user, id, data }) => {
+    ipcMain.handle('update-job-order', async (event, { user, id, data }) => {
         const result = await queries.updateJobOrder(user, id, data);
-
         if (result.success) {
-            logAction(
-                user,
-                "update_job_order",
-                "job_orders",
-                id,
-                `Updated Position: ${data.positionTitle}, Status: ${data.status}`
-            );
+            logAction(user, 'update_job', 'job_orders', id, `Position: ${data.positionTitle}, Status: ${data.status}`);
         }
-
         return result;
     });
 
-    // =========================================================================
-    // 🔹 DELETE JOB ORDER
-    // =========================================================================
-    ipcMain.handle("delete-job-order", async (event, { user, id }) => {
+    ipcMain.handle('delete-job-order', async (event, { user, id }) => {
         const result = await queries.deleteJobOrder(user, id);
-
         if (result.success) {
-            logAction(user, "delete_job_order", "job_orders", id);
+            logAction(user, 'delete_job', 'job_orders', id);
         }
-
         return result;
     });
 
-    // =========================================================================
-    // 🔹 GET DELETED JOB ORDERS (RECYCLE BIN)
-    // =========================================================================
-    ipcMain.handle("get-deleted-job-orders", async () => {
-        return queries.getDeletedJobOrders();
+    ipcMain.handle('get-unassigned-jobs', (event, { candidateId }) => {
+        return queries.getUnassignedJobs(candidateId);
     });
 
-    // =========================================================================
-    // 🔹 RESTORE JOB ORDER FROM RECYCLE BIN
-    // =========================================================================
-    ipcMain.handle("restore-job-order", async (event, { user, id }) => {
-        const result = await queries.restoreJobOrder(id);
-
+    ipcMain.handle('assign-candidate-to-job', async (event, { user, candidateId, jobId }) => {
+        const result = await queries.assignCandidateToJob(candidateId, jobId);
         if (result.success) {
-            logAction(user, "restore_job_order", "job_orders", id);
+            logAction(user, 'assign_job', 'candidates', candidateId, `Candidate: ${candidateId}, Job ID: ${jobId}`);
         }
-
         return result;
     });
 
+    ipcMain.handle('remove-candidate-from-job', async (event, { user, placementId }) => {
+        const result = await queries.removeCandidateFromJob(placementId);
+        if (result.success) {
+            logAction(user, 'remove_placement', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Job ID: ${result.jobId}`);
+        }
+        return result;
+    });
 };
+
+module.exports = { registerEmployerJobHandlers };

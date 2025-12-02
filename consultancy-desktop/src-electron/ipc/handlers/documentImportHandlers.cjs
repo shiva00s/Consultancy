@@ -1,390 +1,273 @@
-const { ipcMain, app, BrowserWindow, dialog } = require("electron");
-const path = require("path");
-const fs = require("fs");
-const os = require("os");
-const csv = require("csv-parser");
-const XLSX = require("xlsx");
-const extract = require("extract-zip");
-const { v4: uuidv4 } = require("uuid");
-const mime = require("mime");
+const { BrowserWindow, dialog } = require('electron');
+const path = require('path');
+const fs = require('fs');
+const csv = require('csv-parser');
+const XLSX = require('xlsx');
 
-const queries = require("../db/queries.cjs");
-const { getDatabase } = require("../db/database.cjs");
-const { dbRun, dbGet } = require("../db/queries.cjs");
+const registerDocumentImportHandlers = (ipcMain, dependencies) => {
+    const { logAction, queries } = dependencies;
 
-// Shared audit logger
-const { logAction } = require("../utils/auditHelper.cjs");
-
-module.exports = function registerDocumentImportHandlers() {
-
-    const db = getDatabase();
-
-    // ----------------------------------------------------------------------
-    // 1. BULK IMPORT DOCUMENT ZIP
-    // ----------------------------------------------------------------------
-    ipcMain.handle("bulk-import-documents", async (event, { user, candidateIdMap, archivePath }) => {
-        try {
-            const db = getDatabase();
-
-            if (!fs.existsSync(archivePath)) {
-                return { success: false, error: "Archive file not found." };
-            }
-
-            const tempExtractDir = path.join(os.tmpdir(), `import_${uuidv4()}`);
-            if (!fs.existsSync(tempExtractDir)) fs.mkdirSync(tempExtractDir);
-
-            await extract(archivePath, { dir: tempExtractDir });
-
-            const files = fs.readdirSync(tempExtractDir);
-            const filesDir = path.join(app.getPath("userData"), "candidate_files");
-            if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true });
-
-            const sqlDoc =
-                `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category)
-                 VALUES (?, ?, ?, ?, ?)`;
-
-            let successful = 0;
-            let failed = 0;
-
-            for (const fileName of files) {
-                if (fileName.startsWith(".") || fileName.startsWith("__")) continue;
-
-                const cleanName = path.parse(fileName).name;
-                const parts = cleanName.split("_");
-
-                let passportNo = parts[0].trim().toUpperCase();
-                let category = "Uncategorized";
-                if (parts.length >= 2) category = parts.slice(1).join("_");
-
-                const candidateId = candidateIdMap[passportNo];
-
-                if (candidateId) {
-                    const uniqueName = `${uuidv4()}${path.extname(fileName)}`;
-                    const newFilePath = path.join(filesDir, uniqueName);
-
-                    try {
-                        fs.copyFileSync(path.join(tempExtractDir, fileName), newFilePath);
-
-                        await new Promise(resolve => {
-                            const fileType = mime.getType(fileName) || "application/octet-stream";
-                            db.run(sqlDoc, [candidateId, fileType, fileName, newFilePath, category], err => {
-                                if (err) {
-                                    failed++;
-                                    fs.unlinkSync(newFilePath); 
-                                } else successful++;
-                                resolve();
-                            });
-                        });
-
-                    } catch (err) {
-                        failed++;
-                    }
-
-                } else {
-                    failed++;
-                }
-            }
-
-            fs.rmSync(tempExtractDir, { recursive: true, force: true });
-
-            logAction(user, "bulk_doc_import", "system", 1, `Success=${successful}, Failed=${failed}`);
-
-            return { success: true, data: { successfulDocs: successful, failedDocs: failed } };
-
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
-    });
-
-    // ----------------------------------------------------------------------
-    // 2. Read CSV HEADERS
-    // ----------------------------------------------------------------------
-    ipcMain.handle("get-csv-headers", async (event, { filePath }) => {
-        return new Promise(resolve => {
+    ipcMain.handle('get-csv-headers', async (event, { filePath }) => {
+        return new Promise((resolve, reject) => {
             if (!fs.existsSync(filePath)) {
-                return resolve({ success: false, error: "File not found." });
+                return resolve({ success: false, error: 'File not found.' });
             }
-
+            
             const headers = [];
-
             fs.createReadStream(filePath)
                 .pipe(csv())
-                .on("headers", hdr => headers.push(...hdr))
-                .on("end", () => {
-                    if (headers.length > 0)
-                        resolve({ success: true, headers });
-                    else
-                        resolve({ success: false, error: "Could not read headers." });
+                .on('headers', (hdr) => {
+                headers.push(...hdr);
+            })
+                .on('data', () => {})
+                .on('end', () => {
+                    if(headers.length > 0) {
+                        resolve({ success: true, headers: headers });
+                    } else {
+                        resolve({ success: false, error: 'Could not read headers from CSV.' });
+                    }
                 })
-                .on("error", err => {
+            .on('error', (err) => {
                     resolve({ success: false, error: err.message });
-                });
+            });
         });
     });
 
-    // ----------------------------------------------------------------------
-    // 3. Import Candidates From CSV
-    // ----------------------------------------------------------------------
-    ipcMain.handle("import-candidates-from-file", async (event, { user, filePath, mapping }) => {
-        const db = getDatabase();
+    ipcMain.handle('import-candidates-from-file', async (event, { user, filePath, mapping }) => {
+        const db = dependencies.getDatabase; // Access the database here
         const rows = [];
         const results = { successfulCount: 0, failedCount: 0, failures: [] };
+        const requiredDbColumn = 'passportNo';
 
-        const required = "passportNo";
-        const inverted = {};
-
+        const invertedMap = {};
         for (const csvHeader in mapping) {
-            if (mapping[csvHeader]) inverted[mapping[csvHeader]] = csvHeader;
+            const dbColumn = mapping[csvHeader];
+            if (dbColumn) invertedMap[dbColumn] = csvHeader;
         }
 
-        if (!inverted[required]) {
-            return { success: false, error: `Required column "${required}" not mapped.` };
+        if (!invertedMap[requiredDbColumn]) {
+            return { success: false, error: `Required column "${requiredDbColumn}" was not mapped.` };
         }
 
         try {
             await new Promise((resolve, reject) => {
                 fs.createReadStream(filePath)
                     .pipe(csv())
-                    .on("data", row => rows.push(row))
-                    .on("end", resolve)
-                    .on("error", reject);
+                    .on('data', (row) => rows.push(row))
+                    .on('end', () => resolve())
+                    .on('error', (err) => reject(err));
             });
         } catch (err) {
-            return { success: false, error: `CSV read error: ${err.message}` };
+            return { success: false, error: `Error reading CSV: ${err.message}` };
         }
 
-        await dbRun(db, "BEGIN TRANSACTION");
-
-        for (let i = 0; i < rows.length; i++) {
-            const r = rows[i];
-            const line = i + 2;
-
-            const data = {
-                name: r[inverted.name] || null,
-                education: r[inverted.education] || null,
-                experience: r[inverted.experience] || null,
-                dob: r[inverted.dob] || null,
-                passportNo: r[inverted.passportNo] || null,
-                passportExpiry: r[inverted.passportExpiry] || null,
-                contact: r[inverted.contact] || null,
-                aadhar: r[inverted.aadhar] || null,
-                status: r[inverted.status] || "New",
-                notes: r[inverted.notes] || null,
-                Position: r[inverted.Position] || null
+        await queries.dbRun(db, 'BEGIN TRANSACTION', []);
+        for (const [index, row] of rows.entries()) {
+            const rowNum = index + 2;
+            const dbRow = {
+                name: row[invertedMap['name']] || null,
+                education: row[invertedMap['education']] || null,
+                experience: row[invertedMap['experience']] || null,
+                dob: row[invertedMap['dob']] || null,
+                passportNo: row[invertedMap['passportNo']] || null,
+                passportExpiry: row[invertedMap['passportExpiry']] || null,
+                contact: row[invertedMap['contact']] || null,
+                aadhar: row[invertedMap['aadhar']] || null,
+                status: row[invertedMap['status']] || 'New',
+                notes: row[invertedMap['notes']] || null,
+                Position: row[invertedMap['Position']] || null,
             };
-
             try {
-                const create = await queries.createCandidate(data);
-
-                if (create.success) {
+                const createResult = await queries.createCandidate(dbRow);
+                if (createResult.success) {
+                    logAction(user, 'bulk_import_create', 'candidates', createResult.id, `Name: ${dbRow.name}, Passport: ${dbRow.passportNo}`);
                     results.successfulCount++;
-                    logAction(user, "bulk_import_create", "candidates", create.id,
-                        `Name=${data.name}, Passport=${data.passportNo}`);
                 } else {
                     results.failedCount++;
-                    results.failures.push({ data: r, reason: `Row ${line}: ${create.error}` });
+                    const reason = createResult.errors 
+                        ? `Row ${rowNum}: Validation failed on fields: ${Object.keys(createResult.errors).join(', ')}`
+                        : `Row ${rowNum}: ${createResult.error}`;
+                    results.failures.push({ data: row, reason: reason });
                 }
-
             } catch (err) {
                 results.failedCount++;
-                results.failures.push({ data: r, reason: `Row ${line}: ${err.message}` });
+                results.failures.push({ data: row, reason: `Row ${rowNum}: ${err.message}` });
             }
         }
 
-        await dbRun(db, "COMMIT");
-
-        logAction(user, "bulk_import_complete", "system", 1,
-            `Success=${results.successfulCount}, Failed=${results.failedCount}`);
-
+        await queries.dbRun(db, 'COMMIT', []);
+        logAction(user, 'bulk_import_complete', 'system', 1, `Success: ${results.successfulCount}, Failed: ${results.failedCount}`);
         return { success: true, data: results };
     });
 
-    // ----------------------------------------------------------------------
-    // 4. Get Excel Sheet Names
-    // ----------------------------------------------------------------------
-    ipcMain.handle("get-excel-sheets", async (event, { filePath }) => {
+    ipcMain.handle('get-excel-sheets', async (event, { filePath }) => {
         try {
-            if (!fs.existsSync(filePath)) return { success: false, error: "File not found." };
+            if (!fs.existsSync(filePath)) {
+                return { success: false, error: 'File not found.' };
+            }
             const workbook = XLSX.readFile(filePath);
             return { success: true, sheets: workbook.SheetNames };
         } catch (err) {
-            return { success: false, error: `Excel read failed: ${err.message}` };
+            return { success: false, error: `Failed to read Excel file: ${err.message}` };
         }
     });
 
-    // ----------------------------------------------------------------------
-    // 5. Get Excel Headers
-    // ----------------------------------------------------------------------
-    ipcMain.handle("get-excel-headers", async (event, { filePath, sheetName }) => {
+    ipcMain.handle('get-excel-headers', async (event, { filePath, sheetName }) => {
         try {
-            if (!fs.existsSync(filePath)) return { success: false, error: "File not found." };
-
-            const book = XLSX.readFile(filePath);
-            if (!book.SheetNames.includes(sheetName))
-                return { success: false, error: "Sheet not found." };
-
-            const ws = book.Sheets[sheetName];
-            const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-
-            if (rows.length === 0) return { success: false, error: "Sheet empty." };
-
-            return { success: true, headers: rows[0] };
-
+            const workbook = XLSX.readFile(filePath);
+            if (!workbook.SheetNames.includes(sheetName)) {
+                return { success: false, error: 'Sheet name not found in file.' };
+            }
+            const worksheet = workbook.Sheets[sheetName];
+            const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            
+            if (rows.length === 0) {
+                return { success: false, error: 'Sheet is empty.' };
+            }
+            
+            const headers = rows[0];
+            return { success: true, headers: headers };
         } catch (err) {
-            return { success: false, error: err.message };
+            return { success: false, error: `Failed to read headers: ${err.message}` };
         }
     });
 
-    // ----------------------------------------------------------------------
-    // 6. Import Candidates From Excel
-    // ----------------------------------------------------------------------
-    ipcMain.handle("import-candidates-from-excel", async (event, { user, filePath, sheetName, mapping }) => {
-        const db = getDatabase();
+    ipcMain.handle('import-candidates-from-excel', async (event, { user, filePath, sheetName, mapping }) => {
+        const db = dependencies.getDatabase; // Access the database here
         const results = { successfulCount: 0, failedCount: 0, failures: [] };
+        const requiredDbColumn = 'passportNo';
 
-        const required = "passportNo";
-        const inverted = {};
-
-        for (const key in mapping) {
-            if (mapping[key]) inverted[mapping[key]] = key;
+        const invertedMap = {};
+        for (const csvHeader in mapping) {
+            const dbColumn = mapping[csvHeader];
+            if (dbColumn) invertedMap[dbColumn] = csvHeader;
         }
 
-        if (!inverted[required])
-            return { success: false, error: `Required column "${required}" not mapped.` };
+        if (!invertedMap[requiredDbColumn]) {
+            return { success: false, error: `Required column "${requiredDbColumn}" was not mapped.` };
+        }
 
         let rows = [];
         try {
-            const book = XLSX.readFile(filePath);
-            const ws = book.Sheets[sheetName];
-            rows = XLSX.utils.sheet_to_json(ws);
+            const workbook = XLSX.readFile(filePath);
+            const worksheet = workbook.Sheets[sheetName];
+            rows = XLSX.utils.sheet_to_json(worksheet);
         } catch (err) {
-            return { success: false, error: `Excel read error: ${err.message}` };
+            return { success: false, error: `Error reading Excel: ${err.message}` };
         }
 
-        const parseExcelDate = excelSerial => {
-            if (!isNaN(excelSerial) && excelSerial > 25569) {
-                const date = new Date((excelSerial - 25569) * 86400 * 1000);
-                return date.toISOString().split("T")[0];
-            }
-            return excelSerial;
-        };
-
-        await dbRun(db, "BEGIN TRANSACTION");
-
-        for (let i = 0; i < rows.length; i++) {
-            const r = rows[i];
-            const line = i + 2;
-
-            const data = {
-                name: r[inverted.name] || null,
-                education: r[inverted.education] || null,
-                experience: r[inverted.experience] || null,
-                dob: parseExcelDate(r[inverted.dob]),
-                passportNo: r[inverted.passportNo] || null,
-                passportExpiry: parseExcelDate(r[inverted.passportExpiry]),
-                contact: r[inverted.contact] || null,
-                aadhar: r[inverted.aadhar] || null,
-                status: r[inverted.status] || "New",
-                notes: r[inverted.notes] || null,
-                Position: r[inverted.Position] || null
+        await queries.dbRun(db, 'BEGIN TRANSACTION', []);
+        for (const [index, row] of rows.entries()) {
+            const rowNum = index + 2;
+            const dbRow = {
+                name: row[invertedMap['name']] || null,
+                education: row[invertedMap['education']] || null,
+                experience: row[invertedMap['experience']] || null,
+                dob: queries.parseExcelDate(row[invertedMap['dob']]), // Use parseExcelDate from queries
+                passportNo: row[invertedMap['passportNo']] || null,
+                passportExpiry: queries.parseExcelDate(row[invertedMap['passportExpiry']]), // Use parseExcelDate from queries
+                contact: row[invertedMap['contact']] || null,
+                aadhar: row[invertedMap['aadhar']] || null,
+                status: row[invertedMap['status']] || 'New',
+                notes: row[invertedMap['notes']] || null,
+                Position: row[invertedMap['Position']] || null,
             };
-
             try {
-                const createResult = await queries.createCandidate(data);
-
+                const createResult = await queries.createCandidate(dbRow);
                 if (createResult.success) {
+                    logAction(user, 'bulk_import_create', 'candidates', createResult.id, `Name: ${dbRow.name}, Passport: ${dbRow.passportNo}`);
                     results.successfulCount++;
-                    logAction(user, "bulk_import_create", "candidates", createResult.id,
-                        `Name=${data.name}, Passport=${data.passportNo}`);
                 } else {
                     results.failedCount++;
-                    results.failures.push({ data: r, reason: `Row ${line}: ${createResult.error}` });
+                    const reason = createResult.errors 
+                        ? `Row ${rowNum}: Validation failed on fields: ${Object.keys(createResult.errors).join(', ')}`
+                        : `Row ${rowNum}: ${createResult.error}`;
+                    results.failures.push({ data: row, reason: reason });
                 }
-
             } catch (err) {
                 results.failedCount++;
-                results.failures.push({ data: r, reason: `Row ${line}: ${err.message}` });
+                results.failures.push({ data: row, reason: `Row ${rowNum}: ${err.message}` });
             }
         }
 
-        await dbRun(db, "COMMIT");
-
+        await queries.dbRun(db, 'COMMIT', []);
+        logAction(user, 'bulk_import_complete', 'system', 1, `(Excel) Success: ${results.successfulCount}, Failed: ${results.failedCount}`);
         return { success: true, data: results };
     });
 
-    // ----------------------------------------------------------------------
-    // 7. Download Excel Template
-    // ----------------------------------------------------------------------
-    ipcMain.handle("download-excel-template", async (event) => {
+    ipcMain.handle('download-excel-template', async (event) => {
         const win = BrowserWindow.fromWebContents(event.sender);
 
         const headers = [
-            "name", "passportNo", "Position", "contact", "aadhar",
-            "education", "experience", "dob", "passportExpiry",
-            "status", "notes"
+            'name', 'passportNo', 'Position', 'contact', 'aadhar', 'education',
+            'experience', 'dob', 'passportExpiry', 'status', 'notes'
         ];
 
         try {
-            const save = await dialog.showSaveDialog(win, {
-                title: "Save Excel Import Template",
-                defaultPath: "candidate_import_template.xlsx",
-                filters: [{ name: "Excel Files", extensions: ["xlsx"] }]
+            const saveDialogResult = await dialog.showSaveDialog(win, {
+                title: 'Save Excel Import Template',
+                defaultPath: 'candidate_import_template.xlsx',
+                filters: [{ name: 'Excel Files', extensions: ['xlsx'] }],
             });
 
-            if (save.canceled || !save.filePath)
-                return { success: false, error: "Cancelled." };
+            if (saveDialogResult.canceled || !saveDialogResult.filePath) {
+                return { success: false, error: 'User cancelled save.' };
+            }
+
+            const filePath = saveDialogResult.filePath;
 
             const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.aoa_to_sheet([headers]);
-            XLSX.utils.book_append_sheet(wb, ws, "Candidates");
-            XLSX.writeFile(wb, save.filePath);
+            const ws = XLSX.utils.aoa_to_sheet([headers]); 
+            XLSX.utils.book_append_sheet(wb, ws, 'Candidates');
+            XLSX.writeFile(wb, filePath);
 
-            return { success: true, filePath: save.filePath };
-
+            return { success: true, filePath: filePath };
         } catch (err) {
+            console.error('Failed to create template:', err);
             return { success: false, error: err.message };
         }
     });
 
-    // ----------------------------------------------------------------------
-    // 8. Download Import Errors
-    // ----------------------------------------------------------------------
-    ipcMain.handle("download-import-errors", async (event, { user, failedRows }) => {
+    ipcMain.handle('download-import-errors', async (event, { user, failedRows }) => {
         const win = BrowserWindow.fromWebContents(event.sender);
+        
+        if (!failedRows || failedRows.length === 0) {
+            return { success: false, error: 'No failed rows to export.' };
+        }
 
-        if (!failedRows || failedRows.length === 0)
-            return { success: false, error: "No failed rows." };
+        const headers = Object.keys(failedRows[0].data);
+        headers.push("__ERROR_REASON__");
 
-        const headers = Object.keys(failedRows[0].data).concat("__ERROR_REASON__");
-
-        const exportRows = failedRows.map(r => ({
-            ...r.data,
-            __ERROR_REASON__: r.reason
-        }));
+        const dataToExport = failedRows.map(fail => {
+            return {
+                ...fail.data,
+                "__ERROR_REASON__": fail.reason 
+            };
+        });
 
         try {
-            const save = await dialog.showSaveDialog(win, {
-                title: "Save Import Error Report",
-                defaultPath: "import_error_report.xlsx",
-                filters: [{ name: "Excel Files", extensions: ["xlsx"] }]
+            const saveDialogResult = await dialog.showSaveDialog(win, {
+                title: 'Save Import Error Report',
+                defaultPath: 'import_error_report.xlsx',
+                filters: [{ name: 'Excel Files', extensions: ['xlsx'] }],
             });
+            if (saveDialogResult.canceled || !saveDialogResult.filePath) {
+                return { success: false, error: 'User cancelled save.' };
+            }
 
-            if (save.canceled || !save.filePath)
-                return { success: false, error: "Cancelled." };
-
+            const filePath = saveDialogResult.filePath;
             const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.json_to_sheet(exportRows, { header: headers });
-            XLSX.utils.book_append_sheet(wb, ws, "Failed Rows");
-            XLSX.writeFile(wb, save.filePath);
+            const ws = XLSX.utils.json_to_sheet(dataToExport, { header: headers });
+            XLSX.utils.book_append_sheet(wb, ws, 'Failed Rows');
+            XLSX.writeFile(wb, filePath);
 
-            logAction(user, "export_import_errors", "system", 1,
-                `Exported ${failedRows.length} failed rows`);
-
-            return { success: true, filePath: save.filePath };
-
+            logAction(user, 'export_import_errors', 'system', 1, `Exported ${failedRows.length} failed rows`);
+            return { success: true, filePath: filePath };
         } catch (err) {
+            console.error('Failed to create error report:', err);
             return { success: false, error: err.message };
         }
     });
-
 };
+
+module.exports = { registerDocumentImportHandlers };
