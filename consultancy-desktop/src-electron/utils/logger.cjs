@@ -8,8 +8,13 @@ const logAction = (user, action, target_type, target_id, details = null) => {
             return;
         }
         
+        // Validate user object before proceeding
         if (!user || !user.id) {
-            console.warn('Audit Log: User ID missing. Skipping log for action:', action);
+            console.warn('⚠️ Audit log skipped: Invalid user object', { 
+                action, 
+                target_type, 
+                target_id 
+            });
             return;
         }
 
@@ -17,15 +22,22 @@ const logAction = (user, action, target_type, target_id, details = null) => {
 
         const sql = `INSERT INTO audit_log (user_id, username, action, target_type, target_id, details)
                      VALUES (?, ?, ?, ?, ?, ?)`;
-
+        
         db.run(sql, [user.id, safeUsername, action, target_type, target_id, details], (err) => {
             if (err) {
-                console.error('Failed to write to audit_log:', err.message);
+                console.error('❌ Failed to write to audit_log:', err.message, {
+                    user_id: user.id,
+                    username: safeUsername,
+                    action,
+                    target_type,
+                    target_id
+                });
             }
         });
     } catch (e) {
-        console.error('Critical error in logAction:', e.message);
+        console.error('🔥 Critical error in logAction:', e.message);
     }
 };
+
 
 module.exports = { logAction };

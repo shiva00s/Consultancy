@@ -45,25 +45,37 @@ const logAction = (user, action, target_type, target_id, details = null) => {
             return;
         }
         
-        // FIX: Robust User Check
+        // Validate user object before proceeding
         if (!user || !user.id) {
-            console.warn('Audit Log: User ID missing. Skipping log for action:', action);
-            return; 
+            console.warn('⚠️ Audit log skipped: Invalid user object', { 
+                action, 
+                target_type, 
+                target_id 
+            });
+            return;
         }
 
         const safeUsername = user.username || `User_${user.id}`;
 
         const sql = `INSERT INTO audit_log (user_id, username, action, target_type, target_id, details)
                      VALUES (?, ?, ?, ?, ?, ?)`;
+        
         db.run(sql, [user.id, safeUsername, action, target_type, target_id, details], (err) => {
             if (err) {
-                console.error('Failed to write to audit_log:', err.message);
+                console.error('❌ Failed to write to audit_log:', err.message, {
+                    user_id: user.id,
+                    username: safeUsername,
+                    action,
+                    target_type,
+                    target_id
+                });
             }
         });
     } catch (e) {
-        console.error('Critical error in logAction:', e.message);
+        console.error('🔥 Critical error in logAction:', e.message);
     }
 };
+
 const extractResumeDetails = (text) => {
     const details = {};
 // 1. Email Regex
@@ -543,7 +555,7 @@ function registerIpcHandlers(app) {
 // ====================================================================
     ipcMain.handle('get-candidate-details', (event, { id }) => {
         // 🐞 Audit Log Injection
-        logAction(getEventUserContext(event), 'view_candidate_details', 'candidates', id, `Viewed candidate ID: ${id}`);
+       // logAction(getEventUserContext(event), 'view_candidate_details', 'candidates', id, `Viewed candidate ID: ${id}`);
         return queries.getCandidateDetails(id);
     });
 // ====================================================================
@@ -757,78 +769,28 @@ ipcMain.handle('getImageBase64', (event, { filePath }) => {
     ipcMain.handle('get-visa-tracking', (event, { candidateId }) => {
         return queries.getVisaTracking(candidateId);
     });
-    ipcMain.handle('add-visa-entry', async (event, { user, visaData }) => {
-  if (!user || !user.id) {
-    return { success: false, error: 'User is not authenticated.' };
-  }
-
-  try {
-    const sql = `
-      INSERT INTO visa_board (candidate_id, visa_type, status, created_by)
-      VALUES (?, ?, ?, ?)
-    `;
-    
-    await new Promise((resolve, reject) => {
-      db.run(sql, [visaData.candidateId, visaData.visaType, visaData.status, user.id], function (err) {
-        if (err) return reject(err);
-        resolve({ id: this.lastID });
-      });
+    ipcMain.handle('add-visa-entry', async (event, { user, data }) => {
+        const result = await queries.addVisaEntry(data);
+        if (result.success) {
+            logAction(user, 'add_visa', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Country: ${data.country}, Status: ${data.status}`);
+        }
+        return result;
     });
-
-    return { success: true };
-  } catch (err) {
-    console.error('add-visa-entry error:', err);
-    return { success: false, error: err.message };
-  }
-});
-
-ipcMain.handle('update-visa-entry', async (event, { user, entryId, updates }) => {
-  if (!user || !user.id) {
-    return { success: false, error: 'User is not authenticated.' };
-  }
-
-  try {
-    const sql = `
-      UPDATE visa_board
-      SET status = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `;
-
-    await new Promise((resolve, reject) => {
-      db.run(sql, [updates.status, user.id, entryId], function (err) {
-        if (err) return reject(err);
-        resolve();
-      });
+    // --- NEW: Update Visa Entry Handler ---
+    ipcMain.handle('update-visa-entry', async (event, { user, id, data }) => {
+        const result = await queries.updateVisaEntry(id, data);
+        if (result.success) {
+            logAction(user, 'update_visa', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Country: ${data.country}, Status: ${data.status}`);
+        }
+        return result;
     });
-
-    return { success: true };
-  } catch (err) {
-    console.error('update-visa-entry error:', err);
-    return { success: false, error: err.message };
-  }
-});
-
-ipcMain.handle('delete-visa-entry', async (event, { user, entryId }) => {
-  if (!user || !user.id) {
-    return { success: false, error: 'User is not authenticated.' };
-  }
-
-  try {
-    const sql = `DELETE FROM visa_board WHERE id = ?`;
-
-    await new Promise((resolve, reject) => {
-      db.run(sql, [entryId], function (err) {
-        if (err) return reject(err);
-        resolve();
-      });
+    ipcMain.handle('delete-visa-entry', async (event, { user, id }) => {
+        const result = await queries.deleteVisaEntry(id);
+        if (result.success) {
+            logAction(user, 'delete_visa', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Country: ${result.country}`);
+        }
+        return result;
     });
-
-    return { success: true };
-  } catch (err) {
-    console.error('delete-visa-entry error:', err);
-    return { success: false, error: err.message };
-  }
-});
 // --- Medical Tracking ---
     ipcMain.handle('get-medical-tracking', (event, { candidateId }) => {
         return queries.getMedicalTracking(candidateId);
@@ -943,85 +905,145 @@ ipcMain.handle('delete-visa-entry', async (event, { user, entryId }) => {
         return result;
     });
 // ====================================================================
-    // 10. RECYCLE BIN MANAGEMENT (REFACTORED)
-    // ====================================================================
+// 10. RECYCLE BIN MANAGEMENT (COMPLETE)
+// ====================================================================
 
-    ipcMain.handle('get-deleted-candidates', (event) => {
-        return queries.getDeletedCandidates();
-    });
-    ipcMain.handle('restore-candidate', async (event, { user, id }) => {
-        const result = await queries.restoreCandidate(id);
-        if (result.success) {
-            logAction(user, 'restore_candidate', 'candidates', id);
-        }
-        return result;
-    });
-    ipcMain.handle('get-deleted-employers', (event) => {
-        return queries.getDeletedEmployers();
-    });
-    ipcMain.handle('restore-employer', async (event, { user, id }) => {
-        const result = await queries.restoreEmployer(id);
-        if (result.success) {
-            logAction(user, 'restore_employer', 'employers', id);
-        }
-        return result;
-    });
-    ipcMain.handle('get-deleted-job-orders', (event) => {
-        return queries.getDeletedJobOrders();
-    });
-    ipcMain.handle('restore-job-order', async (event, { user, id }) => {
-        const result = await queries.restoreJobOrder(id);
-        if (result.success) {
-            logAction(user, 'restore_job', 'job_orders', id);
-        }
-        return result;
-    });
-
-    // --- NEW: Permanent Deletion Handler ---
-ipcMain.handle('delete-permanently', async (event, { user, id, targetType }) => {
-  try {
-    // Only Super Admin should be able to perform this high-risk action
-    if (user.role !== 'super_admin') {
-      return {
-        success: false,
-        error: 'Access Denied: Only Super Admins can perform permanent deletion.',
-      };
-    }
-
-    // Decide which table to delete from based on targetType
-    let tableName;
-
-    switch (targetType) {
-      case 'required_doc':
-      case 'required_docs':
-        tableName = 'required_documents';
-        break;
-      case 'candidate':
-      case 'candidates':
-        tableName = 'candidates';
-        break;
-      case 'job':
-      case 'jobs':
-        tableName = 'jobs';
-        break;
-      default:
-        return { success: false, error: `Unknown target type: ${targetType}` };
-    }
-
-    await new Promise((resolve, reject) => {
-      const sql = `DELETE FROM ${tableName} WHERE id = ?`;
-      db.run(sql, [id], function (err) {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
-
-    return { success: true };
-  } catch (err) {
-    console.error('delete-permanently error:', err);
-    return { success: false, error: err.message };
-  }
+// --- CANDIDATES ---
+ipcMain.handle('get-deleted-candidates', (event) => {
+    return queries.getDeletedCandidates();
 });
+ipcMain.handle('restore-candidate', async (event, { user, id }) => {
+    const result = await queries.restoreCandidate(id);
+    if (result.success) {
+        logAction(user, 'restore_candidate', 'candidates', id);
+    }
+    return result;
+});
+
+// --- EMPLOYERS ---
+ipcMain.handle('get-deleted-employers', (event) => {
+    return queries.getDeletedEmployers();
+});
+ipcMain.handle('restore-employer', async (event, { user, id }) => {
+    const result = await queries.restoreEmployer(id);
+    if (result.success) {
+        logAction(user, 'restore_employer', 'employers', id);
+    }
+    return result;
+});
+
+// --- JOB ORDERS ---
+ipcMain.handle('get-deleted-job-orders', (event) => {
+    return queries.getDeletedJobOrders();
+});
+ipcMain.handle('restore-job-order', async (event, { user, id }) => {
+    const result = await queries.restoreJobOrder(id);
+    if (result.success) {
+        logAction(user, 'restore_job', 'job_orders', id);
+    }
+    return result;
+});
+
+
+
+// --- PLACEMENTS ---
+ipcMain.handle('get-deleted-placements', (event) => {
+    return queries.getDeletedPlacements();
+});
+ipcMain.handle('restore-placement', async (event, { user, id }) => {
+    const result = await queries.restorePlacement(id);
+    if (result.success) {
+        logAction(user, 'restore_placement', 'placements', id);
+    }
+    return result;
+});
+
+// --- PASSPORTS ---
+ipcMain.handle('get-deleted-passports', (event) => {
+    return queries.getDeletedPassports();
+});
+ipcMain.handle('restore-passport', async (event, { user, id }) => {
+    const result = await queries.restorePassport(id);
+    if (result.success) {
+        logAction(user, 'restore_passport', 'passport_tracking', id);
+    }
+    return result;
+});
+
+// --- VISAS ---
+ipcMain.handle('get-deleted-visas', (event) => {
+    return queries.getDeletedVisas();
+});
+ipcMain.handle('restore-visa', async (event, { user, id }) => {
+    const result = await queries.restoreVisa(id);
+    if (result.success) {
+        logAction(user, 'restore_visa', 'visa_tracking', id);
+    }
+    return result;
+});
+
+// --- PERMANENT DELETION (SUPER ADMIN ONLY) ---
+ipcMain.handle('delete-permanently', async (event, { user, id, targetType }) => {
+    try {
+        if (user.role !== 'super_admin') {
+            return {
+                success: false,
+                error: 'Access Denied: Only Super Admins can perform permanent deletion.',
+            };
+        }
+
+        let tableName;
+
+        switch (targetType) {
+            case 'required_doc':
+            case 'required_docs':
+                tableName = 'required_documents';
+                break;
+            case 'candidate':
+            case 'candidates':
+                tableName = 'candidates';
+                break;
+            case 'employer':
+            case 'employers':
+                tableName = 'employers';
+                break;
+            case 'job':
+            case 'jobs':
+            case 'job_orders':
+                tableName = 'jobs';
+                break;
+            case 'placement':
+            case 'placements':
+                tableName = 'placements';
+                break;
+            case 'passport':
+            case 'passports':
+                tableName = 'passport_tracking';
+                break;
+            case 'visa':
+            case 'visas':
+                tableName = 'visa_tracking';
+                break;
+            default:
+                return { success: false, error: `Unknown target type: ${targetType}` };
+        }
+
+        await new Promise((resolve, reject) => {
+            const sql = `DELETE FROM ${tableName} WHERE id = ?`;
+            db.run(sql, [id], function (err) {
+                if (err) return reject(err);
+                resolve();
+            });
+        });
+
+        logAction(user, 'permanent_delete', tableName, id);
+        return { success: true };
+    } catch (err) {
+        console.error('delete-permanently error:', err);
+        return { success: false, error: err.message };
+    }
+});
+
 
 // ====================================================================
     // 11. FILE-SYSTEM HANDLERS (Utility, ZIP, PDF, Import)
@@ -1513,6 +1535,9 @@ ipcMain.handle('readAbsoluteFileBuffer', async (event, { filePath }) => {
             return { success: false, error: err.message };
         }
     });
+
+    
+
     ipcMain.handle('send-email', async (event, { user, to, subject, body, attachments }) => {
     try {
         await sendEmail({ to, subject, html: body, attachments });

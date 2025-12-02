@@ -187,25 +187,8 @@ ipcMain.handle('log-audit-event', async (event, payload) => {
     }
   });
 
-  ipcMain.handle('get-admin-assigned-features', async (event, { userId }) => {
-  try {
-    const flags = await permissionService.getDefaultStaffPermissions(); // or your own method
-    return { success: true, data: flags };
-  } catch (error) {
-    console.error('get-admin-assigned-features error:', error);
-    return { success: false, error: error.message };
-  }
-});
 
-ipcMain.handle('get-admin-effective-flags', async (event, { userId, role }) => {
-  try {
-    // Use your existing logic; this just needs to return a { [flagKey]: boolean } map
-    const modules = await permissionService.getEffectivePermissions(userId, role);
-    return { success: true, data: modules };
-  } catch (error) {
-    console.error('get-admin-effective-flags error:', error);
-    return { success: false, error: error.message };
-  }
-});
+
+
 
 module.exports = { registerPermissionHandlers };

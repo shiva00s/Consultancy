@@ -42,20 +42,7 @@ const registerSettingsHandlers = (ipcMain, dependencies) => {
         return result;
     });
 
-    ipcMain.handle('get-smtp-settings', async (event, { user }) => {
-        if (user.role !== 'super_admin') return { success: false, error: 'Access Denied' };
-        
-        try {
-            const db = getDatabase(); // Access the database here
-            const row = await queries.dbGet(db, "SELECT value FROM system_settings WHERE key = 'smtp_config'", []);
-            if (row && row.value) {
-                return { success: true, config: JSON.parse(row.value) };
-            }
-            return { success: true, config: null };
-        } catch (err) {
-            return { success: false, error: err.message };
-        }
-    });
+    
 
     ipcMain.handle('save-smtp-settings', async (event, { user, config }) => {
         if (user.role !== 'super_admin') return { success: false, error: 'Access Denied' };

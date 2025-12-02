@@ -35,6 +35,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getFeatureFlags: () => ipcRenderer.invoke("get-feature-flags"),
     saveFeatureFlags: (args) => ipcRenderer.invoke("save-feature-flags", args),
 
+    getAdminAssignedFeatures: (payload) =>
+        ipcRenderer.invoke('get-admin-assigned-features', payload),
+
+    getAdminEffectiveFlags: (payload) =>
+        ipcRenderer.invoke('get-admin-effective-flags', payload),
+
     // =====================================================================
     // REPORTING & ANALYTICS
     // =====================================================================
@@ -76,6 +82,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     addRequiredDocument: (args) => ipcRenderer.invoke("add-required-document", args),
     deleteRequiredDocument: (args) => ipcRenderer.invoke("delete-required-document", args),
     updateDocumentCategory: (args) => ipcRenderer.invoke("update-document-category", args),
+
+    getDeletedRequiredDocuments: (args) => ipcRenderer.invoke("get-deleted-required-documents", args),
+    restoreRequiredDocument: (args) => ipcRenderer.invoke("restore-required-document", args),
 
     // File Dialog
     openFileDialog: (options) => ipcRenderer.invoke('open-file-dialog', options),
@@ -122,8 +131,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     addVisaEntry: (args) => ipcRenderer.invoke("add-visa-entry", args),
     updateVisaEntry: (args) => ipcRenderer.invoke("update-visa-entry", args),
     deleteVisaEntry: (args) => ipcRenderer.invoke("delete-visa-entry", args),
-    getAllActiveVisas: () => ipcRenderer.invoke('get-all-active-visas'),
-    updateVisaStatus: (args) => ipcRenderer.invoke('update-visa-status', args),
+    getAllActiveVisas: () => ipcRenderer.invoke("get-all-active-visas"),
+    updateVisaStatus: (args) => ipcRenderer.invoke("update-visa-status", args),
 
     // Medical
     getMedicalTracking: (args) => ipcRenderer.invoke("get-medical-tracking", args),
@@ -163,7 +172,21 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getDeletedJobOrders: () => ipcRenderer.invoke("get-deleted-job-orders"),
     restoreJobOrder: (args) => ipcRenderer.invoke("restore-job-order", args),
 
-    deletePermanently: (args) => ipcRenderer.invoke("delete-permanently", args),
+
+    // Recycle Bin - Placements
+    getDeletedPlacements: () => ipcRenderer.invoke('get-deleted-placements'),
+    restorePlacement: (payload) => ipcRenderer.invoke('restore-placement', payload),
+
+    // Recycle Bin - Passports
+    getDeletedPassports: () => ipcRenderer.invoke('get-deleted-passports'),
+    restorePassport: (payload) => ipcRenderer.invoke('restore-passport', payload),
+
+    // Recycle Bin - Visas
+    getDeletedVisas: () => ipcRenderer.invoke('get-deleted-visas'),
+    restoreVisa: (payload) => ipcRenderer.invoke('restore-visa', payload),
+
+    // Permanent Delete
+    deletePermanently: (payload) => ipcRenderer.invoke('delete-permanently', payload),
 
     // =====================================================================
     // PDF / OFFER LETTER
@@ -196,47 +219,40 @@ contextBridge.exposeInMainWorld("electronAPI", {
     // =====================================================================
     // CLOUD SYNC / BACKUP
     // =====================================================================
-    initCloudSync: (provider, config) => ipcRenderer.invoke('init-cloud-sync', provider, config),
-    testCloudConnection: (provider, config) => ipcRenderer.invoke('test-cloud-connection', provider, config),
+    initCloudSync: (provider, config) => ipcRenderer.invoke("init-cloud-sync", provider, config),
+    testCloudConnection: (provider, config) => ipcRenderer.invoke("test-cloud-connection", provider, config),
 
-    createBackup: () => ipcRenderer.invoke('create-backup'),
-    createLocalBackup: (path) => ipcRenderer.invoke('create-local-backup', path),
+    createBackup: () => ipcRenderer.invoke("create-backup"),
+    createLocalBackup: (path) => ipcRenderer.invoke("create-local-backup", path),
 
-    listBackups: () => ipcRenderer.invoke('list-backups'),
-    getBackupDetails: (fileId) => ipcRenderer.invoke('get-backup-details', fileId),
+    listBackups: () => ipcRenderer.invoke("list-backups"),
+    getBackupDetails: (fileId) => ipcRenderer.invoke("get-backup-details", fileId),
 
-    restoreBackup: (fileId) => ipcRenderer.invoke('restore-backup', fileId),
-    restoreLocalBackup: (path) => ipcRenderer.invoke('restore-local-backup', path),
+    restoreBackup: (fileId) => ipcRenderer.invoke("restore-backup", fileId),
+    restoreLocalBackup: (path) => ipcRenderer.invoke("restore-local-backup", path),
 
-    deleteBackup: (fileId) => ipcRenderer.invoke('delete-backup', fileId),
+    deleteBackup: (fileId) => ipcRenderer.invoke("delete-backup", fileId),
 
-    enableAutoSync: (schedule) => ipcRenderer.invoke('enable-auto-sync', schedule),
-    disableAutoSync: () => ipcRenderer.invoke('disable-auto-sync'),
-    getSyncStatus: () => ipcRenderer.invoke('get-sync-status'),
+    enableAutoSync: (schedule) => ipcRenderer.invoke("enable-auto-sync", schedule),
+    disableAutoSync: () => ipcRenderer.invoke("disable-auto-sync"),
+    getSyncStatus: () => ipcRenderer.invoke("get-sync-status"),
 
-    exportDatabase: (destinationPath) => ipcRenderer.invoke('export-database', destinationPath),
-    importDatabase: (sourcePath) => ipcRenderer.invoke('import-database', sourcePath),
+    exportDatabase: (destinationPath) => ipcRenderer.invoke("export-database", destinationPath),
+    importDatabase: (sourcePath) => ipcRenderer.invoke("import-database", sourcePath),
 
-    bulkImportDocuments: (args) => ipcRenderer.invoke('bulk-import-documents', args),
-    getUserGranularPermissions: (args) => ipcRenderer.invoke('get-user-granular-permissions', args),
-    setUserGranularPermissions: (args) => ipcRenderer.invoke('set-user-granular-permissions', args),
-    getGranterPermissions: (args) => ipcRenderer.invoke('get-granter-permissions', args),
+    bulkImportDocuments: (args) => ipcRenderer.invoke("bulk-import-documents", args),
 
-    getDeletedRequiredDocuments: (args) => ipcRenderer.invoke('get-deleted-required-documents', args),
-    restoreRequiredDocument: (args) => ipcRenderer.invoke('restore-required-document', args),
+    getUserGranularPermissions: (args) => ipcRenderer.invoke("get-user-granular-permissions", args),
+    setUserGranularPermissions: (args) => ipcRenderer.invoke("set-user-granular-permissions", args),
+    getGranterPermissions: (args) => ipcRenderer.invoke("get-granter-permissions", args),
 
-    getLicenseStatus: () => ipcRenderer.invoke('license:get-status'),
-    activateLicense: (args) => ipcRenderer.invoke('license:activate', args),
+    // =====================================================================
+    // LICENSE
+    // =====================================================================
+    getLicenseStatus: () => ipcRenderer.invoke("license:get-status"),
+    activateLicense: (args) => ipcRenderer.invoke("license:activate", args),
 
-    requestActivationCode: () => ipcRenderer.invoke('request-activation-code'),
-    logAuditEvent: (payload) => ipcRenderer.invoke('log-audit-event', payload), 
-    
-getAdminAssignedFeatures: (payload) =>
-    ipcRenderer.invoke('get-admin-assigned-features', payload),
-
-  getAdminEffectiveFlags: (payload) =>
-    ipcRenderer.invoke('get-admin-effective-flags', payload),
-
-
+    requestActivationCode: () => ipcRenderer.invoke("request-activation-code"),
+    logAuditEvent: (payload) => ipcRenderer.invoke("log-audit-event", payload),
 
 });

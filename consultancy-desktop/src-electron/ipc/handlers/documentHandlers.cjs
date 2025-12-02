@@ -12,36 +12,7 @@ function registerDocumentHandlers() {
   /**
    * Upload document
    */
-  ipcMain.handle('upload-document', async (event, data) => {
-    const { candidateId, documentType, fileBuffer, fileName } = data;
-    const db = getDb();
-
-    try {
-      // Save file
-      const fileInfo = await fileManager.saveFile(
-        Buffer.from(fileBuffer),
-        fileName,
-        'documents'
-      );
-
-      // Save to database
-      const result = db.prepare(`
-        INSERT INTO documents (candidate_id, document_type, document_name, file_path)
-        VALUES (?, ?, ?, ?)
-      `).run(candidateId, documentType, fileInfo.originalName, fileInfo.filename);
-
-      return {
-        success: true,
-        document: {
-          id: result.lastInsertRowid,
-          ...fileInfo
-        }
-      };
-    } catch (error) {
-      console.error('Failed to upload document:', error);
-      throw error;
-    }
-  });
+  
 
   /**
    * Get candidate documents

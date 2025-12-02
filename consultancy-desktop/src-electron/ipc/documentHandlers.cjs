@@ -9,83 +9,9 @@ function registerDocumentHandlers() {
   /**
    * Upload document
    */
-  ipcMain.handle('upload-document', async (event, data) => {
-    const { candidateId, documentType, fileBuffer, fileName } = data;
-    const db = getDb();
+  
 
-    try {
-      // Save file
-      const fileInfo = await fileManager.saveFile(
-        Buffer.from(fileBuffer),
-        fileName,
-        'documents'
-      );
-
-      // Save to database
-      const result = db.prepare(`
-        INSERT INTO documents (candidate_id, document_type, document_name, file_path)
-        VALUES (?, ?, ?, ?)
-      `).run(candidateId, documentType, fileInfo.originalName, fileInfo.filename);
-
-      return {
-        success: true,
-        document: {
-          id: result.lastInsertRowid,
-          ...fileInfo
-        }
-      };
-    } catch (error) {
-      console.error('Failed to upload document:', error);
-      throw error;
-    }
-  });
-
-  /**
-   * Get candidate documents
-   */
-  ipcMain.handle('get-candidate-documents', async (event, candidateId) => {
-    const db = getDb();
-
-    try {
-      const documents = db.prepare(`
-        SELECT * FROM documents 
-        WHERE candidate_id = ? 
-        ORDER BY uploaded_at DESC
-      `).all(candidateId);
-
-      return { success: true, documents };
-    } catch (error) {
-      console.error('Failed to get documents:', error);
-      throw error;
-    }
-  });
-
-  /**
-   * Download document
-   */
-  ipcMain.handle('download-document', async (event, documentId) => {
-    const db = getDb();
-
-    try {
-      const document = db.prepare('SELECT * FROM documents WHERE id = ?').get(documentId);
-      
-      if (!document) {
-        throw new Error('Document not found');
-      }
-
-      const fileBuffer = await fileManager.getFile(document.file_path, 'documents');
-
-      return {
-        success: true,
-        buffer: fileBuffer,
-        filename: document.document_name
-      };
-    } catch (error) {
-      console.error('Failed to download document:', error);
-      throw error;
-    }
-  });
-
+ 
   /**
    * Delete document
    */

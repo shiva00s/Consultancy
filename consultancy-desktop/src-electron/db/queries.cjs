@@ -762,8 +762,6 @@ async function updateCandidateText(id, data) {
   const db = getDatabase();
 
   // --- Permission Check ---
-  const accessCheck = await checkUserDelegatedAccess(data.user, "isCandidateEditingEnabled");
-  if (!accessCheck.success) return accessCheck;
 
   // --- Validation ---
   const errors = {};
@@ -855,11 +853,7 @@ async function updateCandidateText(id, data) {
 
 async function deleteCandidate(id) {
   const db = getDatabase();
-// --- Permission Check ---
-// We use the Documents module flag as a proxy for candidate management permission
-  const accessCheck = await checkUserDelegatedAccess(user, 'isDocumentsEnabled');
-  if (!accessCheck.success) return accessCheck;
-// --- End Permission Check ---
+
 
   try {
     await dbRun(db, 'BEGIN TRANSACTION');
@@ -881,10 +875,7 @@ async function deleteCandidate(id) {
 
 async function deleteDocument(docId) {
   const db = getDatabase();
-// --- Permission Check ---
-  const accessCheck = await checkUserDelegatedAccess(user, 'isDocumentsEnabled');
-  if (!accessCheck.success) return accessCheck;
-// --- End Permission Check ---
+
 
   try {
       const row = await dbGet(db, 'SELECT candidate_id, fileName FROM documents WHERE id = ?', [docId]);
@@ -900,10 +891,7 @@ async function deleteDocument(docId) {
 
 async function updateDocumentCategory(docId, category) {
   const db = getDatabase();
-// --- Permission Check ---
-  const accessCheck = await checkUserDelegatedAccess(user, 'isDocumentsEnabled');
-  if (!accessCheck.success) return accessCheck;
-// --- End Permission Check ---
+
 
   try {
       const row = await dbGet(db, 'SELECT candidate_id, fileName FROM documents WHERE id = ?', [docId]);
@@ -934,10 +922,7 @@ async function getEmployers() {
 
 // MODIFIED: Use structured error return
 async function addEmployer(user, data) {
-  // --- Permission Check ---
-  const accessCheck = await checkUserDelegatedAccess(user, 'isEmployersEnabled');
-  if (!accessCheck.success) return accessCheck;
-// --- End Permission Check ---
+  
   
   // --- Validation ---
   const errors = {};
@@ -963,10 +948,7 @@ async function addEmployer(user, data) {
 
 // MODIFIED: Use structured error return
 async function updateEmployer(user, id, data) {
-  // --- Permission Check ---
-  const accessCheck = await checkUserDelegatedAccess(user, 'isEmployersEnabled');
-  if (!accessCheck.success) return accessCheck;
-// --- End Permission Check ---
+
   
   // --- Validation ---
   const errors = {};
@@ -991,10 +973,7 @@ async function updateEmployer(user, id, data) {
 }
 
 async function deleteEmployer(user, id) {
-  // --- Permission Check ---
-  const accessCheck = await checkUserDelegatedAccess(user, 'isEmployersEnabled');
-  if (!accessCheck.success) return accessCheck;
-// --- End Permission Check ---
+ 
 
   try {
     await dbRun(db, 'BEGIN TRANSACTION');
@@ -1033,10 +1012,7 @@ async function getJobOrders() {
 
 // MODIFIED: Use structured error return
 async function addJobOrder(user, data) {
-  // 1. Permission Check
-  const accessCheck = await checkUserDelegatedAccess(user, 'isJobsEnabled');
-  if (!accessCheck.success) return accessCheck;
-// --- End Permission Check ---
+  
 
   // 2. Validation
   const errors = {};
@@ -1072,10 +1048,7 @@ async function addJobOrder(user, data) {
 }
 
 async function updateJobOrder(user, id, data) {
-  // 1. Permission Check
-  const accessCheck = await checkUserDelegatedAccess(user, 'isJobsEnabled');
-  if (!accessCheck.success) return accessCheck;
-// --- End Permission Check ---
+ 
 
   // 2. Validation
   const errors = {};
@@ -1121,10 +1094,7 @@ async function updateJobOrder(user, id, data) {
 }
 
 async function deleteJobOrder(user, id) {
-  // 1. Permission Check
-  const accessCheck = await checkUserDelegatedAccess(user, 'isJobsEnabled');
-  if (!accessCheck.success) return accessCheck;
-// --- End Permission Check ---
+ 
 
   const db = getDatabase();
 
@@ -1163,8 +1133,7 @@ async function getPassportTracking(candidateId) {
 }
 
 async function addPassportEntry(data) {
-  const accessCheck = await checkUserDelegatedAccess(user, 'isDocumentsEnabled'); // Using Documents as proxy
-    if (!accessCheck.success) return accessCheck;
+ 
     // --- Validation ---
     const errors = {};
     if (data.passport_status === 'Received' && !data.received_date) errors.received_date = 'Received Date is required when status is "Received".';
@@ -1233,31 +1202,41 @@ async function getUnassignedJobs(candidateId) {
   }
 }
 
-async function assignCandidateToJob(candidateId, jobId) {
+// In your assignCandidateToJob function
+async function assignCandidateToJob(candidateId, jobOrderId) {
   const db = getDatabase();
-  const sql = `INSERT INTO placements (candidate_id, job_order_id) VALUES (?, ?)`;
+  
+  // ✅ Check for ACTIVE assignments only (exclude soft-deleted)
+  const checkSql = `
+    SELECT id FROM placements 
+    WHERE candidate_id = ? 
+      AND job_order_id = ? 
+      AND isDeleted = 0  /* ✅ Only check active placements */
+  `;
+  
+  const existing = await dbGet(db, checkSql, [candidateId, jobOrderId]);
+  
+  if (existing) {
+    return { 
+      success: false, 
+      error: 'Candidate already assigned to this job.' 
+    };
+  }
+
+  // Proceed with assignment...
+  const insertSql = `
+    INSERT INTO placements (candidate_id, job_order_id, assignedAt, status)
+    VALUES (?, ?, datetime('now'), 'Assigned')
+  `;
+  
   try {
-      const result = await dbRun(db, sql, [candidateId, jobId]);
-      const newPlacementId = result.lastID;
-      const getSql = `
-        SELECT 
-          p.id as placementId, p.status as placementStatus,
-          j.id as jobId, j.positionTitle, 
-          e.companyName, e.country
-        FROM placements p
-        JOIN job_orders j ON p.job_order_id = j.id
-        JOIN employers e ON j.employer_id = e.id
-        WHERE p.id = ?
-      `;
-      const row = await dbGet(db, getSql, [newPlacementId]);
-      return { success: true, data: row };
+    await dbRun(db, insertSql, [candidateId, jobOrderId]);
+    return { success: true };
   } catch (err) {
-      if (err.message.includes('UNIQUE constraint failed')) {
-          return { success: false, error: 'Candidate already assigned to this job.' };
-      }
-      return { success: false, error: err.message };
+    return { success: false, error: err.message };
   }
 }
+
 
 async function removeCandidateFromJob(placementId) {
   const db = getDatabase();
@@ -1287,8 +1266,7 @@ async function getVisaTracking(candidateId) {
 
 // // MODIFIED: Use structured error return
 async function addVisaEntry(data) {
-  const accessCheck = await checkUserDelegatedAccess(user, 'isVisaTrackingEnabled');
-    if (!accessCheck.success) return accessCheck;
+  
   // --- Validation ---
   const errors = {};
   if (validateRequired(data.country, 'Country')) errors.country = validateRequired(data.country, 'Country');
@@ -1320,8 +1298,7 @@ async function addVisaEntry(data) {
 }
 
 async function updateVisaEntry(id, data) {
-  const accessCheck = await checkUserDelegatedAccess(user, 'isVisaTrackingEnabled');
-    if (!accessCheck.success) return accessCheck;
+  
     // --- Validation (Retained) ---
     const errors = {};
     if (validateRequired(data.country, 'Country')) errors.country = validateRequired(data.country, 'Country');
@@ -1359,8 +1336,7 @@ async function updateVisaEntry(id, data) {
 }
 
 async function deleteVisaEntry(id) {
-  const accessCheck = await checkUserDelegatedAccess(user, 'isVisaTrackingEnabled');
-    if (!accessCheck.success) return accessCheck;
+ 
   const db = getDatabase();
   try {
       const row = await dbGet(db, 'SELECT candidate_id, country FROM visa_tracking WHERE id = ?', [id]);
@@ -1384,8 +1360,7 @@ async function getMedicalTracking(candidateId) {
 
 // MODIFIED: Use structured error return
 async function addMedicalEntry(data) {
-  const accessCheck = await checkUserDelegatedAccess(user, 'isMedicalEnabled');
-    if (!accessCheck.success) return accessCheck;
+
   // --- Validation ---
   const errors = {};
   if (validateRequired(data.test_date, 'Test Date')) errors.test_date = validateRequired(data.test_date, 'Test Date');
@@ -1410,8 +1385,7 @@ async function addMedicalEntry(data) {
 
 // MODIFIED: Use structured error return
 async function updateMedicalEntry(id, data) {
-  const accessCheck = await checkUserDelegatedAccess(user, 'isMedicalEnabled');
-    if (!accessCheck.success) return accessCheck;
+  
   // --- Validation ---
   const errors = {};
   if (validateRequired(data.test_date, 'Test Date')) errors.test_date = validateRequired(data.test_date, 'Test Date');
@@ -1437,8 +1411,7 @@ async function updateMedicalEntry(id, data) {
 }
 
 async function deleteMedicalEntry(id) {
-  const accessCheck = await checkUserDelegatedAccess(user, 'isMedicalEnabled');
-    if (!accessCheck.success) return accessCheck;
+ 
   const db = getDatabase();
   try {
       const row = await dbGet(db, 'SELECT candidate_id, test_date, status FROM medical_tracking WHERE id = ?', [id]);
@@ -1462,8 +1435,7 @@ async function getTravelTracking(candidateId) {
 
 // MODIFIED: Use structured error return
 async function addTravelEntry(data) {
-  const accessCheck = await checkUserDelegatedAccess(user, 'isTravelEnabled');
-    if (!accessCheck.success) return accessCheck;
+ 
   // --- Validation ---
   const errors = {};
   if (validateRequired(data.travel_date, 'Travel Date')) errors.travel_date = validateRequired(data.travel_date, 'Travel Date');
@@ -1491,8 +1463,7 @@ async function addTravelEntry(data) {
 
 // MODIFIED: Use structured error return
 async function updateTravelEntry(id, data) {
-  const accessCheck = await checkUserDelegatedAccess(user, 'isTravelEnabled');
-    if (!accessCheck.success) return accessCheck;
+  
   // --- Validation ---
   const errors = {};
   if (validateRequired(data.travel_date, 'Travel Date')) errors.travel_date = validateRequired(data.travel_date, 'Travel Date');
@@ -1522,8 +1493,7 @@ async function updateTravelEntry(id, data) {
 }
 
 async function deleteTravelEntry(id) {
-  const accessCheck = await checkUserDelegatedAccess(user, 'isTravelEnabled');
-    if (!accessCheck.success) return accessCheck;
+  
   const db = getDatabase();
   try {
       const row = await dbGet(db, 'SELECT candidate_id, travel_date FROM travel_tracking WHERE id = ?', [id]);
@@ -1555,8 +1525,7 @@ async function getInterviewTracking(candidateId) {
 
 // MODIFIED: Use structured error return
 async function addInterviewEntry(data) {
-  const accessCheck = await checkUserDelegatedAccess(user, 'isInterviewEnabled');
-    if (!accessCheck.success) return accessCheck;
+ 
   // --- Validation ---
   const errors = {};
   if (validateRequired(data.job_order_id, 'Job Order')) errors.job_order_id = validateRequired(data.job_order_id, 'Job Order');
@@ -1588,8 +1557,7 @@ async function addInterviewEntry(data) {
 
 // MODIFIED: Use structured error return
 async function updateInterviewEntry(id, data) {
-  const accessCheck = await checkUserDelegatedAccess(user, 'isInterviewEnabled');
-    if (!accessCheck.success) return accessCheck;
+  
   // --- Validation ---
   const errors = {};
   if (validateRequired(data.job_order_id, 'Job Order')) errors.job_order_id = validateRequired(data.job_order_id, 'Job Order');
@@ -1623,8 +1591,7 @@ async function updateInterviewEntry(id, data) {
 }
 
 async function deleteInterviewEntry(id) {
-  const accessCheck = await checkUserDelegatedAccess(user, 'isInterviewEnabled');
-    if (!accessCheck.success) return accessCheck;
+  
   const db = getDatabase();
   try {
       const row = await dbGet(db, 'SELECT candidate_id, interview_date, round FROM interview_tracking WHERE id = ?', [id]);
@@ -1651,10 +1618,7 @@ async function getCandidatePayments(candidateId) {
 
 // MODIFIED: Use structured error return
 async function addPayment(user, data) {
-  // --- Permission Check ---
-  const accessCheck = await checkUserDelegatedAccess(user, 'isFinanceTrackingEnabled');
-  if (!accessCheck.success) return accessCheck; // Block if feature disabled
-// --- End Permission Check ---
+ 
   
   // --- Validation ---
   const errors = {};
@@ -1689,11 +1653,7 @@ async function addPayment(user, data) {
 async function updatePayment(data) {
   
    const { user, id, total_amount, amount_paid, status } = data;
-// Destructure user
-   
-    const accessCheck = await checkUserDelegatedAccess(user, 'isFinanceTrackingEnabled');
-    if (!accessCheck.success) return accessCheck;
-// Block if feature disabled
+
     
     // 💥 CRITICAL FIX: Initialize the errors object here!
     const errors = {};
@@ -1745,10 +1705,7 @@ async function updatePayment(data) {
 }
 
 async function deletePayment(user, id) {
-  // --- Permission Check ---
-  const accessCheck = await checkUserDelegatedAccess(user, 'isFinanceTrackingEnabled');
-  if (!accessCheck.success) return accessCheck; // Block if feature disabled
-// --- End Permission Check ---
+  
   
   const db = getDatabase();
   try {
@@ -1761,63 +1718,69 @@ async function deletePayment(user, id) {
 }
 
 // ====================================================================
-// 10. RECYCLE BIN MANAGEMENT
+// 10. RECYCLE BIN MANAGEMENT (COMPLETE)
 // ====================================================================
 
+// ========== CANDIDATES ==========
 async function getDeletedCandidates() {
   const db = getDatabase();
   const sql = 'SELECT id, name, Position, createdAt, isDeleted FROM candidates WHERE isDeleted = 1 ORDER BY createdAt DESC';
   try {
-      const rows = await dbAll(db, sql, []);
-      return { success: true, data: rows };
-  } catch (err) { return { success: false, error: err.message };
+    const rows = await dbAll(db, sql, []);
+    return { success: true, data: rows };
+  } catch (err) {
+    return { success: false, error: err.message };
   }
 }
 
 async function restoreCandidate(id) {
   const db = getDatabase();
   try {
-      await dbRun(db, 'BEGIN TRANSACTION');
+    await dbRun(db, 'BEGIN TRANSACTION');
     await dbRun(db, 'UPDATE candidates SET isDeleted = 0 WHERE id = ?', [id]);
     await dbRun(db, 'UPDATE documents SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1', [id]);
     await dbRun(db, 'UPDATE placements SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1', [id]);
     await dbRun(db, 'UPDATE visa_tracking SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1', [id]);
+    await dbRun(db, 'UPDATE passport_tracking SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1', [id]);
     await dbRun(db, 'UPDATE payments SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1', [id]);
     await dbRun(db, 'UPDATE medical_tracking SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1', [id]);
     await dbRun(db, 'UPDATE interview_tracking SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1', [id]);
     await dbRun(db, 'UPDATE travel_tracking SET isDeleted = 0 WHERE candidate_id = ? AND isDeleted = 1', [id]);
-      await dbRun(db, 'COMMIT');
+    await dbRun(db, 'COMMIT');
     return { success: true };
   } catch (err) {
-      await dbRun(db, 'ROLLBACK');
+    await dbRun(db, 'ROLLBACK');
     return { success: false, error: err.message };
   }
 }
 
+// ========== EMPLOYERS ==========
 async function getDeletedEmployers() {
   const db = getDatabase();
   const sql = 'SELECT * FROM employers WHERE isDeleted = 1 ORDER BY companyName ASC';
   try {
-      const rows = await dbAll(db, sql, []);
-      return { success: true, data: rows };
-  } catch (err) { return { success: false, error: err.message };
+    const rows = await dbAll(db, sql, []);
+    return { success: true, data: rows };
+  } catch (err) {
+    return { success: false, error: err.message };
   }
 }
 
 async function restoreEmployer(id) {
   const db = getDatabase();
   try {
-      await dbRun(db, 'BEGIN TRANSACTION');
+    await dbRun(db, 'BEGIN TRANSACTION');
     await dbRun(db, 'UPDATE employers SET isDeleted = 0 WHERE id = ?', [id]);
     await dbRun(db, 'UPDATE job_orders SET isDeleted = 0 WHERE employer_id = ? AND isDeleted = 1', [id]);
-      await dbRun(db, 'COMMIT');
+    await dbRun(db, 'COMMIT');
     return { success: true };
   } catch (err) {
-      await dbRun(db, 'ROLLBACK');
+    await dbRun(db, 'ROLLBACK');
     return { success: false, error: err.message };
   }
 }
 
+// ========== JOB ORDERS ==========
 async function getDeletedJobOrders() {
   const db = getDatabase();
   const sql = `
@@ -1828,70 +1791,36 @@ async function getDeletedJobOrders() {
     ORDER BY j.positionTitle ASC
   `;
   try {
-      const rows = await dbAll(db, sql, []);
-      return { success: true, data: rows };
-  } catch (err) { return { success: false, error: err.message };
+    const rows = await dbAll(db, sql, []);
+    return { success: true, data: rows };
+  } catch (err) {
+    return { success: false, error: err.message };
   }
 }
 
 async function restoreJobOrder(id) {
   const db = getDatabase();
   try {
-      await dbRun(db, 'BEGIN TRANSACTION');
+    await dbRun(db, 'BEGIN TRANSACTION');
     await dbRun(db, 'UPDATE job_orders SET isDeleted = 0 WHERE id = ?', [id]);
     await dbRun(db, 'UPDATE placements SET isDeleted = 0 WHERE job_order_id = ? AND isDeleted = 1', [id]);
-      await dbRun(db, 'COMMIT');
+    await dbRun(db, 'COMMIT');
     return { success: true };
   } catch (err) {
-      await dbRun(db, 'ROLLBACK');
+    await dbRun(db, 'ROLLBACK');
     return { success: false, error: err.message };
   }
 }
 
-async function deletePermanently(id, targetType) {
-  const db = getDatabase();
-  let sql;
-  let identifier;
-
-  switch (targetType) {
-    case 'candidates':
-      sql = 'DELETE FROM candidates WHERE id = ?';
-      identifier = 'candidate';
-      break;
-    case 'employers':
-      sql = 'DELETE FROM employers WHERE id = ?';
-      identifier = 'employer';
-      break;
-    case 'job_orders':
-      sql = 'DELETE FROM job_orders WHERE id = ?';
-      identifier = 'job order';
-      break;
-    case 'required_docs':
-      sql = 'DELETE FROM required_documents WHERE id = ?';
-      identifier = 'required_docs';
-      break;
-    default:
-      return { success: false, error: 'Invalid target type for permanent deletion.' };
-  }
-
-  try {
-    const result = await dbRun(db, sql, [id]);
-    if (result.changes === 0) {
-      return { success: false, error: `${identifier} not found.` };
-    }
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-}
-
+// ========== REQUIRED DOCUMENTS ==========
 async function getRequiredDocuments() {
-    const db = getDatabase();
-    try {
-        const rows = await dbAll(db, 'SELECT * FROM required_documents WHERE isDeleted = 0 ORDER BY name ASC', []);
-        return { success: true, data: rows };
-    } catch (err) { return { success: false, error: err.message };
-    }
+  const db = getDatabase();
+  try {
+    const rows = await dbAll(db, 'SELECT * FROM required_documents WHERE isDeleted = 0 ORDER BY name ASC', []);
+    return { success: true, data: rows };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 }
 
 async function addRequiredDocument(name) {
@@ -1932,7 +1861,7 @@ async function addRequiredDocument(name) {
       return { success: true, data: revived };
     }
 
-    // 3) Otherwise, insert new record (even if UNIQUE(name) exists, we checked earlier)
+    // 3) Otherwise, insert new record
     const result = await dbRun(
       db,
       "INSERT INTO required_documents (name, isDeleted) VALUES (?, 0)",
@@ -1946,7 +1875,6 @@ async function addRequiredDocument(name) {
     return { success: true, data: row };
   } catch (err) {
     if (err.message.includes('UNIQUE constraint failed')) {
-      // Fallback if constraints differ from our expectation
       return { success: false, error: 'Document name already exists.' };
     }
     return { success: false, error: err.message };
@@ -1963,26 +1891,208 @@ async function deleteRequiredDocument(id) {
   }
 }
 
-
-// ===== Required Documents RecycleBin Helpers =====
-
 async function getDeletedRequiredDocuments() {
   const db = getDatabase();
-  const rows = await dbAll(db,
-    "SELECT id, name FROM required_documents WHERE isDeleted = 1 ORDER BY name ASC",
-    []
-  );
-  return { success: true, data: rows };
+  try {
+    const rows = await dbAll(db,
+      "SELECT id, name FROM required_documents WHERE isDeleted = 1 ORDER BY name ASC",
+      []
+    );
+    return { success: true, data: rows };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 }
 
 async function restoreRequiredDocument(id) {
   const db = getDatabase();
-  await dbRun(db, "UPDATE required_documents SET isDeleted = 0 WHERE id = ?", [id]);
-  return { success: true };
+  try {
+    await dbRun(db, "UPDATE required_documents SET isDeleted = 0 WHERE id = ?", [id]);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 }
 
-// For permanent delete, we’ll reuse deletePermanently handler with targetType = 'required_docs'
+// ========== PLACEMENTS ==========
+async function getDeletedPassports() {
+  const db = getDatabase();
+  const sql = `
+    SELECT 
+      pt.id,
+      c.name as candidateName,
+      pt.passportNumber,  /* ✅ Use correct column name - no underscore */
+      pt.issueDate,       /* ✅ Use camelCase if that's your schema */
+      pt.expiryDate,
+      pt.createdAt
+    FROM passport_tracking pt
+    LEFT JOIN candidates c ON pt.candidate_id = c.id
+    WHERE pt.isDeleted = 1
+    ORDER BY pt.createdAt DESC
+  `;
+  try {
+    const rows = await dbAll(db, sql, []);
+    return { success: true, data: rows };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+async function permanentDeletePlacement(id) {
+  const db = getDatabase();
+  
+  const sql = `DELETE FROM placements WHERE id = ?`;
+  
+  try {
+    await dbRun(db, sql, [id]);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+async function checkPlacementExists(candidateId, jobOrderId) {
+  const db = getDatabase();
+  
+  const sql = `
+    SELECT id FROM placements 
+    WHERE candidate_id = ? 
+      AND job_order_id = ? 
+      AND isDeleted = 0
+  `;
+  
+  try {
+    const row = await dbGet(db, sql, [candidateId, jobOrderId]);
+    return row !== undefined;
+  } catch (err) {
+    console.error('Error checking placement:', err.message);
+    return false;
+  }
+}
 
+
+async function restorePlacement(id) {
+  const db = getDatabase();
+  try {
+    await dbRun(db, 'UPDATE placements SET isDeleted = 0 WHERE id = ?', [id]);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+// ========== PASSPORT TRACKING ==========
+async function getDeletedPassports() {
+  const db = getDatabase();
+  const sql = `
+    SELECT 
+      pt.id,
+      c.name as candidateName,      
+      pt.createdAt
+    FROM passport_tracking pt
+    LEFT JOIN candidates c ON pt.candidate_id = c.id
+    WHERE pt.isDeleted = 1
+    ORDER BY pt.createdAt DESC
+  `;
+  try {
+    const rows = await dbAll(db, sql, []);
+    return { success: true, data: rows };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+async function restorePassport(id) {
+  const db = getDatabase();
+  try {
+    await dbRun(db, 'UPDATE passport_tracking SET isDeleted = 0 WHERE id = ?', [id]);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+// ========== VISA TRACKING ==========
+async function getDeletedVisas() {
+  const db = getDatabase();
+  const sql = `
+    SELECT 
+      vt.id,
+      c.name as candidateName,
+      vt.visa_type,
+      vt.status,
+      vt.application_date,
+      vt.createdAt
+    FROM visa_tracking vt
+    LEFT JOIN candidates c ON vt.candidate_id = c.id
+    WHERE vt.isDeleted = 1
+    ORDER BY vt.createdAt DESC
+  `;
+  try {
+    const rows = await dbAll(db, sql, []);
+    return { success: true, data: rows };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+async function restoreVisa(id) {
+  const db = getDatabase();
+  try {
+    await dbRun(db, 'UPDATE visa_tracking SET isDeleted = 0 WHERE id = ?', [id]);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+// ========== PERMANENT DELETE (ALL TYPES) ==========
+async function deletePermanently(id, targetType) {
+  const db = getDatabase();
+  let sql;
+  let identifier;
+
+  switch (targetType) {
+    case 'candidates':
+      sql = 'DELETE FROM candidates WHERE id = ?';
+      identifier = 'candidate';
+      break;
+    case 'employers':
+      sql = 'DELETE FROM employers WHERE id = ?';
+      identifier = 'employer';
+      break;
+    case 'job_orders':
+      sql = 'DELETE FROM job_orders WHERE id = ?';
+      identifier = 'job order';
+      break;
+    case 'required_docs':
+      sql = 'DELETE FROM required_documents WHERE id = ?';
+      identifier = 'required document';
+      break;
+    case 'placements':
+      sql = 'DELETE FROM placements WHERE id = ?';
+      identifier = 'placement';
+      break;
+    case 'passports':
+      sql = 'DELETE FROM passport_tracking WHERE id = ?';
+      identifier = 'passport';
+      break;
+    case 'visas':
+      sql = 'DELETE FROM visa_tracking WHERE id = ?';
+      identifier = 'visa';
+      break;
+    default:
+      return { success: false, error: 'Invalid target type for permanent deletion.' };
+  }
+
+  try {
+    const result = await dbRun(db, sql, [id]);
+    if (result.changes === 0) {
+      return { success: false, error: `${identifier} not found.` };
+    }
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
 
 // ====================================================================
 // 11. LICENSING/ACTIVATION FUNCTIONS (NEW)
@@ -2001,8 +2111,7 @@ async function setActivationStatus(statusData) {
 }
 
 async function updatePassportEntry(id, data) {
-  const accessCheck = await checkUserDelegatedAccess(user, 'isDocumentsEnabled'); // Using Documents as proxy
-    if (!accessCheck.success) return accessCheck;
+  
     const db = getDatabase();
 // Validation
     const errors = {};
@@ -2032,8 +2141,7 @@ async function updatePassportEntry(id, data) {
 }
 
 async function deletePassportEntry(id) {
-  const accessCheck = await checkUserDelegatedAccess(user, 'isDocumentsEnabled'); // Using Documents as proxy
-    if (!accessCheck.success) return accessCheck;
+  
     const db = getDatabase();
     try {
         const row = await dbGet(db, 'SELECT candidate_id FROM passport_tracking WHERE id = ?', [id]);
@@ -2266,6 +2374,74 @@ async function getActivationStatus() {
   };
 }
 
+async function getDeletedPlacements() {
+  const db = getDatabase();
+  
+  const sql = `
+    SELECT 
+      p.id, 
+      p.candidate_id,
+      p.job_order_id,
+      c.name as candidateName, 
+      j.positionTitle as jobTitle,
+      p.assignedAt,
+      p.status,
+      p.isDeleted
+    FROM placements p
+    LEFT JOIN candidates c ON p.candidate_id = c.id
+    LEFT JOIN job_orders j ON p.job_order_id = j.id
+    WHERE p.isDeleted = 1
+    ORDER BY p.status DESC
+  `;
+  
+  try {
+    const rows = await dbAll(db, sql, []);
+    console.log(`🗑️ Found ${rows.length} deleted placements`);
+    return { success: true, data: rows };
+  } catch (err) {
+    console.error('❌ Error fetching deleted placements:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+async function getPlacements() {
+  const db = getDatabase();
+  
+  const sql = `
+    SELECT 
+      p.id, 
+      p.candidate_id,
+      p.job_order_id,
+      c.name as candidateName, 
+      j.positionTitle as jobTitle,
+      p.assignedAt,
+      p.status
+    FROM placements p
+    LEFT JOIN candidates c ON p.candidate_id = c.id
+    LEFT JOIN job_orders j ON p.job_order_id = j.id
+    WHERE p.isDeleted = 0
+    ORDER BY p.assignedAt DESC
+  `;
+  
+  try {
+    const rows = await dbAll(db, sql, []);
+    return { success: true, data: rows };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+async function softDeletePlacement(id) {
+  const db = getDatabase();
+  
+  const sql = `UPDATE placements SET isDeleted = 1 WHERE id = ?`;
+  
+  try {
+    await dbRun(db, sql, [id]);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
 
 module.exports = {
   // DB Helpers
@@ -2369,8 +2545,33 @@ module.exports = {
   getDeletedRequiredDocuments,
   restoreRequiredDocument,
 
-  // System & Utils
+  // Recycle Bin - Candidates
+  getDeletedCandidates,
+  restoreCandidate,
 
+  // Recycle Bin - Employers
+  getDeletedEmployers,
+  restoreEmployer,
+
+  // Recycle Bin - Job Orders
+  getDeletedJobOrders,
+  restoreJobOrder,
+getPlacements,
+  
+
+  // Recycle Bin - Placements
+  getDeletedPlacements,
+  restorePlacement,
+softDeletePlacement,
+  // Recycle Bin - Passports
+  getDeletedPassports,
+  restorePassport,
+
+  // Recycle Bin - Visas
+  getDeletedVisas,
+  restoreVisa,
+permanentDeletePlacement,
+checkPlacementExists,
   setActivationStatus, 
   getSuperAdminFeatureFlags,
   logCommunication,
