@@ -1,4 +1,5 @@
 const { contextBridge, ipcRenderer } = require("electron");
+const { getDeletedMedical, getDeletedInterviews, getDeletedTravel } = require("./src-electron/db/queries.cjs");
 
 contextBridge.exposeInMainWorld("electronAPI", {
 
@@ -257,5 +258,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getAdminAssignedFeatures: (payload) =>
     ipcRenderer.invoke('get-admin-assigned-features', payload),
     uploadResume: (payload) => ipcRenderer.invoke('upload-resume', payload),
+
+    getDeletedMedical: () => ipcRenderer.invoke('get-deleted-medical'),
+    getDeletedInterviews: () => ipcRenderer.invoke('get-deleted-interviews'),
+    getDeletedTravel: () => ipcRenderer.invoke('get-deleted-travel'),
+
 
 });

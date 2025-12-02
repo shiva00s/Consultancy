@@ -462,22 +462,22 @@ function RecycleBinPage({ user }) {
     },
     {
       key: 'travel',
-      title: `Travel (${deletedTravel.length})`,
-      icon: <FiSend />,
-      content: renderList(
-        deletedTravel,
-        'No deleted travel records found.',
-        (t) => (
-          <li key={t.id} className="recycle-item">
-            <div className="item-info">
-              <strong>{t.candidateName}</strong>
-              <span>
-                Status: {t.status || 'N/A'} – Destination:{' '}
-                {t.destination || 'N/A'}
-              </span>
-            </div>
-            {renderItemActions(t, 'travel', handleRestoreTravel)}
-          </li>
+  title: `Travel (${deletedTravel.length})`,
+  icon: <FiSend />,
+  content: renderList(
+    deletedTravel,
+    'No deleted travel records found.',
+    (t) => (
+      <li key={t.id} className="recycle-item">
+        <div className="item-info">
+          <strong>{t.candidateName}</strong>
+          <span>
+            PNR: {t.pnr || 'N/A'} – {t.departure_city || 'N/A'} → {t.arrival_city || 'N/A'}
+          </span>
+          <span>Travel Date: {t.travel_date || 'N/A'}</span>
+        </div>
+        {renderItemActions(t, 'travel', handleRestoreTravel)}
+      </li>
         )
       ),
     },

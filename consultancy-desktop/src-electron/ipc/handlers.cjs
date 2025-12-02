@@ -2063,6 +2063,20 @@ ipcMain.handle('get-candidate-finance', async (event, { user, candidateId }) => 
   }
 });
 
+ipcMain.handle('delete-placement-permanently', async (event, { user, id }) => {
+  if (!user || user.role !== 'super_admin') {
+    return {
+      success: false,
+      error: 'Access Denied: Only Super Admins can perform permanent deletion.',
+    };
+  }
+
+  const result = await queries.deletePlacementPermanently(id);
+  if (result.success) {
+    logAction(user, 'permanent_delete', 'placements', id);
+  }
+  return result;
+});
 
 
 

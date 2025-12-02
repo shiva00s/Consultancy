@@ -758,114 +758,7 @@ async function getCandidateDetails(id) {
   }
 }
 
-async function updateCandidateText(id, data) {
-  const db = getDatabase();
-  const errors = {};
-  const today = new Date().setHours(0, 0, 0, 0); // For date checks
 
-  // --- 1. Basic Validation ---
-  const nameValidation = validateRequired(data.name, "Candidate Name");
-  if (nameValidation) errors.name = nameValidation;
-
-  const passportValidation = validateRequired(data.passportNo, "Passport No");
-  if (passportValidation) errors.passportNo = passportValidation;
-
-  const positionValidation = validateRequired(data.Position, "Position");
-  if (positionValidation) errors.Position = positionValidation;
-
-  if (data.contact && !/^\d{10}$/.test(data.contact)) {
-    errors.contact = "Contact must be exactly 10 digits.";
-  }
-  if (data.passportExpiry) {
-    const expiryDate = new Date(data.passportExpiry).getTime();
-    if (expiryDate <= today)
-      errors.passportExpiry = "Passport Expiry must be in the future.";
-  }
-  // --- End Basic Validation ---
-
-  // --- 2. Aadhaar Validation ---
-  if (data.aadhar) {
-    if (!/^\d{12}$/.test(data.aadhar)) {
-      errors.aadhar = "Aadhar must be exactly 12 digits.";
-    }
-    // TEMPORARILY DISABLE VERHOEFF CHECK FOR STABILITY
-    // else if (!validateVerhoeff(data.aadhar)) {
-    //   errors.aadhar = 'Invalid Aadhaar Number (Checksum failed). Please check for typos.';
-    // }
-  }
-
-  // --- 3. Finalize Validation Errors ---
-  if (Object.keys(errors).length > 0) {
-    return { success: false, error: "Validation failed", errors: errors };
-  }
-
-  // --- 4. Duplicate Check (Passport & Aadhar) ---
-  try {
-    let checkSql =
-      "SELECT passportNo, aadhar FROM candidates WHERE (passportNo = ?";
-    const params = [data.passportNo];
-
-    if (data.aadhar) {
-      checkSql += " OR aadhar = ?";
-      params.push(data.aadhar);
-    }
-    checkSql += ") AND isDeleted = 0 AND id != ?";
-    params.push(id);
-
-    const existing = await dbGet(db, checkSql, params);
-
-    if (existing) {
-      const duplicateErrors = {};
-      if (existing.passportNo === data.passportNo) {
-        duplicateErrors.passportNo = `Passport No ${data.passportNo} already exists for another candidate.`;
-      }
-      if (data.aadhar && existing.aadhar === data.aadhar) {
-        duplicateErrors.aadhar = `Aadhar No ${data.aadhar} already exists for another candidate.`;
-      }
-      if (Object.keys(duplicateErrors).length > 0) {
-        return {
-          success: false,
-          error: "Duplicate field value detected.",
-          errors: duplicateErrors,
-        };
-      }
-    }
-
-    // --- 5. Execute Update ---
-    const sql = `UPDATE candidates SET
-      name = ?, education = ?, experience = ?, dob = ?,
-      passportNo = ?, passportExpiry = ?, contact = ?, aadhar = ?,
-      status = ?, notes = ?, Position = ?
-    WHERE id = ?`;
-
-    const updateParams = [
-      data.name,
-      data.education,
-      data.experience,
-      data.dob,
-      data.passportNo,
-      data.passportExpiry,
-      data.contact,
-      data.aadhar,
-      data.status,
-      data.notes,
-      data.Position,
-      id,
-    ];
-
-    await dbRun(db, sql, updateParams);
-    return { success: true };
-  } catch (err) {
-    if (err.message.includes("UNIQUE constraint failed")) {
-      return {
-        success: false,
-        error: `A unique field (like Passport) already exists.`,
-        field: "passportNo",
-      };
-    }
-    return { success: false, error: err.message };
-  }
-}
 
 
 async function deleteCandidate(id) {
@@ -2029,10 +1922,13 @@ async function getDeletedPassports() {
   const sql = `
     SELECT 
       pt.id,
-      c.name as candidateName,
-      pt.passportNumber,
-      pt.issueDate,
-      pt.expiryDate,
+      c.name AS candidateName,
+      pt.received_date,
+      pt.dispatch_date,
+      pt.docket_number,
+      pt.passport_status,
+      pt.source_type,
+      pt.agent_contact,
       pt.createdAt
     FROM passport_tracking pt
     LEFT JOIN candidates c ON pt.candidate_id = c.id
@@ -2046,6 +1942,7 @@ async function getDeletedPassports() {
     return { success: false, error: err.message };
   }
 }
+
 
 async function restorePassport(id) {
   const db = getDatabase();
@@ -2098,10 +1995,9 @@ async function getDeletedMedical() {
   const sql = `
     SELECT 
       m.id,
-      c.name as candidateName,
+      c.name AS candidateName,
       m.status,
-      m.centerName,
-      m.testDate,
+      m.test_date AS testDate,
       m.createdAt
     FROM medical_tracking m
     LEFT JOIN candidates c ON m.candidate_id = c.id
@@ -2116,6 +2012,7 @@ async function getDeletedMedical() {
   }
 }
 
+
 async function restoreMedical(id) {
   const db = getDatabase();
   try {
@@ -2128,19 +2025,26 @@ async function restoreMedical(id) {
   }
 }
 
-async function getDeletedInterviews() {
+async function getDeletedVisas() {
   const db = getDatabase();
   const sql = `
     SELECT 
-      i.id,
-      c.name as candidateName,
-      i.status,
-      i.interviewDate,
-      i.createdAt
-    FROM interview_tracking i
-    LEFT JOIN candidates c ON i.candidate_id = c.id
-    WHERE i.isDeleted = 1
-    ORDER BY i.createdAt DESC
+      vt.id,
+      c.name AS candidateName,
+      vt.country,
+      vt.visa_type AS visaType,
+      vt.status,
+      vt.application_date,
+      vt.position,
+      vt.passport_number,
+      vt.travel_date,
+      vt.contact_type,
+      vt.agent_contact,
+      vt.createdAt
+    FROM visa_tracking vt
+    LEFT JOIN candidates c ON vt.candidate_id = c.id
+    WHERE vt.isDeleted = 1
+    ORDER BY vt.createdAt DESC
   `;
   try {
     const rows = await dbAll(db, sql, []);
@@ -2149,6 +2053,8 @@ async function getDeletedInterviews() {
     return { success: false, error: err.message };
   }
 }
+
+
 
 async function restoreInterview(id) {
   const db = getDatabase();
@@ -2167,10 +2073,11 @@ async function getDeletedTravel() {
   const sql = `
     SELECT 
       t.id,
-      c.name as candidateName,
-      t.status,
-      t.travelDate,
-      t.destination,
+      c.name AS candidateName,
+      t.pnr,
+      t.travel_date,
+      t.departure_city,
+      t.arrival_city,
       t.createdAt
     FROM travel_tracking t
     LEFT JOIN candidates c ON t.candidate_id = c.id
@@ -2185,6 +2092,7 @@ async function getDeletedTravel() {
   }
 }
 
+
 async function restoreTravel(id) {
   const db = getDatabase();
   try {
@@ -2196,6 +2104,30 @@ async function restoreTravel(id) {
     return { success: false, error: err.message };
   }
 }
+
+async function getDeletedInterviews() {
+  const db = getDatabase();
+  const sql = `
+    SELECT 
+      i.id,
+      c.name AS candidateName,
+      i.status,
+      i.interview_date AS interviewDate,
+      i.round,
+      i.createdAt
+    FROM interview_tracking i
+    LEFT JOIN candidates c ON i.candidate_id = c.id
+    WHERE i.isDeleted = 1
+    ORDER BY i.createdAt DESC
+  `;
+  try {
+    const rows = await dbAll(db, sql, []);
+    return { success: true, data: rows };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
 
 // ---------- PERMANENT DELETE ----------
 async function deletePermanently(id, targetType) {
@@ -2610,6 +2542,15 @@ async function softDeletePlacement(id) {
   }
 }
 
+async function permanentDeletePlacement(id) {
+  const db = getDatabase();
+  const sql = 'DELETE FROM placements WHERE id = ?';
+  const result = await dbRun(db, sql, [id]);
+  return { success: result.changes > 0, error: result.changes ? null : 'Placement not found.' };
+}
+
+
+
 async function getAdminAssignedFeatures(userId) {
   const db = getDatabase();
 
@@ -2627,6 +2568,17 @@ async function getAdminAssignedFeatures(userId) {
     });
   });
 }
+
+async function checkPlacementExists(id) {
+  const db = getDatabase();
+  try {
+    const row = await dbGet(db, 'SELECT id FROM placements WHERE id = ?', [id]);
+    return !!row; // true if found, false if not
+  } catch (err) {
+    return false;
+  }
+}
+
 
 module.exports = {
   // DB Helpers
