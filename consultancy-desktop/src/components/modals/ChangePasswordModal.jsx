@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FiX, FiAlertTriangle, FiCheckCircle, FiLock } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
+
 function ChangePasswordModal({ user, onClose, onPasswordChange }) {
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');

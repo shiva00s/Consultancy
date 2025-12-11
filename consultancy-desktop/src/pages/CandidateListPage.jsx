@@ -4,6 +4,7 @@ import { FiSearch, FiEdit, FiUser, FiChevronLeft, FiChevronRight } from 'react-i
 import toast from 'react-hot-toast';
 import '../css/CandidateListPage.css';
 
+
 const statusOptions = [
   'New', 'Documents Collected', 'Visa Applied', 'In Progress', 'Completed', 'Rejected',
 ];
@@ -178,9 +179,10 @@ function CandidateListPage() {
             onChange={(e) => {
                 const newStatus = e.target.value;
                 setStatusFilter(newStatus);
-                setTimeout(() => {
-                    runSearch(1, searchTerm, newStatus);
-                }, 100);
+                // 🐞 FIX: Removed redundant runSearch call here. Rely on form submit.
+                // setTimeout(() => {
+                //     runSearch(1, searchTerm, newStatus);
+                // }, 100);
             }}
           >
             <option value="">All Statuses</option>

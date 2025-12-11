@@ -1,0 +1,359 @@
+:root {
+  --perm-modal-bg: var(--bg-primary, #111319);
+  --perm-card-bg: var(--bg-secondary, #181b22);
+  --perm-border: var(--border-color, #262a33);
+  --perm-text-main: var(--text-primary, #f5f5f7);
+  --perm-text-muted: var(--text-secondary, #a1a1aa);
+  --perm-accent: var(--primary-color, #3b82f6);
+  --perm-accent-soft: rgba(59, 130, 246, 0.12);
+  --perm-danger: #ef4444;
+}
+
+/* Overlay */
+.perm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+/* Modal (final, compact, flex layout) */
+.perm-modal {
+  background: var(--perm-modal-bg);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 980px;
+  max-height: 85vh; /* fit within screen */
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  overflow: hidden;
+}
+
+/* Header */
+.perm-modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--perm-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.perm-modal-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--perm-text-main);
+}
+
+.perm-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--perm-text-muted);
+}
+
+.perm-close-btn {
+  border: none;
+  background: transparent;
+  color: var(--perm-text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 999px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.perm-close-btn:hover {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--perm-text-main);
+}
+
+/* Info bar (compact) */
+.perm-info-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px; /* compact */
+  background: var(--perm-accent-soft);
+  color: var(--perm-text-main);
+  font-size: 0.82rem; /* slightly smaller */
+  flex-shrink: 0; /* don't shrink */
+}
+
+.perm-info-icon {
+  flex-shrink: 0;
+}
+
+/* Body (scrolls inside, fits in viewport) */
+.perm-modal-body {
+  padding: 12px 20px;
+  overflow-y: auto;
+  flex: 1;        /* take remaining space */
+  min-height: 0;  /* critical for flex scroll */
+}
+
+/* Section card (compact) */
+.perm-section-card {
+  background: var(--perm-card-bg);
+  border-radius: 8px;
+  border: 1px solid var(--perm-border);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.perm-section-header {
+  margin-bottom: 6px;
+}
+
+.perm-section-header h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--perm-text-main);
+  font-weight: 600;
+}
+
+/* Permission rows (tight) */
+.perm-section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* reduced */
+}
+
+.perm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 4px; /* reduced */
+}
+
+.perm-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.perm-label {
+  font-size: 0.88rem; /* slightly smaller */
+  color: var(--perm-text-main);
+}
+
+.perm-row-disabled {
+  opacity: 0.5;
+}
+
+/* Toggle + lock */
+.perm-row-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.perm-lock-hint {
+  color: var(--perm-text-muted);
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Toggle switch */
+.perm-toggle {
+  width: 38px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: #020617;
+  position: relative;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.perm-toggle-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.7);
+  transition: transform 0.18s ease;
+}
+
+/* State: On */
+.perm-toggle.on {
+  background: var(--perm-accent);
+  border-color: var(--perm-accent);
+}
+
+.perm-toggle.on .perm-toggle-knob {
+  transform: translateX(16px);
+}
+
+/* State: Off */
+.perm-toggle.off {
+  background: #020617;
+}
+
+/* Disabled toggle */
+.toggle-disabled {
+  cursor: not-allowed;
+}
+
+/* Footer (compact, fixed height) */
+.perm-modal-footer {
+  padding: 10px 20px; /* compact */
+  border-top: 1px solid var(--perm-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.95);
+  flex-shrink: 0; /* don't shrink */
+}
+
+/* Scrollbar */
+.perm-modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.perm-modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.perm-modal-body::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 999px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .perm-modal {
+    max-width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .perm-row {
+    align-items: flex-start;
+  }
+}
+.perm-section-content {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr); /* 4 columns, adjust to 5 if needed */
+  gap: 8px 18px;
+  /* For mobile fallback */
+  @media (max-width: 700px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  @media (max-width: 450px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.perm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px;
+  border-radius: 6px;
+  background: transparent;
+  /* Optional: add subtle highlight */
+  /* background: rgba(255,255,255,0.02); */
+}
+
+:root {
+  --perm-modal-bg: var(--bg-primary, #111319);
+  --perm-card-bg: var(--bg-secondary, #181b22);
+  --perm-border: var(--border-color, #262a33);
+  --perm-text-main: var(--text-primary, #f5f5f7);
+  --perm-text-muted: var(--text-secondary, #a1a1aa);
+  --perm-accent: var(--primary-color, #3b82f6);
+  --perm-accent-soft: rgba(59, 130, 246, 0.12);
+  --perm-danger: #ef4444;
+}
+/* --- */
+[data-theme="light"] {
+  --perm-modal-bg: #f5f6fa;
+  --perm-card-bg: #fff;
+  --perm-border: #dbeafe;
+  --perm-text-main: #182030;
+  --perm-text-muted: #7a7a8a;
+  --perm-accent: #2563eb;
+  --perm-accent-soft: rgba(37, 99, 235, 0.08);
+}
+[data-theme="light"] .perm-section-card {
+  box-shadow: 0 2px 12px rgba(30,42,60,0.08);
+}
+/* ============================================
+   NEW STYLES FOR CASCADING PERMISSIONS
+   ============================================ */
+
+.perm-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+.perm-unavailable-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: #ef4444;
+  margin-left: 0.5rem;
+  font-weight: 500;
+}
+
+.perm-row-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.perm-row-disabled .perm-label {
+  color: var(--text-secondary);
+}
+
+.perm-lock-hint {
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin-right: 0.5rem;
+}
+
+.toggle-disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.toggle-disabled:hover {
+  transform: none !important;
+}
+
+/* Info bar styling update */
+.perm-info-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 12px;
+  color: #3b82f6;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.perm-info-icon {
+  flex-shrink: 0;
+  font-size: 1.25rem;
+  margin-top: 0.1rem;
+}

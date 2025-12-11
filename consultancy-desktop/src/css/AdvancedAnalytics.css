@@ -217,3 +217,61 @@
     width: 100%;
   }
 }
+/* AdvancedAnalytics.css (REPLACE hardcoded colors) */
+.advanced-analytics-page {
+  padding: 30px;
+  background-color: var(--bg-primary); /* Changed from #f5f7fa */
+  min-height: 100vh;
+}
+
+.analytics-header h1 {
+  font-size: 32px;
+  color: var(--text-primary); /* Changed from #1a202c */
+  margin-bottom: 8px;
+}
+
+.analytics-header p {
+  font-size: 16px;
+  color: var(--text-secondary); /* Changed from #718096 */
+}
+
+.time-range-selector select {
+  padding: 10px 20px;
+  border: 1px solid var(--border-color); /* Changed from #e2e8f0 */
+  border-radius: 8px;
+  font-size: 14px;
+  background-color: var(--bg-secondary); /* Changed from white */
+  color: var(--text-primary); /* New line for theming */
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+/* Metrics Grid */
+.metric-card {
+  background: var(--bg-tertiary); /* Changed from white */
+  border-radius: 12px;
+  padding: 24px;
+  /* ... */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metric-value {
+  font-size: 32px;
+  font-weight: bold;
+  color: var(--text-primary); /* Changed from #1a202c */
+  /* ... */
+}
+
+.metric-label {
+  font-size: 14px;
+  color: var(--text-secondary); /* Changed from #718096 */
+  /* ... */
+}
+/* ... (Continue for other sections like .chart-card) */
+.chart-card {
+  background: var(--bg-tertiary); /* Changed from white */
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}

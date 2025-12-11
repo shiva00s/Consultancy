@@ -30,47 +30,44 @@ function PaymentModal({ user, payment, onClose, onSave }) {
     // The potential updated total amount paid
     let updatedAmount = currentAmountPaid + addedAmount;
     
-    // --- 💥 NEW: Overpayment Prevention Check ---
-    // Only apply this check if the user is not setting the status to 'Refunded'
-    // since 'Refunded' often implies amount_paid is being deliberately adjusted/ignored.
-    if (updatedAmount > totalAmountDue && status !== 'Refunded') {
+    // 🐞 FIX: Initialize the status variable (was missing in previous patch)
+    let calculatedStatus = status; 
+    
+    // --- 💥 FIX: Overpayment Prevention Check (Caps only if not intentionally refunding) ---
+    // Only cap payment if the resulting status is NOT intended to be Refunded.
+    if (calculatedStatus !== 'Refunded' && updatedAmount > totalAmountDue) {
         // Calculate the maximum allowed amount to add
         const maxAllowedAdd = totalAmountDue - currentAmountPaid;
         
         if (maxAllowedAdd >= 0) {
             // Recalculate the updated amount to exactly match totalAmountDue
             updatedAmount = totalAmountDue;
-            // Optionally set a message, but proceed to save the capped amount
-            // setError(`Payment amount capped. Only ${formatCurrency(maxAllowedAdd)} was needed to mark as Paid.`);
         } else {
-            // This case happens if currentAmountPaid > totalAmountDue already (shouldn't happen with this fix)
-            // We still cap it at totalAmountDue
+            // If already overpaid, cap it at totalDue (prevents further accidental increases)
             updatedAmount = totalAmountDue;
         }
     }
     // --- END NEW CHECK ---
 
-
-    // --- 3. Determine Final Status ---
-    let newStatus = status; 
-    
-    if (newStatus !== 'Refunded') {
+    // --- 4. Determine Final Status (Post-cap calculation) ---
+    // If user selected 'Refunded', respect it. Otherwise, calculate status based on actual capped/paid amount.
+    if (calculatedStatus !== 'Refunded') { 
       if (updatedAmount >= totalAmountDue) {
-        newStatus = 'Paid';
+        calculatedStatus = 'Paid';
       } else if (updatedAmount > 0) {
-        newStatus = 'Partial';
+        calculatedStatus = 'Partial';
       } else {
-        newStatus = 'Pending';
+        calculatedStatus = 'Pending';
       }
     }
     
-    // --- 4. Pass Data to Parent and Close ---
+    // --- 5. Pass Data to Parent and Close ---
     onSave({
       user, 
       id: payment.id,
       total_amount: totalAmountDue, 
       amount_paid: updatedAmount,   // The capped or calculated amount
-      status: newStatus,            
+      status: calculatedStatus,     // The final calculated or overridden status
     });
     onClose();
   };
@@ -79,15 +76,16 @@ function PaymentModal({ user, payment, onClose, onSave }) {
   const amountRemaining = (parseFloat(payment.total_amount) || 0) - (parseFloat(originalAmount) || 0);
   const projectedAmountPaid = (parseFloat(originalAmount) || 0) + (parseFloat(newPayment) || 0);
   const totalAmountDue = parseFloat(payment.total_amount) || 0;
-  const isOverpaying = projectedAmountPaid > totalAmountDue;
+  const isOverpaying = newPayment && (parseFloat(newPayment) > 0) && (projectedAmountPaid > totalAmountDue && status !== 'Refunded');
+  
   // Custom helper for display message based on projected amount
   const getProjectedMessage = () => {
       if (!newPayment || parseFloat(newPayment) <= 0) return null;
       
-      if (projectedAmountPaid > totalAmountDue) {
+      if (projectedAmountPaid > totalAmountDue && status !== 'Refunded') {
           const excess = projectedAmountPaid - totalAmountDue;
-          return <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--error-color)' }}>
-              Projected Paid: {formatCurrency(projectedAmountPaid)}. **Warning: {formatCurrency(excess)} excess.**
+          return <small style={{ marginTop: '0.5rem', display: 'block', color: 'var(--danger-color)' }}>
+              Projected Paid: {formatCurrency(projectedAmountPaid)}. **Warning: {formatCurrency(excess)} excess (Capped).**
           </small>;
       }
       return <small style={{ marginTop: '0.5rem', display: 'block' }}>
@@ -123,7 +121,7 @@ function PaymentModal({ user, payment, onClose, onSave }) {
             </p>
             <p style={{color: 'var(--text-primary)'}}>
               Amount Due:{' '}
-              <strong style={{color: amountRemaining > 0 ? 'var(--error-color)' : 'var(--success-color)'}}>
+              <strong style={{color: amountRemaining > 0 ? 'var(--danger-color)' : 'var(--success-color)'}}>
                 {formatCurrency(amountRemaining > 0 ? amountRemaining : 0)}
               </strong>
             </p>

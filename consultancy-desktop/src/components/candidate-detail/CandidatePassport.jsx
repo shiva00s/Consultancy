@@ -5,6 +5,7 @@ import useAuthStore from '../../store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
 import '../../css/CandidatePassport.css';
 import DocumentViewer from '../DocumentViewer';
+import PassportEditModal from "../modals/PassportEditModal"; 
 
 const initialForm = {
     passport_status: 'Received',
@@ -28,8 +29,9 @@ function CandidatePassport({ candidateId, documents }) {
     const [isSaving, setIsSaving] = useState(false);
     const [viewingDoc, setViewingDoc] = useState(null);
 
-    // --- NEW: Edit Mode State ---
-    const [editingId, setEditingId] = useState(null);
+    // --- FIX: Edit Mode State / Modal Management ---
+    // This state holds the entry data to be passed to the modal for editing.
+    const [editingEntry, setEditingEntry] = useState(null); 
 
     // Find passport document
     const passportDoc = documents?.find(doc => 
@@ -54,7 +56,7 @@ function CandidatePassport({ candidateId, documents }) {
         setForm((prev) => ({ ...prev, [name]: value }));
     };
 
-    // --- CRUD: Create or Update ---
+    // --- CRUD: Create ONLY ---
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -70,23 +72,16 @@ function CandidatePassport({ candidateId, documents }) {
         const data = { ...form, candidate_id: candidateId };
         
         let res;
-        if (editingId) {
-            // UPDATE EXISTING
-            res = await window.electronAPI.updatePassportEntry({ user, id: editingId, data });
-        } else {
-            // CREATE NEW
-            res = await window.electronAPI.addPassportEntry({ user, data });
-        }
+        // This form is strictly for CREATE.
+        res = await window.electronAPI.addPassportEntry({ user, data });
+        
 
         if (res.success) {
-            if (editingId) {
-                setEntries(prev => prev.map(e => e.id === editingId ? res.data : e));
-                toast.success('Entry updated successfully!');
-            } else {
-                setEntries(prev => [res.data, ...prev]);
-                toast.success('Passport entry saved!');
-            }
-            handleCancelEdit(); // Reset form
+            // Prepend new entry
+            setEntries(prev => [res.data, ...prev]);
+            toast.success('Passport entry saved!');
+            
+            setForm(initialForm); // Reset form
         } else {
             toast.error(res.error || 'Operation failed.');
         }
@@ -94,37 +89,33 @@ function CandidatePassport({ candidateId, documents }) {
         setIsSaving(false);
     };
 
-    // --- CRUD: Delete ---
+    // --- CRUD: Delete (Soft Delete) ---
     const handleDelete = async (id) => {
-        if(!window.confirm("Are you sure you want to delete this entry?")) return;
+        if(!window.confirm("Are you sure you want to move this entry to the Recycle Bin?")) return;
         
         const res = await window.electronAPI.deletePassportEntry({ user, id });
         if (res.success) {
             setEntries(prev => prev.filter(e => e.id !== id));
-            toast.success("Entry deleted.");
-            if (editingId === id) handleCancelEdit();
+            toast.success("Entry moved to Recycle Bin.");
+            // If the entry being deleted was actively being edited (via modal), close the modal.
+            if (editingEntry?.id === id) setEditingEntry(null); 
         } else {
             toast.error(res.error || "Failed to delete.");
         }
     };
 
-    // --- CRUD: Prepare Edit ---
+    // --- CRUD: Prepare Edit (Opens Modal) ---
     const handleEdit = (entry) => {
-        setEditingId(entry.id);
-        setForm({
-            passport_status: entry.passport_status,
-            received_date: entry.received_date || '',
-            received_notes: entry.received_notes || '',
-            dispatch_date: entry.dispatch_date || '',
-            docket_number: entry.docket_number || '',
-            dispatch_notes: entry.dispatch_notes || '',
-            source_type: entry.source_type || 'Direct Candidate',
-            agent_contact: entry.agent_contact || '',
-        });
+        setEditingEntry(entry); // Set full object to open modal
+    };
+    
+    // --- Update from Modal Save ---
+    const handleUpdateFromModal = (updatedEntry) => {
+        setEntries(prev => prev.map(e => e.id === updatedEntry.id ? updatedEntry : e));
+        setEditingEntry(null);
     };
 
     const handleCancelEdit = () => {
-        setEditingId(null);
         setForm(initialForm);
     };
     
@@ -150,13 +141,24 @@ function CandidatePassport({ candidateId, documents }) {
                 <DocumentViewer doc={viewingDoc} onClose={() => setViewingDoc(null)} />
             )}
 
+            {/* --- NEW: RENDER PassportEditModal --- */}
+            {editingEntry && (
+                <PassportEditModal 
+                    user={user}
+                    entry={editingEntry}
+                    onClose={() => setEditingEntry(null)}
+                    onSave={handleUpdateFromModal}
+                />
+            )}
+            {/* ------------------------- */}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(350px, 1fr) 2fr', gap: '24px', alignItems: 'start' }}>
 
-                {/* LEFT COLUMN: FORM */}
-                <div className="module-form-card" style={{marginTop:0, borderColor: editingId ? 'var(--primary-color)' : ''}}>
+                {/* LEFT COLUMN: ADD NEW FORM */}
+                <div className="module-form-card" style={{marginTop:0}}>
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '15px', borderBottom: '1px solid var(--border-color)'}}>
                         <h3 style={{margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                            {editingId ? <><FiEdit2 /> Edit Entry</> : <><FiPlus /> Record Movement</>}
+                            <FiPlus /> Record Movement
                         </h3>
                         {passportDoc && (
                             <button type="button" className="btn btn-secondary" onClick={handleViewPassport} title={`View ${passportDoc.fileName}`} style={{padding: '0 12px', fontSize: '0.75rem', height: '32px', display: 'flex', gap: '6px', alignItems: 'center'}}>
@@ -215,13 +217,8 @@ function CandidatePassport({ candidateId, documents }) {
 
                         <div style={{display:'flex', gap:'10px'}}>
                             <button type="submit" className="btn btn-full-width" disabled={isSaving} style={{ marginTop: '10px', flexGrow: 1 }}>
-                                {isSaving ? 'Saving...' : (editingId ? 'Update Entry' : 'Save Entry')}
+                                {isSaving ? 'Saving...' : 'Save Entry'}
                             </button>
-                            {editingId && (
-                                <button type="button" className="btn btn-secondary" onClick={handleCancelEdit} style={{marginTop:'10px'}}>
-                                    <FiX />
-                                </button>
-                            )}
                         </div>
                     </form>
                 </div>
@@ -241,7 +238,7 @@ function CandidatePassport({ candidateId, documents }) {
                             </div>
                         ) : (
                             entries.map((entry) => (
-                                <div className={`passport-item module-list-item ${editingId === entry.id ? 'highlight-edit' : ''}`} key={entry.id} style={{alignItems: 'flex-start'}}>
+                                <div className={`passport-item module-list-item ${editingEntry?.id === entry.id ? 'highlight-edit' : ''}`} key={entry.id} style={{alignItems: 'flex-start'}}>
                                     <div className="item-icon" style={{marginTop: '4px'}}>
                                         {getStatusIcon(entry.passport_status)}
                                     </div>
@@ -264,7 +261,7 @@ function CandidatePassport({ candidateId, documents }) {
                                             </div>
                                         )}
                                         {(entry.received_notes || entry.dispatch_notes) && (
-                                            <div style={{marginTop: '8px', padding: '8px 12px', background: 'var(--bg-body)', borderRadius: '6px', fontSize: '0.85rem', borderLeft: '3px solid var(--border-color)'}}>
+                                            <div style={{marginTop: '8px', padding: '8px 12px', background: 'var(--bg-body)', borderRadius: '6px', borderLeft: '3px solid var(--border-color)'}}>
                                                 {entry.received_notes || entry.dispatch_notes}
                                             </div>
                                         )}

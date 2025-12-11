@@ -1,12 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const ip = require('ip');
-const jwt = require('jsonwebtoken'); // <--- NEW IMPORT
+const jwt = require('jsonwebtoken');
+// <--- NEW IMPORT
 const multer = require('multer');
 const { saveDocumentFromApi } = require('../ipc/handlers.cjs');
 const upload = multer({ storage: multer.memoryStorage() });
-
-
 const { 
     login, 
     searchCandidates, 
@@ -15,18 +14,27 @@ const {
     deleteCandidate,
     addPassportEntry, 
     getPassportTracking,
-    getSuperAdminFeatureFlags 
+    getSuperAdminFeatureFlags,
+    getJwtSecret // 🐞 FIX: Import getJwtSecret
 } = require('../db/queries.cjs');
-
 const app = express();
 const PORT = 3000;
-// SECRET KEY: In production, this should be in .env. For now, a hardcoded complex string is safer than nothing.
-const JWT_SECRET = "consultancy_app_secret_key_998877"; 
+let JWT_SECRET = "initial_secret_loading"; // Placeholder until loaded
+
+// 🐞 FIX: Function to load the secret securely
+async function loadSecret() {
+    try {
+        JWT_SECRET = await getJwtSecret();
+        console.log("🔑 JWT Secret loaded/generated securely.");
+    } catch (e) {
+        console.error("CRITICAL: Failed to load JWT Secret, using fallback.", e);
+    }
+}
+loadSecret(); // Load the secret when the module starts
 
 // Middleware
 app.use(cors()); 
 app.use(express.json({ limit: '50mb' }));
-
 // --- SECURITY MIDDLEWARE ---
 const authMiddleware = async (req, res, next) => {
     // 1. Skip check for Public Routes (Health check & Login)
@@ -74,7 +82,6 @@ app.get('/', (req, res) => {
         auth_required: true
     });
 });
-
 // 2. Authentication (Issues Token)
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
@@ -84,7 +91,7 @@ app.post('/api/login', async (req, res) => {
         // Generate Token valid for 24 hours
         const token = jwt.sign(
             { id: result.id, username: result.username, role: result.role }, 
-            JWT_SECRET, 
+            JWT_SECRET, // 🐞 FIX: Use the securely loaded secret
             { expiresIn: '24h' }
         );
         
@@ -94,7 +101,6 @@ app.post('/api/login', async (req, res) => {
         res.status(401).json(result);
     }
 });
-
 // 3. Candidate List / Search
 app.get('/api/candidates', async (req, res) => {
     const { q, status, position, page = 1 } = req.query;
@@ -109,7 +115,6 @@ app.get('/api/candidates', async (req, res) => {
         res.status(500).json(result);
     }
 });
-
 // 4. Add New Candidate
 app.post('/api/candidates', async (req, res) => {
     try {
@@ -120,7 +125,8 @@ app.post('/api/candidates', async (req, res) => {
             return res.status(400).json({ success: false, error: "Name and Passport are required." });
         }
         
-        // Use the Authenticated User from the Token
+        
+// Use the Authenticated User from the Token
         // Note: We pass textData to createCandidate. If you want to log WHO created it, 
         // you'd need to update createCandidate to accept a user ID, but for now we just secure the endpoint.
         const result = await createCandidate(textData);
@@ -134,7 +140,6 @@ app.post('/api/candidates', async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
-
 // 5. Candidate Details
 app.get('/api/candidates/:id', async (req, res) => {
     const result = await getCandidateDetails(req.params.id);
@@ -144,18 +149,15 @@ app.get('/api/candidates/:id', async (req, res) => {
         res.status(404).json(result);
     }
 });
-
 // 6. Passport Tracking
 app.get('/api/passport/:candidateId', async (req, res) => {
     const result = await getPassportTracking(req.params.candidateId);
     res.json(result);
 });
-
 app.post('/api/passport', async (req, res) => {
     const result = await addPassportEntry(req.body);
     res.json(result);
 });
-
 // 6. Delete Candidate (Used by Mobile)
 app.delete('/api/candidates/:id', async (req, res) => {
     try {
@@ -177,7 +179,6 @@ app.delete('/api/candidates/:id', async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
-
 // 7. Document Upload Endpoint (Phase 4.2)
 // Uses multer middleware to handle file data
 app.post('/api/documents/:candidateId', upload.single('document'), async (req, res) => {
@@ -188,6 +189,7 @@ app.post('/api/documents/:candidateId', upload.single('document'), async (req, r
         if (!candidateId || !file) {
             return res.status(400).json({ success: false, error: "Candidate ID and document file are required." });
         }
+    
         
         // --- PROCESS THE FILE ---
         // Since we are in the Express thread, we can't directly use the existing IPC handler (addDocuments).
@@ -205,7 +207,6 @@ app.post('/api/documents/:candidateId', upload.single('document'), async (req, r
             user: req.user, // User attached by JWT middleware
             fileData 
         });
-
         if (result.success) {
             res.json({ success: true, message: "Document uploaded and saved.", documentId: result.documentId });
         } else {
@@ -252,15 +253,15 @@ const handleDelete = async () => {
                             router.replace('/(tabs)');
                         }
                     } catch (error) { // Removed : any
-            Alert.alert("Error", error.message || "Failed to process deletion.");
-        } finally {
+                        Alert.alert("Error", error.message || "Failed to process deletion.");
+                    } finally {
                         setLoading(false);
                     }
                 }
             }
         ]
     );
-  };
+};
 
 // --- START SERVER ---
 function startServer() {

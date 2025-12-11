@@ -12,11 +12,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <HashRouter>
       <App />
-      {/* --- NEW: Add Toaster component --- */}
       <Toaster
         position="bottom-right"
         toastOptions={{
           style: {
+            // 🐞 FIX: Use theme variables for background and text
             background: 'var(--bg-tertiary)',
             color: 'var(--text-primary)',
             border: '1px solid var(--border-color)',

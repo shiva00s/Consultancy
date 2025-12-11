@@ -2,6 +2,14 @@ import React, { useState } from 'react';
 import { FiX, FiSend, FiAlertTriangle, FiDownload } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
+// --- NEW HANDLER INJECTION (Temporary Placeholder) ---
+const handleNewFileChange = (e) => {
+    // Placeholder to make JSX valid. File logic will be implemented later.
+    console.warn("New file selected, actual upload logic is pending implementation.");
+};
+// ----------------------------------------------------
+
+
 function TravelEditModal({ user, travel, onClose, onSave }) {
   const [formData, setFormData] = useState(travel);
   const [isSaving, setIsSaving] = useState(false);
@@ -101,11 +109,21 @@ function TravelEditModal({ user, travel, onClose, onSave }) {
                 <div className="form-group full-width">
                     <label>Current Ticket Document</label>
                     <a className="doc-item" onClick={() => openFile(formData.ticket_file_path)} style={{cursor: 'pointer', background: 'var(--bg-input)'}}>
-                        <FiDownload /> {formData.ticket_file_path.split('/').pop()} (Click to View)
+                        <FiDownload /> {formData.ticket_file_path.split(/[/\\]/).pop()} (Click to View)
                     </a>
                 </div>
             )}
             
+            <div className="form-group full-width">
+                <label htmlFor="new-ticket-file">Upload New Ticket (Replaces Existing)</label>
+                <input 
+                    type="file" 
+                    id="new-ticket-file" 
+                    name="new_ticket_file" 
+                    onChange={handleNewFileChange} 
+                />
+            </div>
+
             <button type="submit" className="btn full-width" disabled={isSaving} style={{gridColumn: '1 / -1'}}>
               {isSaving ? 'Saving...' : 'Save Travel Changes'}
             </button>

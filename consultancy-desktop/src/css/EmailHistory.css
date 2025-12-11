@@ -1,0 +1,131 @@
+/* ============================================
+   EMAIL HISTORY / COMMUNICATION LOG STYLES
+   (Reused by CommunicationHistory.jsx)
+   ============================================ */
+
+.email-history {
+    padding: 1.2rem 0;
+}
+
+.history-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.history-title svg {
+    color: var(--primary-color);
+}
+
+/* Timeline/List Container */
+.email-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 450px; /* Enforce scroll boundary */
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.email-item {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.email-item:hover {
+    background-color: var(--bg-input);
+    border-color: var(--primary-color);
+    cursor: pointer;
+}
+
+/* Header (The clickable part) */
+.email-header {
+    display: flex;
+    align-items: flex-start;
+    padding: 12px 15px;
+    gap: 12px;
+}
+
+.email-status {
+    flex-shrink: 0;
+    font-size: 1.2rem;
+    padding-top: 4px;
+}
+
+.status-icon.success {
+    color: var(--success-color);
+}
+.status-icon.error {
+    color: var(--danger-color);
+}
+
+.email-info {
+    flex-grow: 1;
+}
+
+.email-info h5 {
+    margin: 0 0 4px 0;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.email-meta {
+    display: flex;
+    gap: 15px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+.email-date, .email-recipient {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Body (Expanded Content) */
+.email-body {
+    padding: 15px;
+    border-top: 1px dashed var(--border-color);
+    background-color: var(--bg-tertiary);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.body-header strong, .body-meta strong {
+    color: var(--text-primary);
+    margin-right: 5px;
+}
+
+.body-content {
+    margin: 10px 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: var(--text-primary);
+}
+
+.body-attachments ul {
+    list-style: disc;
+    padding-left: 20px;
+    margin-top: 5px;
+}
+
+/* Empty State */
+.email-history-empty {
+    text-align: center;
+    padding: 30px;
+    color: var(--text-secondary);
+}
+.email-history-empty svg {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
