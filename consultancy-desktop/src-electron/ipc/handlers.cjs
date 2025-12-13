@@ -48,14 +48,9 @@ const logAction = (user, action, target_type, target_id, details = null) => {
             return;
         }
         
-        // Validate user object before proceeding
+        // ✅ Silently skip if user is invalid - no warning needed
         if (!user || !user.id) {
-            console.warn('⚠️ Audit log skipped: Invalid user object', { 
-                action, 
-                target_type, 
-                target_id 
-            });
-            return;
+            return; // Just return silently
         }
 
         const safeUsername = user.username || `User_${user.id}`;
@@ -78,6 +73,7 @@ const logAction = (user, action, target_type, target_id, details = null) => {
         console.error('🔥 Critical error in logAction:', e.message);
     }
 };
+
 
 const extractResumeDetails = (text) => {
     const details = {};
@@ -2139,10 +2135,10 @@ ipcMain.handle("send-whatsapp-bulk", (event, payload) =>
 //);
 
 // ====================================================================
-// VISA AUTO-FILL HANDLERS
+// VISA TRACKING AUTO-FILL HANDLERS
 // ====================================================================
 
-// Handler 1: Get Candidate By ID (with column aliases)
+// Handler 1: Get Candidate By ID with Position and Passport
 ipcMain.handle('get-candidate-by-id', async (event, { candidateId }) => {
   const db = getDatabase();
   
@@ -2151,8 +2147,8 @@ ipcMain.handle('get-candidate-by-id', async (event, { candidateId }) => {
       `SELECT 
         id,
         name,
-        passportNo,
-        Position,
+        passportNo as passport_number,
+        Position as position_applying_for,
         education,
         contact,
         status,
@@ -2168,23 +2164,14 @@ ipcMain.handle('get-candidate-by-id', async (event, { candidateId }) => {
         } else if (!row) {
           resolve({ success: false, error: 'Candidate not found' });
         } else {
-          // ✅ Transform the response to match expected field names
-          resolve({ 
-            success: true, 
-            data: {
-              ...row,
-              passport_number: row.passportNo,      // Map passportNo → passport_number
-              position_applying_for: row.Position   // Map Position → position_applying_for
-            }
-          });
+          resolve({ success: true, data: row });
         }
       }
     );
   });
 });
 
-
-// Handler 2: Get Candidate Job Placements
+// Handler 2: Get Candidate Job Placements (for country and job position)
 ipcMain.handle('get-candidate-job-placements', async (event, { candidateId }) => {
   const db = getDatabase();
   
@@ -2196,7 +2183,7 @@ ipcMain.handle('get-candidate-job-placements', async (event, { candidateId }) =>
         p.assignedAt as assignedDate,
         p.job_order_id as jobId,
         j.positionTitle,
-        e.country,
+        j.country,
         e.companyName
        FROM placements p
        LEFT JOIN job_orders j ON p.job_order_id = j.id
@@ -2217,7 +2204,7 @@ ipcMain.handle('get-candidate-job-placements', async (event, { candidateId }) =>
   });
 });
 
-// Handler 3: Get Job Order By ID
+// Handler 3: Get Job Order By ID (for detailed job information)
 ipcMain.handle('get-job-order-by-id', async (event, { jobId }) => {
   const db = getDatabase();
   

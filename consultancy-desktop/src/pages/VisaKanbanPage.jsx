@@ -2,15 +2,13 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
-  FiUser,
   FiActivity,
   FiRefreshCw,
-  FiExternalLink,
   FiSearch,
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import "../css/VisaKanban.css";  // assumes style file at that path
+import "../css/VisaKanban.css";
 
 const STATUS_ORDER = [
   "Pending",
@@ -36,11 +34,12 @@ export default function VisaKanbanPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [selectedStatuses, setSelectedStatuses] = useState([]); // ✅ Changed to array
   const navigate = useNavigate();
 
   const fetchData = async () => {
     setLoading(true);
-    const res = await window.electronAPI.getAllActiveVisas();  // your existing IPC
+    const res = await window.electronAPI.getAllActiveVisas();
     if (res.success) {
       setItems(res.data);
     } else {
@@ -54,14 +53,25 @@ export default function VisaKanbanPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    if (!query) return items;
-    const q = query.toLowerCase();
-    return items.filter((i) =>
-      i.candidateName?.toLowerCase().includes(q) ||
-      i.passportNo?.toLowerCase().includes(q) ||
-      i.country?.toLowerCase().includes(q)
-    );
-  }, [items, query]);
+    let result = items;
+
+    // ✅ Filter by multiple statuses
+    if (selectedStatuses.length > 0) {
+      result = result.filter((i) => selectedStatuses.includes(i.status));
+    }
+
+    if (query) {
+      const q = query.toLowerCase();
+      result = result.filter(
+        (i) =>
+          i.candidateName?.toLowerCase().includes(q) ||
+          i.passportNo?.toLowerCase().includes(q) ||
+          i.country?.toLowerCase().includes(q)
+      );
+    }
+
+    return result;
+  }, [items, query, selectedStatuses]);
 
   const getByStatus = (status) => filtered.filter((i) => i.status === status);
 
@@ -76,7 +86,10 @@ export default function VisaKanbanPage() {
     );
     setItems(updated);
 
-    const res = await window.electronAPI.updateVisaStatus({ id, status: newStatus });
+    const res = await window.electronAPI.updateVisaStatus({
+      id,
+      status: newStatus,
+    });
     if (!res.success) {
       toast.error("Update failed");
       fetchData();
@@ -85,12 +98,34 @@ export default function VisaKanbanPage() {
     }
   };
 
+  // ✅ Multi-select handler
+  const handleCategoryClick = (status) => {
+    setSelectedStatuses((prev) => {
+      if (prev.includes(status)) {
+        // Remove if already selected
+        return prev.filter((s) => s !== status);
+      } else {
+        // Add to selection
+        return [...prev, status];
+      }
+    });
+  };
+
+  const handleRefresh = () => {
+    setSelectedStatuses([]);
+    setQuery("");
+    fetchData();
+  };
+
   if (loading) return <div className="kanban-loading">Loading…</div>;
 
   return (
     <div className="kanban-container">
       <div className="kanban-header">
-        <h1><FiActivity /> Visa Tracking Board</h1>
+        <div className="header-left">
+          <FiActivity className="header-icon" />
+          <h1>Visa Tracking Board</h1>
+        </div>
 
         <div className="kanban-search-box">
           <FiSearch />
@@ -102,75 +137,117 @@ export default function VisaKanbanPage() {
           />
         </div>
 
-        <button className="refresh-btn" onClick={fetchData}>
+        <button className="refresh-btn" onClick={handleRefresh}>
           <FiRefreshCw className="spin-icon" /> Refresh
         </button>
       </div>
 
       <div className="summary-row">
         {STATUS_ORDER.map((st) => (
-          <div className="summary-pill" key={st} style={{ "--c": STATUS_INFO[st].color }}>
+          <div
+            className={`summary-pill ${
+              selectedStatuses.includes(st) ? "active" : ""
+            }`}
+            key={st}
+            style={{ "--c": STATUS_INFO[st].color }}
+            onClick={() => handleCategoryClick(st)}
+          >
             {STATUS_INFO[st].title}
-            <span>{getByStatus(st).length}</span>
+            <span>{items.filter((i) => i.status === st).length}</span>
           </div>
         ))}
       </div>
 
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="kanban-grid">
-          {STATUS_ORDER.map((status, idx) => (
-            <Droppable key={status} droppableId={status}>
-              {(prov, snap) => (
-                <div
-                  className={`kanban-column ${snap.isDraggingOver ? "drag-over" : ""} ${idx === 6 ? "center-last-column" : ""}`}
-                  ref={prov.innerRef}
-                  {...prov.droppableProps}
-                >
-                  <div className="column-header" style={{ borderTopColor: STATUS_INFO[status].color }}>
-                    {STATUS_INFO[status].title}
-                    <span className="count">{getByStatus(status).length}</span>
-                  </div>
+        <div
+          className={`kanban-grid ${
+            selectedStatuses.length === 1 ? "single-column-centered" : ""
+          }`}
+        >
+          {STATUS_ORDER.map((status) => {
+            // ✅ Show column if no filter OR if status is selected
+            if (
+              selectedStatuses.length > 0 &&
+              !selectedStatuses.includes(status)
+            ) {
+              return null;
+            }
 
-                  <div className="column-content">
-                    {getByStatus(status).map((item, index) => (
-                      <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
-                        {(p, s) => (
-                          <div
-                            className={`kanban-card ${s.isDragging ? "dragging" : ""}`}
-                            ref={p.innerRef}
-                            {...p.draggableProps}
-                            {...p.dragHandleProps}
-                            onClick={() => navigate(`/candidate/${item.candidate_id}?tab=visa`)}
-                          >
-                            <div className="card-row-top">
-                              <div className="avatar-sm">
-                                {item.photo ? (
-                                  <img src={item.photo} alt="" />
-                                ) : (
-                                  <span>{item.candidateName?.charAt(0)}</span>
-                                )}
-                              </div>
+            return (
+              <Droppable key={status} droppableId={status}>
+                {(prov, snap) => (
+                  <div
+                    className={`kanban-column ${
+                      snap.isDraggingOver ? "drag-over" : ""
+                    }`}
+                    ref={prov.innerRef}
+                    {...prov.droppableProps}
+                  >
+                    <div
+                      className="column-header"
+                      style={{ borderTopColor: STATUS_INFO[status].color }}
+                    >
+                      {STATUS_INFO[status].title}
+                      <span className="count">{getByStatus(status).length}</span>
+                    </div>
 
-                              <div className="card-name-block">
-                                <h3 className="card-name">{item.candidateName}</h3>
-                                <p className="card-meta-small">Country: {item.country}</p>
-                                <p className="card-meta-small">Passport: {item.passportNo}</p>
-                              </div>
+                    <div className="column-content">
+                      {getByStatus(status).map((item, index) => (
+                        <Draggable
+                          key={item.id}
+                          draggableId={item.id.toString()}
+                          index={index}
+                        >
+                          {(p, s) => (
+                            <div
+                              className={`kanban-card ${
+                                s.isDragging ? "dragging" : ""
+                              }`}
+                              ref={p.innerRef}
+                              {...p.draggableProps}
+                              {...p.dragHandleProps}
+                              onClick={() =>
+                                navigate(
+                                  `/candidate/${item.candidate_id}?tab=visa`
+                                )
+                              }
+                            >
+                              <div className="card-row-top">
+                                <div className="avatar-sm">
+                                  {item.photo ? (
+                                    <img src={item.photo} alt="" />
+                                  ) : (
+                                    <span>{item.candidateName?.charAt(0)}</span>
+                                  )}
+                                </div>
 
-                              <div className="card-date-top">
-                                {item.application_date}
+                                <div className="card-name-block">
+                                  <h3 className="card-name">
+                                    {item.candidateName}
+                                  </h3>
+                                  <p className="card-meta-small">
+                                    Country: {item.country}
+                                  </p>
+                                  <p className="card-meta-small">
+                                    Passport: {item.passportNo}
+                                  </p>
+                                </div>
+
+                                <div className="card-date-top">
+                                  {item.application_date}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {prov.placeholder}
+                          )}
+                        </Draggable>
+                      ))}
+                      {prov.placeholder}
+                    </div>
                   </div>
-                </div>
-              )}
-            </Droppable>
-          ))}
+                )}
+              </Droppable>
+            );
+          })}
         </div>
       </DragDropContext>
     </div>
