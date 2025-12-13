@@ -2134,7 +2134,88 @@ ipcMain.handle("send-whatsapp-bulk", (event, payload) =>
         openWhatsAppSingle(event, payload)
     );
 
-   
+// In electron.cjs or your IPC handlers file
+ipcMain.handle('get-candidate-by-id', async (event, { candidateId }) => {
+  const db = getDatabase();
+  
+  return new Promise((resolve) => {
+    db.get(
+      'SELECT * FROM candidates WHERE id = ? AND deleted_at IS NULL',
+      [candidateId],
+      (err, row) => {
+        if (err) {
+          console.error('Error fetching candidate:', err);
+          resolve({ success: false, error: err.message });
+        } else if (!row) {
+          resolve({ success: false, error: 'Candidate not found' });
+        } else {
+          resolve({ success: true, data: row });
+        }
+      }
+    );
+  });
+});
+
+ipcMain.handle('get-candidate-job-placements', async (event, { candidateId }) => {
+  const db = getDatabase();
+  
+  return new Promise((resolve) => {
+    db.all(
+      `SELECT 
+        cjp.id as placementId,
+        cjp.placement_status as placementStatus,
+        cjp.assigned_date as assignedDate,
+        cjp.employer_job_id as jobId,
+        ejo.position_title as positionTitle,
+        ejo.country,
+        e.name as companyName
+       FROM candidate_job_placements cjp
+       LEFT JOIN employer_job_orders ejo ON cjp.employer_job_id = ejo.id
+       LEFT JOIN employers e ON ejo.employer_id = e.id
+       WHERE cjp.candidate_id = ?
+       AND cjp.deleted_at IS NULL
+       ORDER BY cjp.assigned_date DESC`,
+      [candidateId],
+      (err, rows) => {
+        if (err) {
+          console.error('Error fetching job placements:', err);
+          resolve({ success: false, error: err.message });
+        } else {
+          resolve({ success: true, data: rows || [] });
+        }
+      }
+    );
+  });
+});
+
+ipcMain.handle('get-job-order-by-id', async (event, { jobId }) => {
+  const db = getDatabase();
+  
+  return new Promise((resolve) => {
+    db.get(
+      `SELECT 
+        ejo.*,
+        e.name as employer_name,
+        e.country as employer_country
+       FROM employer_job_orders ejo
+       LEFT JOIN employers e ON ejo.employer_id = e.id
+       WHERE ejo.id = ?
+       AND ejo.deleted_at IS NULL`,
+      [jobId],
+      (err, row) => {
+        if (err) {
+          console.error('Error fetching job order:', err);
+          resolve({ success: false, error: err.message });
+        } else if (!row) {
+          resolve({ success: false, error: 'Job order not found' });
+        } else {
+          resolve({ success: true, data: row });
+        }
+      }
+    );
+  });
+});
+
 
     //ipcMain.handle("send-whatsapp-bulk", (event, payload) =>
   //sendTwilioWhatsApp(event, payload)
