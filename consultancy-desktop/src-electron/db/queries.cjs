@@ -3324,12 +3324,19 @@ async function deleteJobOrder(user, id) {
   }
 }
 
+// ============================================================================
+// COMMUNICATION LOGS
+// ============================================================================
+
+/**
+ * Log a communication event
+ */
 async function logCommunication({ candidateId, userId, type, details }) {
   const db = getDatabase();
   
   const sql = `
-    INSERT INTO communication_logs (candidate_id, user_id, type, details, timestamp)
-    VALUES (?, ?, ?, ?, datetime('now'))
+    INSERT INTO communication_logs (candidate_id, user_id, communication_type, details)
+    VALUES (?, ?, ?, ?)
   `;
   
   try {
@@ -3342,21 +3349,25 @@ async function logCommunication({ candidateId, userId, type, details }) {
   }
 }
 
+/**
+ * Get all communication logs for a candidate
+ */
 async function getCommunicationLogs(candidateId) {
   const db = getDatabase();
   
   const sql = `
     SELECT 
       cl.id,
-      cl.type,
+      cl.communication_type,
       cl.details,
-      cl.timestamp,
+      cl.createdAt,
       u.username
     FROM communication_logs cl
     LEFT JOIN users u ON cl.user_id = u.id
     WHERE cl.candidate_id = ?
-    ORDER BY cl.timestamp DESC
+    ORDER BY cl.createdAt DESC
   `;
+
   
   try {
     const rows = await dbAll(db, sql, [candidateId]);
