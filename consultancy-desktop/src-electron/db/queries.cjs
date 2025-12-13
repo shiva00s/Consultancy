@@ -1264,13 +1264,13 @@ async function getCandidatePlacements(candidateId) {
   
   try {
     const rows = await dbAll(db, sql, [candidateId]);
-    console.log('✅ getCandidatePlacements result:', rows);
     return { success: true, data: rows || [] };
   } catch (err) {
     console.error('❌ getCandidatePlacements error:', err);
     return { success: false, error: mapErrorToFriendly(err), data: [] };
   }
 }
+
 
 
 

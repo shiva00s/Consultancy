@@ -279,10 +279,12 @@ restoreTravel: (payload) => ipcRenderer.invoke('restore-travel', payload),
 restoreInterview: (payload) => ipcRenderer.invoke('restore-interview', payload),
 
 sendWhatsAppBulk: (payload) => ipcRenderer.invoke("send-whatsapp-bulk", payload),
-  openWhatsAppSingle: (payload) => ipcRenderer.invoke("open-whatsapp-single", payload),
- 
+  openWhatsAppSingle: (payload) => ipcRenderer.invoke("open-whatsapp-single", payload), 
 
   getCommunicationLogs: (data) => ipcRenderer.invoke("getCommunicationLogs", data),
 
+getCandidateById: (data) => ipcRenderer.invoke('get-candidate-by-id', data),
+getCandidateJobPlacements: (data) => ipcRenderer.invoke('get-candidate-job-placements', data),
+getJobOrderById: (data) => ipcRenderer.invoke('get-job-order-by-id', data),
 
 });

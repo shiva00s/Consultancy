@@ -2181,12 +2181,14 @@ ipcMain.handle('get-candidate-job-placements', async (event, { candidateId }) =>
           console.error('Error fetching job placements:', err);
           resolve({ success: false, error: err.message });
         } else {
+          // ✅ REMOVED: console.log
           resolve({ success: true, data: rows || [] });
         }
       }
     );
   });
 });
+
 
 ipcMain.handle('get-job-order-by-id', async (event, { jobId }) => {
   const db = getDatabase();
