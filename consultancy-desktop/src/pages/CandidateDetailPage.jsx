@@ -13,7 +13,7 @@ import {
   FiArrowLeft,
   FiDownload,
   FiAlertTriangle,
-  FiMessageSquare,
+  FiMessageSquare, // ✅ Already imported
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 
@@ -334,47 +334,55 @@ function CandidateDetailPage({ user, flags }) {
             )}
           </div>
           <div className="form-group">
-            <label>Contact Number</label>
-            <div style={{ display: "flex", gap: "5px" }}>
-              <input
-                type="text"
-                name="contact"
-                value={formData.contact || ""}
-                onChange={handleTextChange}
-                readOnly={!isEditing}
-                style={{ flexGrow: 1 }}
-              />
-              {formData.contact && (
-                <button
-                  className="btn"
-                  style={{
-                    backgroundColor: "#25D366",
-                    color: "white",
-                    padding: "0 12px",
-                    minWidth: "auto",
-                  }}
-                  title="Chat on WhatsApp"
-                  type="button"
-                  onClick={() => {
-                    window.open(
-                      `https://wa.me/${formData.contact.replace(/\D/g, "")}`,
-                      "_blank",
-                    );
-                    window.electronAPI.logCommunication({
-                      user,
-                      candidateId: id,
-                      type: "WhatsApp",
-                      details: "Clicked Chat Button",
-                    });
-                  }}
-                >
-                  <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>
-                    ✆
-                  </span>
-                </button>
-              )}
-            </div>
-          </div>
+  <label>Contact Number</label>
+  <div style={{ display: "flex", gap: "5px" }}>
+    <input
+      type="text"
+      name="contact"
+      value={formData.contact || ""}
+      onChange={handleTextChange}
+      readOnly={!isEditing}
+      style={{ flexGrow: 1 }}
+    />
+    {formData.contact && (
+      <button
+        className="btn"
+        style={{
+          backgroundColor: "#25D366",
+          color: "white",
+          padding: "0 12px",
+          minWidth: "auto",
+        }}
+        title="Chat on WhatsApp"
+        type="button"
+        onClick={async () => {
+          const phone = formData.contact.replace(/\D/g, "");
+          
+          try {
+            // Open WhatsApp
+            window.open(`https://wa.me/${phone}`, "_blank");
+            
+            // Log communication with correct field names
+            await window.electronAPI.logCommunication({
+              user,
+              candidateId: id,
+              communication_type: "WhatsApp", // ✅ Fixed: was "type"
+              details: `Opened WhatsApp chat with +${phone}`, // ✅ Fixed: was "Clicked Chat Button"
+            });
+            
+            toast.success("WhatsApp opened");
+          } catch (err) {
+            console.error("WhatsApp error:", err);
+            toast.error("Failed to log communication");
+          }
+        }}
+      >
+        <FiMessageSquare style={{ fontSize: "1.1rem" }} />
+      </button>
+    )}
+  </div>
+</div>
+
           <div className="form-group">
             <label>Aadhar Number</label>
             <input

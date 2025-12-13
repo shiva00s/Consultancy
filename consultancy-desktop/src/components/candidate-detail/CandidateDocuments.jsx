@@ -17,15 +17,17 @@ import DocumentChecker from "./DocumentChecker";
 
 const documentCategories = [
   "Uncategorized",
-  "Passport",
-  "Resume",
-  "Photograph",
-  "Education",
-  "Experience Letter",
-  "Pan",
-  "Offer Letter",
-  "Visa",
-  "Other", // <-- ADDED 'Experience Letter' and 'Pan'
+  'Passport', 
+    'Resume', 
+    'Photograph', 
+    'Education Certificate', 
+    'Experience Letter', 
+    'Offer Letter', 
+    'Visa',
+    'Aadhar Card',
+    'Pan Card',
+    'Medical Certificate',
+    'Driving License'
 ];
 
 function CandidateDocuments({

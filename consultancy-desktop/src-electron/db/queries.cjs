@@ -1,4 +1,4 @@
-const { getDatabase } = require("../db/database.cjs");
+const { getDatabase } = require("./schema/database.cjs");
 const { validateVerhoeff } = require("../utils/validators.cjs");
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
@@ -1244,24 +1244,35 @@ async function addPassportEntry(data) {
 
 async function getCandidatePlacements(candidateId) {
   const db = getDatabase();
+  
   const sql = `
     SELECT
-      p.id as placementId, p.status as placementStatus,
-      j.id as jobId, j.positionTitle,
-      e.companyName, e.country
+      p.id as placementId, 
+      p.status as placementStatus,
+      p.assignedAt as assignedDate,
+      j.id as jobId, 
+      j.positionTitle as positionTitle,
+      e.companyName as companyName, 
+      e.country
     FROM placements p
-    JOIN job_orders j ON p.job_order_id = j.id
-    JOIN employers e ON j.employer_id = e.id
+    LEFT JOIN job_orders j ON p.job_order_id = j.id
+    LEFT JOIN employers e ON j.employer_id = e.id
     WHERE p.candidate_id = ?
-    AND p.isDeleted = 0
+      AND p.isDeleted = 0
+    ORDER BY p.assignedAt DESC
   `;
+  
   try {
     const rows = await dbAll(db, sql, [candidateId]);
-    return { success: true, data: rows };
+    console.log('✅ getCandidatePlacements result:', rows);
+    return { success: true, data: rows || [] };
   } catch (err) {
-    return { success: false, error: mapErrorToFriendly(err) };
+    console.error('❌ getCandidatePlacements error:', err);
+    return { success: false, error: mapErrorToFriendly(err), data: [] };
   }
 }
+
+
 
 async function getUnassignedJobs(candidateId) {
   const db = getDatabase();
