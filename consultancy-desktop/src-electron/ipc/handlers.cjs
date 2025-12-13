@@ -1806,7 +1806,34 @@ ipcMain.handle('save-smtp-settings', async (event, { config }) => {
         const ip = require('ip'); // We installed this earlier
         return { ip: ip.address(), port: 3000 };
     });
-    ipcMain.handle('log-communication', (event, args) => queries.logCommunication(args.user, args.candidateId, args.type, args.details));
+    
+    // ============================================================================
+// COMMUNICATION LOGS HANDLERS
+// ============================================================================
+
+ipcMain.handle("logCommunication", async (event, { user, candidateId, communication_type, details }) => {
+  console.log("📞 logCommunication called:", { candidateId, type: communication_type, details });
+  
+  if (!user?.id) {
+    return { success: false, error: "User not authenticated" };
+  }
+  
+  return queries.logCommunication({
+    candidateId: parseInt(candidateId),
+    userId: user.id,
+    type: communication_type,
+    details: details
+  });
+});
+
+
+ipcMain.handle("getCommunicationLogs", async (event, { candidateId }) => {
+  console.log("📞 getCommunicationLogs called:", { candidateId });
+  
+  return queries.getCommunicationLogs(parseInt(candidateId));
+});
+
+
     ipcMain.handle('get-comm-logs', (event, args) => queries.getCommLogs(args.candidateId));
 // --- NEW: SECURE FILE PATH LOOKUP ---
 ipcMain.handle('get-secure-file-path', async (event, { documentId }) => {
@@ -2107,26 +2134,7 @@ ipcMain.handle("send-whatsapp-bulk", (event, payload) =>
         openWhatsAppSingle(event, payload)
     );
 
-    ipcMain.handle("logCommunication", async (event, { user, candidateId, communication_type, details }) => {
-  console.log("📞 logCommunication called:", { candidateId, type: communication_type, details });
-  
-  if (!user?.id) {
-    return { success: false, error: "User not authenticated" };
-  }
-  
-  return queries.logCommunication({
-    candidateId: parseInt(candidateId),
-    userId: user.id,
-    type: communication_type,  // Maps to 'type' column
-    details: details
-  });
-});
-
-ipcMain.handle("getCommunicationLogs", async (event, { candidateId }) => {
-  console.log("📞 getCommunicationLogs called:", { candidateId });
-  
-  return queries.getCommunicationLogs(parseInt(candidateId));
-});
+   
 
     //ipcMain.handle("send-whatsapp-bulk", (event, payload) =>
   //sendTwilioWhatsApp(event, payload)

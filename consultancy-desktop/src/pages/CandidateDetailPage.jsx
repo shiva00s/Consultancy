@@ -333,6 +333,7 @@ function CandidateDetailPage({ user, flags }) {
               <input type="text" value={formData.status} readOnly />
             )}
           </div>
+          
           <div className="form-group">
   <label>Contact Number</label>
   <div style={{ display: "flex", gap: "5px" }}>
@@ -346,43 +347,56 @@ function CandidateDetailPage({ user, flags }) {
     />
     {formData.contact && (
       <button
-  className="btn"
-  style={{
-    backgroundColor: "#25D366",
-    color: "white",
-    padding: "0 12px",
-    minWidth: "auto",
-  }}
-  title="Chat on WhatsApp"
-  type="button"
-  onClick={async () => {
-    const phone = formData.contact.replace(/\D/g, "");
-    
-    try {
-      // Open WhatsApp
-      window.open(`https://wa.me/${phone}`, "_blank");
-      
-      // Log communication
-      await window.electronAPI.logCommunication({
-        user,
-        candidateId: id,
-        communication_type: "WhatsApp",
-        details: `Opened WhatsApp chat with +${phone}`,
-      });
-      
-      toast.success("WhatsApp opened");
-    } catch (err) {
-      console.error("WhatsApp error:", err);
-      toast.error("Failed to log communication");
-    }
-  }}
->
-  <FiMessageSquare style={{ fontSize: "1.1rem" }} />
-</button>
-
+        className="btn"
+        style={{
+          backgroundColor: "#25D366",
+          color: "white",
+          padding: "0 12px",
+          minWidth: "auto",
+        }}
+        title="Chat on WhatsApp"
+        type="button"
+        onClick={async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          const phone = formData.contact.replace(/\D/g, "");
+          console.log("🔵 WhatsApp button clicked!");
+          console.log("🔵 user:", user);
+          console.log("🔵 candidateId:", id);
+          console.log("🔵 phone:", phone);
+          
+          try {
+            // Open WhatsApp
+            window.open(`https://wa.me/${phone}`, "_blank");
+            
+            // Log communication
+            const result = await window.electronAPI.logCommunication({
+              user: user,
+              candidateId: id,
+              communication_type: "WhatsApp",
+              details: `Opened WhatsApp chat with +${phone}`,
+            });
+            
+            console.log("🟢 logCommunication result:", result);
+            
+            if (result.success) {
+              toast.success("WhatsApp opened and logged");
+            } else {
+              toast.error("Failed to log: " + result.error);
+            }
+          } catch (err) {
+            console.error("❌ WhatsApp error:", err);
+            toast.error("Error: " + err.message);
+          }
+        }}
+      >
+        <FiMessageSquare style={{ fontSize: "1.1rem" }} />
+      </button>
     )}
   </div>
 </div>
+
 
           <div className="form-group">
             <label>Aadhar Number</label>

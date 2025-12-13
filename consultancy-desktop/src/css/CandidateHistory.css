@@ -1,20 +1,22 @@
+/* ============================================
+   HISTORY TAB STYLES
+   Enhanced design matching Communication History
+   ============================================ */
+
 .history-timeline-container {
   max-width: 800px;
   margin: 0 auto;
+  padding: 1.5rem 1rem;
 }
+
 .timeline-list {
   list-style: none;
   padding: 0;
   margin: 0;
   position: relative;
 }
-.timeline-item {
-  display: flex;
-  gap: 1.5rem;
-  padding-bottom: 2rem;
-  position: relative;
-}
-/* The vertical timeline bar */
+
+/* Vertical timeline bar */
 .timeline-list::before {
   content: '';
   position: absolute;
@@ -24,6 +26,20 @@
   width: 2px;
   background: var(--border-color);
 }
+
+/* Individual Timeline Item */
+.timeline-item {
+  display: flex;
+  gap: 1.5rem;
+  padding-bottom: 2rem;
+  position: relative;
+}
+
+.timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+/* Timeline Icon Circle */
 .timeline-icon {
   font-size: 1.25rem;
   width: 38px;
@@ -36,36 +52,68 @@
   flex-shrink: 0;
   z-index: 2;
   border: 2px solid var(--border-color);
+  transition: all 0.2s ease;
+  color: var(--primary-color);
 }
+
+/* Enhanced Content Box */
 .timeline-content {
   flex-grow: 1;
+  background: var(--bg-secondary);
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
 }
+
+/* Hover Effects */
+.timeline-item:hover .timeline-content {
+  background: var(--bg-input);
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.timeline-item:hover .timeline-icon {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 4px rgba(33, 150, 243, 0.1);
+}
+
+/* Header Section */
 .timeline-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
 }
+
 .timeline-header strong {
   color: var(--text-primary);
-  font-size: 1.1rem;
+  font-size: 1rem;
+  font-weight: 600;
   text-transform: capitalize;
 }
+
+/* User Badge */
 .timeline-user {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
-  background: var(--bg-secondary);
+  background: var(--bg-tertiary);
   padding: 4px 10px;
-  border-radius: var(--border-radius);
+  border-radius: 12px;
 }
+
+/* Details Text */
 .timeline-details {
   margin: 0 0 0.5rem 0;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: var(--text-secondary);
+  line-height: 1.5;
 }
+
+/* Timestamp */
 .timeline-timestamp {
   display: flex;
   align-items: center;
@@ -74,3 +122,66 @@
   color: var(--text-secondary);
   opacity: 0.8;
 }
+
+/* Scrollbar Styling */
+.history-timeline-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.history-timeline-container::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 3px;
+}
+
+.history-timeline-container::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.history-timeline-container::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .history-timeline-container {
+    padding: 1rem 0.5rem;
+  }
+
+  .timeline-item {
+    gap: 1rem;
+  }
+
+  .timeline-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+
+  .timeline-list::before {
+    left: 15px;
+  }
+
+  .timeline-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+/* Animation */
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.timeline-item {
+  animation: slideInFromLeft 0.3s ease-out;
+}
+

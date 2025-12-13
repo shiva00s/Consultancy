@@ -200,7 +200,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     // =====================================================================
     // COMMUNICATION LOGS
     // =====================================================================
-    logCommunication: (args) => ipcRenderer.invoke("log-communication", args),
+    logCommunication: (data) => ipcRenderer.invoke('logCommunication', data),
+
     getCommLogs: (args) => ipcRenderer.invoke("get-comm-logs", args),
 
     // =====================================================================
