@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { LoadingSpinner } from '../LoadingSpinner';
 import '../../css/EmailHistory.css';
 
+
 const formatTimestamp = (isoString) => {
   if (!isoString) return 'N/A';
   try {
@@ -25,15 +26,17 @@ const formatTimestamp = (isoString) => {
   }
 };
 
+
 function CommunicationHistory({ candidateId }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+
 
   const loadCommunicationHistory = useCallback(async () => {
     setLoading(true);
     try {
       console.log('📞 Fetching communication logs for candidate:', candidateId);
-      const res = await window.electronAPI.getCommLogs({ candidateId });
+      const res = await window.electronAPI.getCommunicationLogs({ candidateId });
       console.log('✅ Communication logs response:', res);
       
       if (res.success) {
@@ -50,9 +53,11 @@ function CommunicationHistory({ candidateId }) {
     }
   }, [candidateId]);
 
+
   useEffect(() => {
     loadCommunicationHistory();
   }, [loadCommunicationHistory]);
+
 
   const getIcon = (type) => {
     const iconProps = { size: 20, style: { marginRight: '8px' } };
@@ -69,12 +74,14 @@ function CommunicationHistory({ candidateId }) {
     return <FiMessageSquare {...iconProps} />;
   };
 
+
   const getTypeClass = (type) => {
     if (type === 'WhatsApp') return 'comm-type-whatsapp';
     if (type === 'Call') return 'comm-type-call';
     if (type === 'Email') return 'comm-type-email';
     return 'comm-type-other';
   };
+
 
   if (loading) {
     return (
@@ -86,6 +93,7 @@ function CommunicationHistory({ candidateId }) {
       </div>
     );
   }
+
 
   if (logs.length === 0) {
     return (
@@ -121,6 +129,7 @@ function CommunicationHistory({ candidateId }) {
     );
   }
 
+
   return (
     <div className="email-history-container">
       <div className="email-history-header" style={{ 
@@ -143,6 +152,7 @@ function CommunicationHistory({ candidateId }) {
         </button>
       </div>
 
+
       <div className="email-history-list">
         {logs.map((log) => (
           <div key={log.id} className={`email-history-item ${getTypeClass(log.communication_type)}`}>
@@ -159,7 +169,7 @@ function CommunicationHistory({ candidateId }) {
                 fontSize: '13px',
                 color: 'var(--text-secondary)'
               }}>
-                {formatTimestamp(log.logged_at)}
+                {formatTimestamp(log.createdAt)}
               </span>
             </div>
             <div className="email-item-body" style={{ paddingLeft: '28px' }}>
@@ -171,6 +181,16 @@ function CommunicationHistory({ candidateId }) {
               }}>
                 {log.details || 'No details provided'}
               </p>
+              {log.username && (
+                <p style={{
+                  margin: '8px 0 0 0',
+                  fontSize: '12px',
+                  color: 'var(--text-secondary)',
+                  fontStyle: 'italic'
+                }}>
+                  Logged by: {log.username}
+                </p>
+              )}
             </div>
           </div>
         ))}
@@ -178,5 +198,6 @@ function CommunicationHistory({ candidateId }) {
     </div>
   );
 }
+
 
 export default CommunicationHistory;

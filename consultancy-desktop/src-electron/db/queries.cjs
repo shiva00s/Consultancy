@@ -2761,19 +2761,7 @@ async function updateVisaStatus(id, status) {
   }
 }
 
-async function logCommunication(user, candidateId, type, details) {
-  const db = getDatabase();
-  try {
-    await dbRun(
-      db,
-      "INSERT INTO communication_logs (candidate_id, user_id, type, details) VALUES (?, ?, ?, ?)",
-      [candidateId, user.id, type, details],
-    );
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: mapErrorToFriendly(err) };
-  }
-}
+
 
 async function getCommLogs(candidateId) {
   const db = getDatabase();
@@ -3336,12 +3324,60 @@ async function deleteJobOrder(user, id) {
   }
 }
 
+async function logCommunication({ candidateId, userId, type, details }) {
+  const db = getDatabase();
+  
+  const sql = `
+    INSERT INTO communication_logs (candidate_id, user_id, type, details, timestamp)
+    VALUES (?, ?, ?, ?, datetime('now'))
+  `;
+  
+  try {
+    await dbRun(db, sql, [candidateId, userId, type, details]);
+    console.log('✅ Communication logged:', { candidateId, type, details });
+    return { success: true };
+  } catch (err) {
+    console.error('❌ logCommunication error:', err);
+    return { success: false, error: mapErrorToFriendly(err) };
+  }
+}
+
+async function getCommunicationLogs(candidateId) {
+  const db = getDatabase();
+  
+  const sql = `
+    SELECT 
+      cl.id,
+      cl.type,
+      cl.details,
+      cl.timestamp,
+      u.username
+    FROM communication_logs cl
+    LEFT JOIN users u ON cl.user_id = u.id
+    WHERE cl.candidate_id = ?
+    ORDER BY cl.timestamp DESC
+  `;
+  
+  try {
+    const rows = await dbAll(db, sql, [candidateId]);
+    console.log('✅ getCommunicationLogs result:', rows);
+    return { success: true, data: rows || [] };
+  } catch (err) {
+    console.error('❌ getCommunicationLogs error:', err);
+    return { success: false, error: mapErrorToFriendly(err), data: [] };
+  }
+}
+
+
+
 
 module.exports = {
   // DB Helpers
   dbRun,
   dbGet,
   dbAll,
+  logCommunication,
+  getCommunicationLogs,
   getAdminAssignedFeatures,
   savePendingActivation,
   getPendingActivation,
@@ -3468,7 +3504,7 @@ module.exports = {
   checkPlacementExists,
   setActivationStatus,
   getSuperAdminFeatureFlags,
-  logCommunication,
+  
   getCommLogs,
 
   getDeletedMedical,

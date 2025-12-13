@@ -281,6 +281,7 @@ sendWhatsAppBulk: (payload) => ipcRenderer.invoke("send-whatsapp-bulk", payload)
   openWhatsAppSingle: (payload) => ipcRenderer.invoke("open-whatsapp-single", payload),
  
 
+  getCommunicationLogs: (data) => ipcRenderer.invoke("getCommunicationLogs", data),
 
 
 });

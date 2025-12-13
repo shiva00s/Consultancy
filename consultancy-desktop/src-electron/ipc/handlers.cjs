@@ -2107,6 +2107,27 @@ ipcMain.handle("send-whatsapp-bulk", (event, payload) =>
         openWhatsAppSingle(event, payload)
     );
 
+    ipcMain.handle("logCommunication", async (event, { user, candidateId, communication_type, details }) => {
+  console.log("📞 logCommunication called:", { candidateId, type: communication_type, details });
+  
+  if (!user?.id) {
+    return { success: false, error: "User not authenticated" };
+  }
+  
+  return queries.logCommunication({
+    candidateId: parseInt(candidateId),
+    userId: user.id,
+    type: communication_type,  // Maps to 'type' column
+    details: details
+  });
+});
+
+ipcMain.handle("getCommunicationLogs", async (event, { candidateId }) => {
+  console.log("📞 getCommunicationLogs called:", { candidateId });
+  
+  return queries.getCommunicationLogs(parseInt(candidateId));
+});
+
     //ipcMain.handle("send-whatsapp-bulk", (event, payload) =>
   //sendTwilioWhatsApp(event, payload)
 //);

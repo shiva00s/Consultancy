@@ -424,8 +424,8 @@ function setupDatabase(dbInstance) {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     candidate_id INTEGER,
     user_id INTEGER,
-    communication_type TEXT,   // ✅ FIXED
-    details TEXT,              // ✅ FIXED (was "message")
+    communication_type TEXT,   
+    details TEXT,     
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE SET NULL,
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL

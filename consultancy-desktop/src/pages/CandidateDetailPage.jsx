@@ -346,39 +346,40 @@ function CandidateDetailPage({ user, flags }) {
     />
     {formData.contact && (
       <button
-        className="btn"
-        style={{
-          backgroundColor: "#25D366",
-          color: "white",
-          padding: "0 12px",
-          minWidth: "auto",
-        }}
-        title="Chat on WhatsApp"
-        type="button"
-        onClick={async () => {
-          const phone = formData.contact.replace(/\D/g, "");
-          
-          try {
-            // Open WhatsApp
-            window.open(`https://wa.me/${phone}`, "_blank");
-            
-            // Log communication with correct field names
-            await window.electronAPI.logCommunication({
-              user,
-              candidateId: id,
-              communication_type: "WhatsApp", // ✅ Fixed: was "type"
-              details: `Opened WhatsApp chat with +${phone}`, // ✅ Fixed: was "Clicked Chat Button"
-            });
-            
-            toast.success("WhatsApp opened");
-          } catch (err) {
-            console.error("WhatsApp error:", err);
-            toast.error("Failed to log communication");
-          }
-        }}
-      >
-        <FiMessageSquare style={{ fontSize: "1.1rem" }} />
-      </button>
+  className="btn"
+  style={{
+    backgroundColor: "#25D366",
+    color: "white",
+    padding: "0 12px",
+    minWidth: "auto",
+  }}
+  title="Chat on WhatsApp"
+  type="button"
+  onClick={async () => {
+    const phone = formData.contact.replace(/\D/g, "");
+    
+    try {
+      // Open WhatsApp
+      window.open(`https://wa.me/${phone}`, "_blank");
+      
+      // Log communication
+      await window.electronAPI.logCommunication({
+        user,
+        candidateId: id,
+        communication_type: "WhatsApp",
+        details: `Opened WhatsApp chat with +${phone}`,
+      });
+      
+      toast.success("WhatsApp opened");
+    } catch (err) {
+      console.error("WhatsApp error:", err);
+      toast.error("Failed to log communication");
+    }
+  }}
+>
+  <FiMessageSquare style={{ fontSize: "1.1rem" }} />
+</button>
+
     )}
   </div>
 </div>
