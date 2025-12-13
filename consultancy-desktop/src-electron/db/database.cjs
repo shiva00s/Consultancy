@@ -417,9 +417,9 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 26. COMMUNICATION LOGS
-      // ========================================================================
-      dbInstance.run(`
+// 26. COMMUNICATION LOGS
+// ========================================================================
+dbInstance.run(`
   CREATE TABLE IF NOT EXISTS communication_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     candidate_id INTEGER,
@@ -433,6 +433,22 @@ function setupDatabase(dbInstance) {
 `, (err) => {
   if (err) console.error('Error creating communication_logs table:', err.message);
 });
+
+// Create indexes for better query performance
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_comm_logs_candidate 
+  ON communication_logs(candidate_id);
+`, (err) => {
+  if (err) console.error('Error creating communication_logs candidate index:', err.message);
+});
+
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_comm_logs_created 
+  ON communication_logs(createdAt DESC);
+`, (err) => {
+  if (err) console.error('Error creating communication_logs createdAt index:', err.message);
+});
+
 
       // ========================================================================
       // 27. BUSINESS THEME

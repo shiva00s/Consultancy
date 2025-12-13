@@ -79,7 +79,7 @@ function CommunicationHistory({ candidateId }) {
         <FiClock size={48} />
         <h3>No interactions recorded yet</h3>
         <p>WhatsApp messages, calls, and emails will appear here once logged.</p>
-        <button onClick={loadCommunicationHistory} className="icon-btn">
+        <button onClick={loadCommunicationHistory} className="communication-refresh-btn">
           <FiRefreshCw size={16} />
           Refresh
         </button>
@@ -91,8 +91,13 @@ function CommunicationHistory({ candidateId }) {
     <div className="communication-history-container">
       <div className="communication-history-header">
         <h3>Communication History ({logs.length})</h3>
-        <button onClick={loadCommunicationHistory} className="icon-btn" title="Refresh">
-          <FiRefreshCw size={18} />
+        <button 
+          onClick={loadCommunicationHistory} 
+          className="communication-refresh-btn" 
+          title="Refresh"
+          aria-label="Refresh communication history"
+        >
+          <FiRefreshCw size={20} />
         </button>
       </div>
 
