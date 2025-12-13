@@ -32,88 +32,80 @@ function CandidateVisa({ user, candidateId }) {
   const [visaForm, setVisaForm] = useState(initialVisaForm);
   const [isSavingVisa, setIsSaving] = useState(false);
   const [editingVisa, setEditingVisa] = useState(null); 
-  
-  // ✅ NEW: Auto-fill state
   const [autoFillData, setAutoFillData] = useState(null);
   const [isLoadingAutoFill, setIsLoadingAutoFill] = useState(false);
 
-  // ✅ FIXED: Fetch auto-fill data from candidate profile and job placements
-const fetchAutoFillData = useCallback(async () => {
-  setIsLoadingAutoFill(true);
-  try {
-    // Get candidate profile data
-    const candidateRes = await window.electronAPI.getCandidateById({ 
-      candidateId 
-    });
+  // Fetch auto-fill data from candidate profile and job placements
+  const fetchAutoFillData = useCallback(async () => {
+    setIsLoadingAutoFill(true);
+    try {
+      // Get candidate profile data
+      const candidateRes = await window.electronAPI.getCandidateById({ 
+        candidateId 
+      });
 
-    if (!candidateRes.success) {
-      console.error('Failed to fetch candidate data');
-      setIsLoadingAutoFill(false);
-      return;
-    }
+      if (!candidateRes.success) {
+        console.error('Failed to fetch candidate data:', candidateRes.error);
+        setIsLoadingAutoFill(false);
+        return;
+      }
 
-    const candidateData = candidateRes.data;
+      const candidateData = candidateRes.data;
 
-    // Get active job placements for this candidate
-    const jobPlacementsRes = await window.electronAPI.getCandidateJobPlacements({ 
-      candidateId 
-    });
+      // Get active job placements for this candidate
+      const jobPlacementsRes = await window.electronAPI.getCandidateJobPlacements({ 
+        candidateId 
+      });
 
-    let jobData = null;
-    if (jobPlacementsRes.success && jobPlacementsRes.data?.length > 0) {
-      // ✅ REMOVED: console.log statements
+      let jobData = null;
+      if (jobPlacementsRes.success && jobPlacementsRes.data?.length > 0) {
+        // Get the most recent active job placement
+        const activeJob = jobPlacementsRes.data.find(j => j.placementStatus === 'Assigned') || 
+                          jobPlacementsRes.data[0];
 
-      // Get the most recent active job placement
-      const activeJob = jobPlacementsRes.data.find(j => j.placementStatus === 'Assigned') || 
-                        jobPlacementsRes.data[0];
-
-      if (activeJob && activeJob.jobId) {
-        // Get detailed job order information
-        const jobOrderRes = await window.electronAPI.getJobOrderById({ 
-          jobId: activeJob.jobId 
-        });
-        
-        if (jobOrderRes.success) {
-          jobData = jobOrderRes.data;
+        if (activeJob && activeJob.jobId) {
+          // Get detailed job order information
+          const jobOrderRes = await window.electronAPI.getJobOrderById({ 
+            jobId: activeJob.jobId 
+          });
+          
+          if (jobOrderRes.success) {
+            jobData = jobOrderRes.data;
+          }
         }
       }
+
+      // Prepare combined position field (Profile + Job Position)
+      const profilePosition = candidateData.position_applying_for || '';
+      const jobPosition = jobData?.positionTitle || '';
+      
+      let positionCombined = '';
+      if (profilePosition && jobPosition) {
+        positionCombined = `${profilePosition}, ${jobPosition}`;
+      } else {
+        positionCombined = profilePosition || jobPosition || '';
+      }
+
+      // Set auto-fill data
+      setAutoFillData({
+        position: positionCombined,
+        country: jobData?.country || '',
+        passport_number: candidateData.passport_number || '',
+      });
+
+    } catch (error) {
+      console.error('Error fetching auto-fill data:', error);
+    } finally {
+      setIsLoadingAutoFill(false);
     }
+  }, [candidateId]);
 
-    // ✅ Prepare combined position field (Profile + Job Position)
-    const profilePosition = candidateData.position_applying_for || '';
-    const jobPosition = jobData?.positionTitle || '';
-    
-    let positionCombined = '';
-    if (profilePosition && jobPosition) {
-      // Both exist - combine with comma
-      positionCombined = `${profilePosition}, ${jobPosition}`;
-    } else {
-      // Use whichever exists (priority to profile)
-      positionCombined = profilePosition || jobPosition || '';
-    }
-
-    // ✅ Set auto-fill data
-    setAutoFillData({
-      position: positionCombined,
-      country: jobData?.country || '', // Always from job order
-      passport_number: candidateData.passport_no || '',
-    });
-
-  } catch (error) {
-    console.error('Error fetching auto-fill data:', error);
-    // ✅ Removed toast error to reduce noise
-  } finally {
-    setIsLoadingAutoFill(false);
-  }
-}, [candidateId]);
-
-
-  // ✅ Fetch auto-fill data on component mount
+  // Fetch auto-fill data on component mount
   useEffect(() => {
     fetchAutoFillData();
   }, [fetchAutoFillData]);
 
-  // ✅ Auto-fill form when autoFillData is loaded
+  // Auto-fill form when autoFillData is loaded
   useEffect(() => {
     if (autoFillData && !isLoadingAutoFill) {
       setVisaForm(prev => ({
@@ -161,7 +153,7 @@ const fetchAutoFillData = useCallback(async () => {
       if (res.success) {
         setVisaEntries((prev) => [res.data, ...prev]);
         
-        // ✅ Reset form but keep auto-filled data
+        // Reset form but keep auto-filled data
         setVisaForm({
           ...initialVisaForm,
           position: autoFillData?.position || '',
@@ -227,11 +219,10 @@ const fetchAutoFillData = useCallback(async () => {
         />
       )}
 
-      {/* --- ADD VISA ENTRY FORM --- */}
+      {/* ADD VISA ENTRY FORM */}
       <div className="visa-form-container module-form-card">
         <h3>
           <FiPlus /> Add New Visa Entry
-          {/* ✅ Show loading indicator for auto-fill */}
           {isLoadingAutoFill && (
             <span style={{ marginLeft: '10px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
               (Loading auto-fill data...)
@@ -248,7 +239,6 @@ const fetchAutoFillData = useCallback(async () => {
               name="position" 
               value={visaForm.position} 
               onChange={handleVisaFormChange}
-              // ✅ Visual indicator for auto-filled field
               style={autoFillData?.position ? { backgroundColor: 'rgba(var(--primary-rgb), 0.05)' } : {}}
             />
           </div>
@@ -287,7 +277,7 @@ const fetchAutoFillData = useCallback(async () => {
             <input type="text" name="visa_type" placeholder="e.g., Work, Visit" value={visaForm.visa_type} onChange={handleVisaFormChange} />
           </div>
 
-          {/* ROW 3: Contact Type, Status, and Conditional Agent Contact */}
+          {/* ROW 3 */}
           <div className="form-group">
             <label>Contact Type</label>
             <select name="contact_type" value={visaForm.contact_type} onChange={handleVisaFormChange}>
@@ -319,7 +309,7 @@ const fetchAutoFillData = useCallback(async () => {
             <div className="form-group"></div>
           )}
           
-          {/* ROW 4: Notes (Full Width) */}
+          {/* ROW 4: Notes */}
           <div className="form-group full-width" style={{gridColumn: '1 / -1'}}>
             <label>Notes</label>
             <textarea name="notes" value={visaForm.notes} onChange={handleVisaFormChange} rows="3"></textarea>
@@ -336,7 +326,7 @@ const fetchAutoFillData = useCallback(async () => {
         </form>
       </div>
       
-      {/* --- VISA TRACKING HISTORY LIST --- */}
+      {/* VISA TRACKING HISTORY LIST */}
       <div className="visa-list-container module-list-card">
         <h3><FiPackage /> Tracking History ({visaEntries.length})</h3>
         <div className="module-list visa-list">

@@ -2138,13 +2138,28 @@ ipcMain.handle("send-whatsapp-bulk", (event, payload) =>
   //sendTwilioWhatsApp(event, payload)
 //);
 
+// ====================================================================
+// VISA AUTO-FILL HANDLERS
+// ====================================================================
 
+// Handler 1: Get Candidate By ID (with column aliases)
 ipcMain.handle('get-candidate-by-id', async (event, { candidateId }) => {
   const db = getDatabase();
   
   return new Promise((resolve) => {
     db.get(
-      'SELECT * FROM candidates WHERE id = ? AND isDeleted = 0',
+      `SELECT 
+        id,
+        name,
+        passportNo,
+        Position,
+        education,
+        contact,
+        status,
+        isDeleted
+       FROM candidates 
+       WHERE id = ? 
+       AND isDeleted = 0`,
       [candidateId],
       (err, row) => {
         if (err) {
@@ -2153,12 +2168,23 @@ ipcMain.handle('get-candidate-by-id', async (event, { candidateId }) => {
         } else if (!row) {
           resolve({ success: false, error: 'Candidate not found' });
         } else {
-          resolve({ success: true, data: row });
+          // ✅ Transform the response to match expected field names
+          resolve({ 
+            success: true, 
+            data: {
+              ...row,
+              passport_number: row.passportNo,      // Map passportNo → passport_number
+              position_applying_for: row.Position   // Map Position → position_applying_for
+            }
+          });
         }
       }
     );
   });
 });
+
+
+// Handler 2: Get Candidate Job Placements
 ipcMain.handle('get-candidate-job-placements', async (event, { candidateId }) => {
   const db = getDatabase();
   
@@ -2190,6 +2216,8 @@ ipcMain.handle('get-candidate-job-placements', async (event, { candidateId }) =>
     );
   });
 });
+
+// Handler 3: Get Job Order By ID
 ipcMain.handle('get-job-order-by-id', async (event, { jobId }) => {
   const db = getDatabase();
   
@@ -2217,6 +2245,8 @@ ipcMain.handle('get-job-order-by-id', async (event, { jobId }) => {
     );
   });
 });
+
+
 
 
 
