@@ -2134,13 +2134,17 @@ ipcMain.handle("send-whatsapp-bulk", (event, payload) =>
         openWhatsAppSingle(event, payload)
     );
 
-// In electron.cjs or your IPC handlers file
+    //ipcMain.handle("send-whatsapp-bulk", (event, payload) =>
+  //sendTwilioWhatsApp(event, payload)
+//);
+
+
 ipcMain.handle('get-candidate-by-id', async (event, { candidateId }) => {
   const db = getDatabase();
   
   return new Promise((resolve) => {
     db.get(
-      'SELECT * FROM candidates WHERE id = ? AND deleted_at IS NULL',
+      'SELECT * FROM candidates WHERE id = ? AND isDeleted = 0',
       [candidateId],
       (err, row) => {
         if (err) {
@@ -2155,54 +2159,50 @@ ipcMain.handle('get-candidate-by-id', async (event, { candidateId }) => {
     );
   });
 });
-
 ipcMain.handle('get-candidate-job-placements', async (event, { candidateId }) => {
   const db = getDatabase();
   
   return new Promise((resolve) => {
     db.all(
       `SELECT 
-        cjp.id as placementId,
-        cjp.placement_status as placementStatus,
-        cjp.assigned_date as assignedDate,
-        cjp.employer_job_id as jobId,
-        ejo.position_title as positionTitle,
-        ejo.country,
-        e.name as companyName
-       FROM candidate_job_placements cjp
-       LEFT JOIN employer_job_orders ejo ON cjp.employer_job_id = ejo.id
-       LEFT JOIN employers e ON ejo.employer_id = e.id
-       WHERE cjp.candidate_id = ?
-       AND cjp.deleted_at IS NULL
-       ORDER BY cjp.assigned_date DESC`,
+        p.id as placementId,
+        p.status as placementStatus,
+        p.assignedAt as assignedDate,
+        p.job_order_id as jobId,
+        j.positionTitle,
+        e.country,
+        e.companyName
+       FROM placements p
+       LEFT JOIN job_orders j ON p.job_order_id = j.id
+       LEFT JOIN employers e ON j.employer_id = e.id
+       WHERE p.candidate_id = ?
+       AND p.isDeleted = 0
+       ORDER BY p.assignedAt DESC`,
       [candidateId],
       (err, rows) => {
         if (err) {
           console.error('Error fetching job placements:', err);
           resolve({ success: false, error: err.message });
         } else {
-          // ✅ REMOVED: console.log
           resolve({ success: true, data: rows || [] });
         }
       }
     );
   });
 });
-
-
 ipcMain.handle('get-job-order-by-id', async (event, { jobId }) => {
   const db = getDatabase();
   
   return new Promise((resolve) => {
     db.get(
       `SELECT 
-        ejo.*,
-        e.name as employer_name,
+        j.*,
+        e.companyName as employer_name,
         e.country as employer_country
-       FROM employer_job_orders ejo
-       LEFT JOIN employers e ON ejo.employer_id = e.id
-       WHERE ejo.id = ?
-       AND ejo.deleted_at IS NULL`,
+       FROM job_orders j
+       LEFT JOIN employers e ON j.employer_id = e.id
+       WHERE j.id = ?
+       AND j.isDeleted = 0`,
       [jobId],
       (err, row) => {
         if (err) {
@@ -2218,10 +2218,6 @@ ipcMain.handle('get-job-order-by-id', async (event, { jobId }) => {
   });
 });
 
-
-    //ipcMain.handle("send-whatsapp-bulk", (event, payload) =>
-  //sendTwilioWhatsApp(event, payload)
-//);
 
 
     module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase  };
