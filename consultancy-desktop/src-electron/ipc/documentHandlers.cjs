@@ -6,42 +6,7 @@ const path = require('path');
 
 
 function registerDocumentHandlers() {
-  /**
-   * Upload document
-   */
   
-
- 
-  /**
-   * Delete document
-   */
-  ipcMain.handle('delete-document', async (event, { user, docId }) => {
-  const db = getDb();
-
-  try {
-    // Get document with correct column names
-    const document = db.prepare('SELECT * FROM documents WHERE id = ?').get(docId);
-    
-    if (!document) {
-      throw new Error('Document not found');
-    }
-
-    // Delete file - use filePath or file_path depending on your schema
-    const pathToDelete = document.filePath || document.file_path;
-    if (pathToDelete) {
-      await fileManager.deleteFile(pathToDelete, 'documents');
-    }
-
-    // Soft delete from database
-    db.prepare('UPDATE documents SET isDeleted = 1 WHERE id = ?').run(docId);
-
-    return { success: true };
-  } catch (error) {
-    console.error('Failed to delete document:', error);
-    return { success: false, error: error.message };
-  }
-});
-
   /**
    * Open file picker dialog
    */

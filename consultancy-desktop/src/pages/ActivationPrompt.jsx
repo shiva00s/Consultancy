@@ -11,14 +11,15 @@ function ActivationPrompt() {
   useEffect(() => {
     const init = async () => {
       try {
-        const res = await window.electronAPI.getActivationStatus();
+        // ✅ FIXED: Call get-machine-id instead of getActivationStatus
+        const res = await window.electronAPI.invoke('get-machine-id');
         if (res && res.success) {
           setMachineId(res.machineId || 'UNKNOWN');
         } else {
           setMachineId('ERROR: Could not fetch ID.');
         }
       } catch (err) {
-        console.error('getActivationStatus error:', err);
+        console.error('get-machine-id error:', err);
         setMachineId('ERROR: Could not fetch ID.');
       }
     };
@@ -28,7 +29,7 @@ function ActivationPrompt() {
   const handleRequestCode = async () => {
     try {
       setIsActivating(true);
-      const res = await window.electronAPI.requestActivationCode();
+      const res = await window.electronAPI.invoke('request-activation-code');
       if (res && res.success) {
         setMachineId(res.machineId || 'UNKNOWN');
         toast.success('Activation code sent to email.');
@@ -54,7 +55,11 @@ function ActivationPrompt() {
 
     setIsActivating(true);
     try {
-      const res = await window.electronAPI.activateApplication(code);
+      // ✅ FIXED: Use proper license activation with correct format
+      const res = await window.electronAPI.invoke('activate-license', { 
+        licenseKey: code 
+      });
+      
       if (res && res.success) {
         toast.success('Activation successful! Restarting application...');
         setTimeout(() => window.location.reload(), 1500);
@@ -62,7 +67,7 @@ function ActivationPrompt() {
         toast.error(res?.error || 'Activation failed.');
       }
     } catch (err) {
-      console.error('activateApplication error:', err);
+      console.error('activate-license error:', err);
       toast.error('Activation failed.');
     } finally {
       setIsActivating(false);
@@ -97,6 +102,7 @@ function ActivationPrompt() {
             className="doc-btn view"
             onClick={handleCopy}
             style={{ marginLeft: '10px' }}
+            disabled={machineId === 'Generating...' || machineId.startsWith('ERROR')}
           >
             Copy
           </button>

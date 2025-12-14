@@ -1,4 +1,3 @@
-// src-electron/ipc/modules/candidateHandlers.cjs
 const { ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -23,11 +22,13 @@ function registerCandidateHandlers(app) {
         }
         
         const candidateId = createResult.id;
-        logAction(user, 'create_candidate', 'candidates', candidateId, `Name: ${textData.name}`);
+        await logAction(user, 'create_candidate', 'candidates', candidateId, `Name: ${textData.name}`);
 
         try {
             const filesDir = path.join(app.getPath('userData'), 'candidate_files');
-            if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true });
+            if (!fs.existsSync(filesDir)) {
+                fs.mkdirSync(filesDir, { recursive: true });
+            }
 
             if (files && files.length > 0) {
                 const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
@@ -41,10 +42,11 @@ function registerCandidateHandlers(app) {
                         db.run(
                             sqlDoc,
                             [candidateId, file.type, file.name, newFilePath, 'Uncategorized'],
-                            function (err) {
-                                if (err) reject(err);
-                                else {
-                                    logAction(user, 'add_document', 'candidates', candidateId, `File: ${file.name}`);
+                            async function (err) {
+                                if (err) {
+                                    reject(err);
+                                } else {
+                                    await logAction(user, 'add_document', 'candidates', candidateId, `File: ${file.name}`);
                                     resolve();
                                 }
                             }
@@ -54,6 +56,7 @@ function registerCandidateHandlers(app) {
                 
                 await Promise.all(fileOperations);
             }
+            
             return { success: true, id: candidateId };
         } catch (error) {
             console.error('Failed to save candidate files:', error);
@@ -68,7 +71,7 @@ function registerCandidateHandlers(app) {
 
     ipcMain.handle('get-candidate-details', async (event, { user, id }) => {
         if (user) {
-            logAction(user, 'view_candidate_details', 'candidates', id);
+            await logAction(user, 'view_candidate_details', 'candidates', id);
         }
         return queries.getCandidateDetails(id);
     });
@@ -76,7 +79,7 @@ function registerCandidateHandlers(app) {
     ipcMain.handle('update-candidate-text', async (event, { user, id, data }) => {
         const result = await queries.updateCandidateText(user, id, data);
         if (result.success) {
-            logAction(user, 'update_candidate', 'candidates', id, `Name: ${data.name}, Status: ${data.status}`);
+            await logAction(user, 'update_candidate', 'candidates', id, `Name: ${data.name}, Status: ${data.status}`);
         }
         return result;
     });
@@ -84,7 +87,7 @@ function registerCandidateHandlers(app) {
     ipcMain.handle('delete-candidate', async (event, { user, id }) => {
         const result = await queries.deleteCandidate(id);
         if (result.success) {
-            logAction(user, 'delete_candidate', 'candidates', id);
+            await logAction(user, 'delete_candidate', 'candidates', id);
         }
         return result;
     });
@@ -96,7 +99,14 @@ function registerCandidateHandlers(app) {
     ipcMain.handle('add-documents', async (event, { user, candidateId, files }) => {
         try {
             const filesDir = path.join(app.getPath('userData'), 'candidate_files');
-            if (!files || files.length === 0) return { success: false, error: 'No files provided.' };
+            
+            if (!files || files.length === 0) {
+                return { success: false, error: 'No files provided.' };
+            }
+
+            if (!fs.existsSync(filesDir)) {
+                fs.mkdirSync(filesDir, { recursive: true });
+            }
 
             const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
             
@@ -108,10 +118,11 @@ function registerCandidateHandlers(app) {
                 await fs.promises.writeFile(newFilePath, Buffer.from(file.buffer));
 
                 return new Promise((resolve, reject) => {
-                    db.run(sqlDoc, [candidateId, file.type, file.name, newFilePath, category], function (err) {
-                        if (err) reject(err);
-                        else {
-                            logAction(user, 'add_document', 'candidates', candidateId, `File: ${file.name}`);
+                    db.run(sqlDoc, [candidateId, file.type, file.name, newFilePath, category], async function (err) {
+                        if (err) {
+                            reject(err);
+                        } else {
+                            await logAction(user, 'add_document', 'candidates', candidateId, `File: ${file.name}`);
                             resolve({ 
                                 id: this.lastID, 
                                 fileName: file.name, 
@@ -127,6 +138,7 @@ function registerCandidateHandlers(app) {
             const newDocs = await Promise.all(fileOperations);
             return { success: true, newDocs };
         } catch (error) {
+            console.error('Error adding documents:', error);
             return { success: false, error: error.message };
         }
     });
@@ -134,7 +146,7 @@ function registerCandidateHandlers(app) {
     ipcMain.handle('update-document-category', async (event, { user, docId, category }) => {
         const result = await queries.updateDocumentCategory(docId, category);
         if (result.success) {
-            logAction(user, 'update_doc_category', 'candidates', result.candidateId, `File: ${result.fileName}, Category: ${category}`);
+            await logAction(user, 'update_doc_category', 'candidates', result.candidateId, `File: ${result.fileName}, Category: ${category}`);
         }
         return result;
     });
@@ -143,10 +155,11 @@ function registerCandidateHandlers(app) {
         try {
             const result = await queries.deleteDocument(documentId);
             if (result.success) {
-                logAction(user, 'delete_document', 'candidates', result.candidateId, `Document ID: ${documentId}`);
+                await logAction(user, 'delete_document', 'candidates', result.candidateId, `Document ID: ${documentId}`);
             }
             return result;
         } catch (err) {
+            console.error('Error deleting document:', err);
             return { success: false, error: err.message };
         }
     });

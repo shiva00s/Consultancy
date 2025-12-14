@@ -152,43 +152,4 @@ function registerPermissionHandlers() {
     console.log('✅ Permission handlers registered');
 }
 
-ipcMain.handle('log-audit-event', async (event, payload) => {
-    try {
-      const { userId, action, candidateId, details } = payload || {};
-
-      if (!userId) {
-        console.warn(`Audit Log: User ID missing. Skipping log for action: ${action}`);
-        return { success: false, error: 'User ID required' };
-      }
-
-      if (!action) {
-        console.warn('Audit Log: Action missing. Skipping log entry.');
-        return { success: false, error: 'Action required' };
-      }
-
-      return await new Promise((resolve) => {
-  db.run(
-    `INSERT INTO audit_log (user_id, action, details)
-     VALUES (?, ?, ?)`,
-    [userId, action, details || null],
-    (err) => {
-      if (err) {
-        console.error('Audit Log insert error:', err);
-        return resolve({ success: false, error: 'Failed to write audit log' });
-      }
-      resolve({ success: true });
-    }
-  );
-});
-
-    } catch (error) {
-      console.error('Audit Log handler error:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-
-
-
-
 module.exports = { registerPermissionHandlers };

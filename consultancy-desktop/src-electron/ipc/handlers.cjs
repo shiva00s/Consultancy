@@ -17,6 +17,7 @@ const { registerAuditHandlers } = require('./modules/auditHandlers.cjs');
 const { registerOCRHandlers } = require('./modules/ocrHandlers.cjs');
 const { registerAnalyticsHandlers } = require('./analyticsHandlers.cjs');
 const { registerDocumentHandlers } = require('./documentHandlers.cjs');
+const { registerLicenseHandlers } = require('./modules/licenseHandlers.cjs');
 const { registerSyncHandlers } = require('./syncHandlers.cjs');
 const { registerPermissionHandlers } = require('../utils/permissionHandlers.cjs');
 const { getDatabase } = require('../db/database.cjs');
@@ -60,6 +61,7 @@ function registerIpcHandlers(app) {
     registerDocumentHandlers();
     registerSyncHandlers();
     registerPermissionHandlers();
+    registerLicenseHandlers();
 
     console.log('✅ All IPC Handlers Registered Successfully');
 }
