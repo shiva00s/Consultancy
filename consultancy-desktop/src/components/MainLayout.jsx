@@ -339,7 +339,7 @@ function MainLayout({ children, onLogout, user, flags }) {
                     </NavLink>
                   </li>
                 )}
-                {(user.role === 'super_admin' || canAccess('system_settings')) && (
+                {(user.role === 'super_admin' || user.role === 'admin' || canAccess('system_settings')) && (
                   <li>
                     <NavLink to="/settings" title="Settings">
                       <FiSettings />

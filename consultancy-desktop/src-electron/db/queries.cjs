@@ -3129,7 +3129,7 @@ async function permanentDeletePlacement(id) {
 }
 
 async function getAdminAssignedFeatures(userId) {
-  const db = getDatabase();
+  const db = getDatabase(); // Make sure getDatabase() is accessible here
 
   return new Promise((resolve, reject) => {
     const sql = `
@@ -3139,8 +3139,12 @@ async function getAdminAssignedFeatures(userId) {
       WHERE uf.user_id = ?
         AND f.isDeleted = 0
     `;
+    
     db.all(sql, [userId], (err, rows) => {
-      if (err) return reject(err);
+      if (err) {
+        console.error('getAdminAssignedFeatures error:', err);
+        return reject(err);
+      }
       resolve(rows.map((r) => r.key));
     });
   });

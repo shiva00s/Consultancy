@@ -1815,14 +1815,14 @@ ipcMain.handle('get-smtp-settings', async (event) => {
 
 
     ipcMain.handle('get-admin-assigned-features', async (event, { userId }) => {
-    try {
-      const features = await getAdminAssignedFeatures(userId);
-      return { success: true, features };
-    } catch (err) {
-      console.error('get-admin-assigned-features failed:', err);
-      return { success: false, error: err.message };
-    }
-  });
+  try {
+    const features = await getAdminAssignedFeatures(userId);
+    return { success: true, data: features };
+  } catch (err) {
+    console.error('get-admin-assigned-features failed:', err);
+    return { success: false, error: err.message };
+  }
+});
 
     ipcMain.handle('send-email', async (event, { user, to, subject, body, attachments }) => {
     try {

@@ -40,17 +40,17 @@
 }
 
 /* ============================================
-   MODAL OVERLAY & CONTAINER
+   MODAL OVERLAY & CONTAINER (✅ FINAL FIX)
    ============================================ */
 .perm-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.75) !important;
   backdrop-filter: blur(4px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  z-index: 2147483647 !important;
   padding: 20px;
   animation: fadeIn 0.2s ease;
 }
@@ -76,6 +76,8 @@
   border: 1px solid var(--perm-border);
   overflow: hidden;
   animation: slideUp 0.3s ease;
+  position: relative !important;
+  z-index: 2147483647 !important;
 }
 
 @keyframes slideUp {

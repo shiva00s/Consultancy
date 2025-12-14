@@ -388,46 +388,34 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-// 24. AUDIT LOG (✅ FIXED - Added candidate_id column)
-// ========================================================================
-dbInstance.run(`
-  CREATE TABLE IF NOT EXISTS audit_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    username TEXT,
-    action TEXT NOT NULL,
-    target_type TEXT,
-    target_id INTEGER,
-    candidate_id INTEGER,
-    details TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
-    FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE SET NULL
-  );
-`);
+      // 24. AUDIT LOG
+      // ========================================================================
+      dbInstance.run(`
+        CREATE TABLE IF NOT EXISTS audit_log (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER,
+          username TEXT,
+          action TEXT NOT NULL,
+          target_type TEXT,
+          target_id INTEGER,
+          candidate_id INTEGER,
+          details TEXT,
+          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
+          FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE SET NULL
+        );
+      `);
 
-// Create indexes for better performance
-dbInstance.run(`
-  CREATE INDEX IF NOT EXISTS idx_audit_user 
-  ON audit_log(user_id);
-`, (err) => {
-  if (err) console.error('Error creating audit_log user index:', err.message);
-});
-
-dbInstance.run(`
-  CREATE INDEX IF NOT EXISTS idx_audit_candidate 
-  ON audit_log(candidate_id);
-`, (err) => {
-  if (err) console.error('Error creating audit_log candidate index:', err.message);
-});
-
-dbInstance.run(`
-  CREATE INDEX IF NOT EXISTS idx_audit_timestamp 
-  ON audit_log(timestamp DESC);
-`, (err) => {
-  if (err) console.error('Error creating audit_log timestamp index:', err.message);
-});
-
+      // Create indexes for audit_log
+      dbInstance.run(`
+        CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id);
+      `);
+      dbInstance.run(`
+        CREATE INDEX IF NOT EXISTS idx_audit_candidate ON audit_log(candidate_id);
+      `);
+      dbInstance.run(`
+        CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp DESC);
+      `);
 
       // ========================================================================
       // 25. REQUIRED DOCUMENTS
@@ -442,38 +430,28 @@ dbInstance.run(`
       `);
 
       // ========================================================================
-// 26. COMMUNICATION LOGS
-// ========================================================================
-dbInstance.run(`
-  CREATE TABLE IF NOT EXISTS communication_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    candidate_id INTEGER,
-    user_id INTEGER,
-    communication_type TEXT,   
-    details TEXT,     
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE SET NULL,
-    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
-  );
-`, (err) => {
-  if (err) console.error('Error creating communication_logs table:', err.message);
-});
+      // 26. COMMUNICATION LOGS
+      // ========================================================================
+      dbInstance.run(`
+        CREATE TABLE IF NOT EXISTS communication_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          candidate_id INTEGER,
+          user_id INTEGER,
+          communication_type TEXT,   
+          details TEXT,     
+          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE SET NULL,
+          FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+        );
+      `);
 
-// Create indexes for better query performance
-dbInstance.run(`
-  CREATE INDEX IF NOT EXISTS idx_comm_logs_candidate 
-  ON communication_logs(candidate_id);
-`, (err) => {
-  if (err) console.error('Error creating communication_logs candidate index:', err.message);
-});
-
-dbInstance.run(`
-  CREATE INDEX IF NOT EXISTS idx_comm_logs_created 
-  ON communication_logs(createdAt DESC);
-`, (err) => {
-  if (err) console.error('Error creating communication_logs createdAt index:', err.message);
-});
-
+      // Create indexes for communication_logs
+      dbInstance.run(`
+        CREATE INDEX IF NOT EXISTS idx_comm_logs_candidate ON communication_logs(candidate_id);
+      `);
+      dbInstance.run(`
+        CREATE INDEX IF NOT EXISTS idx_comm_logs_created ON communication_logs(createdAt DESC);
+      `);
 
       // ========================================================================
       // 27. BUSINESS THEME
@@ -484,6 +462,41 @@ dbInstance.run(`
           key TEXT NOT NULL UNIQUE,
           value TEXT NOT NULL
         );
+      `);
+
+      // ========================================================================
+      // 28. FEATURE FLAGS
+      // ========================================================================
+      dbInstance.run(`
+        CREATE TABLE IF NOT EXISTS feature_flags (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          key TEXT NOT NULL UNIQUE,
+          label TEXT NOT NULL,
+          description TEXT,
+          isDeleted INTEGER DEFAULT 0,
+          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // ========================================================================
+      // 29. USER FEATURES (Junction Table)
+      // ========================================================================
+      dbInstance.run(`
+        CREATE TABLE IF NOT EXISTS user_features (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          feature_id INTEGER NOT NULL,
+          enabled INTEGER DEFAULT 1,
+          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, feature_id),
+          FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+          FOREIGN KEY (feature_id) REFERENCES feature_flags (id) ON DELETE CASCADE
+        );
+      `);
+
+      // Create index for user_features
+      dbInstance.run(`
+        CREATE INDEX IF NOT EXISTS idx_user_features_user ON user_features(user_id);
       `);
 
       // Commit transaction
@@ -552,8 +565,6 @@ function runMigrations(dbInstance) {
   });
 }
 
-
-
 // ============================================================================
 // DATABASE INITIALIZATION
 // ============================================================================
@@ -578,14 +589,20 @@ function initializeDatabase() {
         }
 
         setupDatabase(dbInstance)
-  .then((db) => runMigrations(db))  // ✅ Run migrations
-  .then((db) => ensureInitialUserAndRoles(db))
-  .then((db) => {
-    global.db = db;
-    console.log('✅ Database initialized successfully');
-    resolve(db);
-  })
-
+          .then((db) => runMigrations(db))
+          .then((db) => ensureInitialUserAndRoles(db))
+          .then((db) => {
+            // ✅ Set global.db BEFORE seeding
+            global.db = db;
+            
+            // Now load and seed features
+            const { seedFeatureFlags } = require('./initialDataSeeder.cjs');
+            return seedFeatureFlags(db).then(() => db);
+          })
+          .then((db) => {
+            console.log('✅ Database initialized successfully');
+            resolve(db);
+          })
           .catch((err) => {
             console.error('❌ Database initialization failed:', err);
             reject(err);
