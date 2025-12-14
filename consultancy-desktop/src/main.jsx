@@ -16,26 +16,25 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     >
       <App />
       <Toaster
-        position="top-right"
-        reverseOrder={false}
-        gutter={8}
-        containerStyle={{
-          top: 80,
-          right: 20,
-        }}
-        toastOptions={{
-          duration: 3000,
-          style: {
-            background: 'var(--bg-card)',
-            color: 'var(--text)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '12px',
-            padding: '16px',
-            fontSize: '0.95rem',
-            fontWeight: '500',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            maxWidth: '400px',
-          },
+  position="bottom-center"
+  reverseOrder={false}
+  gutter={8}
+  containerStyle={{
+    bottom: 40,
+  }}
+  toastOptions={{
+    duration: 3000,
+    style: {
+      background: 'var(--bg-card)',
+      color: 'var(--text)',
+      border: '1px solid var(--border-color)',
+      borderRadius: '12px',
+      padding: '16px',
+      fontSize: '0.95rem',
+      fontWeight: '500',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+      maxWidth: '400px',
+    },
           success: {
             duration: 3000,
             style: {

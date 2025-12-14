@@ -9,6 +9,7 @@ const { v4: uuidv4 } = require('uuid');
 const archiver = require('archiver');
 const mime = require('mime');
 const { getDatabase } = require('../db/database.cjs');
+const { getAdminAssignedFeatures,getUserPermissions,getAdminEffectiveFlags } = require('../db/queries.cjs');
 const ejs = require('ejs');
 const tempFile = require('temp-file');
 const csv = require('csv-parser');
@@ -202,9 +203,27 @@ function registerIpcHandlers(app) {
     // 2. USER MANAGEMENT & AUTHENTICATION (REFACTORED)
     // ====================================================================
     
-    ipcMain.handle('get-user-permissions', (event, { userId }) => {
-      return queries.getUserPermissions(userId);
-  });
+    ipcMain.handle('get-admin-effective-flags', async (event, { adminId }) => {
+  try {
+    const flags = await getAdminEffectiveFlags(adminId);
+    return { success: true, data: flags };
+  } catch (err) {
+    console.error('get-admin-effective-flags failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('get-user-permissions', async (event, { userId }) => {
+  try {
+    const permissions = await getUserPermissions(userId);
+    return permissions; // Already returns {success, data}
+  } catch (err) {
+    console.error('get-user-permissions failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+
 // ====================================================================
    ipcMain.handle('save-user-permissions', async (event, { user, userId, flags }) => {
     try {

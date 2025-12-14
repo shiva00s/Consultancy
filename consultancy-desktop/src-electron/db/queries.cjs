@@ -3129,26 +3129,56 @@ async function permanentDeletePlacement(id) {
 }
 
 async function getAdminAssignedFeatures(userId) {
-  const db = getDatabase(); // Make sure getDatabase() is accessible here
-
-  return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT f.key
-      FROM feature_flags f
-      INNER JOIN user_features uf ON uf.feature_id = f.id
-      WHERE uf.user_id = ?
-        AND f.isDeleted = 0
-    `;
-    
-    db.all(sql, [userId], (err, rows) => {
-      if (err) {
-        console.error('getAdminAssignedFeatures error:', err);
-        return reject(err);
-      }
-      resolve(rows.map((r) => r.key));
-    });
-  });
+  const db = getDatabase();
+  try {
+    const row = await dbGet(
+      db,
+      "SELECT features FROM users WHERE id = ?",
+      [userId],
+    );
+    const features = row && row.features ? JSON.parse(row.features) : {};
+    return { success: true, data: features };
+  } catch (err) {
+    console.error("getAdminAssignedFeatures DB Error:", err.message);
+    return {
+      success: false,
+      error: mapErrorToFriendly("Failed to retrieve admin features."),
+    };
+  }
 }
+
+async function getAdminEffectiveFlags(adminId) {
+  const ceilingRes = await getSuperAdminFeatureFlags(); // already exists
+  const globalFlags = ceilingRes.success && ceilingRes.data ? ceilingRes.data : {};
+
+  const adminRes = await getAdminAssignedFeatures(adminId);
+  const adminFlags = adminRes.success && adminRes.data ? adminRes.data : {};
+
+  const effective = {};
+  Object.keys(globalFlags).forEach((key) => {
+    effective[key] = !!globalFlags[key] && !!adminFlags[key];
+  });
+
+  return { success: true, data: effective };
+}
+
+
+
+async function getAdminEffectiveFlags(adminId) {
+  const ceilingRes = await getSuperAdminFeatureFlags(); // already in your file
+  const globalFlags = ceilingRes.success && ceilingRes.data ? ceilingRes.data : {};
+
+  const adminRes = await getAdminAssignedFeatures(adminId);
+  const adminFlags = adminRes.success && adminRes.data ? adminRes.data : {};
+
+  const effective = {};
+  Object.keys(globalFlags).forEach((key) => {
+    effective[key] = !!globalFlags[key] && !!adminFlags[key];
+  });
+
+  return { success: true, data: effective };
+}
+
 
 async function checkPlacementExists(id) {
   const db = getDatabase();
@@ -3579,7 +3609,7 @@ module.exports = {
   getSuperAdminFeatureFlags,
   
   getCommLogs,
-
+getAdminEffectiveFlags,
   getDeletedMedical,
   restoreMedical,
   getDeletedInterviews,
