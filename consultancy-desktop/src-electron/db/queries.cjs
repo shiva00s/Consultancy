@@ -817,48 +817,103 @@ async function createCandidate(data) {
   }
 }
 
-async function getSystemAuditLog({ user, userFilter = '', actionFilter = '', limit = 30, offset = 0 }) {
-  // ✅ CRITICAL FIX: Allow admin, super_admin, AND check user object exists
+// ============================================
+// GET SYSTEM AUDIT LOG - FIXED VERSION
+// ============================================
+
+async function getSystemAuditLog(params) {
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("🔍 [Backend] getSystemAuditLog CALLED");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  
+  // ✅ CRITICAL FIX: Destructure AFTER receiving params
+  const { 
+    user, 
+    userFilter = '', 
+    actionFilter = '', 
+    limit = 30, 
+    offset = 0 
+  } = params || {};
+  
+  // ✅ Enhanced Debug logging
+  console.log("📦 [Backend] Full params object:", JSON.stringify(params, null, 2));
+  console.log("👤 [Backend] User object:", JSON.stringify(user, null, 2));
+  console.log("🎭 [Backend] User role:", user?.role);
+  console.log("📝 [Backend] User username:", user?.username);
+  console.log("🔍 [Backend] Filters:", { userFilter, actionFilter, limit, offset });
+  
+  // ✅ Step 1: Check if user exists
   if (!user) {
+    console.error("❌ [Backend] FATAL: No user object found in params");
+    console.error("❌ [Backend] Params received:", params);
     return {
       success: false,
-      error: "Authentication required.",
+      error: "Authentication required. No user session found.",
     };
   }
 
-  // ✅ Allow both 'admin' and 'super_admin' roles
+  // ✅ Step 2: Validate user object has required fields
+  if (!user.role || !user.username) {
+    console.error("❌ [Backend] FATAL: User object is incomplete");
+    console.error("❌ [Backend] User object:", user);
+    return {
+      success: false,
+      error: "Invalid user session. Please log in again.",
+    };
+  }
+
+  // ✅ Step 3: Check role permissions
   const allowedRoles = ['admin', 'super_admin'];
+  
+  console.log("🔐 [Backend] Checking permissions...");
+  console.log("🔐 [Backend] User role:", user.role);
+  console.log("🔐 [Backend] Allowed roles:", allowedRoles);
+  console.log("🔐 [Backend] Role check result:", allowedRoles.includes(user.role));
+  
   if (!allowedRoles.includes(user.role)) {
+    console.error(`❌ [Backend] ACCESS DENIED for role: ${user.role}`);
+    console.error(`❌ [Backend] User: ${user.username}`);
     return {
       success: false,
       error: `Access Denied: Only Admins can access audit logs. Your role: ${user.role}`,
     };
   }
 
+  console.log("✅ [Backend] User authorized:", user.username, `(${user.role})`);
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+  // ✅ Step 4: Build SQL query
   const db = getDatabase();
   let baseQuery = "FROM audit_log";
   const dynamicParams = [];
   let conditions = [];
   
-  if (userFilter) {
+  if (userFilter && userFilter.trim() !== '') {
     conditions.push("username LIKE ?");
     dynamicParams.push(`%${userFilter}%`);
+    console.log("🔍 [Backend] Added username filter:", userFilter);
   }
   
-  if (actionFilter) {
+  if (actionFilter && actionFilter.trim() !== '') {
     conditions.push("(action LIKE ? OR target_type LIKE ? OR details LIKE ?)");
     dynamicParams.push(
       `%${actionFilter}%`,
       `%${actionFilter}%`,
       `%${actionFilter}%`,
     );
+    console.log("🔍 [Backend] Added action filter:", actionFilter);
   }
 
   if (conditions.length > 0) {
     baseQuery += " WHERE " + conditions.join(" AND ");
   }
 
+  console.log("📊 [Backend] SQL Query:", `SELECT COUNT(*) as totalCount ${baseQuery}`);
+  console.log("📊 [Backend] SQL Params:", dynamicParams);
+
+  // ✅ Step 5: Execute query
   try {
+    // Get total count
     const countRow = await dbGet(
       db,
       `SELECT COUNT(*) as totalCount ${baseQuery}`,
@@ -866,25 +921,47 @@ async function getSystemAuditLog({ user, userFilter = '', actionFilter = '', lim
     );
     const totalCount = countRow?.totalCount || 0;
 
+    console.log("📈 [Backend] Total audit log entries:", totalCount);
+
+    // Get paginated data
     let fetchQuery = `SELECT * ${baseQuery} ORDER BY timestamp DESC LIMIT ? OFFSET ?`;
     const finalParams = [...dynamicParams, limit, offset];
+    
+    console.log("📊 [Backend] Fetch Query:", fetchQuery);
+    console.log("📊 [Backend] Final Params:", finalParams);
+    
     const rows = await dbAll(db, fetchQuery, finalParams);
     
-    console.log(`[Audit Log] User: ${user.username} (${user.role}) - Fetched ${rows.length} records`);
+    console.log("✅ [Backend] Successfully fetched audit logs");
+    console.log("✅ [Backend] Rows fetched:", rows.length);
+    console.log("✅ [Backend] Total count:", totalCount);
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     
     return { 
       success: true, 
       data: rows, 
-      totalCount: totalCount 
+      totalCount: totalCount,
+      user: {
+        username: user.username,
+        role: user.role
+      }
     };
+    
   } catch (err) {
-    console.error("System Audit Log Query Error:", err.message);
+    console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.error("❌ [Backend] DATABASE ERROR");
+    console.error("❌ [Backend] Error message:", err.message);
+    console.error("❌ [Backend] Error stack:", err.stack);
+    console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    
     return {
       success: false,
-      error: mapErrorToFriendly(err),
+      error: `Database error: ${err.message}`,
     };
   }
 }
+
+
 
 
 

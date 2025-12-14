@@ -1,223 +1,414 @@
+/* ============================================
+   THEME VARIABLES
+   ============================================ */
 :root {
-  --perm-modal-bg: var(--bg-primary, #111319);
-  --perm-card-bg: var(--bg-secondary, #181b22);
-  --perm-border: var(--border-color, #262a33);
-  --perm-text-main: var(--text-primary, #f5f5f7);
-  --perm-text-muted: var(--text-secondary, #a1a1aa);
-  --perm-accent: var(--primary-color, #3b82f6);
+  /* Dark Theme (Default) */
+  --perm-modal-bg: #0f1419;
+  --perm-card-bg: #1a1f2e;
+  --perm-border: #2d3748;
+  --perm-text-main: #f7fafc;
+  --perm-text-muted: #a0aec0;
+  --perm-accent: #3b82f6;
+  --perm-accent-hover: #2563eb;
   --perm-accent-soft: rgba(59, 130, 246, 0.12);
   --perm-danger: #ef4444;
+  --perm-success: #10b981;
+  --perm-warning: #f59e0b;
+  --perm-toggle-off: #1e293b;
+  --perm-toggle-knob: #e2e8f0;
+  --perm-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+  --perm-card-hover: rgba(59, 130, 246, 0.05);
 }
 
-/* Overlay */
+/* Light Theme */
+[data-theme="light"] {
+  --perm-modal-bg: #ffffff;
+  --perm-card-bg: #f8fafc;
+  --perm-border: #e2e8f0;
+  --perm-text-main: #1e293b;
+  --perm-text-muted: #64748b;
+  --perm-accent: #2563eb;
+  --perm-accent-hover: #1d4ed8;
+  --perm-accent-soft: rgba(37, 99, 235, 0.08);
+  --perm-danger: #dc2626;
+  --perm-success: #059669;
+  --perm-warning: #d97706;
+  --perm-toggle-off: #cbd5e1;
+  --perm-toggle-knob: #ffffff;
+  --perm-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --perm-card-hover: rgba(37, 99, 235, 0.04);
+}
+
+/* ============================================
+   MODAL OVERLAY & CONTAINER
+   ============================================ */
 .perm-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 9999;
-  padding: 16px;
+  padding: 20px;
+  animation: fadeIn 0.2s ease;
 }
 
-/* Modal (final, compact, flex layout) */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .perm-modal {
   background: var(--perm-modal-bg);
-  border-radius: 12px;
+  border-radius: 16px;
   width: 100%;
-  max-width: 980px;
-  max-height: 85vh; /* fit within screen */
+  max-width: 1100px;
+  max-height: 88vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: var(--perm-shadow);
+  border: 1px solid var(--perm-border);
   overflow: hidden;
+  animation: slideUp 0.3s ease;
 }
 
-/* Header */
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ============================================
+   HEADER
+   ============================================ */
 .perm-modal-header {
-  padding: 16px 20px;
+  padding: 24px 28px;
   border-bottom: 1px solid var(--perm-border);
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  background: var(--perm-card-bg);
 }
 
 .perm-modal-header h2 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.5rem;
+  font-weight: 700;
   color: var(--perm-text-main);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.perm-modal-header h2::before {
+  content: "🔐";
+  font-size: 1.4rem;
 }
 
 .perm-subtitle {
-  margin: 4px 0 0;
-  font-size: 0.85rem;
+  margin: 6px 0 0;
+  font-size: 0.9rem;
   color: var(--perm-text-muted);
+  font-weight: 400;
+}
+
+.perm-subtitle strong {
+  color: var(--perm-accent);
+  font-weight: 600;
 }
 
 .perm-close-btn {
   border: none;
   background: transparent;
   color: var(--perm-text-muted);
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 999px;
-  transition: background 0.15s ease, color 0.15s ease;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
 }
 
 .perm-close-btn:hover {
-  background: rgba(148, 163, 184, 0.12);
-  color: var(--perm-text-main);
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--perm-danger);
+  transform: rotate(90deg);
 }
 
-/* Info bar (compact) */
+/* ============================================
+   INFO BAR
+   ============================================ */
 .perm-info-bar {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 20px; /* compact */
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 28px;
   background: var(--perm-accent-soft);
-  color: var(--perm-text-main);
-  font-size: 0.82rem; /* slightly smaller */
-  flex-shrink: 0; /* don't shrink */
+  border-bottom: 1px solid var(--perm-border);
+  color: var(--perm-accent);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  font-weight: 500;
 }
 
 .perm-info-icon {
   flex-shrink: 0;
+  font-size: 1.3rem;
+  margin-top: 2px;
 }
 
-/* Body (scrolls inside, fits in viewport) */
+/* ============================================
+   BODY (SCROLLABLE)
+   ============================================ */
 .perm-modal-body {
-  padding: 12px 20px;
+  padding: 20px 28px;
   overflow-y: auto;
-  flex: 1;        /* take remaining space */
-  min-height: 0;  /* critical for flex scroll */
+  flex: 1;
+  min-height: 0;
+  background: var(--perm-modal-bg);
 }
 
-/* Section card (compact) */
+/* ============================================
+   SECTION CARDS
+   ============================================ */
 .perm-section-card {
   background: var(--perm-card-bg);
-  border-radius: 8px;
+  border-radius: 12px;
   border: 1px solid var(--perm-border);
-  padding: 10px 12px;
-  margin-bottom: 10px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+
+[data-theme="light"] .perm-section-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.perm-section-card:hover {
+  border-color: var(--perm-accent);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.1);
 }
 
 .perm-section-header {
-  margin-bottom: 6px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--perm-border);
 }
 
 .perm-section-header h3 {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 1.05rem;
   color: var(--perm-text-main);
   font-weight: 600;
-}
-
-/* Permission rows (tight) */
-.perm-section-content {
   display: flex;
-  flex-direction: column;
-  gap: 4px; /* reduced */
+  align-items: center;
+  gap: 8px;
 }
 
+.perm-section-header h3::before {
+  content: "▸";
+  color: var(--perm-accent);
+  font-size: 1.2rem;
+}
+
+/* ============================================
+   PERMISSION GRID
+   ============================================ */
+.perm-section-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px 16px;
+}
+
+@media (max-width: 768px) {
+  .perm-section-content {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .perm-section-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================
+   PERMISSION ROW
+   ============================================ */
 .perm-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 5px 4px; /* reduced */
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: transparent;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.perm-row:hover:not(.perm-row-disabled) {
+  background: var(--perm-card-hover);
+  border-color: var(--perm-border);
 }
 
 .perm-row-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+  flex: 1;
 }
 
 .perm-label {
-  font-size: 0.88rem; /* slightly smaller */
+  font-size: 0.9rem;
   color: var(--perm-text-main);
+  font-weight: 500;
+  line-height: 1.3;
 }
 
 .perm-row-disabled {
-  opacity: 0.5;
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
-/* Toggle + lock */
+.perm-row-disabled .perm-label {
+  color: var(--perm-text-muted);
+}
+
+/* ============================================
+   CONTROLS (TOGGLE + LOCK)
+   ============================================ */
 .perm-row-controls {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .perm-lock-hint {
   color: var(--perm-text-muted);
-  font-size: 0.9rem;
+  font-size: 1rem;
   display: inline-flex;
   align-items: center;
 }
 
-/* Toggle switch */
+/* ============================================
+   TOGGLE SWITCH (MODERN)
+   ============================================ */
 .perm-toggle {
-  width: 38px;
-  height: 20px;
+  width: 44px;
+  height: 24px;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.45);
-  background: #020617;
+  border: 2px solid transparent;
+  background: var(--perm-toggle-off);
   position: relative;
   padding: 0;
   cursor: pointer;
-  transition: background 0.18s ease, border-color 0.18s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
 }
 
 .perm-toggle-knob {
   position: absolute;
-  top: 1px;
-  left: 1px;
+  top: 2px;
+  left: 2px;
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #e5e7eb;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.7);
-  transition: transform 0.18s ease;
+  background: var(--perm-toggle-knob);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* State: On */
+/* Toggle ON State */
 .perm-toggle.on {
   background: var(--perm-accent);
   border-color: var(--perm-accent);
 }
 
 .perm-toggle.on .perm-toggle-knob {
-  transform: translateX(16px);
+  transform: translateX(20px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
-/* State: Off */
-.perm-toggle.off {
-  background: #020617;
+.perm-toggle.on:hover {
+  background: var(--perm-accent-hover);
 }
 
-/* Disabled toggle */
+/* Toggle OFF State */
+.perm-toggle.off:hover:not(.toggle-disabled) {
+  background: rgba(148, 163, 184, 0.2);
+}
+
+/* Disabled Toggle */
 .toggle-disabled {
   cursor: not-allowed;
+  opacity: 0.4;
 }
 
-/* Footer (compact, fixed height) */
+/* ============================================
+   FOOTER
+   ============================================ */
 .perm-modal-footer {
-  padding: 10px 20px; /* compact */
+  padding: 18px 28px;
   border-top: 1px solid var(--perm-border);
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  background: rgba(15, 23, 42, 0.95);
-  flex-shrink: 0; /* don't shrink */
+  gap: 12px;
+  background: var(--perm-card-bg);
+  flex-shrink: 0;
 }
 
-/* Scrollbar */
+.perm-modal-footer .btn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.perm-modal-footer .btn:not(.btn-secondary) {
+  background: var(--perm-accent);
+  color: white;
+}
+
+.perm-modal-footer .btn:not(.btn-secondary):hover {
+  background: var(--perm-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.perm-modal-footer .btn-secondary {
+  background: transparent;
+  color: var(--perm-text-main);
+  border: 1px solid var(--perm-border);
+}
+
+.perm-modal-footer .btn-secondary:hover {
+  background: var(--perm-card-hover);
+  border-color: var(--perm-accent);
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
 .perm-modal-body::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 
 .perm-modal-body::-webkit-scrollbar-track {
@@ -227,10 +418,29 @@
 .perm-modal-body::-webkit-scrollbar-thumb {
   background: rgba(148, 163, 184, 0.3);
   border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
-/* Responsive */
-@media (max-width: 640px) {
+.perm-modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+  background-clip: padding-box;
+}
+
+/* ============================================
+   LOADING STATE
+   ============================================ */
+.perm-modal-body p {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--perm-text-muted);
+  font-size: 1rem;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
   .perm-modal {
     max-width: 100%;
     height: 100%;
@@ -238,122 +448,58 @@
     border-radius: 0;
   }
 
-  .perm-row {
-    align-items: flex-start;
+  .perm-modal-header {
+    padding: 20px;
   }
-}
-.perm-section-content {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr); /* 4 columns, adjust to 5 if needed */
-  gap: 8px 18px;
-  /* For mobile fallback */
-  @media (max-width: 700px) {
-    grid-template-columns: repeat(2, 1fr);
+
+  .perm-info-bar {
+    padding: 12px 20px;
   }
-  @media (max-width: 450px) {
-    grid-template-columns: 1fr;
+
+  .perm-modal-body {
+    padding: 16px 20px;
+  }
+
+  .perm-modal-footer {
+    padding: 16px 20px;
+  }
+
+  .perm-section-card {
+    padding: 14px 16px;
   }
 }
 
-.perm-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 4px;
-  border-radius: 6px;
-  background: transparent;
-  /* Optional: add subtle highlight */
-  /* background: rgba(255,255,255,0.02); */
+@media (max-width: 500px) {
+  .perm-modal-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .perm-modal-footer {
+    flex-direction: column-reverse;
+  }
+
+  .perm-modal-footer .btn {
+    width: 100%;
+  }
 }
 
-:root {
-  --perm-modal-bg: var(--bg-primary, #111319);
-  --perm-card-bg: var(--bg-secondary, #181b22);
-  --perm-border: var(--border-color, #262a33);
-  --perm-text-main: var(--text-primary, #f5f5f7);
-  --perm-text-muted: var(--text-secondary, #a1a1aa);
-  --perm-accent: var(--primary-color, #3b82f6);
-  --perm-accent-soft: rgba(59, 130, 246, 0.12);
-  --perm-danger: #ef4444;
-}
-/* --- */
-[data-theme="light"] {
-  --perm-modal-bg: #f5f6fa;
-  --perm-card-bg: #fff;
-  --perm-border: #dbeafe;
-  --perm-text-main: #182030;
-  --perm-text-muted: #7a7a8a;
-  --perm-accent: #2563eb;
-  --perm-accent-soft: rgba(37, 99, 235, 0.08);
-}
-[data-theme="light"] .perm-section-card {
-  box-shadow: 0 2px 12px rgba(30,42,60,0.08);
-}
 /* ============================================
-   NEW STYLES FOR CASCADING PERMISSIONS
+   LIGHT THEME SPECIFIC ENHANCEMENTS
    ============================================ */
-
-.perm-subtitle {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  margin-top: 0.25rem;
+[data-theme="light"] .perm-modal {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
 }
 
-.perm-unavailable-badge {
-  display: inline-block;
-  padding: 0.2rem 0.5rem;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 6px;
-  font-size: 0.75rem;
-  color: #ef4444;
-  margin-left: 0.5rem;
-  font-weight: 500;
+[data-theme="light"] .perm-toggle.off {
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
 }
 
-.perm-row-disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+[data-theme="light"] .perm-toggle.on {
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
 }
 
-.perm-row-disabled .perm-label {
-  color: var(--text-secondary);
-}
-
-.perm-lock-hint {
-  display: flex;
-  align-items: center;
-  color: var(--text-secondary);
-  font-size: 1rem;
-  margin-right: 0.5rem;
-}
-
-.toggle-disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.toggle-disabled:hover {
-  transform: none !important;
-}
-
-/* Info bar styling update */
-.perm-info-bar {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  border-radius: 12px;
-  color: #3b82f6;
-  margin-bottom: 1.5rem;
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.perm-info-icon {
-  flex-shrink: 0;
-  font-size: 1.25rem;
-  margin-top: 0.1rem;
+[data-theme="light"] .perm-info-bar {
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.2);
 }

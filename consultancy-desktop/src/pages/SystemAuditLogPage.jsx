@@ -1,3 +1,7 @@
+// ============================================
+// SYSTEM AUDIT LOG PAGE - FIXED
+// ============================================
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiClock, FiUsers, FiFilter, FiRefreshCw, FiAlertTriangle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
@@ -6,12 +10,9 @@ import { useShallow } from 'zustand/react/shallow';
 
 const ITEMS_PER_PAGE = 30;
 
-// Helper to format the date and time (Fixed for UTC)
 const formatTimestamp = (isoString) => {
   if (!isoString) return 'N/A';
   
-  // SQLite stores as 'YYYY-MM-DD HH:MM:SS' (UTC). 
-  // We replace space with 'T' and add 'Z' to force JS to treat it as UTC.
   let safeIso = isoString;
   if (!isoString.includes('T')) {
       safeIso = isoString.replace(' ', 'T') + 'Z';
@@ -40,11 +41,16 @@ function SystemAuditLogPage() {
     const [totalItems, setTotalItems] = useState(0);
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
-    // Filter states
     const [userFilter, setUserFilter] = useState('');
     const [actionFilter, setActionFilter] = useState('');
 
     const fetchLogs = useCallback(async (page = 1) => {
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        console.log("🔍 [Frontend] Fetching audit logs...");
+        console.log("👤 [Frontend] Current user:", user);
+        console.log("📄 [Frontend] Page:", page);
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        
         setLoading(true);
         setError(null);
         setCurrentPage(page);
@@ -53,39 +59,55 @@ function SystemAuditLogPage() {
         const offset = (page - 1) * limit;
         
         try {
+            // ✅ FIXED: Don't pass user object, IPC handler will use stored session
             const res = await window.electronAPI.getSystemAuditLog({
-                user: user,
+                // user: user,  // ❌ REMOVE THIS
                 userFilter: userFilter,
                 actionFilter: actionFilter,
                 limit: limit,
                 offset: offset
             });
             
+            console.log("📦 [Frontend] Response received:", res);
+            
             if (res.success) {
                 setLogs(res.data);
                 setTotalItems(res.totalCount);
+                console.log("✅ [Frontend] Loaded", res.data.length, "logs");
             } else {
                 setError(res.error || 'Failed to fetch audit log.');
                 toast.error(res.error || 'Failed to fetch audit log.');
+                console.error("❌ [Frontend] Error:", res.error);
             }
         } catch (err) {
-            console.error("System Audit Log Fetch Error:", err);
+            console.error("❌ [Frontend] Exception:", err);
             setError('An unexpected error occurred during log retrieval.');
             toast.error('An unexpected error occurred during log retrieval.');
         }
-        setLoading(false);
-    }, [user, userFilter, actionFilter]);
-
-    // ✅ SINGLE useEffect with debug logging
-    useEffect(() => {
-        console.log("🔍 DEBUG - User Object:", user);
-        console.log("🔍 DEBUG - User Role:", user?.role);
-        console.log("🔍 DEBUG - User Username:", user?.username);
         
-        if (user) {
-            fetchLogs(1);
+        setLoading(false);
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    }, [userFilter, actionFilter]); // ✅ Remove 'user' from dependencies
+
+    useEffect(() => {
+        console.log("🔍 [Frontend] Component mounted/user changed");
+        console.log("👤 [Frontend] User from Zustand:", user);
+        
+        // ✅ Check if user has permission
+        if (!user) {
+            setError("Please log in to view audit logs.");
+            setLoading(false);
+            return;
         }
-    }, [fetchLogs, user]); 
+        
+        if (!['admin', 'super_admin'].includes(user.role)) {
+            setError(`Access denied. Your role (${user.role}) cannot access audit logs.`);
+            setLoading(false);
+            return;
+        }
+        
+        fetchLogs(1);
+    }, [fetchLogs, user]);
     
     const handleFilterSubmit = (e) => {
         if (e) e.preventDefault();
@@ -98,13 +120,52 @@ function SystemAuditLogPage() {
         }
     };
     
-    if (error) return (
-        <div className="reports-page-container">
-            <p className="form-message error">
-                <FiAlertTriangle /> Error loading audit log: {error}
-            </p>
-        </div>
-    );
+    // ✅ Show permission error
+    if (!user) {
+        return (
+            <div className="reports-page-container">
+                <div className="form-message error">
+                    <FiAlertTriangle />
+                    <div>
+                        <strong>Authentication Required</strong>
+                        <p>Please log in to view audit logs.</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+    
+    if (user && !['admin', 'super_admin'].includes(user.role)) {
+        return (
+            <div className="reports-page-container">
+                <div className="form-message error">
+                    <FiAlertTriangle />
+                    <div>
+                        <strong>Access Denied</strong>
+                        <p>Only administrators can access audit logs.</p>
+                        <p>Your role: <strong>{user.role}</strong></p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+    
+    if (error) {
+        return (
+            <div className="reports-page-container">
+                <div className="form-message error">
+                    <FiAlertTriangle />
+                    <div>
+                        <strong>Error loading audit log</strong>
+                        <p>{error}</p>
+                        <button className="btn btn-sm" onClick={() => fetchLogs(currentPage)}>
+                            Retry
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="reports-page-container">
@@ -132,7 +193,7 @@ function SystemAuditLogPage() {
                     />
                 </div>
                 <button type="submit" className="btn btn-secondary">Apply Filters</button>
-                <button type="button" className="doc-btn view" onClick={() => fetchLogs(currentPage)}>
+                <button type="button" className="icon-btn view" onClick={() => fetchLogs(currentPage)}>
                     <FiRefreshCw />
                 </button>
             </form>
@@ -142,9 +203,16 @@ function SystemAuditLogPage() {
                     Showing {logs.length} of {totalItems} log entries (Page {currentPage} of {totalPages})
                 </div>
                 {loading ? (
-                    <p style={{textAlign: 'center', padding: '20px'}}>Loading history...</p>
+                    <div className="flex-center" style={{padding: '40px'}}>
+                        <div className="spinner"></div>
+                        <p>Loading history...</p>
+                    </div>
                 ) : logs.length === 0 ? (
-                    <p style={{textAlign: 'center', color: 'var(--text-secondary)'}}>No log entries found matching criteria.</p>
+                    <div className="empty-state">
+                        <FiClock />
+                        <h3>No Logs Found</h3>
+                        <p>No log entries found matching criteria.</p>
+                    </div>
                 ) : (
                     <ul className="timeline-list" style={{padding: '0 10px', maxHeight: '70vh', overflowY: 'auto'}}>
                         {logs.map((log) => (

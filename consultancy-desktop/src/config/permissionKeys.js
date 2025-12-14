@@ -85,7 +85,7 @@ export const PERMISSION_GROUPS = {
             { key: PERMISSION_KEYS.SYSTEM_REPORTS, label: 'View Reports', icon: '📊' },
             
             { key: PERMISSION_KEYS.SYSTEM_AUDIT_LOG, label: 'Audit Log', icon: '📜' },
-            { key: PERMISSION_KEYS.SYSTEM_MODULES, label: 'Modules', icon: '⚙️' },
+            { key: PERMISSION_KEYS.SYSTEM_MODULES, label: 'WhatsApp', icon: '⚙️' },
             { key: PERMISSION_KEYS.SYSTEM_RECYCLE_BIN, label: 'Recycle Bin', icon: '🗑️' },
         ]
     }

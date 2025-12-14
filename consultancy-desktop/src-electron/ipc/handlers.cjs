@@ -2414,6 +2414,82 @@ ipcMain.handle('ui-can-access', async (event, { feature }) => {
     }
 });
 
+// ============================================
+// IPC HANDLER - AUDIT LOG
+// ============================================
+
+ipcMain.handle("audit:get-system-log", async (event, filters) => {
+  try {
+    console.log("🔍 [IPC] audit:get-system-log called");
+    console.log("🔍 [IPC] Filters received:", filters);
+    
+    // ✅ CRITICAL: Get user from session store
+    const session = mainWindow.webContents.session;
+    const cookies = await session.cookies.get({ name: 'auth_token' });
+    
+    let user = null;
+    
+    if (cookies.length > 0) {
+      const token = cookies[0].value;
+      // Decode token to get user info
+      user = decodeToken(token); // Implement this based on your auth system
+    }
+    
+    // Alternative: If you store user in global state
+    if (!user && global.currentUser) {
+      user = global.currentUser;
+    }
+    
+    console.log("🔍 [IPC] User extracted:", user);
+    
+    if (!user) {
+      console.error("❌ [IPC] No authenticated user found");
+      return {
+        success: false,
+        error: "Authentication required. Please log in again."
+      };
+    }
+    
+    // ✅ Pass user object to the function
+    const result = await getSystemAuditLog({
+      user: user,
+      userFilter: filters?.userFilter || '',
+      actionFilter: filters?.actionFilter || '',
+      limit: filters?.limit || 30,
+      offset: filters?.offset || 0
+    });
+    
+    console.log("✅ [IPC] Result:", result.success ? `${result.data?.length} rows` : result.error);
+    
+    return result;
+    
+  } catch (error) {
+    console.error("❌ [IPC] audit:get-system-log error:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to fetch audit logs"
+    };
+  }
+});
+
+// Helper function to decode JWT token
+function decodeToken(token) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      Buffer.from(base64, 'base64')
+        .toString('utf-8')
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (err) {
+    console.error("❌ Token decode error:", err);
+    return null;
+  }
+}
 
 
 
