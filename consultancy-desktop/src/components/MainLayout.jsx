@@ -12,13 +12,14 @@ import ChangePasswordModal from './modals/ChangePasswordModal';
 import KeyboardShortcutsGuide from './KeyboardShortcutsGuide';
 import { useGlobalShortcuts } from '../hooks/useKeyboardShortcuts';
 import useThemeStore from '../store/useThemeStore';
-import NotificationBell from './NotificationBell';
-import NotificationPanel from './NotificationPanel';
+
+
 
 const getInitialCollapseState = () => {
   const storedState = localStorage.getItem('sidebarCollapsed');
   return storedState ? JSON.parse(storedState) : false;
 };
+
 
 function SubMenu({ title, icon, children, isCollapsed }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -43,11 +44,13 @@ function SubMenu({ title, icon, children, isCollapsed }) {
   );
 }
 
+
 function MainLayout({ children, onLogout, user, flags }) {
   const navigate = useNavigate();
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(getInitialCollapseState());
 
+  // ✨ NEW: Auto-expand/collapse state
   const [isHovered, setIsHovered] = useState(false);
   const [isPinned, setIsPinned] = useState(!getInitialCollapseState());
   const collapseTimerRef = useRef(null);
@@ -98,17 +101,17 @@ function MainLayout({ children, onLogout, user, flags }) {
         const res = await window.electronAPI.getUserRole({ userId: user.id });
         if (res.success) {
           if (res.role !== user.role) {
-            toast.error('Your permissions have changed. You must log in again.');
+            toast.error("Your permissions have changed. You must log in again.");
             onLogout();
             navigate('/login');
           }
         } else if (res.error === 'User not found') {
-          toast.error('This account no longer exists.');
+          toast.error("This account no longer exists.");
           onLogout();
           navigate('/login');
         }
       } catch (error) {
-        console.warn('Role check failed silently:', error);
+        console.warn("Role check failed silently:", error);
       }
     };
     checkRoleStatus();
@@ -137,19 +140,25 @@ function MainLayout({ children, onLogout, user, flags }) {
     navigate('/login');
   };
 
+  // ✨ NEW: Auto-expand on mouse enter
   const handleMouseEnter = () => {
+    // Clear any pending collapse timer
     if (collapseTimerRef.current) {
       clearTimeout(collapseTimerRef.current);
       collapseTimerRef.current = null;
     }
+    // Only auto-expand if not pinned
     if (!isPinned) {
       setIsHovered(true);
       setIsCollapsed(false);
     }
   };
 
+  // ✨ NEW: Auto-collapse on mouse leave
   const handleMouseLeave = () => {
+    // Only auto-collapse if not pinned
     if (!isPinned) {
+      // Add 300ms delay to prevent accidental collapse
       collapseTimerRef.current = setTimeout(() => {
         setIsHovered(false);
         setIsCollapsed(true);
@@ -157,17 +166,20 @@ function MainLayout({ children, onLogout, user, flags }) {
     }
   };
 
+  // ✨ NEW: Toggle pin/unpin (replaces old toggle)
   const handleTogglePin = () => {
     const newPinState = !isPinned;
     setIsPinned(newPinState);
     setIsCollapsed(!newPinState);
     localStorage.setItem('sidebarCollapsed', JSON.stringify(!newPinState));
 
+    // If unpinning and mouse is not hovering, collapse immediately
     if (!newPinState && !isHovered) {
       setIsCollapsed(true);
     }
   };
 
+  // ✨ NEW: Cleanup timer on unmount
   useEffect(() => {
     return () => {
       if (collapseTimerRef.current) {
@@ -197,16 +209,18 @@ function MainLayout({ children, onLogout, user, flags }) {
 
   return (
     <div className={`layout-container ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
-      <nav
+      {/* ✨ NEW: Add mouse enter/leave handlers */}
+      <nav 
         className="sidebar"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
         <div className="sidebar-scrollable-area">
-          <button
+          {/* ✨ UPDATED: Toggle button with pinned state and new handler */}
+          <button 
             className={`sidebar-toggle-btn ${isPinned ? 'pinned' : ''}`}
             onClick={handleTogglePin}
-            title={isPinned ? 'Unpin sidebar (auto-collapse)' : 'Pin sidebar (keep expanded)'}
+            title={isPinned ? "Unpin sidebar (auto-collapse)" : "Pin sidebar (keep expanded)"}
           >
             <FiChevronLeft />
           </button>
@@ -326,9 +340,7 @@ function MainLayout({ children, onLogout, user, flags }) {
                     </NavLink>
                   </li>
                 )}
-                {(user.role === 'super_admin' ||
-                  user.role === 'admin' ||
-                  canAccess('system_settings')) && (
+                {(user.role === 'super_admin' || user.role === 'admin' || canAccess('system_settings')) && (
                   <li>
                     <NavLink to="/settings" title="Settings">
                       <FiSettings />
@@ -354,9 +366,7 @@ function MainLayout({ children, onLogout, user, flags }) {
             <FiUserCheck />
             <div className="user-info-text-wrapper">
               <span>Logged in as:</span>
-              <strong>
-                {username} ({displayedRole})
-              </strong>
+              <strong>{username} ({displayedRole})</strong>
             </div>
           </div>
 
@@ -366,14 +376,6 @@ function MainLayout({ children, onLogout, user, flags }) {
           </button>
         </div>
       </nav>
-
-      <header className="top-header">
-        <div className="top-header-left" />
-        <div className="top-header-right">
-          <NotificationBell />
-          <NotificationPanel />
-        </div>
-      </header>
 
       <main className="main-content">{children}</main>
 
@@ -389,5 +391,6 @@ function MainLayout({ children, onLogout, user, flags }) {
     </div>
   );
 }
+
 
 export default MainLayout;

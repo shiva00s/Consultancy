@@ -1,18 +1,17 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  FiBell, 
-  FiX, 
-  FiCheck, 
-  FiTrash2, 
-  FiInfo, 
-  FiCheckCircle, 
-  FiAlertTriangle, 
+import {
+  FiBell,
+  FiX,
+  FiCheck,
+  FiTrash2,
+  FiInfo,
+  FiCheckCircle,
+  FiAlertTriangle,
   FiAlertCircle,
-  FiFilter
 } from 'react-icons/fi';
-import useNotificationStore from '../store/useNotificationStore';
 import { useShallow } from 'zustand/react/shallow';
+import useNotificationStore from '../store/useNotificationStore';
 import '../css/NotificationPanel.css';
 
 const NotificationIcon = ({ type }) => {
@@ -30,32 +29,45 @@ const NotificationIcon = ({ type }) => {
 
 function NotificationPanel() {
   const navigate = useNavigate();
-  
+
   const {
     isOpen,
     filter,
+    notifications,
     closePanel,
     setFilter,
     markAsRead,
     markAllAsRead,
     deleteNotification,
     clearAll,
-    getFilteredNotifications,
   } = useNotificationStore(
     useShallow((state) => ({
       isOpen: state.isOpen,
       filter: state.filter,
+      notifications: state.notifications,
       closePanel: state.closePanel,
       setFilter: state.setFilter,
       markAsRead: state.markAsRead,
       markAllAsRead: state.markAllAsRead,
       deleteNotification: state.deleteNotification,
       clearAll: state.clearAll,
-      getFilteredNotifications: state.getFilteredNotifications,
     }))
   );
 
-  const notifications = getFilteredNotifications();
+  // Apply filtering in component (uses same rules as store helper)
+  const filteredNotifications = useMemo(() => {
+    switch (filter) {
+      case 'unread':
+        return notifications.filter((n) => !n.read);
+      case 'info':
+      case 'success':
+      case 'warning':
+      case 'error':
+        return notifications.filter((n) => n.type === filter);
+      default:
+        return notifications;
+    }
+  }, [notifications, filter]);
 
   // Close on escape key
   useEffect(() => {
@@ -70,12 +82,10 @@ function NotificationPanel() {
   }, [isOpen, closePanel]);
 
   const handleNotificationClick = async (notification) => {
-    // Mark as read
     if (!notification.read) {
       await markAsRead(notification.id);
     }
 
-    // Navigate to link if exists
     if (notification.link) {
       navigate(notification.link);
       closePanel();
@@ -112,11 +122,13 @@ function NotificationPanel() {
           <div className="header-title">
             <FiBell />
             <h3>Notifications</h3>
-            {notifications.length > 0 && (
-              <span className="notification-count">{notifications.length}</span>
+            {filteredNotifications.length > 0 && (
+              <span className="notification-count">
+                {filteredNotifications.length}
+              </span>
             )}
           </div>
-          <button 
+          <button
             className="btn-close"
             onClick={closePanel}
             aria-label="Close notifications"
@@ -154,9 +166,9 @@ function NotificationPanel() {
         </div>
 
         {/* Actions */}
-        {notifications.length > 0 && (
+        {filteredNotifications.length > 0 && (
           <div className="panel-actions">
-            <button 
+            <button
               className="action-btn"
               onClick={markAllAsRead}
               title="Mark all as read"
@@ -164,7 +176,7 @@ function NotificationPanel() {
               <FiCheck />
               Mark all read
             </button>
-            <button 
+            <button
               className="action-btn danger"
               onClick={clearAll}
               title="Clear all notifications"
@@ -177,7 +189,7 @@ function NotificationPanel() {
 
         {/* Notification List */}
         <div className="panel-body">
-          {notifications.length === 0 ? (
+          {filteredNotifications.length === 0 ? (
             <div className="empty-state">
               <FiBell />
               <p>No notifications</p>
@@ -185,10 +197,12 @@ function NotificationPanel() {
             </div>
           ) : (
             <div className="notification-list">
-              {notifications.map((notification) => (
+              {filteredNotifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`notification-item ${!notification.read ? 'unread' : ''} ${notification.priority}`}
+                  className={`notification-item ${
+                    !notification.read ? 'unread' : ''
+                  } ${notification.priority}`}
                   onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="notification-icon-wrapper">

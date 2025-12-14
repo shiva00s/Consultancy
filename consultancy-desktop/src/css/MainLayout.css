@@ -8,7 +8,9 @@
   min-height: 100vh;
   background: var(--bg-body);
   position: relative;
+  overflow: visible;       /* do NOT hide fixed overlays */
 }
+
 
 /* === Sidebar === */
 .sidebar {

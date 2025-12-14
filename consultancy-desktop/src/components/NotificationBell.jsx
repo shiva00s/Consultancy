@@ -13,23 +13,19 @@ function NotificationBell() {
   );
 
   return (
-    <>
-      <button
-        className="notification-bell"
-        onClick={togglePanel}
-        aria-label={`Notifications ${
-          unreadCount > 0 ? `(${unreadCount} unread)` : ''
-        }`}
-        title="Notifications"
-      >
-        <FiBell />
-        {unreadCount > 0 && (
-          <span className="notification-badge">
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
-      </button>
-    </>
+    <button
+      className="notification-bell-icon"
+      onClick={togglePanel}
+      aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
+      title="Notifications"
+    >
+      <FiBell />
+      {unreadCount > 0 && (
+        <span className="notification-badge">
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      )}
+    </button>
   );
 }
 

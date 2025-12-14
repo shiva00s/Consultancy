@@ -1,4 +1,7 @@
-/* Notification Bell */
+/* ============================
+   Notification Bell
+   ============================ */
+
 .notification-bell {
   position: relative;
   background: none;
@@ -35,63 +38,67 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1);
-  }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
 }
 
-/* Notification Panel */
+/* ============================
+   Overlay + Panel (bottom-left)
+   ============================ */
+
+/* Dark overlay above sidebar and content */
 .notification-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: 999;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 2000;             /* higher than sidebar (1000) */
   animation: fadeIn 0.2s;
 }
 
 @keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Floating card panel, bottom-left like shortcuts */
+.notification-panel {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  width: 420px;
+  max-width: 90vw;
+  max-height: 80vh;
+  background-color: var(--bg-secondary);
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+  z-index: 2100;             /* above overlay */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.25s ease-out;
+}
+
+@keyframes slideUp {
   from {
+    transform: translateY(20px);
     opacity: 0;
   }
   to {
+    transform: translateY(0);
     opacity: 1;
   }
 }
 
-.notification-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 420px;
-  max-width: 90vw;
-  height: 100vh;
-  background-color: var(--bg-secondary);
-  border-left: 1px solid var(--border-color);
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  animation: slideIn 0.3s ease-out;
-}
+/* ============================
+   Panel header
+   ============================ */
 
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-/* Panel Header */
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
 }
@@ -104,7 +111,7 @@
 
 .header-title h3 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
 }
 
 .notification-count {
@@ -121,7 +128,7 @@
 .btn-close {
   background: none;
   border: none;
-  font-size: 24px;
+  font-size: 22px;
   color: var(--text-secondary);
   cursor: pointer;
   padding: 4px;
@@ -134,11 +141,14 @@
   color: var(--text-primary);
 }
 
-/* Filter Bar */
+/* ============================
+   Filters + actions
+   ============================ */
+
 .panel-filters {
   display: flex;
   gap: 8px;
-  padding: 12px 20px;
+  padding: 10px 20px;
   border-bottom: 1px solid var(--border-color);
   overflow-x: auto;
   flex-shrink: 0;
@@ -168,11 +178,10 @@
   border-color: var(--primary-color);
 }
 
-/* Actions Bar */
 .panel-actions {
   display: flex;
   gap: 8px;
-  padding: 12px 20px;
+  padding: 10px 20px;
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
 }
@@ -201,14 +210,16 @@
   border-color: var(--danger-color);
 }
 
-/* Panel Body */
+/* ============================
+   List + items
+   ============================ */
+
 .panel-body {
   flex: 1;
   overflow-y: auto;
   padding: 8px 0;
 }
 
-/* Notification List */
 .notification-list {
   display: flex;
   flex-direction: column;
@@ -217,7 +228,7 @@
 .notification-item {
   display: flex;
   gap: 12px;
-  padding: 16px 20px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--border-color);
   cursor: pointer;
   transition: all 0.2s;
@@ -242,7 +253,7 @@
   background-color: var(--primary-color);
 }
 
-/* Priority indicators */
+/* priority borders */
 .notification-item.high {
   border-left: 3px solid #ffc107;
 }
@@ -253,15 +264,11 @@
 }
 
 @keyframes urgentPulse {
-  0%, 100% {
-    background-color: rgba(var(--danger-rgb), 0.05);
-  }
-  50% {
-    background-color: rgba(var(--danger-rgb), 0.1);
-  }
+  0%, 100% { background-color: rgba(var(--danger-rgb), 0.05); }
+  50%     { background-color: rgba(var(--danger-rgb), 0.1); }
 }
 
-/* Icon Wrapper */
+/* icon + unread dot */
 .notification-icon-wrapper {
   position: relative;
   flex-shrink: 0;
@@ -271,21 +278,10 @@
   font-size: 24px;
 }
 
-.notification-icon.info {
-  color: var(--primary-color);
-}
-
-.notification-icon.success {
-  color: var(--success-color);
-}
-
-.notification-icon.warning {
-  color: #ffc107;
-}
-
-.notification-icon.error {
-  color: var(--danger-color);
-}
+.notification-icon.info    { color: var(--primary-color); }
+.notification-icon.success { color: var(--success-color); }
+.notification-icon.warning { color: #ffc107; }
+.notification-icon.error   { color: var(--danger-color); }
 
 .unread-dot {
   position: absolute;
@@ -298,7 +294,7 @@
   border: 2px solid var(--bg-secondary);
 }
 
-/* Notification Content */
+/* text + meta */
 .notification-content {
   flex: 1;
   min-width: 0;
@@ -343,7 +339,7 @@
   border-radius: 4px;
 }
 
-/* Notification Actions */
+/* item hover actions */
 .notification-actions {
   display: flex;
   align-items: flex-start;
@@ -376,7 +372,7 @@
   border-color: var(--danger-color);
 }
 
-/* Empty State */
+/* empty state */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -404,22 +400,13 @@
   color: var(--text-secondary);
 }
 
-/* Mobile Responsive */
+/* mobile */
 @media (max-width: 768px) {
   .notification-panel {
-    width: 100vw;
-  }
-
-  .panel-header {
-    padding: 16px;
-  }
-
-  .panel-filters,
-  .panel-actions {
-    padding: 12px 16px;
-  }
-
-  .notification-item {
-    padding: 12px 16px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    bottom: 12px;
   }
 }
