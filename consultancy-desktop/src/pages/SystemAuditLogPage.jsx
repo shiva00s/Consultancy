@@ -44,8 +44,6 @@ function SystemAuditLogPage() {
     const [userFilter, setUserFilter] = useState('');
     const [actionFilter, setActionFilter] = useState('');
 
-    
-
     const fetchLogs = useCallback(async (page = 1) => {
         setLoading(true);
         setError(null);
@@ -56,7 +54,6 @@ function SystemAuditLogPage() {
         
         try {
             const res = await window.electronAPI.getSystemAuditLog({
-                // CRITICAL FIX: Pass filters and user as top-level properties
                 user: user,
                 userFilter: userFilter,
                 actionFilter: actionFilter,
@@ -69,17 +66,23 @@ function SystemAuditLogPage() {
                 setTotalItems(res.totalCount);
             } else {
                 setError(res.error || 'Failed to fetch audit log.');
+                toast.error(res.error || 'Failed to fetch audit log.');
             }
         } catch (err) {
             console.error("System Audit Log Fetch Error:", err);
             setError('An unexpected error occurred during log retrieval.');
+            toast.error('An unexpected error occurred during log retrieval.');
         }
         setLoading(false);
-    }, [user, userFilter, actionFilter]); // Depend on user and filters for re-fetch
+    }, [user, userFilter, actionFilter]);
 
+    // ✅ SINGLE useEffect with debug logging
     useEffect(() => {
-        // Initial load or refresh when filters/user changes
-        if (user) { // Only fetch if the user object is defined
+        console.log("🔍 DEBUG - User Object:", user);
+        console.log("🔍 DEBUG - User Role:", user?.role);
+        console.log("🔍 DEBUG - User Username:", user?.username);
+        
+        if (user) {
             fetchLogs(1);
         }
     }, [fetchLogs, user]); 
@@ -95,8 +98,13 @@ function SystemAuditLogPage() {
         }
     };
     
-    if (error) return <p className="form-message error"><FiAlertTriangle /> Error loading audit log: {error}</p>;
-
+    if (error) return (
+        <div className="reports-page-container">
+            <p className="form-message error">
+                <FiAlertTriangle /> Error loading audit log: {error}
+            </p>
+        </div>
+    );
 
     return (
         <div className="reports-page-container">
@@ -142,7 +150,6 @@ function SystemAuditLogPage() {
                         {logs.map((log) => (
                             <li className="timeline-item" key={log.id} style={{gap: '1rem', paddingBottom: '1rem'}}>
                                 <div className="timeline-icon" style={{width: '32px', height: '32px', fontSize: '1rem'}}>
-                                    {/* Using a placeholder icon, real icon logic is complex in JSX */}
                                     <FiClock /> 
                                 </div>
                                 <div className="timeline-content">
@@ -165,7 +172,7 @@ function SystemAuditLogPage() {
                 )}
             </div>
             
-            {/* --- Pagination Controls (Reusing styles from CandidateListPage.css) --- */}
+            {/* --- Pagination Controls --- */}
             {totalItems > ITEMS_PER_PAGE && (
                 <div className="pagination-controls">
                     <button 

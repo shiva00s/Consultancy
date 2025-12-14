@@ -817,13 +817,21 @@ async function createCandidate(data) {
   }
 }
 
-// ✅ CRITICAL: Changed function signature to accept single object parameter
 async function getSystemAuditLog({ user, userFilter = '', actionFilter = '', limit = 30, offset = 0 }) {
-  // ✅ FIX: Skip permission check for super_admin and admin
-  if (!user || (user.role !== 'super_admin' && user.role !== 'admin')) {
+  // ✅ CRITICAL FIX: Allow admin, super_admin, AND check user object exists
+  if (!user) {
     return {
       success: false,
-      error: "Access Denied: You do not have permission for 'canAccessSettings'.",
+      error: "Authentication required.",
+    };
+  }
+
+  // ✅ Allow both 'admin' and 'super_admin' roles
+  const allowedRoles = ['admin', 'super_admin'];
+  if (!allowedRoles.includes(user.role)) {
+    return {
+      success: false,
+      error: `Access Denied: Only Admins can access audit logs. Your role: ${user.role}`,
     };
   }
 
@@ -862,6 +870,8 @@ async function getSystemAuditLog({ user, userFilter = '', actionFilter = '', lim
     const finalParams = [...dynamicParams, limit, offset];
     const rows = await dbAll(db, fetchQuery, finalParams);
     
+    console.log(`[Audit Log] User: ${user.username} (${user.role}) - Fetched ${rows.length} records`);
+    
     return { 
       success: true, 
       data: rows, 
@@ -875,6 +885,7 @@ async function getSystemAuditLog({ user, userFilter = '', actionFilter = '', lim
     };
   }
 }
+
 
 
 async function getAuditLogForCandidate(candidateId) {
