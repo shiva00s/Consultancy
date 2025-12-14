@@ -498,12 +498,15 @@ async function getReportingData(user, filters = {}) {
     return { success: true, data: {} };
   }
 
-  const accessCheck = await checkAdminFeatureAccess(user, "canViewReports");
-  if (!accessCheck.success) {
-    return {
-      success: false,
-      error: mapErrorToFriendly(accessCheck.error),
-    };
+  // ✅ FIX: Skip permission check for super_admin and admin
+  if (user.role !== 'super_admin' && user.role !== 'admin') {
+    const accessCheck = await checkAdminFeatureAccess(user, "canViewReports");
+    if (!accessCheck.success) {
+      return {
+        success: false,
+        error: mapErrorToFriendly(accessCheck.error),
+      };
+    }
   }
 
   const db = getDatabase();
@@ -513,6 +516,7 @@ async function getReportingData(user, filters = {}) {
   let candidateWhereClause = " WHERE c.isDeleted = 0 ";
   const candidateParams = [];
   let employerJoinClause = "";
+  
   if (status) {
     candidateWhereClause += " AND c.status = ? ";
     candidateParams.push(status);
@@ -579,6 +583,7 @@ async function getReportingData(user, filters = {}) {
        GROUP BY c.status`,
       candidateParams,
     );
+    
     const topPositions = await runQuery(
       `SELECT c.Position, COUNT(DISTINCT c.id) as count
        FROM candidates c
@@ -655,20 +660,25 @@ async function getReportingData(user, filters = {}) {
   }
 }
 
+
 async function getDetailedReportList(user, filters = {}) {
-  const accessCheck = await checkAdminFeatureAccess(user, "canViewReports");
-  if (!accessCheck.success) {
-    return {
-      success: false,
-      error: mapErrorToFriendly(accessCheck.error),
-    };
+  // ✅ FIX: Skip permission check for super_admin and admin
+  if (user.role !== 'super_admin' && user.role !== 'admin') {
+    const accessCheck = await checkAdminFeatureAccess(user, "canViewReports");
+    if (!accessCheck.success) {
+      return {
+        success: false,
+        error: mapErrorToFriendly(accessCheck.error),
+      };
+    }
   }
+  
   const db = getDatabase();
   const { status, employer } = filters;
 
   let sql = `
     SELECT
-      c.id, c.name, c.passportNo, c.Position, c.status,c.contact,
+      c.id, c.name, c.passportNo, c.Position, c.status, c.contact,
       e.companyName,
       COALESCE(SUM(p.total_amount), 0) as totalDue,
       COALESCE(SUM(p.amount_paid), 0) as totalPaid
@@ -692,14 +702,16 @@ async function getDetailedReportList(user, filters = {}) {
   }
 
   sql += " GROUP BY c.id ORDER BY c.name ASC";
+  
   try {
     const rows = await dbAll(db, sql, params);
     return { success: true, data: rows };
   } catch (err) {
-    console.error("Detailed Report Query Error (Final Fix):", err.message);
+    console.error("Detailed Report Query Error:", err.message);
     return { success: false, error: mapErrorToFriendly(err) };
   }
 }
+
 
 // ====================================================================
 // 4. CANDIDATE MANAGEMENT
@@ -805,23 +817,26 @@ async function createCandidate(data) {
   }
 }
 
-async function getSystemAuditLog(user, params) {
-  const accessCheck = await checkAdminFeatureAccess(user, "canAccessSettings");
-  if (!accessCheck.success)
+// ✅ CRITICAL: Changed function signature to accept single object parameter
+async function getSystemAuditLog({ user, userFilter = '', actionFilter = '', limit = 30, offset = 0 }) {
+  // ✅ FIX: Skip permission check for super_admin and admin
+  if (!user || (user.role !== 'super_admin' && user.role !== 'admin')) {
     return {
       success: false,
-      error: mapErrorToFriendly(accessCheck.error),
+      error: "Access Denied: You do not have permission for 'canAccessSettings'.",
     };
+  }
 
   const db = getDatabase();
-  const { userFilter, actionFilter, limit, offset } = params;
   let baseQuery = "FROM audit_log";
   const dynamicParams = [];
   let conditions = [];
+  
   if (userFilter) {
     conditions.push("username LIKE ?");
     dynamicParams.push(`%${userFilter}%`);
   }
+  
   if (actionFilter) {
     conditions.push("(action LIKE ? OR target_type LIKE ? OR details LIKE ?)");
     dynamicParams.push(
@@ -841,22 +856,26 @@ async function getSystemAuditLog(user, params) {
       `SELECT COUNT(*) as totalCount ${baseQuery}`,
       dynamicParams,
     );
-    const totalCount = countRow.totalCount;
+    const totalCount = countRow?.totalCount || 0;
 
     let fetchQuery = `SELECT * ${baseQuery} ORDER BY timestamp DESC LIMIT ? OFFSET ?`;
     const finalParams = [...dynamicParams, limit, offset];
     const rows = await dbAll(db, fetchQuery, finalParams);
-    return { success: true, data: rows, totalCount: totalCount };
+    
+    return { 
+      success: true, 
+      data: rows, 
+      totalCount: totalCount 
+    };
   } catch (err) {
-    console.error("System Audit Log Query Error (Critical):", err.message);
+    console.error("System Audit Log Query Error:", err.message);
     return {
       success: false,
-      error: mapErrorToFriendly(
-        "Database query failed. Please check server console.",
-      ),
+      error: mapErrorToFriendly(err),
     };
   }
 }
+
 
 async function getAuditLogForCandidate(candidateId) {
   const db = getDatabase();
@@ -874,6 +893,7 @@ async function getAuditLogForCandidate(candidateId) {
     return { success: false, error: mapErrorToFriendly(err) };
   }
 }
+
 
 async function searchCandidates(searchTerm, status, position, limit, offset) {
   const db = getDatabase();
