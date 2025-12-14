@@ -603,12 +603,20 @@ ipcMain.handle('get-feature-flags', async (event, { user } = {}) => {
 }
 
 
-    ipcMain.handle('get-system-audit-log', (event, { user, userFilter, actionFilter, limit, offset }) => {
-        // 🐞 Audit Log Injection
-        logAction(user, 'view_system_audit_log', 'system', 1, 'Viewed system audit log.');
-        // Pass flattened arguments to the query function
-        return queries.getSystemAuditLog(user, { userFilter, actionFilter, limit, offset });
+    ipcMain.handle("get-system-audit-log", async (event, { user, userFilter, actionFilter, limit, offset }) => {
+    // ✅ Permission Check
+    if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
+        return { success: false, error: "Access denied: You do not have permission for 'canAccessSettings'." };
+    }
+
+    // ✅ Pass filters to the query
+    return queries.getSystemAuditLog({
+        userFilter: userFilter || '',
+        actionFilter: actionFilter || '',
+        limit: limit || 30,
+        offset: offset || 0
     });
+});
 // ====================================================================
     ipcMain.handle('get-audit-log-for-candidate', (event, { candidateId }) => {
         return queries.getAuditLogForCandidate(candidateId);
