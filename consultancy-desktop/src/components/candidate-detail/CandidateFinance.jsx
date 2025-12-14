@@ -22,21 +22,23 @@ function CandidateFinance({ candidateId, flags }) {
   const [isSavingPayment, setIsSavingPayment] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
 
+  // ✅ FIXED: Proper permission check
   const isFinanceEnabled =
-    authUser?.role === 'super_admin'
-      ? true
-      : flags?.isFinanceTrackingEnabled ?? false;
+    authUser?.role === 'super_admin' ||
+    authUser?.role === 'admin' ||
+    (flags?.isFinanceTrackingEnabled ?? false);
 
   const fetchPayments = useCallback(async () => {
     setLoading(true);
     try {
       const res = await window.electronAPI.getCandidatePayments({
-        user: authUser,          // ✅ send user for audit log
+        user: authUser,
         candidateId,
       });
       if (res.success) {
         setPayments(res.data || []);
       } else {
+        console.error('Payment fetch error:', res.error);
         toast.error(res.error || 'Failed to load payments');
       }
     } catch (err) {
@@ -59,14 +61,16 @@ function CandidateFinance({ candidateId, flags }) {
   const handleAddPayment = async (e) => {
     e.preventDefault();
 
+    // ✅ FIXED: Check permission first
     if (!isFinanceEnabled) {
-      toast.error('Permission denied: Financial Tracking is disabled.');
+      toast.error('❌ Permission denied: Financial Tracking is disabled for your role.');
       return;
     }
 
     const total_amount = parseFloat(paymentForm.total_amount);
     const amount_paid = parseFloat(paymentForm.amount_paid) || 0;
 
+    // Validation
     if (!paymentForm.description || paymentForm.description.trim() === '') {
       toast.error('Description is required.');
       return;
@@ -83,6 +87,7 @@ function CandidateFinance({ candidateId, flags }) {
     setIsSavingPayment(true);
     const toastId = toast.loading('Adding payment record...');
 
+    // Calculate status
     let calculatedStatus;
     if (amount_paid >= total_amount) {
       calculatedStatus = 'Paid';
@@ -101,17 +106,18 @@ function CandidateFinance({ candidateId, flags }) {
     };
 
     try {
-      const res = await window.electronAPI.addPayment({ user: authUser, data });
+      const res = await window.electronAPI.addPayment({ 
+        user: authUser, 
+        data 
+      });
+      
       if (res.success) {
         setPayments((prev) => [res.data, ...prev]);
         setPaymentForm(initialPaymentForm);
-        toast.success('Payment record added successfully.', { id: toastId });
+        toast.success('✅ Payment record added successfully.', { id: toastId });
       } else {
-        const errorMessage =
-          res.error && res.error.includes('Validation failed')
-            ? 'Validation failed. Check your description and amounts.'
-            : res.error || 'Failed to add payment record.';
-        toast.error(errorMessage, { id: toastId });
+        console.error('Add payment error:', res.error);
+        toast.error(res.error || 'Failed to add payment record.', { id: toastId });
       }
     } catch (err) {
       console.error('addPayment error:', err);
@@ -122,7 +128,11 @@ function CandidateFinance({ candidateId, flags }) {
   };
 
   const handleUpdatePayment = async (updatedData) => {
-    if (!isFinanceEnabled) return;
+    // ✅ FIXED: Check permission first
+    if (!isFinanceEnabled) {
+      toast.error('❌ Permission denied: Financial Tracking is disabled for your role.');
+      return;
+    }
 
     const toastId = toast.loading('Updating payment record...');
 
@@ -139,13 +149,10 @@ function CandidateFinance({ candidateId, flags }) {
           prev.map((p) => (p.id === updatedData.id ? res.data : p))
         );
         setEditingPayment(null);
-        toast.success('Payment record updated successfully.', { id: toastId });
+        toast.success('✅ Payment record updated successfully.', { id: toastId });
       } else {
-        const errorMessage =
-          res.error && res.error.includes('Validation failed')
-            ? 'Update validation failed. Check amounts are positive.'
-            : res.error || 'Failed to update payment.';
-        toast.error(errorMessage, { id: toastId });
+        console.error('Update payment error:', res.error);
+        toast.error(res.error || 'Failed to update payment.', { id: toastId });
       }
     } catch (err) {
       console.error('updatePayment error:', err);
@@ -154,7 +161,11 @@ function CandidateFinance({ candidateId, flags }) {
   };
 
   const handleDeletePayment = async (paymentId, description) => {
-    if (!isFinanceEnabled) return;
+    // ✅ FIXED: Check permission first
+    if (!isFinanceEnabled) {
+      toast.error('❌ Permission denied: Financial Tracking is disabled for your role.');
+      return;
+    }
 
     if (
       window.confirm(
@@ -166,10 +177,12 @@ function CandidateFinance({ candidateId, flags }) {
           user: authUser,
           id: paymentId,
         });
+        
         if (res.success) {
           setPayments((prev) => prev.filter((p) => p.id !== paymentId));
-          toast.success('Payment record moved to Recycle Bin.');
+          toast.success('✅ Payment record moved to Recycle Bin.');
         } else {
+          console.error('Delete payment error:', res.error);
           toast.error(res.error || 'Failed to delete payment');
         }
       } catch (err) {
@@ -193,7 +206,17 @@ function CandidateFinance({ candidateId, flags }) {
     }
   };
 
-  if (loading) return <p>Loading financial data...</p>;
+  if (loading) {
+    return (
+      <div style={{ 
+        textAlign: 'center', 
+        padding: '3rem',
+        color: 'var(--text-secondary)' 
+      }}>
+        Loading financial data...
+      </div>
+    );
+  }
 
   if (!isFinanceEnabled) {
     return (
@@ -220,13 +243,19 @@ function CandidateFinance({ candidateId, flags }) {
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '1.5rem',
+              color: 'var(--danger-color)',
             }}
           >
             <FiLock />
           </div>
           <div>
-            <h3 style={{ marginBottom: '0.5rem' }}>Financial Tracking Disabled</h3>
+            <h3 style={{ marginBottom: '0.5rem', color: 'var(--text)' }}>
+              Financial Tracking Disabled
+            </h3>
             <p>You do not have permission to view or manage financial records.</p>
+            <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>
+              Current role: <strong>{authUser?.role}</strong>
+            </p>
           </div>
         </div>
       </div>
@@ -292,6 +321,7 @@ function CandidateFinance({ candidateId, flags }) {
               placeholder="e.g., Service Fee, Visa Fee"
               value={paymentForm.description}
               onChange={handlePaymentFormChange}
+              required
             />
           </div>
 
@@ -303,6 +333,9 @@ function CandidateFinance({ candidateId, flags }) {
               placeholder="10000"
               value={paymentForm.total_amount}
               onChange={handlePaymentFormChange}
+              min="0"
+              step="0.01"
+              required
             />
           </div>
           <div className="form-group">
@@ -313,6 +346,8 @@ function CandidateFinance({ candidateId, flags }) {
               placeholder="0"
               value={paymentForm.amount_paid}
               onChange={handlePaymentFormChange}
+              min="0"
+              step="0.01"
             />
           </div>
           <div className="form-group">
@@ -342,7 +377,7 @@ function CandidateFinance({ candidateId, flags }) {
         </h3>
         <div className="module-list payment-list">
           {payments.length === 0 ? (
-            <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>
               No payment records found.
             </p>
           ) : (
@@ -366,9 +401,10 @@ function CandidateFinance({ candidateId, flags }) {
                         style={{
                           color: 'var(--danger-color)',
                           marginTop: '5px',
+                          fontWeight: '700',
                         }}
                       >
-                        **OVERDUE**
+                        ⚠️ OVERDUE
                       </p>
                     )}
                   </div>

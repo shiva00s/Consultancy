@@ -388,21 +388,46 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 24. AUDIT LOG
-      // ========================================================================
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS audit_log (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          user_id INTEGER,
-          username TEXT,
-          action TEXT NOT NULL,
-          target_type TEXT,
-          target_id INTEGER,
-          details TEXT,
-          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
-        );
-      `);
+// 24. AUDIT LOG (✅ FIXED - Added candidate_id column)
+// ========================================================================
+dbInstance.run(`
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    username TEXT,
+    action TEXT NOT NULL,
+    target_type TEXT,
+    target_id INTEGER,
+    candidate_id INTEGER,
+    details TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
+    FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE SET NULL
+  );
+`);
+
+// Create indexes for better performance
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_audit_user 
+  ON audit_log(user_id);
+`, (err) => {
+  if (err) console.error('Error creating audit_log user index:', err.message);
+});
+
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_audit_candidate 
+  ON audit_log(candidate_id);
+`, (err) => {
+  if (err) console.error('Error creating audit_log candidate index:', err.message);
+});
+
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_audit_timestamp 
+  ON audit_log(timestamp DESC);
+`, (err) => {
+  if (err) console.error('Error creating audit_log timestamp index:', err.message);
+});
+
 
       // ========================================================================
       // 25. REQUIRED DOCUMENTS
@@ -475,6 +500,61 @@ dbInstance.run(`
 }
 
 // ============================================================================
+// DATABASE MIGRATIONS
+// ============================================================================
+
+function runMigrations(dbInstance) {
+  return new Promise((resolve, reject) => {
+    console.log('🔄 Checking for database migrations...');
+    
+    dbInstance.serialize(() => {
+      // Migration 1: Add candidate_id to audit_log
+      dbInstance.all("PRAGMA table_info(audit_log)", [], (err, columns) => {
+        if (err) {
+          console.error('❌ Error checking audit_log schema:', err);
+          return reject(err);
+        }
+
+        const hasCandidate = columns.some(col => col.name === 'candidate_id');
+        
+        if (!hasCandidate) {
+          console.log('📝 Running migration: Adding candidate_id to audit_log...');
+          
+          dbInstance.run(
+            `ALTER TABLE audit_log ADD COLUMN candidate_id INTEGER;`,
+            (err) => {
+              if (err) {
+                console.error('❌ Migration failed:', err);
+                return reject(err);
+              }
+              
+              // Add index for performance
+              dbInstance.run(
+                `CREATE INDEX IF NOT EXISTS idx_audit_candidate ON audit_log(candidate_id);`,
+                (err) => {
+                  if (err) {
+                    console.error('❌ Index creation failed:', err);
+                    return reject(err);
+                  }
+                  
+                  console.log('✅ Migration completed: candidate_id added to audit_log');
+                  resolve(dbInstance);
+                }
+              );
+            }
+          );
+        } else {
+          console.log('✅ Migration skipped: candidate_id already exists');
+          resolve(dbInstance);
+        }
+      });
+    });
+  });
+}
+
+
+
+// ============================================================================
 // DATABASE INITIALIZATION
 // ============================================================================
 
@@ -498,12 +578,14 @@ function initializeDatabase() {
         }
 
         setupDatabase(dbInstance)
-          .then((db) => ensureInitialUserAndRoles(db))
-          .then((db) => {
-            global.db = db;
-            console.log('✅ Database initialized successfully');
-            resolve(db);
-          })
+  .then((db) => runMigrations(db))  // ✅ Run migrations
+  .then((db) => ensureInitialUserAndRoles(db))
+  .then((db) => {
+    global.db = db;
+    console.log('✅ Database initialized successfully');
+    resolve(db);
+  })
+
           .catch((err) => {
             console.error('❌ Database initialization failed:', err);
             reject(err);

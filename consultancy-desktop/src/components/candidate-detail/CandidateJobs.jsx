@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FiClipboard, FiPlus, FiTrash2, FiServer, FiBriefcase } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-function CandidateJobs({user, candidateId, onJobAssigned }) {
+function CandidateJobs({ user, candidateId, onJobAssigned }) {
   const [placements, setPlacements] = useState([]);
   const [unassignedJobs, setUnassignedJobs] = useState([]);
   const [selectedJobId, setSelectedJobId] = useState('');
@@ -15,16 +15,15 @@ function CandidateJobs({user, candidateId, onJobAssigned }) {
       const res = await window.electronAPI.getCandidatePlacements({
         candidateId,
       });
-      console.log('✅ Placements response:', res); // DEBUG
+      
       if (res.success) {
-        // Filter out any invalid placements
         const validPlacements = (res.data || []).filter(p => 
           p && p.positionTitle && p.companyName
         );
         setPlacements(validPlacements);
       }
     } catch (err) {
-      console.error('❌ Error fetching placements:', err);
+      console.error('Error fetching placements:', err);
       toast.error('Failed to load placements');
     } finally {
       setLoading(false);
@@ -34,10 +33,9 @@ function CandidateJobs({user, candidateId, onJobAssigned }) {
   const fetchUnassignedJobs = useCallback(async () => {
     try {
       const res = await window.electronAPI.getUnassignedJobs({ candidateId });
-      console.log('✅ Unassigned jobs response:', res); // DEBUG
       if (res.success) setUnassignedJobs(res.data || []);
     } catch (err) {
-      console.error('❌ Error fetching unassigned jobs:', err);
+      console.error('Error fetching unassigned jobs:', err);
     }
   }, [candidateId]);
 
@@ -62,7 +60,7 @@ function CandidateJobs({user, candidateId, onJobAssigned }) {
       });
       
       if (res.success) {
-        await fetchPlacements(); // Refresh the list
+        await fetchPlacements();
         await fetchUnassignedJobs();
         setSelectedJobId('');
         toast.success('Job assigned successfully!');
@@ -74,7 +72,7 @@ function CandidateJobs({user, candidateId, onJobAssigned }) {
         toast.error(res.error || 'Failed to assign job');
       }
     } catch (err) {
-      console.error('❌ Error assigning job:', err);
+      console.error('Error assigning job:', err);
       toast.error('Failed to assign job');
     } finally {
       setIsAssigning(false);
@@ -88,6 +86,7 @@ function CandidateJobs({user, candidateId, onJobAssigned }) {
           user,
           placementId,
         });
+        
         if (res.success) {
           await fetchPlacements();
           await fetchUnassignedJobs();
@@ -96,7 +95,7 @@ function CandidateJobs({user, candidateId, onJobAssigned }) {
           toast.error(res.error || 'Failed to remove placement');
         }
       } catch (err) {
-        console.error('❌ Error removing placement:', err);
+        console.error('Error removing placement:', err);
         toast.error('Failed to remove placement');
       }
     }
@@ -112,16 +111,32 @@ function CandidateJobs({user, candidateId, onJobAssigned }) {
     }
   };
 
-  if (loading) return <p>Loading job placements...</p>;
+  if (loading) {
+    return (
+      <div style={{ 
+        textAlign: 'center', 
+        padding: '2rem', 
+        color: 'var(--text-secondary)' 
+      }}>
+        Loading job placements...
+      </div>
+    );
+  }
 
   return (
     <div className="job-placement-content module-vertical-stack">
-      {/* --- PLACEMENTS LIST --- */}
+      {/* Active Job Placements */}
       <div className="list-container module-list-card">
-        <h3><FiClipboard /> Active Job Placements ({placements.length})</h3>
+        <h3>
+          <FiClipboard /> Active Job Placements ({placements.length})
+        </h3>
         <div className="module-list">
           {placements.length === 0 ? (
-            <p style={{textAlign: 'center', color: 'var(--text-secondary)'}}>
+            <p style={{ 
+              textAlign: 'center', 
+              color: 'var(--text-secondary)',
+              padding: '2rem' 
+            }}>
               This candidate is not assigned to any active job orders.
             </p>
           ) : (
@@ -131,9 +146,9 @@ function CandidateJobs({user, candidateId, onJobAssigned }) {
                   <FiBriefcase />
                 </div>
                 <div className="item-details">
-                  <strong>{p.positionTitle || 'Unknown Position'}</strong>
+                  <h4>{p.positionTitle || 'Unknown Position'}</h4>
                   <p>
-                    <FiServer style={{marginRight: '5px'}}/> 
+                    <FiServer style={{ marginRight: '5px' }}/> 
                     {p.companyName || 'Unknown Company'} 
                     {p.country ? ` (${p.country})` : ''}
                   </p>
@@ -159,11 +174,17 @@ function CandidateJobs({user, candidateId, onJobAssigned }) {
         </div>
       </div>
 
-      {/* --- ASSIGN JOB FORM --- */}
+      {/* Assign Job Form */}
       <div className="form-container module-form-card">
-        <h3><FiPlus /> Assign Candidate to Job Order</h3>
-        <form onSubmit={handleAssignJob} className="assign-job-form" style={{display: 'flex', gap: '10px', alignItems: 'flex-end'}}>
-          <div className="form-group" style={{flexGrow: 1, marginBottom: 0}}>
+        <h3>
+          <FiPlus /> Assign Candidate to Job Order
+        </h3>
+        <form 
+          onSubmit={handleAssignJob} 
+          className="assign-job-form" 
+          style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}
+        >
+          <div className="form-group" style={{ flexGrow: 1, marginBottom: 0 }}>
             <label>Available Job Orders</label>
             <select
               value={selectedJobId}

@@ -83,6 +83,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
     uploadPhoto: (data) => ipcRenderer.invoke("upload-photo", data),
     bulkImportDocuments: (args) => ipcRenderer.invoke("bulk-import-documents", args),
 
+getExcelSheets: (args) => ipcRenderer.invoke("get-excel-sheets", args),
+getExcelHeaders: (args) => ipcRenderer.invoke("get-excel-headers", args),
+getCsvHeaders: (args) => ipcRenderer.invoke("get-csv-headers", args),
+importCandidatesFromExcel: (args) => ipcRenderer.invoke("import-candidates-from-excel", args),
+importCandidatesFromFile: (args) => ipcRenderer.invoke("import-candidates-from-file", args),
+downloadExcelTemplate: () => ipcRenderer.invoke("download-excel-template"),
+downloadImportErrors: (args) => ipcRenderer.invoke("download-import-errors", args),
+
+
     // Required Document Master
     getRequiredDocuments: () => ipcRenderer.invoke("get-required-documents"),
     addRequiredDocument: (args) => ipcRenderer.invoke("add-required-document", args),

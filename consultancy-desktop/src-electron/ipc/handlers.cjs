@@ -1015,97 +1015,119 @@ ipcMain.handle('getImageBase64', (event, { filePath }) => {
         }
         return result;
     });
-// ====================================================================
-    // 9. FINANCIAL TRACKING (REFACTORED)
-    // ====================================================================
+// ========================================
+// 9. FINANCIAL TRACKING - FIXED
+// ========================================
 
-    ipcMain.handle('get-candidate-payments', (event, { candidateId }) => {
-        // 🐞 Audit Log Injection
-        logAction(getEventUserContext(event), 'view_candidate_finance', 'candidates', candidateId, `Viewed financials for candidate ID: ${candidateId}`);
-        return queries.getCandidatePayments(candidateId);
-    });
-    ipcMain.handle('add-payment', async (event, { user, data }) => {
+ipcMain.handle('get-candidate-payments', (event, { candidateId }) => {
+  // Audit Log Injection
+  logAction(getEventUserContext(event), 'view-candidate-finance', 'candidates', candidateId, `Viewed financials for candidate ID ${candidateId}`);
+  return queries.getCandidatePayments(candidateId);
+});
+
+// ✅ FIXED: Add Payment - Allow Admin and Super Admin
+ipcMain.handle('add-payment', async (event, { user, data }) => {
   try {
-    // 🔐 Admin & SuperAdmin only
-    guard(user).enforce(FEATURES.BILLING);
+    // ✅ Check if user is authenticated
+    if (!user || !user.id) {
+      return { success: false, error: 'Authentication required. Please log in.' };
+    }
 
-    if (user.role === 'staff') {
-      return { success: false, error: 'Access Denied: Staff cannot add payments.' };
+    // ✅ Allow super_admin and admin roles
+    if (user.role !== 'super_admin' && user.role !== 'admin') {
+      return { success: false, error: 'ACCESS_DENIED: Only Super Admin and Admin can add payments.' };
     }
 
     const result = await queries.addPayment(user, data);
-
+    
     if (result.success) {
       logAction(
         user,
-        'add_payment',
+        'add-payment',
         'candidates',
         data.candidate_id,
         `Amount: ${data.amount_paid}, Status: ${data.status}`
       );
     }
-
+    
     return result;
   } catch (err) {
+    console.error('add-payment handler error:', err);
     return { success: false, error: err.code || err.message };
   }
 });
 
-
+// ✅ FIXED: Update Payment - Allow Admin and Super Admin
 ipcMain.handle('update-payment', async (event, { user, id, amount_paid, status }) => {
   try {
-    // 🔐 Admin & SuperAdmin only
-    guard(user).enforce(FEATURES.BILLING);
+    // ✅ Check if user is authenticated
+    if (!user || !user.id) {
+      return { success: false, error: 'Authentication required. Please log in.' };
+    }
 
-    if (user.role === 'staff') {
-      return { success: false, error: 'Access Denied: Staff cannot modify payments.' };
+    // ✅ Allow super_admin and admin roles
+    if (user.role !== 'super_admin' && user.role !== 'admin') {
+      return { success: false, error: 'ACCESS_DENIED: Only Super Admin and Admin can modify payments.' };
     }
 
     const updateData = { user, id, amount_paid, status };
     const result = await queries.updatePayment(updateData);
-
+    
     if (result.success) {
       logAction(
         user,
-        'update_payment',
+        'update-payment',
         'candidates',
         result.candidateId,
         `Amount: ${amount_paid}, Status: ${status}`
       );
     }
-
+    
     return result;
   } catch (err) {
+    console.error('update-payment handler error:', err);
     return { success: false, error: err.code || err.message };
   }
 });
 
+// ✅ FIXED: Delete Payment - Allow Super Admin only (or Admin if you want)
 ipcMain.handle('delete-payment', async (event, { user, id }) => {
   try {
-    // 🔐 SuperAdmin only (destructive)
-    guard(user).enforce(FEATURES.BILLING);
-
-    if (user.role !== 'super_admin') {
-      return { success: false, error: 'Access Denied: Super Admin only.' };
+    // ✅ Check if user is authenticated
+    if (!user || !user.id) {
+      return { success: false, error: 'Authentication required. Please log in.' };
     }
 
-    const result = await queries.deletePayment(user, id);
+    // ✅ You can allow admin too if needed
+    // Option 1: Super Admin only
+    if (user.role !== 'super_admin') {
+      return { success: false, error: 'ACCESS_DENIED: Only Super Admin can delete payments.' };
+    }
 
+    // Option 2: Allow both super_admin and admin
+    // if (user.role !== 'super_admin' && user.role !== 'admin') {
+    //   return { success: false, error: 'ACCESS_DENIED: Only Super Admin and Admin can delete payments.' };
+    // }
+
+    const result = await queries.deletePayment(user, id);
+    
     if (result.success) {
       logAction(
         user,
-        'delete_payment',
+        'delete-payment',
         'candidates',
         result.candidateId,
         `Deleted payment ID: ${id}`
       );
     }
-
+    
     return result;
   } catch (err) {
+    console.error('delete-payment handler error:', err);
     return { success: false, error: err.code || err.message };
   }
 });
+
 
 
 // ====================================================================

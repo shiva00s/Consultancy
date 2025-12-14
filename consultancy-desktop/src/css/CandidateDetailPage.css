@@ -1,317 +1,585 @@
-/* Page container */
+/* ========================================
+   🎨 CANDIDATE DETAIL PAGE - ENHANCED
+   Perfect Dark/Light Mode | Modern Design
+   Optimized for 1366x768
+   ======================================== */
+
+/* === Page Container === */
 .detail-page-container {
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  animation: fadeIn 0.4s ease;
 }
 
 .back-button {
-  margin-bottom: 1.25rem; 
+  margin-bottom: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 10px 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text);
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
 }
 
-/* Base Card/Container for content */
+.back-button:hover {
+  background: var(--bg-hover);
+  transform: translateX(-4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* === Custom Tabs Container === */
 .custom-tabs-container {
-    background-color: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    margin-bottom: 2rem;
-    overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .tabs-header {
-    display: flex;
-    padding: 0;
-    border-bottom: 1px solid var(--border-color);
-    background-color: var(--bg-secondary);
-    overflow-x: auto;
+  display: flex;
+  padding: 0;
+  border-bottom: 2px solid var(--border-color);
+  background: var(--bg-secondary);
+  overflow-x: auto;
+  gap: 4px;
+}
+
+.tabs-header::-webkit-scrollbar {
+  height: 4px;
+}
+
+.tabs-header::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
 }
 
 .tab-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 16px; 
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-size: 0.95rem; 
-    font-weight: 500;
-    color: var(--text-secondary);
-    border-bottom: 3px solid transparent;
-    transition: all 0.2s ease;
-    flex-shrink: 0; 
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.tab-btn svg {
+  font-size: 1.1rem;
 }
 
 .tab-btn:hover {
-    color: var(--text-primary);
-    background-color: var(--bg-input);
+  color: var(--text);
+  background: var(--bg-hover);
 }
 
 .tab-btn.active {
-    color: var(--primary-color);
-    border-bottom-color: var(--primary-color);
-    background-color: var(--bg-tertiary);
-    font-weight: 600;
-    flex-shrink: 0;
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+  background: var(--bg-card);
+  font-weight: 700;
 }
 
 .tabs-content {
-    padding: 1.2rem; 
+  padding: 1.5rem;
+  background: var(--bg-card);
 }
 
-/* --- DETAIL CARD / PROFILE TAB LAYOUT --- */
+/* === Detail Card === */
 .detail-card {
-  margin-bottom: 1.25rem; 
-  overflow: hidden; 
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.detail-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
 }
 
 .detail-header {
-  padding: 1rem 1.25rem; 
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  padding: 1.25rem 1.5rem;
+  background: var(--bg-secondary);
+  border-bottom: 2px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 1rem;
 }
+
 .detail-header h2 {
   margin: 0;
-  font-weight: 600; 
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
+
+.detail-header h2 svg {
+  color: var(--primary-color);
+  font-size: 1.75rem;
+}
+
 .header-actions {
   display: flex;
   gap: 10px;
 }
+
 .detail-card .form-grid {
-  padding: 1.2rem; 
+  padding: 1.5rem;
 }
 
-/* Make read-only inputs look like static text */
+/* === Form Groups - Read-only Style === */
 .form-group input:read-only,
 .form-group textarea:read-only {
-  background-color: transparent;
-  border-color: transparent;
-  padding-left: 0;
-  padding-right: 0;
-  color: var(--text-primary);
-  font-size: 0.95rem; 
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px 0;
+  color: var(--text);
+  font-size: 1rem;
   cursor: default;
   box-shadow: none;
-  padding-top: 8px; 
-  padding-bottom: 8px; 
+  border-radius: 0;
 }
+
 .form-group:has(input:read-only) label,
 .form-group:has(textarea:read-only) label {
   color: var(--primary-color);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+/* === Delete Zone === */
+.detail-card.delete-zone {
+  border: 2px solid var(--danger-color);
+  background: rgba(239, 68, 68, 0.05);
+  padding: 1.5rem;
+}
+
+.delete-zone h3 {
+  color: var(--danger-color);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.delete-zone h3 svg {
+  font-size: 1.5rem;
+}
+
+/* === Module Vertical Stack === */
+.module-vertical-stack {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  padding: 0;
+}
+
+/* === Module List (Reusable) === */
+.module-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.module-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.module-list::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 10px;
+}
+
+.module-list::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 10px;
+}
+
+.module-list::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
+
+/* === Module List Item === */
+.module-list-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg-secondary);
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.module-list-item:hover {
+  background: var(--bg-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.module-list-item .item-icon {
+  font-size: 1.5rem;
+  color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.module-list-item .item-details {
+  flex-grow: 1;
+}
+
+.module-list-item .item-details h4 {
+  margin: 0 0 4px 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.module-list-item .item-details p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.module-list-item .item-status {
+  flex-shrink: 0;
+  text-align: right;
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.module-list-item .item-actions {
+  flex-shrink: 0;
+  margin-left: 12px;
+  display: flex;
+  gap: 6px;
+}
+
+/* === Payment Item (Financial Specific) === */
+.payment-item {
+  display: grid;
+  grid-template-columns: 1.5fr auto auto;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg-secondary);
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.payment-item:hover {
+  background: var(--bg-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.payment-item-details h4 {
+  margin: 0 0 4px 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.payment-item-details p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.payment-item-status {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.payment-item.overdue {
+  border: 2px solid var(--danger-color);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* === Status Badges === */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-/* Delete Zone */
-.detail-card.delete-zone { 
-  border: 1px solid var(--danger-color);
-  background-color: rgba(var(--danger-rgb), 0.05);
-  padding: 1.25rem; 
-}
-.delete-zone h3 {
-  color: var(--danger-color);
+.badge-green {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+  border: 1px solid #10b981;
 }
 
-/* --- REUSABLE SUB-MODULE LAYOUTS (for Finance, Visa, Medical, etc.) --- */
-
-.module-vertical-stack {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.2rem; 
-    padding: 0;
+.badge-yellow {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  border: 1px solid #f59e0b;
 }
 
-/* --- REUSABLE LIST STRUCTURE (.module-list) --- */
-.module-list {
-    display: flex;
-    flex-direction: column; 
-    gap: 8px; /* Compact spacing */
-    max-height: 400px; /* Enforce scroll boundary */
-    overflow-y: auto;
-    padding-right: 5px; /* Space for scrollbar */
+.badge-red {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+  border: 1px solid #ef4444;
 }
 
-.module-list-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background-color: var(--bg-secondary);
-    padding: 10px 14px; /* Compact padding */
-    border-radius: var(--border-radius);
-    border: 1px solid var(--border-color);
-    transition: all .2s ease;
-}
-.module-list-item:hover {
-    background-color: var(--bg-input); 
-    transform: translateY(-1px); 
+.badge-grey {
+  background: rgba(107, 114, 128, 0.15);
+  color: #6b7280;
+  border: 1px solid #9ca3af;
 }
 
-.module-list-item .item-icon {
-    font-size: 1.3rem; 
-    color: var(--primary-color);
-    flex-shrink: 0;
-}
-.module-list-item .item-details {
-    flex-grow: 1;
-}
-.module-list-item .item-details strong { 
-    font-size: 1rem; 
-    color: var(--text-primary);
-}
-.module-list-item .item-details p { 
-    margin: 0; 
-    font-size: 0.85rem; 
-    color: var(--text-secondary); 
-}
-.module-list-item .item-status {
-    flex-shrink: 0;
-    text-align: right;
-    margin-left: auto; /* Push status/actions to the right */
-}
-.module-list-item .item-actions {
-    flex-shrink: 0;
-    margin-left: 8px;
-    display: flex;
-    gap: 4px; /* Space between buttons */
-}
-/* --- END REUSABLE LIST STRUCTURE --- */
-
-
-/* --- FINANCIAL TRACKING SPECIFICS (Needs custom override) --- */
-.payment-item {
-  display: grid; 
-  grid-template-columns: 1.5fr auto auto; /* Description, Status/Amount, Actions */
-  align-items: center; 
-  gap: 12px;
-}
-.payment-item-details h4 {
-    margin: 0;
-    font-size: 1rem;
-}
-.payment-item-status { 
-    text-align: right; 
-    display: flex; 
-    flex-direction: column; 
-    align-items: flex-end; 
-    gap: 4px;
-}
-.payment-item.overdue {
-  border-color: var(--danger-color);
-  background-color: rgba(var(--danger-rgb), 0.1);
-}
-
-/* --- DOCUMENT TAB STYLES --- */
+/* === Document Styles === */
 .doc-list-grouped {
   padding: 0;
 }
-.doc-category-group .module-list {
-  max-height: 250px; /* Shorter scroll boundary for docs */
+
+.doc-category-group {
+  margin-bottom: 1.5rem;
 }
+
+.doc-category-group h4 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.doc-category-group .module-list {
+  max-height: 280px;
+}
+
 .doc-item {
-  /* Overrides module-list-item for document structure */
   display: flex;
   align-items: center;
   gap: 12px;
-  background-color: var(--bg-secondary);
-  padding: 8px 10px; 
-  border-radius: var(--border-radius);
+  background: var(--bg-secondary);
+  padding: 10px 14px;
+  border-radius: 10px;
   border: 1px solid var(--border-color);
-  transition: all .2s ease;
+  transition: all 0.2s ease;
 }
+
+.doc-item:hover {
+  background: var(--bg-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
 .doc-item .doc-icon {
-    font-size: 1.1rem;
-    color: var(--primary-color);
+  font-size: 1.3rem;
+  color: var(--primary-color);
+  flex-shrink: 0;
 }
+
 .doc-item .doc-name {
-    flex-grow: 1;
-    font-size: 0.95rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  flex-grow: 1;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
 .doc-category-select {
   flex-shrink: 0;
   margin-left: auto;
   margin-right: 1rem;
 }
 
-/* File Input/Select inside Doc List */
 .doc-category-select select {
-  background-color: var(--bg-input);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  padding: 5px 8px; 
-  font-size: 0.9rem; 
-  min-height: 30px; 
-  box-sizing: border-box;
+  background: var(--bg-card);
+  color: var(--text);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  min-height: 32px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
+
 .doc-category-select select:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.25);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-/* Add Docs Section */
-.add-docs-section {
-  padding-top: 1.25rem; 
-  border-top: 1px solid var(--border-color);
-  margin-top: 1.25rem; 
+.doc-category-select select:hover {
+  border-color: var(--border-hover);
 }
+
+/* === Add Docs Section === */
+.add-docs-section {
+  padding-top: 1.5rem;
+  border-top: 2px solid var(--border-color);
+  margin-top: 1.5rem;
+}
+
+.add-docs-section h4 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .add-docs-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.1rem; 
+  gap: 1.25rem;
   align-items: flex-end;
 }
+
 .add-docs-form .btn {
   grid-column: 2 / 3;
 }
-.tabs-header {
-    display: flex;
-    padding: 0;
-    border-bottom: 1px solid var(--border-color);
-    background-color: var(--bg-secondary); /* Ensure distinct background color */
-    overflow-x: auto;
+
+/* === Icon Buttons === */
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.tab-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 16px; 
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-size: 0.95rem; 
-    font-weight: 500;
-    color: var(--text-secondary);
-    border-bottom: 3px solid transparent;
-    transition: all 0.2s ease;
-    flex-shrink: 0; 
+.icon-btn:hover {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  transform: scale(1.1);
 }
 
-.tab-btn:hover {
-    color: var(--text-primary);
-    background-color: var(--bg-input); /* Use slightly darker than tertiary/secondary for hover */
+.icon-btn svg {
+  font-size: 1.1rem;
 }
-/* --- LIGHT MODE LIST ITEM OVERRIDE (CRITICAL FIX) --- */
+
+/* === Dark Mode Enhancements === */
+[data-theme="dark"] .detail-card {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .module-list-item:hover,
+[data-theme="dark"] .payment-item:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* === Light Mode Enhancements === */
 [data-theme="light"] .module-list-item,
-[data-theme="light"] .payment-item {
-    background-color: var(--bg-secondary) !important; /* Enforce white background */
-    color: var(--text-primary) !important;          /* Enforce dark text */
-    border: 1px solid var(--border-color);          /* Keep border separation */
+[data-theme="light"] .payment-item,
+[data-theme="light"] .doc-item {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
 }
 
-/* Ensure the hover state is also light */
 [data-theme="light"] .module-list-item:hover,
-[data-theme="light"] .payment-item:hover {
-    background-color: var(--bg-input) !important; /* Slight off-white hover */
-    transform: translateY(-1px);
+[data-theme="light"] .payment-item:hover,
+[data-theme="light"] .doc-item:hover {
+  background: #f8fafc;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
-/* ---------------------------------------------------- */
+
+[data-theme="light"] .tabs-header {
+  background: #f1f5f9;
+}
+
+[data-theme="light"] .tab-btn.active {
+  background: #ffffff;
+}
+
+/* === Animations === */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* === Responsive === */
+@media (max-width: 1366px) {
+  .tabs-content {
+    padding: 1.25rem;
+  }
+
+  .detail-card .form-grid {
+    padding: 1.25rem;
+  }
+
+  .module-list {
+    max-height: 380px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .detail-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .add-docs-form {
+    grid-template-columns: 1fr;
+  }
+
+  .add-docs-form .btn {
+    grid-column: 1 / -1;
+  }
+}
