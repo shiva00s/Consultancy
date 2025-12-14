@@ -13,10 +13,12 @@ import KeyboardShortcutsGuide from './KeyboardShortcutsGuide';
 import { useGlobalShortcuts } from '../hooks/useKeyboardShortcuts';
 import useThemeStore from '../store/useThemeStore';
 
+
 const getInitialCollapseState = () => {
   const storedState = localStorage.getItem('sidebarCollapsed');
   return storedState ? JSON.parse(storedState) : false;
 };
+
 
 function SubMenu({ title, icon, children, isCollapsed }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -41,13 +43,19 @@ function SubMenu({ title, icon, children, isCollapsed }) {
   );
 }
 
+
 function MainLayout({ children, onLogout, user, flags }) {
   const navigate = useNavigate();
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(getInitialCollapseState());
-  
+
+  // ✨ NEW: Auto-expand/collapse state
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPinned, setIsPinned] = useState(!getInitialCollapseState());
+  const collapseTimerRef = useRef(null);
+
   const { theme, toggleTheme } = useThemeStore();
-  
+
   const [globalSearchTerm, setGlobalSearchTerm] = useState('');
   const [granularPermissions, setGranularPermissions] = useState({});
   const [permsLoaded, setPermsLoaded] = useState(false);
@@ -131,11 +139,53 @@ function MainLayout({ children, onLogout, user, flags }) {
     navigate('/login');
   };
 
-  const handleToggleCollapse = () => {
-    const newState = !isCollapsed;
-    setIsCollapsed(newState);
-    localStorage.setItem('sidebarCollapsed', JSON.stringify(newState));
+  // ✨ NEW: Auto-expand on mouse enter
+  const handleMouseEnter = () => {
+    // Clear any pending collapse timer
+    if (collapseTimerRef.current) {
+      clearTimeout(collapseTimerRef.current);
+      collapseTimerRef.current = null;
+    }
+    // Only auto-expand if not pinned
+    if (!isPinned) {
+      setIsHovered(true);
+      setIsCollapsed(false);
+    }
   };
+
+  // ✨ NEW: Auto-collapse on mouse leave
+  const handleMouseLeave = () => {
+    // Only auto-collapse if not pinned
+    if (!isPinned) {
+      // Add 300ms delay to prevent accidental collapse
+      collapseTimerRef.current = setTimeout(() => {
+        setIsHovered(false);
+        setIsCollapsed(true);
+      }, 300);
+    }
+  };
+
+  // ✨ NEW: Toggle pin/unpin (replaces old toggle)
+  const handleTogglePin = () => {
+    const newPinState = !isPinned;
+    setIsPinned(newPinState);
+    setIsCollapsed(!newPinState);
+    localStorage.setItem('sidebarCollapsed', JSON.stringify(!newPinState));
+
+    // If unpinning and mouse is not hovering, collapse immediately
+    if (!newPinState && !isHovered) {
+      setIsCollapsed(true);
+    }
+  };
+
+  // ✨ NEW: Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (collapseTimerRef.current) {
+        clearTimeout(collapseTimerRef.current);
+      }
+    };
+  }, []);
 
   const handlePasswordChangeLogout = onLogout;
 
@@ -158,9 +208,19 @@ function MainLayout({ children, onLogout, user, flags }) {
 
   return (
     <div className={`layout-container ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
-      <nav className="sidebar">
+      {/* ✨ NEW: Add mouse enter/leave handlers */}
+      <nav 
+        className="sidebar"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
         <div className="sidebar-scrollable-area">
-          <button className="sidebar-toggle-btn" onClick={handleToggleCollapse}>
+          {/* ✨ UPDATED: Toggle button with pinned state and new handler */}
+          <button 
+            className={`sidebar-toggle-btn ${isPinned ? 'pinned' : ''}`}
+            onClick={handleTogglePin}
+            title={isPinned ? "Unpin sidebar (auto-collapse)" : "Pin sidebar (keep expanded)"}
+          >
             <FiChevronLeft />
           </button>
 
@@ -330,5 +390,6 @@ function MainLayout({ children, onLogout, user, flags }) {
     </div>
   );
 }
+
 
 export default MainLayout;

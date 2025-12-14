@@ -462,3 +462,412 @@
     margin-left: 0;
   }
 }
+/* ========================================
+   🎯 PERPLEXITY-STYLE AUTO-EXPAND/COLLAPSE
+   ======================================== */
+
+/* Pin state indicator on toggle button */
+.sidebar-toggle-btn {
+  background: linear-gradient(135deg, var(--primary), var(--accent, var(--primary)));
+  color: #fff;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 24px;
+  right: -16px;
+  z-index: 10;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  transition: all 0.3s ease;
+}
+
+.sidebar-toggle-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
+}
+
+/* Green background when pinned */
+.sidebar-toggle-btn.pinned {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+}
+
+.sidebar-toggle-btn.pinned:hover {
+  box-shadow: 0 6px 16px rgba(34, 197, 94, 0.5);
+}
+
+/* Rotate arrow when collapsed */
+.sidebar-collapsed .sidebar-toggle-btn {
+  transform: rotate(180deg);
+}
+
+.sidebar-collapsed .sidebar-toggle-btn:hover {
+  transform: rotate(180deg) scale(1.1);
+}
+
+/* Smooth transitions for auto-expand/collapse */
+.sidebar {
+  width: 280px;
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  inset: 0 auto 0 0;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.08);
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 280px;
+  padding: 32px;
+  background: var(--bg-body);
+  overflow-y: auto;
+  transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 100vh;
+}
+
+/* Collapsed state */
+.sidebar-collapsed .sidebar {
+  width: 72px !important;
+}
+
+.sidebar-collapsed .main-content {
+  margin-left: 72px !important;
+}
+
+/* Prevent text selection during transitions */
+.sidebar-collapsed .sidebar * {
+  user-select: none;
+}
+
+/* Subtle glow when hovering (unpinned state) */
+.sidebar:hover {
+  box-shadow: 4px 0 32px rgba(59, 130, 246, 0.15);
+}
+
+[data-theme="dark"] .sidebar:hover {
+  box-shadow: 4px 0 40px rgba(59, 130, 246, 0.25);
+}
+
+/* Hide elements when collapsed */
+.sidebar-collapsed .sidebar-header h3,
+.sidebar-collapsed .global-search-bar,
+.sidebar-collapsed .sidebar-nav span,
+.sidebar-collapsed .sidebar-footer .user-info-text-wrapper,
+.sidebar-collapsed .submenu-arrow,
+.sidebar-collapsed .submenu-content {
+  opacity: 0;
+  visibility: hidden;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Center elements when collapsed */
+.sidebar-collapsed .sidebar-header,
+.sidebar-collapsed .sidebar-nav li a,
+.sidebar-collapsed .sidebar-nav li .submenu-toggle,
+.sidebar-collapsed .logout-button,
+.sidebar-collapsed .user-info-badge {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Hide global search when collapsed */
+.sidebar-collapsed .global-search-bar {
+  padding: 0;
+  border: none;
+}
+
+/* Center navigation items when collapsed */
+.sidebar-collapsed .sidebar-nav li a,
+.sidebar-collapsed .sidebar-nav li .submenu-toggle {
+  padding: 12px;
+  justify-content: center;
+}
+
+/* Hide logout button text when collapsed */
+.sidebar-collapsed .logout-button span {
+  display: none;
+}
+
+/* Adjust hover effects when collapsed */
+.sidebar-collapsed .sidebar-nav li a:hover,
+.sidebar-collapsed .sidebar-nav li .submenu-toggle:hover {
+  transform: scale(1.1);
+}
+
+/* Responsive behavior */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    transform: translateX(-100%);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+  }
+
+  .sidebar-collapsed .main-content {
+    margin-left: 0 !important;
+  }
+}
+
+/* Smooth all transitions */
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* ========================================
+   🎨 IMPROVED MINIMIZED SIDEBAR (VS Code Style)
+   ======================================== */
+
+/* === COLLAPSED SIDEBAR IMPROVEMENTS === */
+
+/* Better width for collapsed state */
+.sidebar-collapsed .sidebar {
+  width: 48px !important; /* Smaller, cleaner like VS Code */
+}
+
+.sidebar-collapsed .main-content {
+  margin-left: 48px !important;
+}
+
+/* === ICON IMPROVEMENTS === */
+
+/* Larger, more prominent icons */
+.sidebar-collapsed .sidebar-nav li a svg,
+.sidebar-collapsed .sidebar-nav li .submenu-toggle svg {
+  font-size: 1.5rem !important; /* Bigger icons */
+  stroke-width: 1.5;
+}
+
+/* Better spacing between nav items */
+.sidebar-collapsed .sidebar-nav li {
+  margin-bottom: 8px; /* More space between items */
+}
+
+/* Perfect centering of icons */
+.sidebar-collapsed .sidebar-nav li a,
+.sidebar-collapsed .sidebar-nav li .submenu-toggle {
+  padding: 14px 0; /* More vertical padding */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  border-radius: 8px;
+  margin: 0 auto;
+}
+
+/* === HOVER EFFECTS === */
+
+/* Smooth scale effect on hover */
+.sidebar-collapsed .sidebar-nav li a:hover,
+.sidebar-collapsed .sidebar-nav li .submenu-toggle:hover {
+  transform: scale(1.15);
+  background: var(--bg-hover);
+}
+
+/* Active state with left border accent */
+.sidebar-collapsed .sidebar-nav li a.active {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.2), 
+    rgba(99, 102, 241, 0.15));
+  position: relative;
+}
+
+.sidebar-collapsed .sidebar-nav li a.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 24px;
+  background: var(--primary);
+  border-radius: 0 4px 4px 0;
+}
+
+/* === HEADER & LOGO === */
+
+/* Center and enlarge logo when collapsed */
+.sidebar-collapsed .sidebar-header {
+  padding: 16px 0;
+  justify-content: center;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-collapsed .sidebar-logo {
+  font-size: 1.8rem;
+  margin: 0;
+}
+
+/* Hide theme toggle when collapsed for cleaner look */
+.sidebar-collapsed .theme-icon-toggle {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+}
+
+/* === FOOTER IMPROVEMENTS === */
+
+/* Better footer styling when collapsed */
+.sidebar-collapsed .sidebar-footer {
+  padding: 12px 0;
+  gap: 8px;
+}
+
+/* User badge icon larger */
+.sidebar-collapsed .user-info-badge {
+  padding: 12px 0;
+  background: transparent;
+  border: none;
+}
+
+.sidebar-collapsed .user-info-badge svg {
+  font-size: 1.6rem;
+}
+
+/* Logout button icon larger */
+.sidebar-collapsed .logout-button {
+  padding: 12px 0;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.sidebar-collapsed .logout-button:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: var(--danger);
+}
+
+.sidebar-collapsed .logout-button svg {
+  font-size: 1.4rem;
+}
+
+/* === TOGGLE BUTTON === */
+
+/* Better toggle button position when collapsed */
+.sidebar-collapsed .sidebar-toggle-btn {
+  right: -12px;
+  width: 24px;
+  height: 24px;
+  font-size: 0.9rem;
+}
+
+/* === TOOLTIP SYSTEM === */
+
+/* Add tooltips on hover for collapsed state */
+.sidebar-collapsed .sidebar-nav li a,
+.sidebar-collapsed .sidebar-nav li .submenu-toggle,
+.sidebar-collapsed .user-info-badge,
+.sidebar-collapsed .logout-button {
+  position: relative;
+}
+
+/* Tooltip on right side */
+.sidebar-collapsed .sidebar-nav li a::after,
+.sidebar-collapsed .logout-button::after {
+  content: attr(title);
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 6px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 1001;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.sidebar-collapsed .sidebar-nav li a:hover::after,
+.sidebar-collapsed .logout-button:hover::after {
+  opacity: 1;
+}
+
+/* === SCROLLBAR === */
+
+/* Hide scrollbar when collapsed for cleaner look */
+.sidebar-collapsed .sidebar-scrollable-area::-webkit-scrollbar {
+  width: 2px;
+}
+
+/* === ANIMATIONS === */
+
+/* Smooth transitions */
+.sidebar-collapsed .sidebar-nav li a,
+.sidebar-collapsed .sidebar-nav li .submenu-toggle {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* === DARK MODE ENHANCEMENTS === */
+
+[data-theme="dark"] .sidebar-collapsed .sidebar {
+  background: linear-gradient(180deg, 
+    rgba(15, 23, 42, 0.98) 0%, 
+    rgba(15, 23, 42, 1) 100%);
+  border-right: 1px solid rgba(71, 85, 105, 0.3);
+}
+
+[data-theme="dark"] .sidebar-collapsed .sidebar-nav li a:hover {
+  background: rgba(71, 85, 105, 0.3);
+}
+
+/* === SEPARATOR LINES === */
+
+/* Add subtle separators between sections */
+.sidebar-collapsed .sidebar-nav li:nth-child(2)::before {
+  content: '';
+  display: block;
+  width: 24px;
+  height: 1px;
+  background: var(--border-color);
+  margin: 12px auto;
+  opacity: 0.5;
+}
+
+/* === RESPONSIVE === */
+
+@media (max-width: 768px) {
+  .sidebar-collapsed .sidebar {
+    width: 0 !important;
+    transform: translateX(-100%);
+  }
+
+  .sidebar-collapsed .main-content {
+    margin-left: 0 !important;
+  }
+}
+
+/* === SMOOTH PERFORMANCE === */
+
+.sidebar-collapsed * {
+  will-change: transform;
+}
+/* Remove toggle button */
+.sidebar-toggle-btn {
+  display: none !important;
+}
