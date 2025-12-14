@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  FiGrid, FiSend, FiClock, FiSearch, FiUserPlus, FiLogOut, FiBriefcase, FiServer,
+  FiGrid, FiSend, FiBell ,FiClock, FiSearch, FiUserPlus, FiLogOut, FiBriefcase, FiServer,
   FiClipboard, FiSettings, FiBarChart2, FiUserCheck,
   FiTrash2, FiChevronLeft, FiUploadCloud, FiSun, FiMoon,
   FiChevronDown
@@ -12,6 +12,9 @@ import ChangePasswordModal from './modals/ChangePasswordModal';
 import KeyboardShortcutsGuide from './KeyboardShortcutsGuide';
 import { useGlobalShortcuts } from '../hooks/useKeyboardShortcuts';
 import useThemeStore from '../store/useThemeStore';
+import NotificationBell from './NotificationBell';
+import NotificationPanel from './NotificationPanel';
+import useNotificationStore from '../store/useNotificationStore';
 
 
 
@@ -361,7 +364,7 @@ function MainLayout({ children, onLogout, user, flags }) {
           </ul>
         </div>
 
-        <div className="sidebar-footer">
+                <div className="sidebar-footer">
           <div className="user-info-badge">
             <FiUserCheck />
             <div className="user-info-text-wrapper">
@@ -376,6 +379,18 @@ function MainLayout({ children, onLogout, user, flags }) {
           </button>
         </div>
       </nav>
+
+     <div
+  className="fab-notification-above-shortcut"
+  onClick={() => useNotificationStore.getState().togglePanel()}
+  title="Notifications"
+  aria-label="Notifications"
+>
+  <FiBell />
+</div>
+
+
+      <NotificationPanel />
 
       <main className="main-content">{children}</main>
 
@@ -394,3 +409,4 @@ function MainLayout({ children, onLogout, user, flags }) {
 
 
 export default MainLayout;
+

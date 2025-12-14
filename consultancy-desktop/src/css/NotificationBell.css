@@ -1,22 +1,24 @@
-/* Notification Bell Styles */
+/* NotificationBell.css – FINAL */
+/* Remove any .notification-bell-icon block completely */
+
 .notification-bell {
-  position: relative;
-  background: none;
-  border: none;
-  color: var(--text-primary);
-  font-size: 20px;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: var(--border-radius);
-  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;          /* white from FAB */
+  cursor: pointer;
+  box-shadow: none;
 }
 
-.notification-bell:hover {
-  background-color: var(--bg-tertiary);
-  color: var(--primary-color);
+.notification-bell svg {
+  width: 22px;
+  height: 22px;
+  color: inherit;
+  background: none;
 }
 
 .notification-badge {
@@ -35,10 +37,6 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1);
-  }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
 }

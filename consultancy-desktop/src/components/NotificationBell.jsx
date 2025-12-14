@@ -1,3 +1,4 @@
+// NotificationBell.jsx
 import React from 'react';
 import { FiBell } from 'react-icons/fi';
 import useNotificationStore from '../store/useNotificationStore';
@@ -13,8 +14,8 @@ function NotificationBell() {
   );
 
   return (
-    <button
-      className="notification-bell-icon"
+    <span
+      className="notification-bell"
       onClick={togglePanel}
       aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
       title="Notifications"
@@ -25,7 +26,7 @@ function NotificationBell() {
           {unreadCount > 99 ? '99+' : unreadCount}
         </span>
       )}
-    </button>
+    </span>
   );
 }
 
