@@ -11,7 +11,7 @@ const {
   PermissionEngine,
   ROLES,
   FEATURES
-} = require('./security/permissionEngine.cjs');
+} = require('./src-electron/ipc/security/permissionEngine.cjs');
 
 // Try to load auto-updater
 let AutoUpdater = null;

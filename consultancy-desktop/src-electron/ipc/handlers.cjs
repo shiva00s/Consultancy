@@ -13,7 +13,6 @@ const ejs = require('ejs');
 const tempFile = require('temp-file');
 const csv = require('csv-parser');
 const XLSX = require('xlsx');
-// 🐞 FIX: Import getCanonicalUserContext directly from queries.cjs
 const queries = require('../db/queries.cjs');
 const { dbRun, dbGet, getCanonicalUserContext: getCanonicalUserContextFromQueries } = require('../db/queries.cjs'); 
 const { sendEmail, saveSmtpSettings } = require('../utils/emailSender.cjs');
@@ -27,6 +26,7 @@ const { registerPermissionHandlers } = require('../utils/permissionHandlers.cjs'
 const { enforcePermissionOrDeny } = require('../utils/rbacHelpers.cjs');
 const sendWhatsAppBulk = require("./sendWhatsAppBulk.cjs");
 const openWhatsAppSingle = require("./openWhatsAppSingle.cjs");
+const { guard, FEATURES } = require('./security/ipcPermissionGuard.cjs');
 //const sendTwilioWhatsApp = require("./twilioSendWhatsApp.cjs");
 
 
@@ -206,13 +206,31 @@ function registerIpcHandlers(app) {
       return queries.getUserPermissions(userId);
   });
 // ====================================================================
-    ipcMain.handle('save-user-permissions', async (event, { user, userId, flags }) => {
-      const result = await queries.saveUserPermissions(userId, flags);
-      if (result.success) {
-          logAction(user, 'update_user_permissions', 'users', userId, `Updated flags for user ID: ${userId}`);
-      }
-      return result;
-  });
+   ipcMain.handle('save-user-permissions', async (event, { user, userId, flags }) => {
+    try {
+        guard(user).enforce(FEATURES.USERS);
+
+        if (user.role !== 'super_admin') {
+            return { success: false, error: 'Only Super Admin can modify permissions.' };
+        }
+
+        const result = await queries.saveUserPermissions(userId, flags);
+
+        if (result.success) {
+            logAction(
+                user,
+                'update_user_permissions',
+                'users',
+                userId,
+                `Permissions updated`
+            );
+        }
+        return result;
+    } catch (err) {
+        return { success: false, error: err.code || err.message };
+    }
+});
+
 // ====================================================================
     ipcMain.handle('login', (event, { username, password }) => {
         return queries.login(username, password);
@@ -224,41 +242,59 @@ function registerIpcHandlers(app) {
         return queries.getAllUsers();
     });
     ipcMain.handle('add-user', async (event, { user, username, password, role }) => {
+    try {
+        // 🔐 Permission enforcement
+        guard(user).enforce(FEATURES.USERS);
+
         const result = await queries.addUser(username, password, role);
+
         if (result.success) {
-            logAction(user, 'create_user', 'users', result.data.id, `Username: ${username}, Role: ${role}`);
+            logAction(
+                user,
+                'create_user',
+                'users',
+                result.data.id,
+                `Username: ${username}, Role: ${role}`
+            );
         }
         return result;
-    });
+    } catch (err) {
+        return { success: false, error: err.code || err.message };
+    }
+});
 // ====================================================================
-    // [FIXED] Reset User Password Handler
     ipcMain.handle('reset-user-password', async (event, { user, id, newPassword }) => {
-        // 1. Get DB Instance explicitly to fix "db is not defined" error
-        const db = getDatabase(); 
+    try {
+        guard(user).enforce(FEATURES.USERS);
 
-        // SECURITY: Hierarchy Check
-        if (user.role === 'staff') {
-            return { success: false, error: 'Access Denied: Staff cannot reset passwords.' };
+        const db = getDatabase();
+
+        const targetUser = await queries.dbGet(
+            db,
+            'SELECT role FROM users WHERE id = ?',
+            [id]
+        );
+
+        if (!targetUser) {
+            return { success: false, error: 'User not found.' };
         }
 
-        // 2. Now 'db' is defined, so this query will work
-        const targetUser = await queries.dbGet(db, 'SELECT role FROM users WHERE id = ?', [id]);
-        
-        if (!targetUser) return { success: false, error: 'User not found.' };
-
-        // Admin cannot reset Super Admin or other Admins
-        if (user.role === 'admin') {
-            if (targetUser.role === 'super_admin' || targetUser.role === 'admin') {
-                return { success: false, error: 'Access Denied: Admins can only manage Staff accounts.' };
-            }
+        // Admin cannot reset Admin / SuperAdmin
+        if (user.role === 'admin' && targetUser.role !== 'staff') {
+            return { success: false, error: 'Admins can reset Staff only.' };
         }
 
         const result = await queries.resetUserPassword(id, newPassword);
+
         if (result.success) {
             logAction(user, 'reset_password', 'users', id);
         }
         return result;
-    });
+    } catch (err) {
+        return { success: false, error: err.code || err.message };
+    }
+});
+
 // ====================================================================
     ipcMain.handle('change-my-password', async (event, { user, oldPassword, newPassword }) => {
         const result = await queries.changeMyPassword(user.id, oldPassword, newPassword);
@@ -269,25 +305,29 @@ function registerIpcHandlers(app) {
     });
 // ====================================================================
     ipcMain.handle('delete-user', async (event, { user, idToDelete }) => {
-        // SECURITY: Hierarchy Check
+    try {
+        // 🔐 Only SuperAdmin allowed
+        guard(user).enforce(FEATURES.USERS);
+
         if (user.role !== 'super_admin') {
-            // Strict Rule: Only Super Admin can delete users.
-            // (Optional: If you want Admins to delete Staff, add logic similar to above, but 'delete' is destructive).
-            return { success: false, error: 'Access Denied: Only Super Admin can delete users.' };
+            return { success: false, error: 'Only Super Admin can delete users.' };
         }
 
-        // Self-deletion check is already in queries.cjs, but good to have here too
         if (user.id === idToDelete) {
-             return { success: false, error: 'You cannot delete your own account.' };
+            return { success: false, error: 'You cannot delete your own account.' };
         }
 
         const result = await queries.deleteUser(idToDelete, user.id);
-     
+
         if (result.success) {
-            logAction(user, 'delete_user', 'users', idToDelete, `Deleted user: ${result.deletedUsername}`);
+            logAction(user, 'delete_user', 'users', idToDelete);
         }
         return result;
-    });
+    } catch (err) {
+        return { success: false, error: err.code || err.message };
+    }
+});
+
 // ====================================================================
     ipcMain.handle('get-required-documents', (event) => {
         return queries.getRequiredDocuments();
@@ -309,13 +349,19 @@ function registerIpcHandlers(app) {
         return result;
     });
 // --- Feature Toggles (Settings) ---
+ipcMain.handle('get-feature-flags', async (event, { user } = {}) => {
+    try {
+        // 🔐 Only SuperAdmin can read global feature flags
+        guard(user).enforce(FEATURES.SETTINGS);
 
-    // [FIXED] Feature Flags Handler
-    ipcMain.handle('get-feature-flags', async () => {
+        if (user.role !== 'super_admin') {
+            return { success: false, error: 'Access Denied: Super Admin only.' };
+        }
+
         const defaultFlags = {
             isEmployersEnabled: true,
             isJobsEnabled: true,
-            isVisaKanbanEnabled: true, 
+            isVisaKanbanEnabled: true,
             isDocumentsEnabled: true,
             isVisaTrackingEnabled: true,
             isFinanceTrackingEnabled: true,
@@ -323,46 +369,56 @@ function registerIpcHandlers(app) {
             isInterviewEnabled: true,
             isTravelEnabled: true,
             isHistoryEnabled: true,
-            isBulkImportEnabled: true,           
-            isMobileAccessEnabled: true,             
+            isBulkImportEnabled: true,
+            isMobileAccessEnabled: true,
             canViewReports: true,
             canAccessSettings: true,
             canAccessRecycleBin: true,
             canDeletePermanently: true,
         };
-        
-        try {
-            const row = await queries.dbGet(getDatabase(), "SELECT features FROM users WHERE role = 'super_admin' LIMIT 1", []);
-            if (!row || !row.features) {
-                return { success: true, data: defaultFlags };
-            }
-            const storedFlags = JSON.parse(row.features);
-            const mergedFlags = { ...defaultFlags, ...storedFlags };
-            return { success: true, data: mergedFlags };
-        } catch (e) {
-            return { success: false, error: 'Failed to parse stored feature flags data.' };
-        }
-    });
-// ====================================================================
-    ipcMain.handle('save-feature-flags', async (event, { user, flags }) => {
-        // SECURITY: Only Super Admin can modify global toggles
-        if (!user || user.role !== 'super_admin') {
-            return { success: false, error: 'Access Denied: Only Super Admin can modify system modules.' };
+
+        const row = await queries.dbGet(
+            getDatabase(),
+            "SELECT features FROM users WHERE role = 'super_admin' LIMIT 1",
+            []
+        );
+
+        if (!row || !row.features) {
+            return { success: true, data: defaultFlags };
         }
 
-        const featuresJson = JSON.stringify(flags);
-      
-        try {
-            await queries.dbRun(db, "UPDATE users SET features = ? WHERE role = 'super_admin'", [featuresJson]);
-            logAction(user, 'update_feature_flags', 'settings', 1, 'Feature flags updated');
-            return { success: true };
-        
-        } catch (err) {
-            console.error('Failed to save feature flags:', err.message);
-   
-            return { success: false, error: err.message };
+        const storedFlags = JSON.parse(row.features);
+        return { success: true, data: { ...defaultFlags, ...storedFlags } };
+    } catch (err) {
+        return { success: false, error: err.code || err.message };
+    }
+});
+// ====================================================================
+    ipcMain.handle('save-feature-flags', async (event, { user, flags }) => {
+    try {
+        // 🔐 Enforce permission + hierarchy
+        guard(user).enforce(FEATURES.SETTINGS);
+
+        if (user.role !== 'super_admin') {
+            return { success: false, error: 'Access Denied: Super Admin only.' };
         }
-    });
+
+        const db = getDatabase();
+        const featuresJson = JSON.stringify(flags);
+
+        await queries.dbRun(
+            db,
+            "UPDATE users SET features = ? WHERE role = 'super_admin'",
+            [featuresJson]
+        );
+
+        logAction(user, 'update_feature_flags', 'settings', 1, 'Feature flags updated');
+        return { success: true };
+    } catch (err) {
+        return { success: false, error: err.code || err.message };
+    }
+});
+
 // 3. DASHBOARD & REPORTING (REFACTORED)
     // ====================================================================
 
@@ -485,6 +541,67 @@ function registerIpcHandlers(app) {
         }
     });
 // ===================================================
+ function registerAuditHandlers() {
+  const db = getDatabase();
+
+  ipcMain.handle('log-audit-event', async (event, payload) => {
+    try {
+      // Support multiple payload formats
+      const userId = payload.userId || payload.user?.id;
+      const username = payload.username || payload.user?.username || 'Unknown';
+      const action = payload.action;
+      const candidateId = payload.candidateId;
+      
+      // Determine target type and ID
+      const targetType = payload.target_type || 
+                        payload.table || 
+                        (candidateId ? 'candidates' : 'system');
+      
+      const targetId = payload.target_id || 
+                      payload.rowId || 
+                      candidateId || 
+                      null;
+      
+      const details = payload.details || 
+                     payload.description || 
+                     null;
+
+      // Validation
+      if (!userId) {
+        console.warn('Audit Log: User ID missing');
+        return { success: false, error: 'User ID required' };
+      }
+
+      if (!action) {
+        console.warn('Audit Log: Action missing');
+        return { success: false, error: 'Action required' };
+      }
+
+      // Insert into YOUR actual table structure
+      return await new Promise((resolve, reject) => {
+        db.run(
+          `INSERT INTO audit_log (user_id, username, action, target_type, target_id, details, timestamp)
+           VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
+          [userId, username, action, targetType, targetId, details],
+          (err) => {
+            if (err) {
+              console.error("Audit Log insert error:", err);
+              return resolve({ success: false, error: err.message });
+            }
+            console.log(`✅ Audit logged: ${action} by user ${userId}`);
+            resolve({ success: true });
+          }
+        );
+      });
+    } catch (error) {
+      console.error('Audit Log handler error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  console.log('✅ Audit log handler registered');
+}
+
 
     ipcMain.handle('get-system-audit-log', (event, { user, userFilter, actionFilter, limit, offset }) => {
         // 🐞 Audit Log Injection
@@ -880,34 +997,89 @@ ipcMain.handle('getImageBase64', (event, { filePath }) => {
         return queries.getCandidatePayments(candidateId);
     });
     ipcMain.handle('add-payment', async (event, { user, data }) => {
-        const result = await queries.addPayment(user, data);
-        if (result.success) {
-            logAction(user, 'add_payment', 'candidates', data.candidate_id, `Candidate: ${data.candidate_id}, Desc: ${data.description}, Amount: ${data.amount_paid}, Status: ${data.status}`);
-        }
-        return result;
-    });
+  try {
+    // 🔐 Admin & SuperAdmin only
+    guard(user).enforce(FEATURES.BILLING);
+
+    if (user.role === 'staff') {
+      return { success: false, error: 'Access Denied: Staff cannot add payments.' };
+    }
+
+    const result = await queries.addPayment(user, data);
+
+    if (result.success) {
+      logAction(
+        user,
+        'add_payment',
+        'candidates',
+        data.candidate_id,
+        `Amount: ${data.amount_paid}, Status: ${data.status}`
+      );
+    }
+
+    return result;
+  } catch (err) {
+    return { success: false, error: err.code || err.message };
+  }
+});
 
 
+ipcMain.handle('update-payment', async (event, { user, id, amount_paid, status }) => {
+  try {
+    // 🔐 Admin & SuperAdmin only
+    guard(user).enforce(FEATURES.BILLING);
 
-// 💥 CRITICAL FIX: The queries.updatePayment function now expects a single data object.
-    ipcMain.handle('update-payment', async (event, { user, id, amount_paid, status }) => {
-        const updateData = { user, id, amount_paid, status };
-        
-        const result = await queries.updatePayment(updateData);
-        
-        if (result.success) {
-            logAction(user, 'update_payment', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Desc: ${result.description}, Amount: ${amount_paid}, Status: ${status}`);
-        }
-     
-        return result;
-    });
-    ipcMain.handle('delete-payment', async (event, { user, id }) => {
-        const result = await queries.deletePayment(user, id);
-        if (result.success) {
-            logAction(user, 'delete_payment', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, Desc: ${result.description}, Amount: ${result.total_amount}`);
-        }
-        return result;
-    });
+    if (user.role === 'staff') {
+      return { success: false, error: 'Access Denied: Staff cannot modify payments.' };
+    }
+
+    const updateData = { user, id, amount_paid, status };
+    const result = await queries.updatePayment(updateData);
+
+    if (result.success) {
+      logAction(
+        user,
+        'update_payment',
+        'candidates',
+        result.candidateId,
+        `Amount: ${amount_paid}, Status: ${status}`
+      );
+    }
+
+    return result;
+  } catch (err) {
+    return { success: false, error: err.code || err.message };
+  }
+});
+
+ipcMain.handle('delete-payment', async (event, { user, id }) => {
+  try {
+    // 🔐 SuperAdmin only (destructive)
+    guard(user).enforce(FEATURES.BILLING);
+
+    if (user.role !== 'super_admin') {
+      return { success: false, error: 'Access Denied: Super Admin only.' };
+    }
+
+    const result = await queries.deletePayment(user, id);
+
+    if (result.success) {
+      logAction(
+        user,
+        'delete_payment',
+        'candidates',
+        result.candidateId,
+        `Deleted payment ID: ${id}`
+      );
+    }
+
+    return result;
+  } catch (err) {
+    return { success: false, error: err.code || err.message };
+  }
+});
+
+
 // ====================================================================
 // 10. RECYCLE BIN MANAGEMENT (COMPLETE)
 // ====================================================================
@@ -1023,64 +1195,53 @@ ipcMain.handle('restore-travel', async (event, { user, id }) => {
 // --- PERMANENT DELETION (SUPER ADMIN ONLY) ---
 ipcMain.handle('delete-permanently', async (event, { user, id, targetType }) => {
   try {
-    if (!user || user.role !== 'super_admin') {
-      return {
-        success: false,
-        error: 'Access Denied: Only Super Admins can perform permanent deletion.',
-      };
+    // 🔐 SuperAdmin only
+    guard(user).enforce(FEATURES.SETTINGS);
+    if (user.role !== 'super_admin') {
+      return { success: false, error: 'Access Denied: Super Admin only.' };
     }
 
+    const db = getDatabase();
     let tableName;
 
     switch (targetType) {
       case 'required_doc':
       case 'required_docs':
-        tableName = 'required_documents';
-        break;
+        tableName = 'required_documents'; break;
       case 'candidate':
       case 'candidates':
-        tableName = 'candidates';
-        break;
+        tableName = 'candidates'; break;
       case 'employer':
       case 'employers':
-        tableName = 'employers';
-        break;
+        tableName = 'employers'; break;
       case 'job':
       case 'jobs':
       case 'job_orders':
-        tableName = 'job_orders'; // fixed
-        break;
+        tableName = 'job_orders'; break;
       case 'placement':
       case 'placements':
-        tableName = 'placements';
-        break;
+        tableName = 'placements'; break;
       case 'passport':
       case 'passports':
-        tableName = 'passport_tracking';
-        break;
+        tableName = 'passport_tracking'; break;
       case 'visa':
       case 'visas':
-        tableName = 'visa_tracking';
-        break;
+        tableName = 'visa_tracking'; break;
       case 'medical':
       case 'medical_records':
-        tableName = 'medical_tracking';
-        break;
+        tableName = 'medical_tracking'; break;
       case 'interview':
       case 'interviews':
-        tableName = 'interview_tracking';
-        break;
+        tableName = 'interview_tracking'; break;
       case 'travel':
       case 'travels':
-        tableName = 'travel_tracking';
-        break;
+        tableName = 'travel_tracking'; break;
       default:
         return { success: false, error: `Unknown target type: ${targetType}` };
     }
 
     await new Promise((resolve, reject) => {
-      const sql = `DELETE FROM ${tableName} WHERE id = ?`;
-      db.run(sql, [id], function (err) {
+      db.run(`DELETE FROM ${tableName} WHERE id = ?`, [id], (err) => {
         if (err) return reject(err);
         resolve();
       });
@@ -1089,8 +1250,7 @@ ipcMain.handle('delete-permanently', async (event, { user, id, targetType }) => 
     logAction(user, 'permanent_delete', tableName, id);
     return { success: true };
   } catch (err) {
-    console.error('delete-permanently error:', err);
-    return { success: false, error: err.message };
+    return { success: false, error: err.code || err.message };
   }
 });
 
@@ -1099,39 +1259,54 @@ ipcMain.handle('delete-permanently', async (event, { user, id, targetType }) => 
 // ====================================================================
     // 11. FILE-SYSTEM HANDLERS (Utility, ZIP, PDF, Import)
     // ====================================================================
+ipcMain.handle('read-offer-template', async (event, { user } = {}) => {
+  try {
+    // 🔐 Admin & SuperAdmin can read
+    guard(user).enforce(FEATURES.SETTINGS);
 
-    // === NEW: TEMPLATE READ/WRITE HANDLERS (INJECTED) ===
-    ipcMain.handle('read-offer-template', async () => {
-        try {
-            const templatePath = path.join(app.getAppPath(), 'src-electron', 'templates', 'offer_letter_template.ejs');
-            if (!fs.existsSync(templatePath)) {
-                return { success: false, error: 'Offer letter template file not found on disk.' };
-            }
-            const content = fs.readFileSync(templatePath, 'utf-8');
-            return { success: true, data: content };
-        } catch (error) {
-            console.error('Failed to read template:', error);
-            return { success: false, error: error.message };
-   
-        }
-    });
-    ipcMain.handle('write-offer-template', async (event, { user, content }) => {
-        try {
-            if (user.role !== 'super_admin') {
-                return { success: false, error: 'Access Denied: Only Super Admin can modify templates.' };
-            }
-            const templatePath = path.join(app.getAppPath(), 'src-electron', 'templates', 'offer_letter_template.ejs');
-        
-            fs.writeFileSync(templatePath, content);
-            
-            logAction(user, 'update_offer_template', 'system', 1, 'Offer letter template file updated.');
-            return { success: true };
-        } catch (error) {
-            console.error('Failed to write template:', error);
-            return { success: false, error: error.message };
-  
-        }
-    });
+    const templatePath = path.join(
+      app.getAppPath(),
+      'src-electron',
+      'templates',
+      'offer_letter_template.ejs'
+    );
+
+    if (!fs.existsSync(templatePath)) {
+      return { success: false, error: 'Template file not found.' };
+    }
+
+    const content = fs.readFileSync(templatePath, 'utf-8');
+    return { success: true, data: content };
+  } catch (err) {
+    return { success: false, error: err.code || err.message };
+  }
+});
+
+   ipcMain.handle('write-offer-template', async (event, { user, content }) => {
+  try {
+    // 🔐 SuperAdmin only
+    guard(user).enforce(FEATURES.SETTINGS);
+
+    if (user.role !== 'super_admin') {
+      return { success: false, error: 'Access Denied: Super Admin only.' };
+    }
+
+    const templatePath = path.join(
+      app.getAppPath(),
+      'src-electron',
+      'templates',
+      'offer_letter_template.ejs'
+    );
+
+    fs.writeFileSync(templatePath, content);
+    logAction(user, 'update_offer_template', 'settings', 1);
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.code || err.message };
+  }
+});
+
 // ===================================================
 
     // --- Utility to Print/Save as PDF ---
@@ -1774,28 +1949,33 @@ ipcMain.handle('activate-application', async (event, code) => {
     });
 
 // === EMAIL SETTINGS HANDLER ===
-    // === EMAIL SETTINGS HANDLER ===
-ipcMain.handle('save-smtp-settings', async (event, { config }) => {
-    try {
-        const db = getDatabase();
-        const configJson = JSON.stringify(config);
-        
-        // Save to database
-        await queries.dbRun(
-            db,
-            "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('smtp_config', ?)",
-            [configJson]
-        );
-        
-        // Also update in emailSender module
-        await saveSmtpSettings(config);
-        
-        return { success: true };
-    } catch (err) {
-        console.error("SMTP Save Error:", err);
-        return { success: false, error: err.message };
+ ipcMain.handle('save-smtp-settings', async (event, { user, config }) => {
+  try {
+    // 🔐 SuperAdmin only
+    guard(user).enforce(FEATURES.SETTINGS);
+
+    if (user.role !== 'super_admin') {
+      return { success: false, error: 'Access Denied: Super Admin only.' };
     }
+
+    const db = getDatabase();
+    const configJson = JSON.stringify(config);
+
+    await queries.dbRun(
+      db,
+      "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('smtp_config', ?)",
+      [configJson]
+    );
+
+    await saveSmtpSettings(config);
+    logAction(user, 'update_smtp_settings', 'settings', 1);
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.code || err.message };
+  }
 });
+
 
 // === MOBILE SERVER INFO ===
     ipcMain.handle('get-server-ip', () => {
@@ -1920,24 +2100,31 @@ ipcMain.handle('restore-database', async (event, { user }) => {
         return result;
     });
 // ------------------------------------
+ipcMain.handle('test-smtp-connection', async (event, { user, config }) => {
+  try {
+    // 🔐 SuperAdmin only (infrastructure check)
+    guard(user).enforce(FEATURES.SETTINGS);
 
-    // [NEW] Test SMTP Handler
-ipcMain.handle('test-smtp-connection', async (event, { config }) => {
-    const nodemailer = require('nodemailer');
-    try {
-        const transporter = nodemailer.createTransport({
-            host: config.host,
-            port: parseInt(config.port),
-            secure: config.secure,
-            auth: { user: config.user, pass: config.pass },
-    
-        });
-        await transporter.verify(); // Verifies connection details
-        return { success: true };
-    } catch (err) {
-        return { success: false, error: err.message };
+    if (user.role !== 'super_admin') {
+      return { success: false, error: 'Access Denied: Super Admin only.' };
     }
+
+    const nodemailer = require('nodemailer');
+
+    const transporter = nodemailer.createTransport({
+      host: config.host,
+      port: parseInt(config.port),
+      secure: config.secure,
+      auth: { user: config.user, pass: config.pass },
+    });
+
+    await transporter.verify();
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
+
 // [NEW] Helper at top of file
 const parseExcelDate = (excelSerial) => {
     // Check if it's actually a number (Excel Serial Date)
@@ -2006,46 +2193,7 @@ ipcMain.handle('get-user-role', async (event, { userId }) => {
     }
 };
 
-function registerAuditHandlers() {
-  const db = getDatabase();
 
-  ipcMain.handle('log-audit-event', async (event, payload) => {
-    try {
-      const { userId, action, candidateId, details } = payload || {};
-
-      if (!userId) {
-        console.warn(`Audit Log: User ID missing. Skipping log for action: ${action}`);
-        return { success: false, error: 'User ID required' };
-      }
-
-      if (!action) {
-        console.warn('Audit Log: Action missing. Skipping log entry.');
-        return { success: false, error: 'Action required' };
-      }
-
-      return await new Promise((resolve, reject) => {
-        db.run(
-  `INSERT INTO audit_log (user_id, action, details)
-   VALUES (?, ?, ?)`,
-  [userId, action, details || null],
-  (err) => {
-    if (err) {
-      console.error("Audit Log insert error:", err);
-      return resolve({ success: false, error: "Failed to write audit log" });
-    }
-    resolve({ success: true });
-  }
-);
-
-      });
-    } catch (error) {
-      console.error('Audit Log handler error:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  console.log('✅ Audit log handler registered');
-}
 
 ipcMain.handle('get-deleted-required-documents', async () => {
   return new Promise((resolve) => {
@@ -2084,43 +2232,42 @@ ipcMain.handle('restore-required-document', async (event, { id }) => {
 
 ipcMain.handle('get-candidate-finance', async (event, { user, candidateId }) => {
   try {
-    // ✅ optional hard check: require authenticated user
-    if (!user || !user.id) {
-      console.warn('get-candidate-finance called without valid user');
-      // still return data, just don’t log, or you can block:
-      // return { success: false, error: 'Authentication required' };
-    } else {
-      logAction(
-        user,
-        'view_candidate_finance',
-        'candidates',
-        candidateId,
-        `Viewed finance for candidate ID: ${candidateId}`
-      );
-    }
+    // 🔐 Read access allowed for Admin & SuperAdmin only
+    guard(user).enforce(FEATURES.BILLING);
 
-    const result = await queries.getCandidateFinance(candidateId);
-    return result; // { success, data, error }
+    logAction(
+      user,
+      'view_candidate_finance',
+      'candidates',
+      candidateId,
+      `Viewed finance for candidate ID: ${candidateId}`
+    );
+
+    return await queries.getCandidateFinance(candidateId);
   } catch (err) {
-    console.error('get-candidate-finance error:', err);
-    return { success: false, error: err.message };
+    return { success: false, error: err.code || err.message };
   }
 });
+
 
 ipcMain.handle('delete-placement-permanently', async (event, { user, id }) => {
-  if (!user || user.role !== 'super_admin') {
-    return {
-      success: false,
-      error: 'Access Denied: Only Super Admins can perform permanent deletion.',
-    };
-  }
+  try {
+    // 🔐 SuperAdmin only
+    guard(user).enforce(FEATURES.SETTINGS);
+    if (user.role !== 'super_admin') {
+      return { success: false, error: 'Access Denied: Super Admin only.' };
+    }
 
-  const result = await queries.deletePlacementPermanently(id);
-  if (result.success) {
-    logAction(user, 'permanent_delete', 'placements', id);
+    const result = await queries.deletePlacementPermanently(id);
+    if (result.success) {
+      logAction(user, 'permanent_delete', 'placements', id);
+    }
+    return result;
+  } catch (err) {
+    return { success: false, error: err.code || err.message };
   }
-  return result;
 });
+
 
 ipcMain.handle("send-whatsapp-bulk", (event, payload) =>
         sendWhatsAppBulk(event, payload)
@@ -2233,6 +2380,31 @@ ipcMain.handle('get-job-order-by-id', async (event, { jobId }) => {
   });
 });
 
+ipcMain.handle('ui-can-access', async (event, { feature }) => {
+    try {
+        // Get canonical logged-in user from session/context
+        const user = await getCanonicalUserContextFromQueries();
+
+        if (!user) {
+            return { allowed: false };
+        }
+
+        // FEATURE must exist
+        if (!FEATURES[feature]) {
+            return { allowed: false };
+        }
+
+        // Permission enforcement (no throw leak to UI)
+        try {
+            guard(user).enforce(FEATURES[feature]);
+            return { allowed: true };
+        } catch {
+            return { allowed: false };
+        }
+    } catch (err) {
+        return { allowed: false };
+    }
+});
 
 
 

@@ -1,5 +1,4 @@
 const { contextBridge, ipcRenderer } = require("electron");
-const { getDeletedMedical, getDeletedInterviews, getDeletedTravel } = require("./src-electron/db/queries.cjs");
 
 contextBridge.exposeInMainWorld("electronAPI", {
 
@@ -30,17 +29,20 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getUserPermissions: (args) => ipcRenderer.invoke("get-user-permissions", args),
     saveUserPermissions: (args) => ipcRenderer.invoke("save-user-permissions", args),
 
+    getUserGranularPermissions: (args) => ipcRenderer.invoke("get-user-granular-permissions", args),
+    setUserGranularPermissions: (args) => ipcRenderer.invoke("set-user-granular-permissions", args),
+    getGranterPermissions: (args) => ipcRenderer.invoke("get-granter-permissions", args),
+
+    getAssignablePermissions: (data) => ipcRenderer.invoke("getAssignablePermissions", data),
+    validatePermissionAssignment: (data) => ipcRenderer.invoke("validatePermissionAssignment", data),
+
     // =====================================================================
     // FEATURE FLAGS
     // =====================================================================
     getFeatureFlags: () => ipcRenderer.invoke("get-feature-flags"),
     saveFeatureFlags: (args) => ipcRenderer.invoke("save-feature-flags", args),
-
-    getAdminAssignedFeatures: (payload) =>
-        ipcRenderer.invoke('get-admin-assigned-features', payload),
-
-    getAdminEffectiveFlags: (payload) =>
-        ipcRenderer.invoke('get-admin-effective-flags', payload),
+    getAdminAssignedFeatures: (payload) => ipcRenderer.invoke("get-admin-assigned-features", payload),
+    getAdminEffectiveFlags: (payload) => ipcRenderer.invoke("get-admin-effective-flags", payload),
 
     // =====================================================================
     // REPORTING & ANALYTICS
@@ -49,18 +51,20 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getSystemAuditLog: (args) => ipcRenderer.invoke("get-system-audit-log", args),
     getAuditLogForCandidate: (args) => ipcRenderer.invoke("get-audit-log-for-candidate", args),
     getDetailedReportList: (args) => ipcRenderer.invoke("get-detailed-report-list", args),
-
     getAdvancedAnalytics: (timeRange) => ipcRenderer.invoke("get-advanced-analytics", timeRange),
     exportAnalytics: (format) => ipcRenderer.invoke("export-analytics", format),
+    logAuditEvent: (payload) => ipcRenderer.invoke("log-audit-event", payload),
 
     // =====================================================================
     // CANDIDATES
     // =====================================================================
     searchCandidates: (args) => ipcRenderer.invoke("search-candidates", args),
     getCandidateDetails: (args) => ipcRenderer.invoke("get-candidate-details", args),
+    getCandidateById: (data) => ipcRenderer.invoke("get-candidate-by-id", data),
     saveCandidateMulti: (args) => ipcRenderer.invoke("save-candidate-multi", args),
     updateCandidateText: (args) => ipcRenderer.invoke("update-candidate-text", args),
     deleteCandidate: (args) => ipcRenderer.invoke("delete-candidate", args),
+    getCandidateJobPlacements: (data) => ipcRenderer.invoke("get-candidate-job-placements", data),
 
     // =====================================================================
     // DOCUMENT MANAGEMENT
@@ -72,23 +76,23 @@ contextBridge.exposeInMainWorld("electronAPI", {
     readAbsoluteFileBuffer: (params) => ipcRenderer.invoke("read-absolute-file-buffer", params),
     getImageBase64: (params) => ipcRenderer.invoke("getImageBase64", params),
 
-    uploadDocument: (data) => ipcRenderer.invoke('upload-document', data),
-    getCandidateDocuments: (candidateId) => ipcRenderer.invoke('get-candidate-documents', candidateId),
-    downloadDocument: (documentId) => ipcRenderer.invoke('download-document', documentId),
-    uploadResume: (data) => ipcRenderer.invoke('upload-resume', data),
-    uploadPhoto: (data) => ipcRenderer.invoke('upload-photo', data),
+    uploadDocument: (data) => ipcRenderer.invoke("upload-document", data),
+    getCandidateDocuments: (candidateId) => ipcRenderer.invoke("get-candidate-documents", candidateId),
+    downloadDocument: (documentId) => ipcRenderer.invoke("download-document", documentId),
+    uploadResume: (data) => ipcRenderer.invoke("upload-resume", data),
+    uploadPhoto: (data) => ipcRenderer.invoke("upload-photo", data),
+    bulkImportDocuments: (args) => ipcRenderer.invoke("bulk-import-documents", args),
 
     // Required Document Master
     getRequiredDocuments: () => ipcRenderer.invoke("get-required-documents"),
     addRequiredDocument: (args) => ipcRenderer.invoke("add-required-document", args),
     deleteRequiredDocument: (args) => ipcRenderer.invoke("delete-required-document", args),
     updateDocumentCategory: (args) => ipcRenderer.invoke("update-document-category", args),
-
-    getDeletedRequiredDocuments: (args) => ipcRenderer.invoke("get-deleted-required-documents", args),
+    getDeletedRequiredDocuments: () => ipcRenderer.invoke("get-deleted-required-documents"),
     restoreRequiredDocument: (args) => ipcRenderer.invoke("restore-required-document", args),
 
     // File Dialog
-    openFileDialog: (options) => ipcRenderer.invoke('open-file-dialog', options),
+    openFileDialog: (options) => ipcRenderer.invoke("open-file-dialog", options),
 
     // ZIP
     zipCandidateDocuments: (args) => ipcRenderer.invoke("zip-candidate-documents", args),
@@ -105,6 +109,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     // JOB ORDERS
     // =====================================================================
     getJobOrders: () => ipcRenderer.invoke("get-job-orders"),
+    getJobOrderById: (data) => ipcRenderer.invoke("get-job-order-by-id", data),
     addJobOrder: (args) => ipcRenderer.invoke("add-job-order", args),
     updateJobOrder: (args) => ipcRenderer.invoke("update-job-order", args),
     deleteJobOrder: (args) => ipcRenderer.invoke("delete-job-order", args),
@@ -164,30 +169,45 @@ contextBridge.exposeInMainWorld("electronAPI", {
     // =====================================================================
     // RECYCLE BIN
     // =====================================================================
+
+    // Candidates
     getDeletedCandidates: () => ipcRenderer.invoke("get-deleted-candidates"),
     restoreCandidate: (args) => ipcRenderer.invoke("restore-candidate", args),
 
+    // Employers
     getDeletedEmployers: () => ipcRenderer.invoke("get-deleted-employers"),
     restoreEmployer: (args) => ipcRenderer.invoke("restore-employer", args),
 
+    // Job Orders
     getDeletedJobOrders: () => ipcRenderer.invoke("get-deleted-job-orders"),
     restoreJobOrder: (args) => ipcRenderer.invoke("restore-job-order", args),
 
+    // Placements
+    getDeletedPlacements: () => ipcRenderer.invoke("get-deleted-placements"),
+    restorePlacement: (payload) => ipcRenderer.invoke("restore-placement", payload),
 
-    // Recycle Bin - Placements
-    getDeletedPlacements: () => ipcRenderer.invoke('get-deleted-placements'),
-    restorePlacement: (payload) => ipcRenderer.invoke('restore-placement', payload),
+    // Passports
+    getDeletedPassports: () => ipcRenderer.invoke("get-deleted-passports"),
+    restorePassport: (payload) => ipcRenderer.invoke("restore-passport", payload),
 
-    // Recycle Bin - Passports
-    getDeletedPassports: () => ipcRenderer.invoke('get-deleted-passports'),
-    restorePassport: (payload) => ipcRenderer.invoke('restore-passport', payload),
+    // Visas
+    getDeletedVisas: () => ipcRenderer.invoke("get-deleted-visas"),
+    restoreVisa: (payload) => ipcRenderer.invoke("restore-visa", payload),
 
-    // Recycle Bin - Visas
-    getDeletedVisas: () => ipcRenderer.invoke('get-deleted-visas'),
-    restoreVisa: (payload) => ipcRenderer.invoke('restore-visa', payload),
+    // Medical
+    getDeletedMedical: () => ipcRenderer.invoke("get-deleted-medical"),
+    restoreMedical: (payload) => ipcRenderer.invoke("restore-medical", payload),
+
+    // Interviews
+    getDeletedInterviews: () => ipcRenderer.invoke("get-deleted-interviews"),
+    restoreInterview: (payload) => ipcRenderer.invoke("restore-interview", payload),
+
+    // Travel
+    getDeletedTravel: () => ipcRenderer.invoke("get-deleted-travel"),
+    restoreTravel: (payload) => ipcRenderer.invoke("restore-travel", payload),
 
     // Permanent Delete
-    deletePermanently: (payload) => ipcRenderer.invoke('delete-permanently', payload),
+    deletePermanently: (payload) => ipcRenderer.invoke("delete-permanently", payload),
 
     // =====================================================================
     // PDF / OFFER LETTER
@@ -198,10 +218,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
     printToPDF: (url) => ipcRenderer.invoke("print-to-pdf", url),
 
     // =====================================================================
-    // COMMUNICATION LOGS
+    // COMMUNICATION
     // =====================================================================
-    logCommunication: (data) => ipcRenderer.invoke('logCommunication', data),
 
+    // WhatsApp
+    sendWhatsAppBulk: (payload) => ipcRenderer.invoke("send-whatsapp-bulk", payload),
+    openWhatsAppSingle: (payload) => ipcRenderer.invoke("open-whatsapp-single", payload),
+
+    // Communication Logs
+    logCommunication: (data) => ipcRenderer.invoke("logCommunication", data),
+    getCommunicationLogs: (data) => ipcRenderer.invoke("getCommunicationLogs", data),
     getCommLogs: (args) => ipcRenderer.invoke("get-comm-logs", args),
 
     // =====================================================================
@@ -242,49 +268,34 @@ contextBridge.exposeInMainWorld("electronAPI", {
     exportDatabase: (destinationPath) => ipcRenderer.invoke("export-database", destinationPath),
     importDatabase: (sourcePath) => ipcRenderer.invoke("import-database", sourcePath),
 
-    bulkImportDocuments: (args) => ipcRenderer.invoke("bulk-import-documents", args),
-
-    getAssignablePermissions: (data) => ipcRenderer.invoke('getAssignablePermissions', data),
-    validatePermissionAssignment: (data) => ipcRenderer.invoke('validatePermissionAssignment', data),
-
-    getUserGranularPermissions: (args) => ipcRenderer.invoke("get-user-granular-permissions", args),
-    setUserGranularPermissions: (args) => ipcRenderer.invoke("set-user-granular-permissions", args),
-    getGranterPermissions: (args) => ipcRenderer.invoke("get-granter-permissions", args),
-
     // =====================================================================
     // LICENSE
     // =====================================================================
     getLicenseStatus: () => ipcRenderer.invoke("license:get-status"),
     activateLicense: (args) => ipcRenderer.invoke("license:activate", args),
-
     requestActivationCode: () => ipcRenderer.invoke("request-activation-code"),
-    logAuditEvent: (payload) => ipcRenderer.invoke("log-audit-event", payload),
-    getAdminAssignedFeatures: (payload) =>
-    ipcRenderer.invoke('get-admin-assigned-features', payload),
-    uploadResume: (payload) => ipcRenderer.invoke('upload-resume', payload),
+});
 
-    getDeletedMedical: () => ipcRenderer.invoke('get-deleted-medical'),
-    getDeletedInterviews: () => ipcRenderer.invoke('get-deleted-interviews'),
-    getDeletedTravel: () => ipcRenderer.invoke('get-deleted-travel'),
-    restoreInterview: (payload) =>
-    ipcRenderer.invoke('restore-interview', payload),
-    
-// Recycle Bin - Medical
-restoreMedical: (payload) => ipcRenderer.invoke('restore-medical', payload),
-
-// Recycle Bin - Travel
-restoreTravel: (payload) => ipcRenderer.invoke('restore-travel', payload),
-
-// Recycle Bin - Interview
-restoreInterview: (payload) => ipcRenderer.invoke('restore-interview', payload),
-
-sendWhatsAppBulk: (payload) => ipcRenderer.invoke("send-whatsapp-bulk", payload),
-  openWhatsAppSingle: (payload) => ipcRenderer.invoke("open-whatsapp-single", payload), 
-
-  getCommunicationLogs: (data) => ipcRenderer.invoke("getCommunicationLogs", data),
-
-getCandidateById: (data) => ipcRenderer.invoke('get-candidate-by-id', data),
-getCandidateJobPlacements: (data) => ipcRenderer.invoke('get-candidate-job-placements', data),
-getJobOrderById: (data) => ipcRenderer.invoke('get-job-order-by-id', data),
-
+/**
+ * ============================================================
+ * UI PERMISSION VISIBILITY (OPTIONAL - FOR FUTURE USE)
+ * ============================================================
+ */
+contextBridge.exposeInMainWorld("permission", {
+    can: async (feature) => {
+        try {
+            const res = await ipcRenderer.invoke("ui-can-access", { feature });
+            return !!res?.allowed;
+        } catch {
+            return false;
+        }
+    },
+    getRole: async (userId) => {
+        try {
+            const res = await ipcRenderer.invoke("get-user-role", { userId });
+            return res?.role || null;
+        } catch {
+            return null;
+        }
+    }
 });
