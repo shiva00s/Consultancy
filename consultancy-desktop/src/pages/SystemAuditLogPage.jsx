@@ -45,35 +45,37 @@ function SystemAuditLogPage() {
     const [actionFilter, setActionFilter] = useState('');
 
     const fetchLogs = useCallback(async (page = 1) => {
-        setLoading(true);
-        setError(null);
-        setCurrentPage(page);
+    setLoading(true);
+    setError(null);
+    setCurrentPage(page);
 
-        const limit = ITEMS_PER_PAGE;
-        const offset = (page - 1) * limit;
+    const limit = ITEMS_PER_PAGE;
+    const offset = (page - 1) * limit;
+    
+    try {
+        const res = await window.electronAPI.getSystemAuditLog({
+            user: user,  // ✅ ADD THIS: Pass the user object
+            userFilter: userFilter,
+            actionFilter: actionFilter,
+            limit: limit,
+            offset: offset
+        });
         
-        try {
-            const res = await window.electronAPI.getSystemAuditLog({
-                userFilter: userFilter,
-                actionFilter: actionFilter,
-                limit: limit,
-                offset: offset
-            });
-            
-            if (res.success) {
-                setLogs(res.data || []);
-                setTotalItems(res.totalCount || 0);
-            } else {
-                setError(res.error || 'Failed to fetch audit log.');
-                toast.error(res.error || 'Failed to fetch audit log.');
-            }
-        } catch (err) {
-            setError('An unexpected error occurred during log retrieval.');
-            toast.error('An unexpected error occurred during log retrieval.');
+        if (res.success) {
+            setLogs(res.data || []);
+            setTotalItems(res.totalCount || 0);
+        } else {
+            setError(res.error || 'Failed to fetch audit log.');
+            toast.error(res.error || 'Failed to fetch audit log.');
         }
-        
-        setLoading(false);
-    }, [userFilter, actionFilter]);
+    } catch (err) {
+        setError('An unexpected error occurred during log retrieval.');
+        toast.error('An unexpected error occurred during log retrieval.');
+    }
+    
+    setLoading(false);
+}, [user, userFilter, actionFilter]);  // ✅ Add user to dependencies
+
 
     useEffect(() => {
         if (!user) {

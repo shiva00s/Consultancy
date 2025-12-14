@@ -1,6 +1,9 @@
+// FILE: src-electron/ipc/permissionHandlers.cjs
+// REPLACE ENTIRE FILE
+
 const { ipcMain } = require('electron');
 const { getDatabase } = require('../db/database.cjs');
-const permissionService = require('../services/permissionService.cjs')
+const permissionService = require('../services/permissionService.cjs');
 
 function registerPermissionHandlers() {
     const db = getDatabase();
@@ -149,46 +152,107 @@ function registerPermissionHandlers() {
         }
     });
 
+    // ==========================================
+    // LOG AUDIT EVENT (FIXED - Now inside registerPermissionHandlers)
+    // ==========================================
+    ipcMain.handle('log-audit-event', async (event, payload) => {
+        try {
+            const { userId, action, candidateId, details } = payload || {};
+
+            // Validate required fields
+            if (!userId) {
+                console.warn(`Audit Log: User ID missing. Skipping log for action: ${action}`);
+                return { success: false, error: 'User ID required' };
+            }
+
+            if (!action) {
+                console.warn('Audit Log: Action missing. Skipping log entry.');
+                return { success: false, error: 'Action required' };
+            }
+
+            // Insert audit log entry
+            return await new Promise((resolve) => {
+                db.run(
+                    `INSERT INTO audit_log (user_id, action, candidate_id, details, timestamp)
+                     VALUES (?, ?, ?, ?, datetime('now'))`,
+                    [userId, action, candidateId || null, details || null],
+                    (err) => {
+                        if (err) {
+                            console.error('Audit Log insert error:', err);
+                            return resolve({ success: false, error: 'Failed to write audit log' });
+                        }
+                        resolve({ success: true });
+                    }
+                );
+            });
+
+        } catch (error) {
+            console.error('Audit Log handler error:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
+    // ==========================================
+    // GET AUDIT LOGS (For viewing in SystemAuditLogPage)
+    // ==========================================
+    ipcMain.handle('get-audit-logs', async (event, { limit = 100, offset = 0, userId = null }) => {
+        try {
+            let query = `
+                SELECT 
+                    al.*,
+                    u.username as user_name,
+                    u.role as user_role
+                FROM audit_log al
+                LEFT JOIN users u ON al.user_id = u.id
+            `;
+            
+            const params = [];
+            
+            // Optional: Filter by specific user
+            if (userId) {
+                query += ' WHERE al.user_id = ?';
+                params.push(userId);
+            }
+            
+            query += ' ORDER BY al.timestamp DESC LIMIT ? OFFSET ?';
+            params.push(limit, offset);
+
+            const logs = await new Promise((resolve, reject) => {
+                db.all(query, params, (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows || []);
+                });
+            });
+
+            // Get total count
+            let countQuery = 'SELECT COUNT(*) as total FROM audit_log';
+            if (userId) {
+                countQuery += ' WHERE user_id = ?';
+            }
+
+            const countResult = await new Promise((resolve, reject) => {
+                db.get(
+                    countQuery, 
+                    userId ? [userId] : [], 
+                    (err, row) => {
+                        if (err) reject(err);
+                        else resolve(row);
+                    }
+                );
+            });
+
+            return {
+                success: true,
+                data: logs,
+                total: countResult?.total || 0
+            };
+        } catch (error) {
+            console.error('Error fetching audit logs:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
     console.log('✅ Permission handlers registered');
 }
-
-ipcMain.handle('log-audit-event', async (event, payload) => {
-    try {
-      const { userId, action, candidateId, details } = payload || {};
-
-      if (!userId) {
-        console.warn(`Audit Log: User ID missing. Skipping log for action: ${action}`);
-        return { success: false, error: 'User ID required' };
-      }
-
-      if (!action) {
-        console.warn('Audit Log: Action missing. Skipping log entry.');
-        return { success: false, error: 'Action required' };
-      }
-
-      return await new Promise((resolve) => {
-  db.run(
-    `INSERT INTO audit_log (user_id, action, details)
-     VALUES (?, ?, ?)`,
-    [userId, action, details || null],
-    (err) => {
-      if (err) {
-        console.error('Audit Log insert error:', err);
-        return resolve({ success: false, error: 'Failed to write audit log' });
-      }
-      resolve({ success: true });
-    }
-  );
-});
-
-    } catch (error) {
-      console.error('Audit Log handler error:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-
-
-
 
 module.exports = { registerPermissionHandlers };

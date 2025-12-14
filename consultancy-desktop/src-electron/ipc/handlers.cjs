@@ -603,24 +603,25 @@ ipcMain.handle('get-feature-flags', async (event, { user } = {}) => {
 }
 
 
-   ipcMain.handle("get-system-audit-log", async (event, { userFilter, actionFilter, limit, offset }) => {
+ipcMain.handle("get-system-audit-log", async (event, { user, userFilter, actionFilter, limit, offset }) => {
     try {
-        // Get user from stored session (you should have currentAuthUser available)
-        if (!currentAuthUser) {
-            return { success: false, error: "Authentication required." };
+        // ✅ FIXED: User is now passed as a parameter from frontend
+        if (!user || !user.id) {
+            return { success: false, error: "Authentication required. Please log in again." };
         }
         
         // Check if user is admin or super_admin
-        const normalizedRole = currentAuthUser.role?.toLowerCase().replace('_', '');
+        const normalizedRole = user.role?.toLowerCase().replace('_', '');
         if (!['admin', 'superadmin'].includes(normalizedRole)) {
             return {
                 success: false,
-                error: `Access Denied: Only admins can access audit logs. Your role: ${currentAuthUser.role}`
+                error: `Access Denied: Only admins can access audit logs. Your role: ${user.role}`
             };
         }
         
-        // Call the queries function
+        // Call the queries function with user parameter
         return await queries.getSystemAuditLog({
+            user: user,  // ✅ Pass the user object
             userFilter: userFilter || '',
             actionFilter: actionFilter || '',
             limit: limit || 30,
@@ -634,6 +635,7 @@ ipcMain.handle('get-feature-flags', async (event, { user } = {}) => {
         };
     }
 });
+
 
 // ====================================================================
     ipcMain.handle('get-audit-log-for-candidate', (event, { candidateId }) => {

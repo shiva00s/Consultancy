@@ -1,3 +1,6 @@
+// FILE: src/store/usePermissionStore.js
+// REPLACE ENTIRE FILE
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -16,32 +19,40 @@ const usePermissionStore = create(
       error: null,
       lastLoadedUserId: null,
       lastLoadedAt: null,
+      
+      // NEW: Granular permission cache
+      granularPermissions: {},
+      roleHierarchy: {
+        super_admin: 100,
+        admin: 50,
+        staff: 10,
+      },
 
       // ============================================
       // ACTIONS
       // ============================================
 
       /**
-       * Load permissions based on user role
+       * Load permissions based on user role with enhanced granularity
        */
       loadPermissions: async (user) => {
         if (!user || !user.id) {
           set({ 
             permissions: [], 
             modules: [], 
+            granularPermissions: {},
             isLoaded: false,
             lastLoadedUserId: null 
           });
           return;
         }
 
-        // Prevent redundant loads for same user
         const currentState = get();
         if (
           currentState.isLoaded && 
           currentState.lastLoadedUserId === user.id &&
           currentState.lastLoadedAt &&
-          Date.now() - currentState.lastLoadedAt < 5000 // 5 second cache
+          Date.now() - currentState.lastLoadedAt < 5000
         ) {
           console.log('Permissions already loaded for user:', user.id);
           return;
@@ -50,23 +61,24 @@ const usePermissionStore = create(
         set({ isLoading: true, error: null });
 
         try {
-          // Get effective permissions based on role
+          // Get effective permissions with CRUD breakdown
           const result = await window.electronAPI.getEffectivePermissions({
             userId: user.id,
             userRole: user.role,
+            includeGranular: true, // NEW: Request CRUD-level permissions
           });
 
           if (result.success) {
             set({
               permissions: result.data || [],
               modules: result.data || [],
+              granularPermissions: result.granular || {},
               isLoaded: true,
               isLoading: false,
               lastLoadedUserId: user.id,
               lastLoadedAt: Date.now(),
             });
 
-            // Load additional structures in parallel
             await Promise.all([
               get().loadMenuStructure(user),
               get().loadCandidateTabs(user)
@@ -134,16 +146,41 @@ const usePermissionStore = create(
       },
 
       /**
-       * Check if user has permission
+       * NEW: Check CRUD-level permission
+       * @param {string} moduleKey - Module identifier
+       * @param {string} action - 'create', 'read', 'update', 'delete', 'export', 'import'
+       * @returns {boolean}
        */
-      hasPermission: (moduleKey) => {
+      hasPermission: (moduleKey, action = 'read') => {
         if (!moduleKey) return false;
-        const { permissions } = get();
+        
+        const { granularPermissions, permissions } = get();
+        
+        // If granular permissions exist, check action-level
+        if (granularPermissions[moduleKey]) {
+          return granularPermissions[moduleKey][action] === true;
+        }
+        
+        // Fallback to module-level check
         return permissions.some((p) => p.module_key === moduleKey && p.is_enabled !== false);
       },
 
       /**
-       * Check if user has any of the permissions
+       * NEW: Check multiple action permissions for a module
+       */
+      hasPermissions: (moduleKey, actions = []) => {
+        if (!moduleKey || !actions.length) return false;
+        
+        const results = {};
+        actions.forEach(action => {
+          results[action] = get().hasPermission(moduleKey, action);
+        });
+        
+        return results;
+      },
+
+      /**
+       * Check if user has any of the module permissions
        */
       hasAnyPermission: (moduleKeys) => {
         if (!moduleKeys || !Array.isArray(moduleKeys)) return false;
@@ -154,7 +191,7 @@ const usePermissionStore = create(
       },
 
       /**
-       * Check if user has all permissions
+       * Check if user has all module permissions
        */
       hasAllPermissions: (moduleKeys) => {
         if (!moduleKeys || !Array.isArray(moduleKeys)) return false;
@@ -176,13 +213,12 @@ const usePermissionStore = create(
        * Get menu items
        */
       getMenuItems: () => {
-  const { menuStructure } = get();
-  // ✅ FIX: Ensure menuStructure is always an array
-  if (!Array.isArray(menuStructure)) {
-    return [];
-  }
-  return menuStructure.filter((m) => m.is_enabled !== false);
-},
+        const { menuStructure } = get();
+        if (!Array.isArray(menuStructure)) {
+          return [];
+        }
+        return menuStructure.filter((m) => m.is_enabled !== false);
+      },
 
       /**
        * Get submenus for a menu
@@ -201,19 +237,17 @@ const usePermissionStore = create(
        * Get candidate tabs
        */
       getCandidateTabs: () => {
-  const { candidateTabs } = get();
-  // ✅ FIX: Ensure candidateTabs is always an array
-  if (!Array.isArray(candidateTabs)) {
-    return [];
-  }
-  return candidateTabs.filter((t) => t.is_enabled !== false);
-},
+        const { candidateTabs } = get();
+        if (!Array.isArray(candidateTabs)) {
+          return [];
+        }
+        return candidateTabs.filter((t) => t.is_enabled !== false);
+      },
 
       /**
        * Check if route is accessible
        */
       canAccessRoute: (route) => {
-        // Allow home route for everyone
         if (route === '/' || route === '' || route === '/login') return true;
         
         const { permissions } = get();
@@ -231,10 +265,30 @@ const usePermissionStore = create(
       },
 
       /**
+       * NEW: Check if user can perform action based on role hierarchy
+       */
+      canPerformAction: (actorUser, targetUser, action) => {
+        const { roleHierarchy } = get();
+        const actorLevel = roleHierarchy[actorUser.role] || 0;
+        const targetLevel = roleHierarchy[targetUser.role] || 0;
+        
+        // Can only modify users below you in hierarchy
+        if (action === 'modify' || action === 'delete') {
+          return actorLevel > targetLevel;
+        }
+        
+        // Can view users at same level or below
+        if (action === 'view') {
+          return actorLevel >= targetLevel;
+        }
+        
+        return false;
+      },
+
+      /**
        * Refresh permissions (after changes)
        */
       refreshPermissions: async (user) => {
-        // Force refresh by clearing cache
         set({ lastLoadedAt: null });
         await get().loadPermissions(user);
       },
@@ -248,6 +302,7 @@ const usePermissionStore = create(
           modules: [],
           menuStructure: [],
           candidateTabs: [],
+          granularPermissions: {},
           isLoaded: false,
           isLoading: false,
           error: null,
@@ -272,7 +327,6 @@ const usePermissionStore = create(
           });
 
           if (result.success) {
-            // Refresh permissions
             await get().refreshPermissions(user);
             return { success: true };
           } else {
@@ -285,7 +339,34 @@ const usePermissionStore = create(
       },
 
       /**
-       * Grant permission (Admin → Staff)
+       * NEW: Grant granular permission (SuperAdmin → Admin, Admin → Staff)
+       */
+      grantGranularPermission: async (user, userId, moduleKey, actions) => {
+        if (!user || !userId || !moduleKey || !actions) {
+          return { success: false, error: 'Invalid parameters' };
+        }
+
+        try {
+          const result = await window.electronAPI.grantGranularPermission({
+            user,
+            userId,
+            moduleKey,
+            actions, // { create: true, read: true, update: false, delete: false }
+          });
+
+          if (result.success) {
+            await get().refreshPermissions(user);
+          }
+
+          return result;
+        } catch (error) {
+          console.error('Error granting granular permission:', error);
+          return { success: false, error: error.message };
+        }
+      },
+
+      /**
+       * Grant permission (Admin → Staff) - Legacy support
        */
       grantPermission: async (user, userId, moduleKey) => {
         if (!user || !userId || !moduleKey) {
@@ -349,36 +430,58 @@ const usePermissionStore = create(
           return { success: false, error: error.message };
         }
       },
+
+      /**
+       * NEW: Get permission summary for user
+       */
+      getPermissionSummary: (userId) => {
+        const { permissions, granularPermissions } = get();
+        
+        return {
+          totalModules: permissions.length,
+          enabledModules: permissions.filter(p => p.is_enabled).length,
+          granularBreakdown: Object.keys(granularPermissions).reduce((acc, key) => {
+            const perms = granularPermissions[key];
+            acc[key] = {
+              create: perms.create || false,
+              read: perms.read || false,
+              update: perms.update || false,
+              delete: perms.delete || false,
+              export: perms.export || false,
+              import: perms.import || false,
+            };
+            return acc;
+          }, {}),
+        };
+      },
     }),
     {
       name: 'permission-storage',
-      version: 2, // ✅ Incremented version
+      version: 3, // Incremented for new granular permissions
       partialize: (state) => ({
-        // Only persist essential data
         permissions: state.permissions,
         modules: state.modules,
         menuStructure: state.menuStructure,
         candidateTabs: state.candidateTabs,
+        granularPermissions: state.granularPermissions,
         isLoaded: state.isLoaded,
         lastLoadedUserId: state.lastLoadedUserId,
         lastLoadedAt: state.lastLoadedAt,
       }),
-      // ✅ MIGRATION FUNCTION - This fixes the warning!
       migrate: (persistedState, version) => {
-        // If no version or version < 2, reset to default state
-        if (version < 2) {
-          console.log('Migrating permission store from version', version, 'to 2');
+        if (version < 3) {
+          console.log('Migrating permission store from version', version, 'to 3');
           return {
             permissions: [],
             modules: [],
             menuStructure: [],
             candidateTabs: [],
+            granularPermissions: {},
             isLoaded: false,
             lastLoadedUserId: null,
             lastLoadedAt: null,
           };
         }
-        // Otherwise return persisted state
         return persistedState;
       },
     }
