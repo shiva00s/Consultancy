@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FiUploadCloud, FiGrid, FiCheckCircle, FiAlertTriangle, FiDownload, FiFile, FiPackage } from 'react-icons/fi';
 import toast from 'react-hot-toast'; 
 import '../css/BulkImportPage.css';
@@ -26,7 +27,13 @@ const getFileName = (filePath) => {
 };
 
 function BulkImportPage() {
-  const { user } = useAuthStore(useShallow((state) => ({ user: state.user })));
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuthStore(
+    useShallow((state) => ({
+      user: state.user,
+      isAuthenticated: state.isAuthenticated,
+    }))
+  );
   
   const [importMode, setImportMode] = useState('data'); 
   const [step, setStep] = useState(1);
@@ -38,10 +45,17 @@ function BulkImportPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState(null);
 
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      toast.error('Please log in to access this page');
+      navigate('/login');
+    }
+  }, [isAuthenticated, user, navigate]);
+
   const handleFileSelect = async () => {
     try {
       setResults(null);
-      const res = await window.electronAPI.showOpenDialog({
+      const res = await window.electronAPI.invoke('show-open-dialog', {
         title: 'Select Data File',
         buttonLabel: 'Select',
         filters: [{ name: 'Import Files', extensions: ['csv', 'xlsx', 'xls'] }],
@@ -191,15 +205,13 @@ function BulkImportPage() {
     setIsLoading(true);
     
     try {
-      // Create a simple template download handler
-      const res = await window.electronAPI.showSaveDialog({
+      const res = await window.electronAPI.invoke('show-save-dialog', {
         title: 'Save Excel Template',
         defaultPath: 'candidate_import_template.xlsx',
         filters: [{ name: 'Excel Files', extensions: ['xlsx'] }]
       });
       
       if (!res.canceled && res.filePath) {
-        // Call backend to generate template
         const templateRes = await window.electronAPI.invoke('download-excel-template', {
           savePath: res.filePath
         });
@@ -244,7 +256,7 @@ function BulkImportPage() {
 
   const handleDocArchiveSelect = async () => {
     try {
-      const res = await window.electronAPI.showOpenDialog({
+      const res = await window.electronAPI.invoke('show-open-dialog', {
         title: 'Select Documents Archive',
         buttonLabel: 'Import Docs',
         filters: [{ name: 'Archives', extensions: ['zip'] }],
@@ -256,7 +268,6 @@ function BulkImportPage() {
         const loadingToast = toast.loading('Processing archive...');
         
         try {
-          // Fetch candidates for passport mapping
           const candidatesRes = await window.electronAPI.invoke('search-candidates', {
             searchTerm: '',
             status: '',
@@ -272,7 +283,6 @@ function BulkImportPage() {
             return;
           }
 
-          // Build passport -> ID map
           const candidateIdMap = {};
           candidatesRes.data.candidates.forEach(candidate => {
             if (candidate.passportNo) {
@@ -280,7 +290,6 @@ function BulkImportPage() {
             }
           });
 
-          // Import documents
           const importRes = await window.electronAPI.invoke('bulk-import-documents', {
             user,
             candidateIdMap,
@@ -309,7 +318,6 @@ function BulkImportPage() {
     }
   };
 
-  // --- RENDERERS ---
   const renderDataStep1 = () => (
     <div className="import-card">
       <div className="file-selection-box" onClick={handleFileSelect}>
@@ -451,6 +459,10 @@ function BulkImportPage() {
       </div>
     </div>
   );
+
+  if (!isAuthenticated || !user) {
+    return null;
+  }
 
   return (
     <div className="bulk-import-container">

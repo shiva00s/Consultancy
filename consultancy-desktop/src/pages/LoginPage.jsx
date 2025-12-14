@@ -1,36 +1,55 @@
 import React, { useState } from 'react';
 import { FiBriefcase } from 'react-icons/fi';
-/* import { Link } from 'react-router-dom';  */
+import { useNavigate } from 'react-router-dom';
+import useAuthStore from '../store/useAuthStore';
+import toast from 'react-hot-toast';
 import '../css/LoginPage.css';
 
-function LoginPage({ onLogin }) {
+function LoginPage() {
+  const navigate = useNavigate();
+  const login = useAuthStore((state) => state.login);
+  
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     if (!username || !password) {
-      setError('Please enter both username and password.');
+      toast.error('Please enter both username and password.');
       setLoading(false);
       return;
     }
 
     try {
-      const result = await window.electronAPI.login({ username, password });
+      const result = await window.electronAPI.invoke('login', { username, password });
+      
       if (result.success) {
-       onLogin({ id: result.id, username: result.username, role: result.role });
+        // Create complete user object
+        const userData = {
+          id: result.id,
+          username: result.username,
+          role: result.role,
+          permissions: result.permissions || {},
+          adminId: result.adminId || null,
+        };
+
+        // Call the Zustand store login method
+        await login(userData, null);
+        
+        toast.success(`Welcome back, ${result.username}!`);
+        navigate('/');
       } else {
-        setError(result.error || 'Login failed');
+        toast.error(result.error || 'Login failed');
       }
-    } catch {
-      setError('An error occurred. Please try again.');
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -47,6 +66,7 @@ function LoginPage({ onLogin }) {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={loading}
+              autoComplete="username"
             />
           </div>
           <div className="form-group">
@@ -56,19 +76,13 @@ function LoginPage({ onLogin }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
+              autoComplete="current-password"
             />
           </div>
-          {error && <p className="login-error">{error}</p>}
           <button type="submit" className="btn btn-full-width" disabled={loading}>
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-        
-        {/* <Link to="/register" style={{ marginTop: '1.5rem', display: 'inline-block' }}>
-          Register a New User
-        </Link> */}
-        
-        
       </div>
     </div>
   );
