@@ -45,12 +45,6 @@ function SystemAuditLogPage() {
     const [actionFilter, setActionFilter] = useState('');
 
     const fetchLogs = useCallback(async (page = 1) => {
-        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        console.log("🔍 [Frontend] Fetching audit logs...");
-        console.log("👤 [Frontend] Current user:", user);
-        console.log("📄 [Frontend] Page:", page);
-        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        
         setLoading(true);
         setError(null);
         setCurrentPage(page);
@@ -59,48 +53,39 @@ function SystemAuditLogPage() {
         const offset = (page - 1) * limit;
         
         try {
-            // ✅ FIXED: Don't pass user object, IPC handler will use stored session
             const res = await window.electronAPI.getSystemAuditLog({
-                // user: user,  // ❌ REMOVE THIS
                 userFilter: userFilter,
                 actionFilter: actionFilter,
                 limit: limit,
                 offset: offset
             });
             
-            console.log("📦 [Frontend] Response received:", res);
-            
             if (res.success) {
-                setLogs(res.data);
-                setTotalItems(res.totalCount);
-                console.log("✅ [Frontend] Loaded", res.data.length, "logs");
+                setLogs(res.data || []);
+                setTotalItems(res.totalCount || 0);
             } else {
                 setError(res.error || 'Failed to fetch audit log.');
                 toast.error(res.error || 'Failed to fetch audit log.');
-                console.error("❌ [Frontend] Error:", res.error);
             }
         } catch (err) {
-            console.error("❌ [Frontend] Exception:", err);
             setError('An unexpected error occurred during log retrieval.');
             toast.error('An unexpected error occurred during log retrieval.');
         }
         
         setLoading(false);
-        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    }, [userFilter, actionFilter]); // ✅ Remove 'user' from dependencies
+    }, [userFilter, actionFilter]);
 
     useEffect(() => {
-        console.log("🔍 [Frontend] Component mounted/user changed");
-        console.log("👤 [Frontend] User from Zustand:", user);
-        
-        // ✅ Check if user has permission
         if (!user) {
             setError("Please log in to view audit logs.");
             setLoading(false);
             return;
         }
         
-        if (!['admin', 'super_admin'].includes(user.role)) {
+        // Normalize role names
+        const normalizedRole = user.role?.toLowerCase().replace('_', '');
+        
+        if (!['admin', 'superadmin'].includes(normalizedRole)) {
             setError(`Access denied. Your role (${user.role}) cannot access audit logs.`);
             setLoading(false);
             return;
@@ -120,7 +105,6 @@ function SystemAuditLogPage() {
         }
     };
     
-    // ✅ Show permission error
     if (!user) {
         return (
             <div className="reports-page-container">
@@ -135,7 +119,8 @@ function SystemAuditLogPage() {
         );
     }
     
-    if (user && !['admin', 'super_admin'].includes(user.role)) {
+    const normalizedRole = user.role?.toLowerCase().replace('_', '');
+    if (!['admin', 'superadmin'].includes(normalizedRole)) {
         return (
             <div className="reports-page-container">
                 <div className="form-message error">
@@ -172,7 +157,6 @@ function SystemAuditLogPage() {
             <h1><FiClock /> System Audit Log</h1>
             <p>View a chronological list of all user actions across the application.</p>
 
-            {/* --- FILTER BAR --- */}
             <form className="report-filter-bar" onSubmit={handleFilterSubmit} style={{marginBottom: '1rem'}}>
                 <div className="filter-field" style={{flexGrow: 1}}>
                     <FiUsers />
@@ -240,7 +224,6 @@ function SystemAuditLogPage() {
                 )}
             </div>
             
-            {/* --- Pagination Controls --- */}
             {totalItems > ITEMS_PER_PAGE && (
                 <div className="pagination-controls">
                     <button 

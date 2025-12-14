@@ -603,20 +603,38 @@ ipcMain.handle('get-feature-flags', async (event, { user } = {}) => {
 }
 
 
-    ipcMain.handle("get-system-audit-log", async (event, { user, userFilter, actionFilter, limit, offset }) => {
-    // ✅ Permission Check
-    if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
-        return { success: false, error: "Access denied: You do not have permission for 'canAccessSettings'." };
+   ipcMain.handle("get-system-audit-log", async (event, { userFilter, actionFilter, limit, offset }) => {
+    try {
+        // Get user from stored session (you should have currentAuthUser available)
+        if (!currentAuthUser) {
+            return { success: false, error: "Authentication required." };
+        }
+        
+        // Check if user is admin or super_admin
+        const normalizedRole = currentAuthUser.role?.toLowerCase().replace('_', '');
+        if (!['admin', 'superadmin'].includes(normalizedRole)) {
+            return {
+                success: false,
+                error: `Access Denied: Only admins can access audit logs. Your role: ${currentAuthUser.role}`
+            };
+        }
+        
+        // Call the queries function
+        return await queries.getSystemAuditLog({
+            userFilter: userFilter || '',
+            actionFilter: actionFilter || '',
+            limit: limit || 30,
+            offset: offset || 0
+        });
+        
+    } catch (error) {
+        return {
+            success: false,
+            error: error.message || "Failed to fetch audit logs"
+        };
     }
-
-    // ✅ Pass filters to the query
-    return queries.getSystemAuditLog({
-        userFilter: userFilter || '',
-        actionFilter: actionFilter || '',
-        limit: limit || 30,
-        offset: offset || 0
-    });
 });
+
 // ====================================================================
     ipcMain.handle('get-audit-log-for-candidate', (event, { candidateId }) => {
         return queries.getAuditLogForCandidate(candidateId);
@@ -2418,59 +2436,47 @@ ipcMain.handle('ui-can-access', async (event, { feature }) => {
 // IPC HANDLER - AUDIT LOG
 // ============================================
 
-ipcMain.handle("audit:get-system-log", async (event, filters) => {
+ipcMain.handle('audit:get-system-log', async (event, params) => {
   try {
-    console.log("🔍 [IPC] audit:get-system-log called");
-    console.log("🔍 [IPC] Filters received:", filters);
-    
-    // ✅ CRITICAL: Get user from session store
-    const session = mainWindow.webContents.session;
-    const cookies = await session.cookies.get({ name: 'auth_token' });
-    
-    let user = null;
-    
-    if (cookies.length > 0) {
-      const token = cookies[0].value;
-      // Decode token to get user info
-      user = decodeToken(token); // Implement this based on your auth system
-    }
-    
-    // Alternative: If you store user in global state
-    if (!user && global.currentUser) {
-      user = global.currentUser;
-    }
-    
-    console.log("🔍 [IPC] User extracted:", user);
-    
-    if (!user) {
-      console.error("❌ [IPC] No authenticated user found");
+    // Use globally stored user
+    if (!currentAuthUser) {
       return {
         success: false,
         error: "Authentication required. Please log in again."
       };
     }
     
-    // ✅ Pass user object to the function
-    const result = await getSystemAuditLog({
-      user: user,
-      userFilter: filters?.userFilter || '',
-      actionFilter: filters?.actionFilter || '',
-      limit: filters?.limit || 30,
-      offset: filters?.offset || 0
-    });
+    // Check for admin/super_admin access
+    if (currentAuthUser.role === 'superadmin' || currentAuthUser.role === 'super_admin') {
+      // Super admin access granted
+    } else if (currentAuthUser.role === 'admin') {
+      // Admin access granted
+    } else {
+      return {
+        success: false,
+        error: `Access Denied: Only admins can access audit logs. Your role: ${currentAuthUser.role}`
+      };
+    }
     
-    console.log("✅ [IPC] Result:", result.success ? `${result.data?.length} rows` : result.error);
+    // Call your existing audit log function
+    const result = await getSystemAuditLog({
+      user: currentAuthUser,
+      userFilter: params?.userFilter || '',
+      actionFilter: params?.actionFilter || '',
+      limit: params?.limit || 30,
+      offset: params?.offset || 0
+    });
     
     return result;
     
   } catch (error) {
-    console.error("❌ [IPC] audit:get-system-log error:", error);
     return {
       success: false,
       error: error.message || "Failed to fetch audit logs"
     };
   }
 });
+
 
 // Helper function to decode JWT token
 function decodeToken(token) {
