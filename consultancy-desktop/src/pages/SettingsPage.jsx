@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FiSettings, FiLock, FiUsers, FiMail, FiFileText, 
-  FiSmartphone, FiDatabase, FiCheckSquare 
+  FiDatabase, FiCheckSquare 
 } from 'react-icons/fi';
 import '../css/SettingsPage.css';
 
@@ -10,7 +10,6 @@ import UserManagement from '../components/settings/UserManagement';
 import DocumentRequirementManager from '../components/settings/DocumentRequirementManager';
 import EmailSettings from '../components/settings/EmailSettings';
 import OfferTemplateManager from '../components/settings/OfferTemplateManager';
-import MobileConnection from '../components/settings/MobileConnection';
 import BackupUtility from '../components/settings/BackupUtility';
 import ChangePasswordModal from "../components/modals/ChangePasswordModal";
 
@@ -21,10 +20,18 @@ function SettingsPage({ user }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Wait until user is available
+    if (!user) {
+      setLoading(true);
+      return;
+    }
     loadPermissions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadPermissions = async () => {
+    if (!user) return;
+
     if (user.role === 'super_admin') {
       // Super Admin has all permissions
       setUserPermissions({
@@ -42,11 +49,19 @@ function SettingsPage({ user }) {
         setUserPermissions(res.data || {});
       }
       setLoading(false);
+    } else {
+      setUserPermissions({});
+      setLoading(false);
     }
   };
 
-  if (loading) {
-    return <div className="settings-page-wrapper"><p>Loading settings...</p></div>;
+  // While user or permissions are loading
+  if (!user || loading) {
+    return (
+      <div className="settings-page-wrapper">
+        <p>Loading settings...</p>
+      </div>
+    );
   }
 
   // Build tabs based on permissions
@@ -88,15 +103,6 @@ function SettingsPage({ user }) {
     });
   }
 
-  if (userPermissions.settings_mobile_app) {
-    availableTabs.push({
-      id: 'mobile',
-      label: 'Mobile App',
-      icon: <FiSmartphone />,
-      component: <MobileConnection user={user} />
-    });
-  }
-
   if (userPermissions.settings_backup) {
     availableTabs.push({
       id: 'backup',
@@ -127,20 +133,22 @@ function SettingsPage({ user }) {
     );
   }
 
-  // Set default active tab to first available tab
+  // Ensure activeTab is always valid
   if (!availableTabs.find(t => t.id === activeTab)) {
     setActiveTab(availableTabs[0].id);
   }
 
   return (
     <div className="settings-page-wrapper">
-      
       {/* --- HEADER ROW --- */}
       <div className="settings-top-bar">
         <div className="settings-title-area">
           <h1><FiSettings /> Application Settings</h1>
         </div>
-        <button className="btn btn-secondary btn-compact" onClick={() => setIsPasswordModalOpen(true)}>
+        <button
+          className="btn btn-secondary btn-compact"
+          onClick={() => setIsPasswordModalOpen(true)}
+        >
           <FiLock /> Change Password
         </button>
       </div>
@@ -159,7 +167,7 @@ function SettingsPage({ user }) {
         ))}
       </div>
 
-      {/* --- CONTENT AREA (Scrollable only if needed) --- */}
+      {/* --- CONTENT AREA --- */}
       <div className="settings-content-area">
         {availableTabs.find(t => t.id === activeTab)?.component}
       </div>

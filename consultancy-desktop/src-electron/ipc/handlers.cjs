@@ -171,6 +171,13 @@ function registerIpcHandlers(app) {
   registerDocumentHandlers();
   registerSyncHandlers();
   registerPermissionHandlers();
+
+  // 🔔 Notification service init
+  ipcMain.on('notification-service-init', (event) => {
+    console.log('[Main] Notification service init from renderer');
+    // Optionally send bootstrap data back here, e.g. existing reminders
+    // event.sender.send('reminder-due', {...});
+  });
   
   const db = getDatabase();
   if (!db) {
@@ -1360,13 +1367,19 @@ ipcMain.handle('delete-permanently', async (event, { user, id, targetType }) => 
 });
 
 
-
 // ====================================================================
-    // 11. FILE-SYSTEM HANDLERS (Utility, ZIP, PDF, Import)
-    // ====================================================================
-ipcMain.handle('read-offer-template', async (event, { user } = {}) => {
+// 11. FILE-SYSTEM HANDLERS (Utility, ZIP, PDF, Import)
+// ====================================================================
+ipcMain.handle('read-offer-template', async (event, payload = {}) => {
   try {
-    // 🔐 Admin & SuperAdmin can read
+    const { user } = payload;
+
+    // Require user
+    if (!user) {
+      return { success: false, error: 'AUTH_REQUIRED' };
+    }
+
+    // Admin & SuperAdmin can read SETTINGS
     guard(user).enforce(FEATURES.SETTINGS);
 
     const templatePath = path.join(
@@ -1387,13 +1400,18 @@ ipcMain.handle('read-offer-template', async (event, { user } = {}) => {
   }
 });
 
-   ipcMain.handle('write-offer-template', async (event, { user, content }) => {
+ipcMain.handle('write-offer-template', async (event, payload = {}) => {
   try {
-    // 🔐 SuperAdmin only
-    guard(user).enforce(FEATURES.SETTINGS);
+    const { user, content } = payload;
 
+    // Require user
+    if (!user) {
+      return { success: false, error: 'AUTH_REQUIRED' };
+    }
+
+    // SuperAdmin only can write
     if (user.role !== 'super_admin') {
-      return { success: false, error: 'Access Denied: Super Admin only.' };
+      return { success: false, error: 'ACCESS_DENIED' };
     }
 
     const templatePath = path.join(
@@ -1403,7 +1421,7 @@ ipcMain.handle('read-offer-template', async (event, { user } = {}) => {
       'offer_letter_template.ejs'
     );
 
-    fs.writeFileSync(templatePath, content);
+    fs.writeFileSync(templatePath, content || '');
     logAction(user, 'update_offer_template', 'settings', 1);
 
     return { success: true };
@@ -1411,6 +1429,7 @@ ipcMain.handle('read-offer-template', async (event, { user } = {}) => {
     return { success: false, error: err.code || err.message };
   }
 });
+
 
 // ===================================================
 
@@ -2584,5 +2603,101 @@ ipcMain.handle('create-reminder', async (event, params) => {
 ipcMain.handle('get-user-reminders', async (event, { userId, limit }) => {
   return await queries.getRecentRemindersForUser(userId, limit || 30);
 });
+
+// ====================================================================
+// NOTIFICATIONS (PERSISTED)
+// ====================================================================
+
+ipcMain.handle('get-notifications', async (event, { limit } = {}) => {
+  try {
+    const max = typeof limit === 'number' ? limit : 50;
+    const rows = await queries.getNotifications(max);
+    return { success: true, notifications: rows };
+  } catch (err) {
+    console.error('get-notifications failed:', err);
+    return { success: false, error: err.message, notifications: [] };
+  }
+});
+
+ipcMain.handle('create-notification', async (event, data) => {
+  try {
+    const saved = await queries.createNotification({
+      title: data.title,
+      message: data.message,
+      type: data.type || 'info',
+      priority: data.priority || 'normal',
+      link: data.link || null,
+      candidateId: data.candidateId || null,
+      actionRequired: !!data.actionRequired,
+    });
+
+    // Inform renderer so Zustand store can update
+    event.sender.send('notification-created', saved);
+
+    return { success: true, notification: saved };
+  } catch (err) {
+    console.error('create-notification failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+
+ipcMain.handle('mark-notification-as-read', async (event, { notificationId }) => {
+  try {
+    await queries.markNotificationAsRead(notificationId);
+    return { success: true };
+  } catch (err) {
+    console.error('mark-notification-as-read failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('mark-all-notifications-as-read', async () => {
+  try {
+    await queries.markAllNotificationsAsRead();
+    return { success: true };
+  } catch (err) {
+    console.error('mark-all-notifications-as-read failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('delete-notification', async (event, { notificationId }) => {
+  try {
+    await queries.deleteNotification(notificationId);
+    return { success: true };
+  } catch (err) {
+    console.error('delete-notification failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('clear-all-notifications', async () => {
+  try {
+    // OLD (delete)
+    // await queries.clearAllNotifications();
+
+    // NEW: mark all as read only
+    await queries.markAllNotificationsAsRead();
+    return { success: true };
+  } catch (err) {
+    console.error('clear-all-notifications failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+
+// Reminder polling used by NotificationService.checkReminders
+ipcMain.handle('check-reminders', async () => {
+  try {
+    const reminders = await queries.getDueReminders(new Date().toISOString());
+    return { success: true, reminders };
+  } catch (err) {
+    console.error('check-reminders failed:', err);
+    return { success: false, error: err.message, reminders: [] };
+  }
+});
+
+
 
     module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase,startReminderScheduler  };

@@ -54,29 +54,35 @@ function NotificationPanel() {
     }))
   );
 
-  // Apply filtering in component (uses same rules as store helper)
-  const filteredNotifications = useMemo(() => {
-    switch (filter) {
-      case 'unread':
-        return notifications.filter((n) => !n.read);
-      case 'info':
-      case 'success':
-      case 'warning':
-      case 'error':
-        return notifications.filter((n) => n.type === filter);
-      default:
-        return notifications;
-    }
-  }, [notifications, filter]);
+  const isReminder = (n) =>
+  n.category === 'reminder' || n.type === 'reminder';
 
-  // Close on escape key
+const filteredNotifications = useMemo(() => {
+  const list = Array.isArray(notifications) ? notifications : [];
+
+  switch (filter) {
+    case 'reminders':
+      return list.filter((n) => isReminder(n));
+    // other cases unchanged
+    case 'unread':
+      return list.filter((n) => !n.read);
+    case 'info':
+    case 'success':
+    case 'warning':
+    case 'error':
+      return list.filter((n) => n.type === filter);
+    default:
+      return list;
+  }
+}, [notifications, filter]);
+
+
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === 'Escape' && isOpen) {
         closePanel();
       }
     };
-
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, closePanel]);
@@ -85,7 +91,6 @@ function NotificationPanel() {
     if (!notification.read) {
       await markAsRead(notification.id);
     }
-
     if (notification.link) {
       navigate(notification.link);
       closePanel();
@@ -93,6 +98,7 @@ function NotificationPanel() {
   };
 
   const formatTime = (timestamp) => {
+    if (!timestamp) return '';
     const date = new Date(timestamp);
     const now = new Date();
     const diff = now - date;
@@ -163,6 +169,12 @@ function NotificationPanel() {
           >
             Warnings
           </button>
+          <button
+            className={`filter-btn ${filter === 'reminders' ? 'active' : ''}`}
+            onClick={() => setFilter('reminders')}
+          >
+            Reminders
+          </button>
         </div>
 
         {/* Actions */}
@@ -179,7 +191,7 @@ function NotificationPanel() {
             <button
               className="action-btn danger"
               onClick={clearAll}
-              title="Clear all notifications"
+              title="Clear all from Unread (keep history)"
             >
               <FiTrash2 />
               Clear all
@@ -202,7 +214,7 @@ function NotificationPanel() {
                   key={notification.id}
                   className={`notification-item ${
                     !notification.read ? 'unread' : ''
-                  } ${notification.priority}`}
+                  } ${notification.priority || ''}`}
                   onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="notification-icon-wrapper">

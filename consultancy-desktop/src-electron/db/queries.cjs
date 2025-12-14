@@ -3513,6 +3513,84 @@ async function getRecentRemindersForUser(userId, limit = 30) {
   const rows = await dbAll(db, sql, [userId, limit]);
   return { success: true, data: rows };
 }
+// ======================================
+// NOTIFICATIONS
+// ======================================
+
+async function getNotifications(limit = 50) {
+  const db = getDatabase();
+  const sql = `
+    SELECT
+      id,
+      title,
+      message,
+      type,
+      priority,
+      link,
+      candidate_id    AS candidateId,
+      action_required AS actionRequired,
+      created_at      AS createdAt,
+      read
+    FROM notifications
+    ORDER BY created_at DESC
+    LIMIT ?
+  `;
+  const rows = await dbAll(db, sql, [limit]);
+  return rows || [];
+}
+
+async function createNotification(data) {
+  const db = getDatabase();
+  const insertSql = `
+    INSERT INTO notifications (
+      title, message, type, priority, link,
+      candidate_id, action_required, read, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, datetime('now'))
+  `;
+  await dbRun(db, insertSql, [
+    data.title,
+    data.message,
+    data.type || 'info',
+    data.priority || 'normal',
+    data.link || null,
+    data.candidateId || null,
+    data.actionRequired ? 1 : 0,
+  ]);
+
+  const rowSql = `
+    SELECT id, title, message, type, priority, link,
+           candidate_id    AS candidateId,
+           action_required AS actionRequired,
+           read, created_at AS createdAt
+    FROM notifications
+    ORDER BY id DESC
+    LIMIT 1
+  `;
+  const row = await dbGet(db, rowSql, []);
+  return row;
+}
+
+
+
+async function markNotificationAsRead(id) {
+  const db = getDatabase();
+  await dbRun(db, `UPDATE notifications SET read = 1 WHERE id = ?`, [id]);
+}
+
+async function markAllNotificationsAsRead() {
+  const db = getDatabase();
+  await dbRun(db, `UPDATE notifications SET read = 1`, []);
+}
+
+async function deleteNotification(id) {
+  const db = getDatabase();
+  await dbRun(db, `DELETE FROM notifications WHERE id = ?`, [id]);
+}
+
+async function clearAllNotifications() {
+  const db = getDatabase();
+  await dbRun(db, `DELETE FROM notifications`, []);
+}
 
 
 
@@ -3521,6 +3599,12 @@ module.exports = {
   dbRun,
   dbGet,
   dbAll,
+  createNotification,
+  getNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification,
+  clearAllNotifications,
   createReminder,
   getDueReminders,
   markRemindersDelivered,

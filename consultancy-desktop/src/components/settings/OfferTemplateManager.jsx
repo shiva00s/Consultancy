@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiFileText, FiSave, FiAlertTriangle, FiRefreshCw, FiRotateCcw } from 'react-icons/fi';
+import {
+  FiFileText,
+  FiSave,
+  FiAlertTriangle,
+  FiRefreshCw,
+  FiRotateCcw,
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 // --- FACTORY DEFAULT TEMPLATE ---
@@ -127,102 +133,188 @@ const DEFAULT_TEMPLATE = `<!DOCTYPE html>
 </html>`;
 
 function OfferTemplateManager({ user }) {
-    const [templateContent, setTemplateContent] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
-    
-    // Use a ref to track if component has mounted once (prevents double fetch in StrictMode)
-    const didMountRef = useRef(false);
+  const [templateContent, setTemplateContent] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const didMountRef = useRef(false);
 
-    const fetchTemplate = async () => {
-        setLoading(true);
-        const res = await window.electronAPI.readOfferTemplate(); 
-        
-        if (res.success) {
-            // If file is empty (e.g. user saved empty string), load default
-            if (!res.data || res.data.trim() === '') {
-                setTemplateContent(DEFAULT_TEMPLATE);
-                toast('Loaded default template (file was empty).', { icon: 'ℹ️' });
-            } else {
-                setTemplateContent(res.data);
-                toast.success('Template loaded successfully.');
-            }
+  const fetchTemplate = async () => {
+    if (!user) {
+      setLoading(false);
+      toast.error('You must be logged in to load the offer template.');
+      setTemplateContent('');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await window.electronAPI.readOfferTemplate({ user });
+
+      if (!res || res.success === false) {
+        if (res?.error === 'AUTH_REQUIRED') {
+          toast.error('You must be logged in to load the offer template.');
+          setTemplateContent('');
+          return;
+        }
+        if (res?.error === 'ACCESS_DENIED') {
+          toast.error('You do not have permission to edit offer templates.');
+          setTemplateContent('');
+          return;
+        }
+        toast.error(res?.error || 'Failed to read template file.');
+        setTemplateContent('');
+        return;
+      }
+
+      if (!res.data || res.data.trim() === '') {
+        setTemplateContent(DEFAULT_TEMPLATE);
+        toast('Loaded default template (file was empty).', { icon: 'ℹ️' });
+      } else {
+        setTemplateContent(res.data);
+        toast.success('Template loaded successfully.');
+      }
+    } catch (err) {
+      console.error('readOfferTemplate failed', err);
+      toast.error('Unexpected error while reading template.');
+      setTemplateContent('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!didMountRef.current && user) {
+      didMountRef.current = true;
+      fetchTemplate();
+    }
+  }, [user]);
+
+  const handleSave = async () => {
+    if (!user) {
+      toast.error('You must be logged in to save the offer template.');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const res = await window.electronAPI.writeOfferTemplate({
+        user,
+        content: templateContent,
+      });
+
+      if (!res || res.success === false) {
+        if (res?.error === 'AUTH_REQUIRED') {
+          toast.error('Login required to save offer template.');
+        } else if (res?.error === 'ACCESS_DENIED') {
+          toast.error('You are not allowed to modify offer templates.');
         } else {
-            toast.error(res.error || 'Failed to read template file.');
+          toast.error(res?.error || 'Failed to save template file.');
         }
-        setLoading(false);
-    };
+      } else {
+        toast.success('Offer Letter Template saved!');
+      }
+    } catch (err) {
+      console.error('writeOfferTemplate failed', err);
+      toast.error('Unexpected error while saving template.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-    useEffect(() => {
-        if (didMountRef.current) {
-            fetchTemplate();
-        }
-        didMountRef.current = true;
-    }, []);
+  const handleRestoreDefault = () => {
+    if (
+      window.confirm(
+        'Are you sure you want to overwrite the current editor content with the Factory Default template?'
+      )
+    ) {
+      setTemplateContent(DEFAULT_TEMPLATE);
+      toast.success('Restored Factory Default Template.');
+    }
+  };
 
-    const handleSave = async () => {
-        setIsSaving(true);
-        const res = await window.electronAPI.writeOfferTemplate({ user, content: templateContent });
+  const handleRevert = () => {
+    fetchTemplate();
+  };
 
-        if (res.success) {
-            toast.success('Offer Letter Template saved!');
-        } else {
-            toast.error(res.error || 'Failed to save template file.');
-        }
-        setIsSaving(false);
-    };
+  return (
+    <div
+      className="settings-section-card"
+      style={{ gridColumn: '1 / -1', marginTop: '1.5rem' }}
+    >
+      <h2>
+        <FiFileText /> Offer Letter Template Editor
+      </h2>
+      <p style={{ color: 'var(--text-secondary)' }}>
+        Edit the EJS template content below. Use variables like{' '}
+        <code>&lt;%= candidateName %&gt;</code> and{' '}
+        <code>&lt;%= monthlySalary %&gt;</code>. Saving overwrites the existing
+        file on disk.
+      </p>
 
-    const handleRestoreDefault = () => {
-        if (window.confirm("Are you sure you want to overwrite the current editor content with the Factory Default template?")) {
-            setTemplateContent(DEFAULT_TEMPLATE);
-            toast.success("Restored Factory Default Template.");
-        }
-    };
+      {loading ? (
+        <p>Loading template...</p>
+      ) : (
+        <>
+          <textarea
+            value={templateContent}
+            onChange={(e) => setTemplateContent(e.target.value)}
+            rows="20"
+            style={{
+              width: '100%',
+              fontFamily: 'monospace',
+              fontSize: '0.9rem',
+              marginBottom: '1rem',
+              padding: '10px',
+              backgroundColor: 'var(--bg-input)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--border-radius)',
+              outline: 'none',
+            }}
+          />
 
-    return (
-        <div className="settings-section-card" style={{gridColumn: '1 / -1', marginTop: '1.5rem'}}>
-            <h2><FiFileText /> Offer Letter Template Editor</h2>
-            <p style={{color: 'var(--text-secondary)'}}>
-                Edit the EJS template content below. Use variables like <code>&lt;%= candidateName %&gt;</code> and <code>&lt;%= monthlySalary %&gt;</code>. Saving overwrites the existing file on disk.
-            </p>
-            
-            {loading ? <p>Loading template...</p> : (
-                <>
-                    <textarea
-                        value={templateContent}
-                        onChange={(e) => setTemplateContent(e.target.value)}
-                        rows="20"
-                        style={{ 
-                            width: '100%', 
-                            fontFamily: 'monospace', 
-                            fontSize: '0.9rem', 
-                            marginBottom: '1rem', 
-                            padding: '10px',
-                            backgroundColor: 'var(--bg-input)',
-                            color: 'var(--text-primary)',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: 'var(--border-radius)',
-                            outline: 'none'
-                        }}
-                    ></textarea>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr 1fr',
+              gap: '15px',
+              marginTop: '1.5rem',
+            }}
+          >
+            <button
+              className="btn"
+              onClick={handleSave}
+              disabled={isSaving || loading}
+            >
+              <FiSave /> Save Changes
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={handleRevert}
+              disabled={isSaving || loading}
+            >
+              <FiRefreshCw /> Revert Changes
+            </button>
+            <button
+              className="btn btn-danger"
+              onClick={handleRestoreDefault}
+              disabled={isSaving || loading}
+            >
+              <FiRotateCcw /> Factory Default
+            </button>
+          </div>
 
-                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginTop: '1.5rem'}}>
-                        <button className="btn" onClick={handleSave} disabled={isSaving || loading}>
-                            <FiSave /> Save Changes
-                        </button>
-                        <button className="btn btn-secondary" onClick={fetchTemplate} disabled={isSaving || loading}>
-                            <FiRefreshCw /> Revert Changes
-                        </button>
-                        <button className="btn btn-danger" onClick={handleRestoreDefault} disabled={isSaving || loading}>
-                            <FiRotateCcw /> Factory Default
-                        </button>
-                    </div>
-                    
-                    <p className="form-message error" style={{marginTop: '1.5rem'}}><FiAlertTriangle /> **WARNING:** Editing raw EJS/HTML may cause PDF generation errors if syntax is invalid.</p>
-                </>
-            )}
-        </div>
-    );
+          <p
+            className="form-message error"
+            style={{ marginTop: '1.5rem' }}
+          >
+            <FiAlertTriangle /> <strong>WARNING:</strong> Editing raw EJS/HTML
+            may cause PDF generation errors if syntax is invalid.
+          </p>
+        </>
+      )}
+    </div>
+  );
 }
 
 export default OfferTemplateManager;

@@ -1,20 +1,21 @@
 import { create } from 'zustand';
+import { notificationService } from '../services/NotificationService';
 
 const useNotificationStore = create((set, get) => ({
   notifications: [],
   unreadCount: 0,
   isOpen: false,
-  filter: 'all',
+  filter: 'all', // 'all' | 'unread' | 'info' | 'warning' | 'reminders'
 
-  // Initialize – plug your Electron loading here later if needed
-  initialize: async () => {
-    console.log('Notification service initialized (stub)');
-  },
-
+  // Panel controls
+  open: () => set({ isOpen: true }),
+  close: () => set({ isOpen: false }),
   togglePanel: () => {
-    set({ isOpen: !get().isOpen });
+    const current = get().isOpen;
+    set({ isOpen: !current });
   },
 
+  // Backward‑compat alias for old code
   closePanel: () => {
     set({ isOpen: false });
   },
@@ -23,81 +24,67 @@ const useNotificationStore = create((set, get) => ({
     set({ filter });
   },
 
-  getFilteredNotifications: () => {
-    const { notifications, filter } = get();
+  // Initialization: load from service and subscribe
+  initialize: async () => {
+    try {
+      await notificationService.initialize();
+      set({
+        notifications: notificationService.notifications || [],
+        unreadCount: notificationService.unreadCount || 0,
+      });
 
-    switch (filter) {
-      case 'unread':
-        return notifications.filter((n) => !n.read);
-      case 'info':
-      case 'success':
-      case 'warning':
-      case 'error':
-        return notifications.filter((n) => n.type === filter);
-      default:
-        return notifications;
+      notificationService.subscribe(({ notifications, unreadCount }) => {
+        set({
+          notifications: notifications || [],
+          unreadCount: unreadCount || 0,
+        });
+      });
+    } catch (err) {
+      console.error('Notification store initialize failed', err);
     }
   },
 
-  // ==== REAL IMPLEMENTATIONS ====
-
-  createNotification: async (payload) => {
-    const { notifications } = get();
-
-    const newItem = {
-      id: crypto.randomUUID(),
-      title: payload.title,
-      message: payload.message,
-      type: payload.type || 'info',        // info | success | warning | error
-      priority: payload.priority || 'normal',
-      createdAt: payload.createdAt || new Date().toISOString(),
-      read: false,
-      link: payload.link || null,
-      actionRequired: !!payload.actionRequired,
-    };
-
-    const updated = [newItem, ...notifications];
-
-    set({
-      notifications: updated,
-      unreadCount: updated.filter((n) => !n.read).length,
-    });
+  // Notification actions
+  createNotification: async (data) => {
+    try {
+      return await notificationService.createNotification(data);
+    } catch (err) {
+      console.error('createNotification store failed', err);
+      throw err;
+    }
   },
 
   markAsRead: async (id) => {
-    const updated = get().notifications.map((n) =>
-      n.id === id ? { ...n, read: true } : n
-    );
-
-    set({
-      notifications: updated,
-      unreadCount: updated.filter((n) => !n.read).length,
-    });
+    try {
+      await notificationService.markAsRead(id);
+    } catch (err) {
+      console.error('markAsRead store failed', err);
+    }
   },
 
   markAllAsRead: async () => {
-    const updated = get().notifications.map((n) => ({ ...n, read: true }));
-
-    set({
-      notifications: updated,
-      unreadCount: 0,
-    });
+    try {
+      await notificationService.markAllAsRead();
+    } catch (err) {
+      console.error('markAllAsRead store failed', err);
+    }
   },
 
   deleteNotification: async (id) => {
-    const updated = get().notifications.filter((n) => n.id !== id);
-
-    set({
-      notifications: updated,
-      unreadCount: updated.filter((n) => !n.read).length,
-    });
+    try {
+      await notificationService.deleteNotification(id);
+    } catch (err) {
+      console.error('deleteNotification store failed', err);
+    }
   },
 
+  // Clear all = mark all as read (no delete)
   clearAll: async () => {
-    set({
-      notifications: [],
-      unreadCount: 0,
-    });
+    try {
+      await notificationService.clearAll();
+    } catch (err) {
+      console.error('clearAll store failed', err);
+    }
   },
 }));
 

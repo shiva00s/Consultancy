@@ -1,8 +1,7 @@
-// NotificationBell.jsx
 import React from 'react';
 import { FiBell } from 'react-icons/fi';
-import useNotificationStore from '../store/useNotificationStore';
 import { useShallow } from 'zustand/react/shallow';
+import useNotificationStore from '../store/useNotificationStore';
 import '../css/NotificationBell.css';
 
 function NotificationBell() {

@@ -35,7 +35,14 @@ import useNotificationStore from './store/useNotificationStore';
 import { useShallow } from 'zustand/react/shallow';
 
 function App() {
+  const initializeNotifications = useNotificationStore((s) => s.initialize);
+  const createNotification = useNotificationStore((s) => s.createNotification);
   const navigate = useNavigate();
+
+  // init notification service + sync store
+  useEffect(() => {
+    initializeNotifications();
+  }, [initializeNotifications]);
 
   useEffect(() => {
     const theme = useThemeStore.getState().theme;
@@ -96,22 +103,18 @@ function App() {
   const { toasts } = useToasterStore();
   useEffect(() => {}, [toasts]);
 
-  const addNotification = useNotificationStore((s) => s.addNotification);
-
   // listen for reminder-due from Electron
   useEffect(() => {
     if (!window.electronAPI?.onReminderDue) return;
 
     const off = window.electronAPI.onReminderDue((rem) => {
       // 1) push into notification store (for bell + panel)
-      addNotification({
-        id: rem.id,
+      createNotification({
         title: rem.title,
         message: rem.message,
         type: 'info',
         priority: 'normal',
         createdAt: new Date().toISOString(),
-        read: false,
         link: rem.candidateId
           ? `/candidate/${rem.candidateId}?tab=${rem.module || 'profile'}`
           : null,
@@ -139,7 +142,7 @@ function App() {
     return () => {
       if (off) off();
     };
-  }, [navigate, addNotification]);
+  }, [navigate, createNotification]);
 
   if (activationLoading) {
     return (

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import InterviewEditModal from '../modals/InterviewEditModal';
 import useDataStore from '../../store/dataStore';
 import '../../css/CandidateInterview.css';
+import useNotificationStore from '../../store/useNotificationStore';
 
 const interviewStatusOptions = ['Scheduled', 'Passed', 'Failed', 'Cancelled'];
 
@@ -23,6 +24,9 @@ function CandidateInterview({ user, candidateId, candidateName }) {
   const [interviewForm, setInterviewForm] = useState(initialInterviewForm);
   const [isSaving, setIsSaving] = useState(false);
   const [editingInterview, setEditingInterview] = useState(null);
+
+  // ✅ useNotificationStore hook INSIDE component
+  const createNotification = useNotificationStore((s) => s.createNotification);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -62,7 +66,15 @@ function CandidateInterview({ user, candidateId, candidateName }) {
         setInterviewForm(initialInterviewForm);
         toast.success('Interview scheduled successfully!', { id: toastId });
 
-        // 🔔 Create reminder for this interview
+        // 🔔 push to notification center
+        createNotification({
+          title: 'Interview scheduled',
+          message: `${candidateName || 'Candidate'} interview on ${interviewForm.interview_date}`,
+          type: 'info',
+          priority: 'normal',
+          link: `/candidates/${candidateId}/interview`,
+        });
+
         try {
           await window.electronAPI.createReminder({
             userId: user.id,
@@ -86,13 +98,19 @@ function CandidateInterview({ user, candidateId, candidateName }) {
     }
   };
 
-  // Handler for saving the updated entry from the modal
   const handleUpdateInterview = (updatedInterviewData) => {
     setInterviewEntries((prev) =>
       prev.map((i) => (i.id === updatedInterviewData.id ? updatedInterviewData : i))
     );
     setEditingInterview(null);
-    // Toast is handled inside the modal
+
+    createNotification({
+      title: 'Interview updated',
+      message: `${candidateName || 'Candidate'} interview updated (${updatedInterviewData.status})`,
+      type: 'success',
+      priority: 'normal',
+      link: `/candidates/${candidateId}/interview`,
+    });
   };
 
   const handleDeleteEntry = async (id, position) => {
@@ -106,6 +124,14 @@ function CandidateInterview({ user, candidateId, candidateName }) {
         if (res.success) {
           setInterviewEntries((prev) => prev.filter((e) => e.id !== id));
           toast.success('Interview entry moved to Recycle Bin.');
+
+          createNotification({
+            title: 'Interview deleted',
+            message: `Interview for "${position}" moved to Recycle Bin.`,
+            type: 'warning',
+            priority: 'high',
+            actionRequired: false,
+          });
         } else {
           toast.error(res.error || 'Failed to delete interview entry');
         }

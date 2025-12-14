@@ -10,25 +10,30 @@ class NotificationService {
 
   async initialize() {
     try {
-      // Check if Electron API exists
-      if (!window.electronAPI || typeof window.electronAPI.getNotifications !== 'function') {
+      const api = window.electronAPI;
+
+      if (!api) {
         console.warn('Notification service disabled - Electron API not available');
         this.enabled = false;
         return;
       }
 
       this.enabled = true;
-      await this.loadNotifications();
 
-      // Setup real-time notification listener
-      if (window.electronAPI.onNotification) {
-        window.electronAPI.onNotification((notification) => {
+      if (typeof api.getNotifications === 'function') {
+        await this.loadNotifications();
+      }
+
+      if (typeof api.checkReminders === 'function') {
+        await this.checkReminders();
+        setInterval(() => this.checkReminders(), 60000);
+      }
+
+      if (typeof api.onNotification === 'function') {
+        api.onNotification((notification) => {
           this.addNotification(notification);
         });
       }
-
-      // Check for reminders every minute
-      setInterval(() => this.checkReminders(), 60000);
     } catch (error) {
       console.error('Error initializing notification service:', error);
       this.enabled = false;
@@ -37,13 +42,13 @@ class NotificationService {
 
   async loadNotifications(limit = 50) {
     if (!this.enabled) return;
-    
+
     try {
       const result = await window.electronAPI.getNotifications({ limit });
-      
-      if (result.success) {
+
+      if (result?.success && Array.isArray(result.notifications)) {
         this.notifications = result.notifications;
-        this.unreadCount = result.notifications.filter(n => !n.read).length;
+        this.unreadCount = result.notifications.filter((n) => !n.read).length;
         this.notifyListeners();
       }
     } catch (error) {
@@ -51,15 +56,14 @@ class NotificationService {
     }
   }
 
-  /**
-   * Mark notification as read
-   */
   async markAsRead(notificationId) {
+    if (!this.enabled) return;
+
     try {
       const result = await window.electronAPI.markNotificationAsRead({ notificationId });
-      
-      if (result.success) {
-        const notification = this.notifications.find(n => n.id === notificationId);
+
+      if (result?.success) {
+        const notification = this.notifications.find((n) => n.id === notificationId);
         if (notification && !notification.read) {
           notification.read = true;
           this.unreadCount = Math.max(0, this.unreadCount - 1);
@@ -71,15 +75,16 @@ class NotificationService {
     }
   }
 
-  /**
-   * Mark all notifications as read
-   */
   async markAllAsRead() {
+    if (!this.enabled) return;
+
     try {
       const result = await window.electronAPI.markAllNotificationsAsRead();
-      
-      if (result.success) {
-        this.notifications.forEach(n => n.read = true);
+
+      if (result?.success) {
+        this.notifications.forEach((n) => {
+          n.read = true;
+        });
         this.unreadCount = 0;
         this.notifyListeners();
       }
@@ -88,15 +93,14 @@ class NotificationService {
     }
   }
 
-  /**
-   * Delete notification
-   */
   async deleteNotification(notificationId) {
+    if (!this.enabled) return;
+
     try {
       const result = await window.electronAPI.deleteNotification({ notificationId });
-      
-      if (result.success) {
-        const index = this.notifications.findIndex(n => n.id === notificationId);
+
+      if (result?.success) {
+        const index = this.notifications.findIndex((n) => n.id === notificationId);
         if (index !== -1) {
           const notification = this.notifications[index];
           if (!notification.read) {
@@ -111,41 +115,50 @@ class NotificationService {
     }
   }
 
-  /**
-   * Clear all notifications
-   */
   async clearAll() {
+    if (!this.enabled) return;
     try {
       const result = await window.electronAPI.clearAllNotifications();
-      
-      if (result.success) {
-        this.notifications = [];
-        this.unreadCount = 0;
-        this.notifyListeners();
+      if (result?.success) {
+        await this.loadNotifications(); // reload from DB, all read now
       }
     } catch (error) {
       console.error('Error clearing notifications:', error);
     }
   }
 
-  /**
-   * Create notification
-   */
   async createNotification(data) {
+    if (!this.enabled) {
+      const localNotification = {
+        id: Date.now(),
+        title: sanitizeText(data.title),
+        message: sanitizeText(data.message),
+        type: data.type || 'info',
+        priority: data.priority || 'normal',
+        link: data.link || null,
+        candidateId: data.candidateId || null,
+        actionRequired: !!data.actionRequired,
+        createdAt: new Date().toISOString(),
+        read: false,
+      };
+      this.addNotification(localNotification);
+      return { success: true, notification: localNotification };
+    }
+
     try {
       const sanitizedData = {
         title: sanitizeText(data.title),
         message: sanitizeText(data.message),
-        type: data.type, // info, success, warning, error
-        priority: data.priority || 'normal', // low, normal, high, urgent
+        type: data.type,
+        priority: data.priority || 'normal',
         link: data.link || null,
         candidateId: data.candidateId || null,
-        actionRequired: data.actionRequired || false,
+        actionRequired: !!data.actionRequired,
       };
 
       const result = await window.electronAPI.createNotification(sanitizedData);
-      
-      if (result.success) {
+
+      if (result?.success && result.notification) {
         this.addNotification(result.notification);
       }
 
@@ -156,22 +169,8 @@ class NotificationService {
     }
   }
 
-  /**
-   * Show desktop notification
-   */
-  showDesktopNotification(notification) {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(notification.title, {
-        body: notification.message,
-        icon: '/icon.png',
-        tag: notification.id,
-      });
-    }
-  }
+  // showDesktopNotification REMOVED
 
-  /**
-   * Request desktop notification permission
-   */
   async requestPermission() {
     if ('Notification' in window && Notification.permission === 'default') {
       const permission = await Notification.requestPermission();
@@ -180,67 +179,65 @@ class NotificationService {
     return false;
   }
 
-  /**
-   * Check for upcoming reminders
-   */
-  async checkReminders() {
-    try {
-      const result = await window.electronAPI.checkReminders();
-      
-      if (result.success && result.reminders.length > 0) {
-        result.reminders.forEach(reminder => {
-          this.createNotification({
-            title: `Reminder: ${reminder.title}`,
-            message: reminder.message,
-            type: 'warning',
-            priority: 'high',
-            link: reminder.link,
-            actionRequired: true,
-          });
+  // In NotificationService.js
+async checkReminders() {
+  if (!this.enabled) return;
+  if (typeof window.electronAPI.checkReminders !== 'function') return;
+
+  try {
+    const result = await window.electronAPI.checkReminders();
+
+    if (result?.success && Array.isArray(result.reminders) && result.reminders.length > 0) {
+      result.reminders.forEach((reminder) => {
+        this.createNotification({
+          title: `Reminder: ${reminder.title}`,
+          message: reminder.message,
+          type: 'reminder',          // mark as reminder
+          category: 'reminder',      // extra flag used by panel
+          priority: reminder.priority || 'high',
+          link: reminder.link || null,
+          candidateId: reminder.candidateId || null,
+          actionRequired: true,
         });
-      }
-    } catch (error) {
-      console.error('Error checking reminders:', error);
+      });
     }
+  } catch (error) {
+    console.error('Error checking reminders:', error);
+  }
+}
+
+
+  addNotification(notification) {
+    this.notifications.unshift(notification);
+    if (!notification.read) {
+      this.unreadCount += 1;
+    }
+    this.notifyListeners();
+    // desktop toast removed here as well
   }
 
-  /**
-   * Subscribe to notification updates
-   */
   subscribe(callback) {
     this.listeners.push(callback);
     return () => {
-      this.listeners = this.listeners.filter(cb => cb !== callback);
+      this.listeners = this.listeners.filter((cb) => cb !== callback);
     };
   }
 
-  /**
-   * Notify all listeners
-   */
   notifyListeners() {
-    this.listeners.forEach(callback => {
-      callback({
-        notifications: this.notifications,
-        unreadCount: this.unreadCount,
-      });
-    });
+    const payload = {
+      notifications: this.notifications,
+      unreadCount: this.unreadCount,
+    };
+    this.listeners.forEach((callback) => callback(payload));
   }
 
-  /**
-   * Get notifications by type
-   */
   getByType(type) {
-    return this.notifications.filter(n => n.type === type);
+    return this.notifications.filter((n) => n.type === type);
   }
 
-  /**
-   * Get unread notifications
-   */
   getUnread() {
-    return this.notifications.filter(n => !n.read);
+    return this.notifications.filter((n) => !n.read);
   }
 }
 
 export const notificationService = new NotificationService();
-// Phone number: E.164 format
-// Optional, can be empty string

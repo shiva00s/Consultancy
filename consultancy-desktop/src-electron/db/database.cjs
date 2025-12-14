@@ -512,6 +512,21 @@ dbInstance.run(`
     FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE CASCADE
   );
 `);
+dbInstance.run(`
+  CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    type TEXT DEFAULT 'info',
+    priority TEXT DEFAULT 'normal',
+    link TEXT,
+    candidate_id INTEGER,
+    action_required INTEGER DEFAULT 0,
+    read INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE SET NULL
+  );
+`);
 
 
       // Create index for user_features
