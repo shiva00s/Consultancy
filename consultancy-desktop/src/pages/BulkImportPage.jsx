@@ -28,10 +28,7 @@ const getFileName = (filePath) => {
 function BulkImportPage() {
   const { user } = useAuthStore(useShallow((state) => ({ user: state.user })));
   
-  // Mode State: 'data' (Excel/CSV) or 'documents' (ZIP)
   const [importMode, setImportMode] = useState('data'); 
-
-  // Data Import State
   const [step, setStep] = useState(1);
   const [file, setFile] = useState(null);
   const [csvHeaders, setCsvHeaders] = useState([]);
@@ -41,41 +38,49 @@ function BulkImportPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState(null);
 
-  // --- DATA IMPORT HANDLERS ---
   const handleFileSelect = async () => {
-    setResults(null);
-    const res = await window.electronAPI.showOpenDialog({
-      title: 'Select Data File',
-      buttonLabel: 'Select',
-      filters: [{ name: 'Import Files', extensions: ['csv', 'xlsx', 'xls'] }],
-      properties: ['openFile'],
-    });
+    try {
+      setResults(null);
+      const res = await window.electronAPI.showOpenDialog({
+        title: 'Select Data File',
+        buttonLabel: 'Select',
+        filters: [{ name: 'Import Files', extensions: ['csv', 'xlsx', 'xls'] }],
+        properties: ['openFile'],
+      });
 
-    if (!res.canceled && res.filePaths.length > 0) {
-      const filePath = res.filePaths[0];
-      const fileName = getFileName(filePath);
-      const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
-      
-      setFile({ path: filePath, name: fileName, isExcel: isExcel });
+      if (!res.canceled && res.filePaths.length > 0) {
+        const filePath = res.filePaths[0];
+        const fileName = getFileName(filePath);
+        const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+        
+        setFile({ path: filePath, name: fileName, isExcel: isExcel });
 
-      if (isExcel) {
-        await fetchExcelSheets(filePath);
-      } else {
-        await fetchCsvHeaders(filePath);
+        if (isExcel) {
+          await fetchExcelSheets(filePath);
+        } else {
+          await fetchCsvHeaders(filePath);
+        }
       }
+    } catch (error) {
+      toast.error(`File selection failed: ${error.message}`);
     }
   };
 
   const fetchExcelSheets = async (filePath) => {
     setIsLoading(true);
-    const res = await window.electronAPI.getExcelSheets({ filePath });
-    if (res.success) {
-      setSheetNames(res.sheets);
-      setSelectedSheet(res.sheets[0]);
-      await handleSheetSelect(res.sheets[0], filePath);
-      setStep(2);
-    } else {
-      toast.error(res.error); 
+    try {
+      const res = await window.electronAPI.invoke('get-excel-sheets', { filePath });
+      if (res.success) {
+        setSheetNames(res.sheets);
+        setSelectedSheet(res.sheets[0]);
+        await handleSheetSelect(res.sheets[0], filePath);
+        setStep(2);
+      } else {
+        toast.error(res.error); 
+        setFile(null);
+      }
+    } catch (error) {
+      toast.error(`Failed to read Excel file: ${error.message}`);
       setFile(null);
     }
     setIsLoading(false);
@@ -83,13 +88,18 @@ function BulkImportPage() {
 
   const fetchCsvHeaders = async (filePath) => {
     setIsLoading(true);
-    const res = await window.electronAPI.getCsvHeaders({ filePath });
-    if (res.success) {
-      setCsvHeaders(res.headers);
-      autoMapHeaders(res.headers);
-      setStep(2);
-    } else {
-      toast.error(res.error);
+    try {
+      const res = await window.electronAPI.invoke('get-csv-headers', { filePath });
+      if (res.success) {
+        setCsvHeaders(res.headers);
+        autoMapHeaders(res.headers);
+        setStep(2);
+      } else {
+        toast.error(res.error);
+        setFile(null);
+      }
+    } catch (error) {
+      toast.error(`Failed to read CSV file: ${error.message}`);
       setFile(null);
     }
     setIsLoading(false);
@@ -98,12 +108,22 @@ function BulkImportPage() {
   const handleSheetSelect = async (sheetName, path = file.path) => {
     setSelectedSheet(sheetName);
     setIsLoading(true);
-    const res = await window.electronAPI.getExcelHeaders({ filePath: path, sheetName });
-    if (res.success) {
-      setCsvHeaders(res.headers);
-      autoMapHeaders(res.headers);
-    } else {
-      toast.error(res.error);
+    try {
+      const res = await window.electronAPI.invoke('get-excel-headers', { 
+        filePath: path, 
+        sheetName 
+      });
+      
+      if (res.success) {
+        setCsvHeaders(res.headers);
+        autoMapHeaders(res.headers);
+      } else {
+        toast.error(res.error);
+        setCsvHeaders([]);
+        setMapping({});
+      }
+    } catch (error) {
+      toast.error(`Failed to read sheet: ${error.message}`);
       setCsvHeaders([]);
       setMapping({});
     }
@@ -114,7 +134,9 @@ function BulkImportPage() {
     const initialMap = {};
     headers.forEach(header => {
       const simpleHeader = header.toLowerCase().replace(/[\s_]/g, '');
-      const match = dbColumns.find(col => col.key !== '' && simpleHeader.includes(col.key.toLowerCase()));
+      const match = dbColumns.find(col => 
+        col.key !== '' && simpleHeader.includes(col.key.toLowerCase())
+      );
       initialMap[header] = match ? match.key : '';
     });
     setMapping(initialMap);
@@ -127,89 +149,164 @@ function BulkImportPage() {
   const handleImportData = async () => {
     setIsLoading(true);
     const mappedValues = Object.values(mapping);
+    
     if (!mappedValues.includes('name') || !mappedValues.includes('passportNo')) {
       toast.error('You must map columns to "Name" and "Passport No".');
       setIsLoading(false);
       return;
     }
 
-    let res;
-    if (file.isExcel) {
-      res = await window.electronAPI.importCandidatesFromExcel({
-        user, filePath: file.path, sheetName: selectedSheet, mapping: mapping,
+    try {
+      const res = await window.electronAPI.invoke('import-candidates-from-file', {
+        user, 
+        filePath: file.path, 
+        mapping: mapping,
       });
-    } else {
-      res = await window.electronAPI.importCandidatesFromFile({
-        user, filePath: file.path, mapping: mapping,
-      });
-    }
 
-    if (res.success) {
-      setResults(res.data);
-      setStep(3);
-      toast.success(`Import finished. ${res.data.successfulCount} added.`);
-    } else {
-      toast.error(res.error);
+      if (res.success) {
+        setResults(res.data);
+        setStep(3);
+        toast.success(`Import finished. ${res.data.successfulCount} added.`);
+      } else {
+        toast.error(res.error);
+      }
+    } catch (error) {
+      toast.error(`Import failed: ${error.message}`);
     }
     setIsLoading(false);
   };
   
   const resetImporter = () => {
-    setStep(1); setFile(null); setCsvHeaders([]); setSheetNames([]);
-    setSelectedSheet(''); setMapping({}); setResults(null);
+    setStep(1); 
+    setFile(null); 
+    setCsvHeaders([]); 
+    setSheetNames([]);
+    setSelectedSheet(''); 
+    setMapping({}); 
+    setResults(null);
   };
   
   const handleDownloadTemplate = async (e) => {
     e.stopPropagation(); 
     setIsLoading(true);
-    const res = await window.electronAPI.downloadExcelTemplate();
-    if (res.success) toast.success(`Template saved to ${res.filePath}`);
-    else toast.error(res.error);
+    
+    try {
+      // Create a simple template download handler
+      const res = await window.electronAPI.showSaveDialog({
+        title: 'Save Excel Template',
+        defaultPath: 'candidate_import_template.xlsx',
+        filters: [{ name: 'Excel Files', extensions: ['xlsx'] }]
+      });
+      
+      if (!res.canceled && res.filePath) {
+        // Call backend to generate template
+        const templateRes = await window.electronAPI.invoke('download-excel-template', {
+          savePath: res.filePath
+        });
+        
+        if (templateRes.success) {
+          toast.success(`Template saved to ${res.filePath}`);
+        } else {
+          toast.error(templateRes.error || 'Failed to save template');
+        }
+      }
+    } catch (error) {
+      toast.error(`Failed to download template: ${error.message}`);
+    }
     setIsLoading(false);
   };
 
   const handleDownloadErrors = async () => {
     if (!results || results.failedCount === 0) return;
+    
     setIsLoading(true);
-    toast.loading('Generating error report...');
-    const res = await window.electronAPI.downloadImportErrors({ user, failedRows: results.failures });
-    toast.dismiss();
-    if (res.success) toast.success(`Error report saved to ${res.filePath}`);
-    else toast.error(res.error || 'Failed to download error report.');
+    const loadingToast = toast.loading('Generating error report...');
+    
+    try {
+      const res = await window.electronAPI.invoke('download-import-errors', { 
+        user, 
+        failedRows: results.failures 
+      });
+      
+      toast.dismiss(loadingToast);
+      
+      if (res.success) {
+        toast.success(`Error report saved to ${res.filePath}`);
+      } else {
+        toast.error(res.error || 'Failed to download error report.');
+      }
+    } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error(`Failed to download error report: ${error.message}`);
+    }
     setIsLoading(false);
   };
 
-  // --- DOCUMENT IMPORT HANDLERS (NEW) ---
   const handleDocArchiveSelect = async () => {
+    try {
       const res = await window.electronAPI.showOpenDialog({
-          title: 'Select Documents Archive',
-          buttonLabel: 'Import Docs',
-          filters: [{ name: 'Archives', extensions: ['zip'] }], // Limit to ZIP for now
-          properties: ['openFile'],
+        title: 'Select Documents Archive',
+        buttonLabel: 'Import Docs',
+        filters: [{ name: 'Archives', extensions: ['zip'] }],
+        properties: ['openFile'],
       });
       
       if (!res.canceled && res.filePaths.length > 0) {
-          // In a real app, we would parse the ZIP here.
-          // Since we are using a mock backend handler for this specific feature:
-          setIsLoading(true);
-          toast.loading('Processing archive...');
-          
-          // Mock call - in real implementation, this would pass a map of Passport->ID
-          const importRes = await window.electronAPI.bulkImportDocuments({
-              user,
-              candidateIdMap: {}, // Would be populated by a fresh DB fetch
-              archivePath: res.filePaths[0]
+        setIsLoading(true);
+        const loadingToast = toast.loading('Processing archive...');
+        
+        try {
+          // Fetch candidates for passport mapping
+          const candidatesRes = await window.electronAPI.invoke('search-candidates', {
+            searchTerm: '',
+            status: '',
+            position: '',
+            limit: 10000,
+            offset: 0
+          });
+
+          if (!candidatesRes.success) {
+            toast.dismiss(loadingToast);
+            toast.error('Failed to fetch candidates for mapping.');
+            setIsLoading(false);
+            return;
+          }
+
+          // Build passport -> ID map
+          const candidateIdMap = {};
+          candidatesRes.data.candidates.forEach(candidate => {
+            if (candidate.passportNo) {
+              candidateIdMap[candidate.passportNo.toUpperCase()] = candidate.id;
+            }
+          });
+
+          // Import documents
+          const importRes = await window.electronAPI.invoke('bulk-import-documents', {
+            user,
+            candidateIdMap,
+            archivePath: res.filePaths[0]
           });
           
-          toast.dismiss();
-          setIsLoading(false);
+          toast.dismiss(loadingToast);
           
           if (importRes.success) {
-              toast.success("Archive processed (Mock Success). check console/logs.");
+            toast.success(
+              `Archive processed! Successfully imported ${importRes.data.successfulDocs} documents. ` +
+              `Failed: ${importRes.data.failedDocs}`
+            );
           } else {
-              toast.error(importRes.error);
+            toast.error(importRes.error);
           }
+        } catch (error) {
+          toast.dismiss(loadingToast);
+          toast.error(`Archive processing failed: ${error.message}`);
+        }
+        
+        setIsLoading(false);
       }
+    } catch (error) {
+      toast.error(`Failed to select archive: ${error.message}`);
+    }
   };
 
   // --- RENDERERS ---
@@ -236,29 +333,50 @@ function BulkImportPage() {
       {file.isExcel && (
         <div className="form-group" style={{maxWidth: '400px', marginBottom: '1.5rem'}}>
           <label><FiGrid /> Select Excel Sheet</label>
-          <select value={selectedSheet} onChange={(e) => handleSheetSelect(e.target.value)}>
-            {sheetNames.map(name => (<option key={name} value={name}>{name}</option>))}
+          <select 
+            value={selectedSheet} 
+            onChange={(e) => handleSheetSelect(e.target.value)}
+          >
+            {sheetNames.map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
           </select>
         </div>
       )}
       <table className="mapping-table">
-          <thead><tr><th>File Column</th><th>Database Field</th></tr></thead>
-          <tbody>
-            {csvHeaders.map(header => (
-              <tr key={header}>
-                <td>{header}</td>
-                <td>
-                  <select value={mapping[header] || ''} onChange={(e) => handleMapChange(header, e.target.value)}>
-                    {dbColumns.map(col => (<option key={col.key} value={col.key}>{col.label}</option>))}
-                  </select>
-                </td>
-              </tr>
-            ))}
-          </tbody>
+        <thead>
+          <tr>
+            <th>File Column</th>
+            <th>Database Field</th>
+          </tr>
+        </thead>
+        <tbody>
+          {csvHeaders.map(header => (
+            <tr key={header}>
+              <td>{header}</td>
+              <td>
+                <select 
+                  value={mapping[header] || ''} 
+                  onChange={(e) => handleMapChange(header, e.target.value)}
+                >
+                  {dbColumns.map(col => (
+                    <option key={col.key} value={col.key}>{col.label}</option>
+                  ))}
+                </select>
+              </td>
+            </tr>
+          ))}
+        </tbody>
       </table>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem' }}>
-        <button className="btn btn-secondary" onClick={resetImporter}>Back</button>
-        <button className="btn" onClick={handleImportData} disabled={isLoading || csvHeaders.length === 0}>
+        <button className="btn btn-secondary" onClick={resetImporter}>
+          Back
+        </button>
+        <button 
+          className="btn" 
+          onClick={handleImportData} 
+          disabled={isLoading || csvHeaders.length === 0}
+        >
           {isLoading ? 'Importing...' : 'Run Import'}
         </button>
       </div>
@@ -268,70 +386,116 @@ function BulkImportPage() {
   const renderDataStep3 = () => (
     <div className="import-card import-results">
       <h3>Import Complete</h3>
-      {results.successfulCount > 0 && <div className="form-message success"><FiCheckCircle /> Added {results.successfulCount} candidates.</div>}
+      {results.successfulCount > 0 && (
+        <div className="form-message success">
+          <FiCheckCircle /> Added {results.successfulCount} candidates.
+        </div>
+      )}
       {results.failedCount > 0 && (
         <>
-          <div className="form-message error"><FiAlertTriangle /> Failed {results.failedCount} candidates.</div>
-          <button className="btn btn-danger" onClick={handleDownloadErrors} disabled={isLoading}>
+          <div className="form-message error">
+            <FiAlertTriangle /> Failed {results.failedCount} candidates.
+          </div>
+          <button 
+            className="btn btn-danger" 
+            onClick={handleDownloadErrors} 
+            disabled={isLoading}
+          >
             <FiDownload /> Download Error Report
           </button>
         </>
       )}
-      <button className="btn" onClick={resetImporter} style={{marginTop: '1rem'}}>Import Another File</button>
+      <button 
+        className="btn" 
+        onClick={resetImporter} 
+        style={{marginTop: '1rem'}}
+      >
+        Import Another File
+      </button>
     </div>
   );
 
   const renderDocumentImport = () => (
-      <div className="import-card">
-          <div style={{textAlign:'center', padding:'2rem'}}>
-            <FiPackage style={{fontSize:'3rem', color:'var(--primary-color)', marginBottom:'1rem'}} />
-            <h3>Bulk Document Import</h3>
-            <p style={{maxWidth:'500px', margin:'0 auto 1.5rem auto', color:'var(--text-secondary)'}}>
-                Upload a <strong>ZIP file</strong> containing candidate documents. 
-                Files should be named using the pattern: <code>PassportNo_DocumentType.pdf</code> 
-                (e.g., <code>A1234567_Resume.pdf</code>).
-            </p>
-            <button className="btn btn-primary" onClick={handleDocArchiveSelect} disabled={isLoading}>
-                {isLoading ? 'Processing...' : 'Select ZIP Archive'}
-            </button>
-            <p style={{marginTop:'1rem', fontSize:'0.85rem', fontStyle:'italic', color:'var(--text-secondary)'}}>
-                Note: This feature currently attempts to match files to existing candidates by Passport Number.
-            </p>
-          </div>
+    <div className="import-card">
+      <div style={{textAlign:'center', padding:'2rem'}}>
+        <FiPackage style={{
+          fontSize:'3rem', 
+          color:'var(--primary-color)', 
+          marginBottom:'1rem'
+        }} />
+        <h3>Bulk Document Import</h3>
+        <p style={{
+          maxWidth:'500px', 
+          margin:'0 auto 1.5rem auto', 
+          color:'var(--text-secondary)'
+        }}>
+          Upload a <strong>ZIP file</strong> containing candidate documents. 
+          Files should be named using the pattern: <code>PassportNo_DocumentType.pdf</code> 
+          (e.g., <code>A1234567_Resume.pdf</code>).
+        </p>
+        <button 
+          className="btn btn-primary" 
+          onClick={handleDocArchiveSelect} 
+          disabled={isLoading}
+        >
+          {isLoading ? 'Processing...' : 'Select ZIP Archive'}
+        </button>
+        <p style={{
+          marginTop:'1rem', 
+          fontSize:'0.85rem', 
+          fontStyle:'italic', 
+          color:'var(--text-secondary)'
+        }}>
+          Note: Files will be matched to existing candidates by Passport Number.
+        </p>
       </div>
+    </div>
   );
 
   return (
     <div className="bulk-import-container">
       <h1><FiUploadCloud /> Bulk Import</h1>
       
-      {/* --- MODE SWITCHER --- */}
       <div className="custom-tabs-container" style={{marginBottom: '2rem'}}>
-          <div className="tabs-header">
-              <button className={`tab-btn ${importMode === 'data' ? 'active' : ''}`} onClick={() => setImportMode('data')}>
-                  <FiGrid /> Import Candidate Data
-              </button>
-              <button className={`tab-btn ${importMode === 'documents' ? 'active' : ''}`} onClick={() => setImportMode('documents')}>
-                  <FiFile /> Import Documents (ZIP)
-              </button>
-          </div>
+        <div className="tabs-header">
+          <button 
+            className={`tab-btn ${importMode === 'data' ? 'active' : ''}`} 
+            onClick={() => setImportMode('data')}
+          >
+            <FiGrid /> Import Candidate Data
+          </button>
+          <button 
+            className={`tab-btn ${importMode === 'documents' ? 'active' : ''}`} 
+            onClick={() => setImportMode('documents')}
+          >
+            <FiFile /> Import Documents (ZIP)
+          </button>
+        </div>
       </div>
 
       {importMode === 'data' && (
-          <>
-            <ul className="import-stepper">
-                <li className={`stepper-item ${step >= 1 ? 'active' : ''}`}><span className="step-number">1</span><span className="step-title">Select</span></li>
-                <li className={`stepper-item ${step >= 2 ? (step === 2 ? 'active' : 'completed') : ''}`}><span className="step-number">2</span><span className="step-title">Map</span></li>
-                <li className={`stepper-item ${step === 3 ? 'completed' : ''}`}><span className="step-number">3</span><span className="step-title">Result</span></li>
-            </ul>
-            {step === 1 && renderDataStep1()}
-            {step === 2 && renderDataStep2()}
-            {step === 3 && results && renderDataStep3()}
-          </>
+        <>
+          <ul className="import-stepper">
+            <li className={`stepper-item ${step >= 1 ? 'active' : ''}`}>
+              <span className="step-number">1</span>
+              <span className="step-title">Select</span>
+            </li>
+            <li className={`stepper-item ${step >= 2 ? (step === 2 ? 'active' : 'completed') : ''}`}>
+              <span className="step-number">2</span>
+              <span className="step-title">Map</span>
+            </li>
+            <li className={`stepper-item ${step === 3 ? 'completed' : ''}`}>
+              <span className="step-number">3</span>
+              <span className="step-title">Result</span>
+            </li>
+          </ul>
+          {step === 1 && renderDataStep1()}
+          {step === 2 && renderDataStep2()}
+          {step === 3 && results && renderDataStep3()}
+        </>
       )}
 
       {importMode === 'documents' && renderDocumentImport()}
-
     </div>
   );
 }

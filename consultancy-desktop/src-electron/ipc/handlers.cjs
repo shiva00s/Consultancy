@@ -603,19 +603,28 @@ ipcMain.handle('get-feature-flags', async (event, { user } = {}) => {
 }
 
 
-   ipcMain.handle("get-system-audit-log", async (event, { userFilter, actionFilter, limit, offset }) => {
+// ====================================================================
+// SYSTEM AUDIT LOG HANDLER (FIXED)
+// ====================================================================
+ipcMain.handle("get-system-audit-log", async (event, { userFilter, actionFilter, limit, offset }) => {
     try {
-        // Get user from stored session (you should have currentAuthUser available)
-        if (!currentAuthUser) {
-            return { success: false, error: "Authentication required." };
+        // Get the user from the event sender's session
+        const user = event.sender.session?.user;
+        
+        if (!user) {
+            return { 
+                success: false, 
+                error: "Authentication required. Please log in again." 
+            };
         }
         
         // Check if user is admin or super_admin
-        const normalizedRole = currentAuthUser.role?.toLowerCase().replace('_', '');
+        const normalizedRole = user.role?.toLowerCase().replace('_', '');
+        
         if (!['admin', 'superadmin'].includes(normalizedRole)) {
             return {
                 success: false,
-                error: `Access Denied: Only admins can access audit logs. Your role: ${currentAuthUser.role}`
+                error: `Access Denied: Only admins can access audit logs. Your role: ${user.role}`
             };
         }
         
@@ -628,12 +637,14 @@ ipcMain.handle('get-feature-flags', async (event, { user } = {}) => {
         });
         
     } catch (error) {
+        console.error('Audit log handler error:', error);
         return {
             success: false,
             error: error.message || "Failed to fetch audit logs"
         };
     }
 });
+
 
 // ====================================================================
     ipcMain.handle('get-audit-log-for-candidate', (event, { candidateId }) => {
