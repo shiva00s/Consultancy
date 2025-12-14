@@ -2,7 +2,6 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
 
-    invoke: (channel, data) => ipcRenderer.invoke(channel, data),
     // =====================================================================
     // SYSTEM
     // =====================================================================
@@ -282,7 +281,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
  * UI PERMISSION VISIBILITY (OPTIONAL - FOR FUTURE USE)
  * ============================================================
  */
-
 contextBridge.exposeInMainWorld("permission", {
     can: async (feature) => {
         try {

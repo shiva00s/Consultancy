@@ -20,16 +20,20 @@ import VisaKanbanPage from './pages/VisaKanbanPage';
 import WhatsAppBulkPage from "./pages/WhatsAppBulkPage.jsx";
 import useThemeStore from './store/useThemeStore';
 
+// === NEW/MISSING COMPONENT IMPORTS ===
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
 import ModuleVisibilityControl from './components/settings/ModuleVisibilityControl';
+// ========================================================
 
+// --- ZUSTAND IMPORTS ---
 import { useToasterStore } from 'react-hot-toast';
 import useAuthStore from './store/useAuthStore';
 import useDataStore from './store/dataStore';
 import { useShallow } from 'zustand/react/shallow';
 
 function App() {
+
   useEffect(() => {
     const theme = useThemeStore.getState().theme;
     document.body.dataset.theme = theme;
@@ -50,13 +54,14 @@ function App() {
     }))
   );
 
+  // --- LICENSE / ACTIVATION STATE ---
   const [isActivated, setIsActivated] = useState(true);
   const [activationLoading, setActivationLoading] = useState(true);
 
   useEffect(() => {
     const checkLicense = async () => {
       try {
-        const res = await window.electronAPI.invoke('get-activation-status');
+        const res = await window.electronAPI.getActivationStatus();
         if (res.success && res.data) {
           setIsActivated(!!res.data.activated);
         } else {
@@ -70,6 +75,11 @@ function App() {
     };
     checkLicense();
   }, []);
+  // ------------------------------------
+
+  const handleLogin = (userData) => {
+    useAuthStore.getState().login(userData, fetchInitialData);
+  };
 
   const handleLogout = () => {
     useAuthStore.getState().logout();
@@ -82,9 +92,11 @@ function App() {
     }
   }, [isAuthenticated, featureFlags, fetchInitialData]);
 
+  // Ensure Toaster is satisfied
   const { toasts } = useToasterStore();
   useEffect(() => {}, [toasts]);
 
+  // --- License gate screens ---
   if (activationLoading) {
     return (
       <div className="login-wrapper">
@@ -94,6 +106,7 @@ function App() {
   }
 
   if (!isActivated) {
+    // Only show activation flow until license is valid
     return (
       <Routes>
         <Route path="*" element={<ActivationPrompt />} />
@@ -101,6 +114,7 @@ function App() {
     );
   }
 
+  // --- Normal app once activated ---
   return (
     <ErrorBoundary>
       <Routes>
@@ -110,7 +124,7 @@ function App() {
             isAuthenticated ? (
               <Navigate to="/" replace />
             ) : (
-              <LoginPage />
+              <LoginPage onLogin={handleLogin} />
             )
           }
         />
@@ -121,6 +135,7 @@ function App() {
             isAuthenticated && featureFlags ? (
               <MainLayout onLogout={handleLogout} user={user} flags={featureFlags}>
                 <Routes>
+                  {/* --- ALWAYS ALLOWED ROUTES --- */}
                   <Route path="/" element={<DashboardPage />} />
                   <Route path="/search" element={<CandidateListPage />} />
                   <Route path="/add" element={<AddCandidatePage />} />
@@ -129,6 +144,7 @@ function App() {
                     element={<CandidateDetailPage user={user} flags={featureFlags} />}
                   />
 
+                  {/* --- PROTECTED SYSTEM ROUTES (Admin or Super Admin) --- */}
                   <Route
                     element={
                       <ProtectedRoute user={user} allowedRoles={['admin', 'super_admin']} />
@@ -136,11 +152,14 @@ function App() {
                   >
                     <Route path="/reports" element={<ReportsPage />} />
                     <Route path="/whatsapp-bulk" element={<WhatsAppBulkPage />} />
+
                     <Route path="/settings" element={<SettingsPage user={user} />} />
+
                     <Route
                       path="/system-modules"
                       element={<ModuleVisibilityControl user={user} />}
                     />
+
                     <Route path="/recycle-bin" element={<RecycleBinPage user={user} />} />
                     <Route path="/employers" element={<EmployerListPage />} />
                     <Route path="/jobs" element={<JobOrderListPage />} />
@@ -152,6 +171,7 @@ function App() {
                     />
                   </Route>
 
+                  {/* --- PROTECTED HIGH-RISK ROUTES (Super Admin ONLY) --- */}
                   <Route
                     element={
                       <ProtectedRoute user={user} allowedRoles={['super_admin']} />

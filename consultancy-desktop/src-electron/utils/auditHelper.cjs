@@ -55,7 +55,10 @@ async function logAction(user, action, targetType, targetId, details = null) {
     }
 }
 
-
+/**
+ * Lightweight audit function used by IPC internal event logger.
+ * (matches your IPC: log-audit-event handler)
+ */
 async function addAuditEvent({ userId, action, details }) {
     try {
         const db = getDatabase();

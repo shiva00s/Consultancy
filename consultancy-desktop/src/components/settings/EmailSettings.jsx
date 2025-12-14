@@ -7,8 +7,8 @@ function EmailSettings({ user }) {
         host: 'smtp.gmail.com',
         port: 587,
         secure: false,
-        user: 'prakashshiva368@gmail.com',
-        pass: 'hbjsxiciegsdoerz'
+        user: '',
+        pass: ''
     });
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -59,44 +59,44 @@ function EmailSettings({ user }) {
     };
 
     const handleSave = async () => {
-    if (!config.host || !config.port || !config.user || !config.pass) {
-        toast.error('Please fill in all required fields');
-        return;
-    }
-
-    const portNum = parseInt(config.port, 10);
-    if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-        toast.error('Please enter a valid port number (1-65535)');
-        return;
-    }
-
-    setSaving(true);
-    try {
-        // ✅ FIX: Send with user parameter
-        const res = await window.electronAPI.invoke('save-smtp-settings', {
-            user: user,  // Pass user
-            config: {
-                host: config.host.trim(),
-                port: portNum,
-                secure: config.secure,
-                user: config.user.trim(),
-                pass: config.pass.replace(/\s+/g, '')  // Remove spaces
-            }
-        });
-        
-        if (res && res.success) {
-            toast.success('Email settings saved successfully!');
-        } else {
-            toast.error(res?.error || 'Failed to save settings');
+        // Validation
+        if (!config.host || !config.port || !config.user || !config.pass) {
+            toast.error('Please fill in all required fields');
+            return;
         }
-    } catch (err) {
-        console.error('Save error:', err);
-        toast.error('Failed to save email settings');
-    } finally {
-        setSaving(false);
-    }
-};
 
+        // Validate port number
+        const portNum = parseInt(config.port, 10);
+        if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+            toast.error('Please enter a valid port number (1-65535)');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            // ✅ FIX: Send config directly
+            const res = await window.electronAPI.saveSmtpSettings({ 
+                config: {
+                    host: config.host.trim(),
+                    port: portNum,
+                    secure: config.secure,
+                    user: config.user.trim(),
+                    pass: config.pass
+                }
+            });
+            
+            if (res && res.success) {
+                toast.success('Email settings saved successfully!');
+            } else {
+                toast.error(res?.error || 'Failed to save settings');
+            }
+        } catch (err) {
+            console.error('Save error:', err);
+            toast.error('Failed to save email settings');
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const handleTest = async () => {
         // Validation

@@ -248,17 +248,6 @@ const applySchema = (db) => {
                 )
             `, (err) => { if (err) reject(err); });
 
-            db.run(`
-                CREATE TABLE IF NOT EXISTS activation_keys (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    license_key TEXT UNIQUE NOT NULL,
-                    activated INTEGER DEFAULT 0,
-                    activated_at TEXT,
-                    expires_at TEXT,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                )
-            `, (err) => { if (err) reject(err); });
-
             // Resolve the promise after all schema runs are scheduled
             resolve();
         });
