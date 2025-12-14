@@ -3473,12 +3473,58 @@ async function getCommunicationLogs(candidateId) {
   }
 }
 
+async function createReminder({ userId, candidateId, module, title, message, remindAt }) {
+  const db = getDatabase();
+  const sql = `
+    INSERT INTO reminders (user_id, candidate_id, module, title, message, remind_at, delivered)
+    VALUES (?, ?, ?, ?, ?, ?, 0)
+  `;
+  await dbRun(db, sql, [userId, candidateId || null, module, title, message, remindAt]);
+  return { success: true };
+}
+
+async function getDueReminders(nowIso) {
+  const db = getDatabase();
+  const sql = `
+    SELECT * FROM reminders
+    WHERE delivered = 0 AND remind_at <= ?
+    ORDER BY remind_at ASC
+  `;
+  const rows = await dbAll(db, sql, [nowIso]);
+  return rows;
+}
+
+async function markRemindersDelivered(ids) {
+  if (!ids || !ids.length) return;
+  const db = getDatabase();
+  const placeholders = ids.map(() => '?').join(',');
+  const sql = `UPDATE reminders SET delivered = 1 WHERE id IN (${placeholders})`;
+  await dbRun(db, sql, ids);
+}
+
+async function getRecentRemindersForUser(userId, limit = 30) {
+  const db = getDatabase();
+  const sql = `
+    SELECT * FROM reminders
+    WHERE user_id = ?
+    ORDER BY remind_at DESC
+    LIMIT ?
+  `;
+  const rows = await dbAll(db, sql, [userId, limit]);
+  return { success: true, data: rows };
+}
+
+
 
 module.exports = {
   // DB Helpers
   dbRun,
   dbGet,
   dbAll,
+  createReminder,
+  getDueReminders,
+  markRemindersDelivered,
+  getRecentRemindersForUser,
   logCommunication,
   getCommunicationLogs,
   getAdminAssignedFeatures,

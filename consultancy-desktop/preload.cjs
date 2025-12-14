@@ -2,6 +2,11 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
 
+    onReminderDue: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('reminder-due', handler);
+    return () => ipcRenderer.removeListener('reminder-due', handler);
+  },
     // =====================================================================
     // SYSTEM
     // =====================================================================
@@ -283,6 +288,12 @@ downloadImportErrors: (args) => ipcRenderer.invoke("download-import-errors", arg
     getLicenseStatus: () => ipcRenderer.invoke("license:get-status"),
     activateLicense: (args) => ipcRenderer.invoke("license:activate", args),
     requestActivationCode: () => ipcRenderer.invoke("request-activation-code"),
+
+    getUserReminders: (params) =>    ipcRenderer.invoke('get-user-reminders', params),
+    createReminder: (params) =>  ipcRenderer.invoke('create-reminder', params),
+
+
+
 });
 
 /**

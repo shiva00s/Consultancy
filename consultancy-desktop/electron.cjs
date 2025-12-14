@@ -3,7 +3,7 @@ const path = require('path');
 
 const { initializeDatabase, closeDatabase } = require('./src-electron/db/database.cjs');
 const { runMigrations } = require('./src-electron/db/migrations.cjs');
-const { registerIpcHandlers } = require('./src-electron/ipc/handlers.cjs');
+const { registerIpcHandlers,startReminderScheduler, } = require('./src-electron/ipc/handlers.cjs');
 const { fileManager } = require('./src-electron/utils/fileManager.cjs');
 
 // 🔐 Permission Engine
@@ -247,7 +247,11 @@ app.whenReady().then(async () => {
     if (process.env.NODE_ENV !== 'production') {
       console.log('🪟 Creating main window...');
     }
-    createWindow();
+    mainWindow = createWindow();
+
+    // 🔔 Start reminder scheduler (checks DB every 60s and sends reminder-due)
+    startReminderScheduler(mainWindow);
+
     if (process.env.NODE_ENV !== 'production') {
       console.log('✅ Application ready!');
     }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import MainLayout from './components/MainLayout';
 import ActivationPrompt from './pages/ActivationPrompt';
 import AdvancedAnalyticsPage from './pages/AdvancedAnalyticsPage';
@@ -17,9 +17,8 @@ import RecycleBinPage from './pages/RecycleBinPage';
 import BulkImportPage from './pages/BulkImportPage';
 import SystemAuditLogPage from './pages/SystemAuditLogPage';
 import VisaKanbanPage from './pages/VisaKanbanPage';
-import WhatsAppBulkPage from "./pages/WhatsAppBulkPage.jsx";
+import WhatsAppBulkPage from './pages/WhatsAppBulkPage.jsx';
 import useThemeStore from './store/useThemeStore';
-
 
 // === NEW/MISSING COMPONENT IMPORTS ===
 import ErrorBoundary from './components/ErrorBoundary';
@@ -29,11 +28,14 @@ import ModuleVisibilityControl from './components/settings/ModuleVisibilityContr
 
 // --- ZUSTAND IMPORTS ---
 import { useToasterStore } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import useAuthStore from './store/useAuthStore';
 import useDataStore from './store/dataStore';
+import useNotificationStore from './store/useNotificationStore';
 import { useShallow } from 'zustand/react/shallow';
 
 function App() {
+  const navigate = useNavigate();
 
   useEffect(() => {
     const theme = useThemeStore.getState().theme;
@@ -55,7 +57,6 @@ function App() {
     }))
   );
 
-  // --- LICENSE / ACTIVATION STATE ---
   const [isActivated, setIsActivated] = useState(true);
   const [activationLoading, setActivationLoading] = useState(true);
 
@@ -76,7 +77,6 @@ function App() {
     };
     checkLicense();
   }, []);
-  // ------------------------------------
 
   const handleLogin = (userData) => {
     useAuthStore.getState().login(userData, fetchInitialData);
@@ -93,11 +93,54 @@ function App() {
     }
   }, [isAuthenticated, featureFlags, fetchInitialData]);
 
-  // Ensure Toaster is satisfied
   const { toasts } = useToasterStore();
   useEffect(() => {}, [toasts]);
 
-  // --- License gate screens ---
+  const addNotification = useNotificationStore((s) => s.addNotification);
+
+  // listen for reminder-due from Electron
+  useEffect(() => {
+    if (!window.electronAPI?.onReminderDue) return;
+
+    const off = window.electronAPI.onReminderDue((rem) => {
+      // 1) push into notification store (for bell + panel)
+      addNotification({
+        id: rem.id,
+        title: rem.title,
+        message: rem.message,
+        type: 'info',
+        priority: 'normal',
+        createdAt: new Date().toISOString(),
+        read: false,
+        link: rem.candidateId
+          ? `/candidate/${rem.candidateId}?tab=${rem.module || 'profile'}`
+          : null,
+        actionRequired: true,
+      });
+
+      // 2) show clickable toast
+      toast((t) => (
+        <span
+          onClick={() => {
+            if (rem.candidateId) {
+              navigate(`/candidate/${rem.candidateId}?tab=${rem.module || 'profile'}`);
+            }
+            toast.dismiss(t.id);
+          }}
+          style={{ cursor: 'pointer' }}
+        >
+          <b>{rem.title}</b>
+          <br />
+          {rem.message}
+        </span>
+      ));
+    });
+
+    return () => {
+      if (off) off();
+    };
+  }, [navigate, addNotification]);
+
   if (activationLoading) {
     return (
       <div className="login-wrapper">
@@ -107,7 +150,6 @@ function App() {
   }
 
   if (!isActivated) {
-    // Only show activation flow until license is valid
     return (
       <Routes>
         <Route path="*" element={<ActivationPrompt />} />
@@ -115,7 +157,6 @@ function App() {
     );
   }
 
-  // --- Normal app once activated ---
   return (
     <ErrorBoundary>
       <Routes>
@@ -136,7 +177,6 @@ function App() {
             isAuthenticated && featureFlags ? (
               <MainLayout onLogout={handleLogout} user={user} flags={featureFlags}>
                 <Routes>
-                  {/* --- ALWAYS ALLOWED ROUTES --- */}
                   <Route path="/" element={<DashboardPage />} />
                   <Route path="/search" element={<CandidateListPage />} />
                   <Route path="/add" element={<AddCandidatePage />} />
@@ -145,7 +185,6 @@ function App() {
                     element={<CandidateDetailPage user={user} flags={featureFlags} />}
                   />
 
-                  {/* --- PROTECTED SYSTEM ROUTES (Admin or Super Admin) --- */}
                   <Route
                     element={
                       <ProtectedRoute user={user} allowedRoles={['admin', 'super_admin']} />
@@ -153,7 +192,6 @@ function App() {
                   >
                     <Route path="/reports" element={<ReportsPage />} />
                     <Route path="/whatsapp-bulk" element={<WhatsAppBulkPage />} />
-
                     <Route path="/settings" element={<SettingsPage user={user} />} />
 
                     <Route
@@ -172,7 +210,6 @@ function App() {
                     />
                   </Route>
 
-                  {/* --- PROTECTED HIGH-RISK ROUTES (Super Admin ONLY) --- */}
                   <Route
                     element={
                       <ProtectedRoute user={user} allowedRoles={['super_admin']} />

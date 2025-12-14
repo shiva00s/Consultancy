@@ -14,10 +14,12 @@ function NotificationBell() {
 
   return (
     <>
-      <button 
+      <button
         className="notification-bell"
         onClick={togglePanel}
-        aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
+        aria-label={`Notifications ${
+          unreadCount > 0 ? `(${unreadCount} unread)` : ''
+        }`}
         title="Notifications"
       >
         <FiBell />
@@ -26,7 +28,7 @@ function NotificationBell() {
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
-      </button>      
+      </button>
     </>
   );
 }

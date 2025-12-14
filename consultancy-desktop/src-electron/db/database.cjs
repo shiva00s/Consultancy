@@ -494,6 +494,26 @@ function setupDatabase(dbInstance) {
         );
       `);
 
+      // ============================================================
+// 30. REMINDERS (for medical/interview/travel/etc.)
+// ============================================================
+dbInstance.run(`
+  CREATE TABLE IF NOT EXISTS reminders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    candidate_id INTEGER,
+    module TEXT NOT NULL,          -- 'medical' | 'interview' | 'travel' | 'visa' etc.
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    remind_at TEXT NOT NULL,       -- ISO datetime string
+    delivered INTEGER DEFAULT 0,   -- 0=pending, 1=already fired
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE CASCADE
+  );
+`);
+
+
       // Create index for user_features
       dbInstance.run(`
         CREATE INDEX IF NOT EXISTS idx_user_features_user ON user_features(user_id);

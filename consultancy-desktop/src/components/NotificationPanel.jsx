@@ -232,5 +232,3 @@ function NotificationPanel() {
 }
 
 export default NotificationPanel;
-// Phone number: E.164 format
-// Optional, can be empty string

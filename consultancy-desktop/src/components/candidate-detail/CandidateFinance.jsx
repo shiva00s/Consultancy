@@ -13,7 +13,7 @@ const initialPaymentForm = {
   due_date: '',
 };
 
-function CandidateFinance({ candidateId, flags }) {
+function CandidateFinance({ candidateId, flags, candidateName }) {
   const authUser = useAuthStore((state) => state.user);
 
   const [payments, setPayments] = useState([]);
@@ -22,7 +22,6 @@ function CandidateFinance({ candidateId, flags }) {
   const [isSavingPayment, setIsSavingPayment] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
 
-  // ✅ FIXED: Proper permission check
   const isFinanceEnabled =
     authUser?.role === 'super_admin' ||
     authUser?.role === 'admin' ||
@@ -61,7 +60,6 @@ function CandidateFinance({ candidateId, flags }) {
   const handleAddPayment = async (e) => {
     e.preventDefault();
 
-    // ✅ FIXED: Check permission first
     if (!isFinanceEnabled) {
       toast.error('❌ Permission denied: Financial Tracking is disabled for your role.');
       return;
@@ -70,7 +68,6 @@ function CandidateFinance({ candidateId, flags }) {
     const total_amount = parseFloat(paymentForm.total_amount);
     const amount_paid = parseFloat(paymentForm.amount_paid) || 0;
 
-    // Validation
     if (!paymentForm.description || paymentForm.description.trim() === '') {
       toast.error('Description is required.');
       return;
@@ -87,7 +84,6 @@ function CandidateFinance({ candidateId, flags }) {
     setIsSavingPayment(true);
     const toastId = toast.loading('Adding payment record...');
 
-    // Calculate status
     let calculatedStatus;
     if (amount_paid >= total_amount) {
       calculatedStatus = 'Paid';
@@ -106,15 +102,33 @@ function CandidateFinance({ candidateId, flags }) {
     };
 
     try {
-      const res = await window.electronAPI.addPayment({ 
-        user: authUser, 
-        data 
+      const res = await window.electronAPI.addPayment({
+        user: authUser,
+        data,
       });
-      
+
       if (res.success) {
         setPayments((prev) => [res.data, ...prev]);
         setPaymentForm(initialPaymentForm);
         toast.success('✅ Payment record added successfully.', { id: toastId });
+
+        // 🔔 create reminder if there is a due_date and not fully paid
+        if (paymentForm.due_date && calculatedStatus !== 'Paid') {
+          try {
+            await window.electronAPI.createReminder({
+              userId: authUser.id,
+              candidateId,
+              module: 'finance',
+              title: 'Payment due',
+              message: `${paymentForm.description} for ${
+                candidateName || 'candidate'
+              } is due on ${paymentForm.due_date}`,
+              remindAt: new Date(paymentForm.due_date).toISOString(),
+            });
+          } catch (err) {
+            console.error('createReminder (finance) failed:', err);
+          }
+        }
       } else {
         console.error('Add payment error:', res.error);
         toast.error(res.error || 'Failed to add payment record.', { id: toastId });
@@ -128,7 +142,6 @@ function CandidateFinance({ candidateId, flags }) {
   };
 
   const handleUpdatePayment = async (updatedData) => {
-    // ✅ FIXED: Check permission first
     if (!isFinanceEnabled) {
       toast.error('❌ Permission denied: Financial Tracking is disabled for your role.');
       return;
@@ -150,6 +163,8 @@ function CandidateFinance({ candidateId, flags }) {
         );
         setEditingPayment(null);
         toast.success('✅ Payment record updated successfully.', { id: toastId });
+
+        // Optional: if now fully paid, you could update reminders in backend
       } else {
         console.error('Update payment error:', res.error);
         toast.error(res.error || 'Failed to update payment.', { id: toastId });
@@ -161,7 +176,6 @@ function CandidateFinance({ candidateId, flags }) {
   };
 
   const handleDeletePayment = async (paymentId, description) => {
-    // ✅ FIXED: Check permission first
     if (!isFinanceEnabled) {
       toast.error('❌ Permission denied: Financial Tracking is disabled for your role.');
       return;
@@ -177,7 +191,7 @@ function CandidateFinance({ candidateId, flags }) {
           user: authUser,
           id: paymentId,
         });
-        
+
         if (res.success) {
           setPayments((prev) => prev.filter((p) => p.id !== paymentId));
           toast.success('✅ Payment record moved to Recycle Bin.');
@@ -208,11 +222,13 @@ function CandidateFinance({ candidateId, flags }) {
 
   if (loading) {
     return (
-      <div style={{ 
-        textAlign: 'center', 
-        padding: '3rem',
-        color: 'var(--text-secondary)' 
-      }}>
+      <div
+        style={{
+          textAlign: 'center',
+          padding: '3rem',
+          color: 'var(--text-secondary)',
+        }}
+      >
         Loading financial data...
       </div>
     );
@@ -377,7 +393,13 @@ function CandidateFinance({ candidateId, flags }) {
         </h3>
         <div className="module-list payment-list">
           {payments.length === 0 ? (
-            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>
+            <p
+              style={{
+                textAlign: 'center',
+                color: 'var(--text-secondary)',
+                padding: '2rem',
+              }}
+            >
               No payment records found.
             </p>
           ) : (

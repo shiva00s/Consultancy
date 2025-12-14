@@ -127,29 +127,65 @@ ipcMain.handle('request-activation-code', async () => {
 });
 
 
+// ===================== REMINDER SCHEDULER =====================
+function startReminderScheduler(mainWindow) {
+  setInterval(async () => {
+    const nowIso = new Date().toISOString();
+    const due = await queries.getDueReminders(nowIso);
+    if (!due || !due.length) return;
+
+    const ids = [];
+
+    due.forEach((rem) => {
+      ids.push(rem.id);
+
+      // OS notification
+      new Notification({
+        title: rem.title,
+        body: rem.message,
+      }).show();
+
+      // Send to renderer
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('reminder-due', {
+          id: rem.id,
+          userId: rem.user_id,
+          candidateId: rem.candidate_id,
+          module: rem.module,
+          title: rem.title,
+          message: rem.message,
+          remindAt: rem.remind_at,
+        });
+      }
+    });
+
+    await queries.markRemindersDelivered(ids);
+  }, 60 * 1000); // check every 60s
+}
+// =============================================================
+
+
 function registerIpcHandlers(app) {
 
-    registerAnalyticsHandlers();
-    registerDocumentHandlers();
-    registerSyncHandlers();
-    registerPermissionHandlers();
-    const db = getDatabase();
-    if (!db) {
-        console.error('Database is not initialized. Handlers will not be registered.');
-        return;
-    }
+  registerAnalyticsHandlers();
+  registerDocumentHandlers();
+  registerSyncHandlers();
+  registerPermissionHandlers();
+  
+  const db = getDatabase();
+  if (!db) {
+    console.error('Database is not initialized. Handlers will not be registered.');
+    return;
+  }
 
-   
+  // ====================================================================
+  // 1. SYSTEM UTILITIES (Requires Electron modules like dialog)
+  // ====================================================================
 
-    // ====================================================================
-    // 1. SYSTEM UTILITIES (Requires Electron modules like dialog)
-    // ====================================================================
-
- 
-    ipcMain.handle('show-save-dialog', (event, options) => {
-        const win = BrowserWindow.fromWebContents(event.sender);
-        return dialog.showSaveDialog(win, options);
-    });
+  ipcMain.handle('show-save-dialog', (event, options) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return dialog.showSaveDialog(win, options);
+  });
 // ====================================================================
     ipcMain.handle('show-open-dialog', (event, options) => {
         const win = BrowserWindow.fromWebContents(event.sender);
@@ -2540,6 +2576,13 @@ function decodeToken(token) {
   }
 }
 
+ipcMain.handle('create-reminder', async (event, params) => {
+  return await queries.createReminder(params);
+});
 
 
-    module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase  };
+ipcMain.handle('get-user-reminders', async (event, { userId, limit }) => {
+  return await queries.getRecentRemindersForUser(userId, limit || 30);
+});
+
+    module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase,startReminderScheduler  };
