@@ -139,55 +139,54 @@ function OfferTemplateManager({ user }) {
   const didMountRef = useRef(false);
 
   const fetchTemplate = async () => {
-    if (!user) {
-      setLoading(false);
-      toast.error('You must be logged in to load the offer template.');
+  // Hard guard: never proceed without a valid user object
+  if (!user || !user.id) {
+    console.warn('OfferTemplateManager: user not ready, skipping fetch');
+    setLoading(false);
+    setTemplateContent('');
+    return;
+  }
+
+  try {
+    setLoading(true);
+    const res = await window.electronAPI.readOfferTemplate({ user });
+
+    if (!res || res.success === false) {
+      if (res?.error === 'AUTH_REQUIRED') {
+        toast.error('You must be logged in to load the offer template.');
+      } else if (res?.error === 'ACCESS_DENIED') {
+        toast.error('You do not have permission to edit offer templates.');
+      } else {
+        toast.error(res?.error || 'Failed to read template file.');
+      }
       setTemplateContent('');
       return;
     }
 
-    try {
-      setLoading(true);
-      const res = await window.electronAPI.readOfferTemplate({ user });
-
-      if (!res || res.success === false) {
-        if (res?.error === 'AUTH_REQUIRED') {
-          toast.error('You must be logged in to load the offer template.');
-          setTemplateContent('');
-          return;
-        }
-        if (res?.error === 'ACCESS_DENIED') {
-          toast.error('You do not have permission to edit offer templates.');
-          setTemplateContent('');
-          return;
-        }
-        toast.error(res?.error || 'Failed to read template file.');
-        setTemplateContent('');
-        return;
-      }
-
-      if (!res.data || res.data.trim() === '') {
-        setTemplateContent(DEFAULT_TEMPLATE);
-        toast('Loaded default template (file was empty).', { icon: 'ℹ️' });
-      } else {
-        setTemplateContent(res.data);
-        toast.success('Template loaded successfully.');
-      }
-    } catch (err) {
-      console.error('readOfferTemplate failed', err);
-      toast.error('Unexpected error while reading template.');
-      setTemplateContent('');
-    } finally {
-      setLoading(false);
+    if (!res.data || res.data.trim() === '') {
+      setTemplateContent(DEFAULT_TEMPLATE);
+      toast('Loaded default template (file was empty).', { icon: 'ℹ️' });
+    } else {
+      setTemplateContent(res.data);
+      toast.success('Template loaded successfully.');
     }
-  };
+  } catch (err) {
+    console.error('readOfferTemplate failed', err);
+    toast.error('Unexpected error while reading template.');
+    setTemplateContent('');
+  } finally {
+    setLoading(false);
+  }
+};
 
-  useEffect(() => {
-    if (!didMountRef.current && user) {
-      didMountRef.current = true;
-      fetchTemplate();
-    }
-  }, [user]);
+
+useEffect(() => {
+  if (!didMountRef.current && user && user.id) {
+    didMountRef.current = true;
+    fetchTemplate();
+  }
+}, [user]);
+
 
   const handleSave = async () => {
     if (!user) {

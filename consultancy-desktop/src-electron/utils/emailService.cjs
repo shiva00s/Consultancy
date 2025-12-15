@@ -14,7 +14,7 @@ class EmailService {
    */
   async initialize(config) {
     try {
-      this.transporter = nodemailer.createTransporter({
+      this.transporter = nodemailer.createTransport({
         host: config.host || 'smtp.gmail.com',
         port: config.port || 587,
         secure: config.secure || false,
@@ -177,7 +177,96 @@ class EmailService {
   }
 }
 
+/**
+ * ✅ FIXED: Send Activation Email (Standalone Function)
+ * This function works independently of the EmailService class
+ */
+async function sendActivationEmail({ to, machineId, activationCode, expiresIn }) {
+  // ✅ FIX: Use getDb() function to get database instance
+  const { getDb } = require('../db/database.cjs');
+  const db = getDb();
+
+  // Get SMTP settings
+  const smtpSettings = db.prepare('SELECT * FROM smtp_settings ORDER BY id DESC LIMIT 1').get();
+
+  if (!smtpSettings || !smtpSettings.is_configured) {
+    throw new Error('SMTP is not configured');
+  }
+
+  // Create transporter
+  const transporter = nodemailer.createTransport({
+    host: smtpSettings.host,
+    port: smtpSettings.port,
+    secure: smtpSettings.port === 465,
+    auth: {
+      user: smtpSettings.user,
+      pass: smtpSettings.pass,
+    },
+  });
+
+  const mailOptions = {
+    from: smtpSettings.from_email || smtpSettings.user,
+    to: to,
+    subject: 'Consultancy App - Activation Code',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #6366f1; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { padding: 30px; background: #f9fafb; border: 1px solid #e5e7eb; }
+          .code-box { background: white; border: 2px dashed #6366f1; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px; }
+          .code { font-size: 36px; font-weight: bold; color: #6366f1; letter-spacing: 8px; font-family: 'Courier New', monospace; }
+          .info-box { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 15px 0; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; background: #f3f4f6; border-radius: 0 0 8px 8px; }
+          .warning { color: #dc2626; font-weight: bold; background: #fee2e2; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0;">🔐 Consultancy App Activation</h1>
+          </div>
+          <div class="content">
+            <h2 style="color: #1f2937;">Your Activation Code</h2>
+            <p>You have requested an activation code for the <strong>Consultancy Desktop Application</strong>.</p>
+            
+            <div class="code-box">
+              <p style="margin: 0; font-size: 14px; color: #6b7280;">ACTIVATION CODE</p>
+              <div class="code">${activationCode}</div>
+            </div>
+            
+            <div class="info-box">
+              <p style="margin: 5px 0;"><strong>Machine ID:</strong> <code>${machineId}</code></p>
+              <p style="margin: 5px 0;"><strong>Valid for:</strong> ${expiresIn}</p>
+            </div>
+            
+            <div class="warning">
+              ⚠️ Do not share this code with anyone. This is a security-sensitive operation.
+            </div>
+            
+            <p style="color: #6b7280; font-size: 14px;">If you did not request this code, please contact support immediately at <strong>+91 9629 881 598</strong>.</p>
+          </div>
+          <div class="footer">
+            <p style="margin: 5px 0;">© ${new Date().getFullYear()} Consultancy App. All rights reserved.</p>
+            <p style="margin: 5px 0;">📞 Support: +91 9629 881 598 | 📧 prakashshiva368@gmail.com</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  };
+
+  return transporter.sendMail(mailOptions);
+}
+
 // Singleton instance
 const emailService = new EmailService();
 
-module.exports = { emailService, EmailService };
+module.exports = {
+  sendActivationEmail,
+  emailService,
+  EmailService
+};

@@ -10,12 +10,12 @@ async function runMigrations() {
       // Create migrations table if not exists
       db.run(
         `
-                CREATE TABLE IF NOT EXISTS migrations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE NOT NULL,
-                    applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            `,
+        CREATE TABLE IF NOT EXISTS migrations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT UNIQUE NOT NULL,
+          applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `,
         async (err) => {
           if (err) {
             console.error("Failed to create migrations table:", err);
@@ -40,7 +40,7 @@ async function runMigrations() {
               migrationFiles = fs
                 .readdirSync(migrationsDir)
                 .filter((f) => f.endsWith(".cjs"))
-                .sort(); // Sort to ensure order
+                .sort();
             }
 
             console.log(`📋 Found ${migrationFiles.length} migration files`);
@@ -72,14 +72,14 @@ async function runMigrations() {
                       (err) => {
                         if (err) rej(err);
                         else res();
-                      },
+                      }
                     );
                   });
 
                   console.log(`✅ Successfully applied: ${migrationName}`);
                 } else {
                   console.warn(
-                    `⚠️  Migration ${migrationName} missing applyMigration function`,
+                    `⚠️  Migration ${migrationName} missing applyMigration function`
                   );
                 }
               } catch (migErr) {
@@ -94,7 +94,7 @@ async function runMigrations() {
             console.error("Migration process failed:", error);
             reject(error);
           }
-        },
+        }
       );
     });
   });

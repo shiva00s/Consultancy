@@ -1372,14 +1372,14 @@ ipcMain.handle('delete-permanently', async (event, { user, id, targetType }) => 
 // ====================================================================
 ipcMain.handle('read-offer-template', async (event, payload = {}) => {
   try {
+    console.log('read-offer-template payload:', payload);
+
     const { user } = payload;
 
-    // Require user
     if (!user) {
       return { success: false, error: 'AUTH_REQUIRED' };
     }
 
-    // Admin & SuperAdmin can read SETTINGS
     guard(user).enforce(FEATURES.SETTINGS);
 
     const templatePath = path.join(
@@ -1399,6 +1399,7 @@ ipcMain.handle('read-offer-template', async (event, payload = {}) => {
     return { success: false, error: err.code || err.message };
   }
 });
+
 
 ipcMain.handle('write-offer-template', async (event, payload = {}) => {
   try {

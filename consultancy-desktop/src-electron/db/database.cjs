@@ -1,4 +1,4 @@
-// src-electron/db/mainSchema.cjs
+// src-electron/db/database.cjs
 const { app } = require('electron');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
@@ -48,7 +48,43 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 3. LICENSE ACTIVATIONS
+      // 3. ✅ LICENSE ACTIVATION TABLES (FIXED)
+      // ========================================================================
+      dbInstance.run(`
+        CREATE TABLE IF NOT EXISTS license_activation (
+          machine_id TEXT PRIMARY KEY,
+          activated_at TEXT NOT NULL,
+          activated_by TEXT DEFAULT 'system',
+          notes TEXT
+        );
+      `);
+
+      dbInstance.run(`
+        CREATE TABLE IF NOT EXISTS activation_requests (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          machine_id TEXT NOT NULL,
+          activation_code TEXT NOT NULL,
+          expires_at TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          email TEXT,
+          used INTEGER DEFAULT 0,
+          used_at TEXT
+        );
+      `);
+
+      // Create indexes for activation tables
+      dbInstance.run(`
+        CREATE INDEX IF NOT EXISTS idx_activation_machine 
+        ON license_activation(machine_id);
+      `);
+
+      dbInstance.run(`
+        CREATE INDEX IF NOT EXISTS idx_activation_requests_machine 
+        ON activation_requests(machine_id, activation_code);
+      `);
+
+      // ========================================================================
+      // 4. OLD ACTIVATIONS TABLE (Keep for backwards compatibility)
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS activations (
@@ -61,7 +97,24 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 4. CANDIDATES
+      // 5. SMTP SETTINGS (IMPORTANT FOR EMAIL)
+      // ========================================================================
+      dbInstance.run(`
+        CREATE TABLE IF NOT EXISTS smtp_settings (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          host TEXT NOT NULL,
+          port INTEGER NOT NULL,
+          user TEXT NOT NULL,
+          pass TEXT NOT NULL,
+          from_email TEXT,
+          is_configured INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // ========================================================================
+      // 6. CANDIDATES
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS candidates (
@@ -83,7 +136,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 5. DOCUMENTS
+      // 7. DOCUMENTS
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS documents (
@@ -100,7 +153,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 6. CANDIDATE FILES
+      // 8. CANDIDATE FILES
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS candidate_files (
@@ -115,7 +168,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 7. EMPLOYERS
+      // 9. EMPLOYERS
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS employers (
@@ -131,7 +184,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 8. JOB ORDERS
+      // 10. JOB ORDERS
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS job_orders (
@@ -149,7 +202,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 9. PLACEMENTS
+      // 11. PLACEMENTS
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS placements (
@@ -166,7 +219,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 10. USER PERMISSIONS
+      // 12. USER PERMISSIONS
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS user_permissions (
@@ -178,7 +231,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 11. GRANULAR PERMISSIONS
+      // 13. GRANULAR PERMISSIONS
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS user_granular_permissions (
@@ -194,7 +247,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 12. PERMISSION MATRIX
+      // 14. PERMISSION MATRIX
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS permission_matrix (
@@ -207,7 +260,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 13. FEATURES
+      // 15. FEATURES
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS features (
@@ -220,7 +273,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 14. ADMIN-STAFF FEATURE ASSIGNMENTS
+      // 16. ADMIN-STAFF FEATURE ASSIGNMENTS
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS admin_staff_feature_assignments (
@@ -234,7 +287,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 15. SUPERADMIN ADMIN FEATURE TOGGLES
+      // 17. SUPERADMIN ADMIN FEATURE TOGGLES
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS superadmin_admin_feature_toggles (
@@ -245,7 +298,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 16. ADMIN FEATURE ASSIGNMENTS (OLD - for compatibility)
+      // 18. ADMIN FEATURE ASSIGNMENTS
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS admin_feature_assignments (
@@ -258,7 +311,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 17. MENU VISIBILITY
+      // 19. MENU VISIBILITY
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS menu_visibility (
@@ -271,7 +324,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 18. PASSPORT TRACKING
+      // 20. PASSPORT TRACKING
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS passport_tracking (
@@ -292,7 +345,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 19. VISA TRACKING
+      // 21. VISA TRACKING
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS visa_tracking (
@@ -315,7 +368,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 20. INTERVIEW TRACKING
+      // 22. INTERVIEW TRACKING
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS interview_tracking (
@@ -334,7 +387,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 21. MEDICAL TRACKING
+      // 23. MEDICAL TRACKING
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS medical_tracking (
@@ -351,7 +404,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 22. TRAVEL TRACKING
+      // 24. TRAVEL TRACKING
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS travel_tracking (
@@ -370,7 +423,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 23. PAYMENTS
+      // 25. PAYMENTS
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS payments (
@@ -388,7 +441,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 24. AUDIT LOG
+      // 26. AUDIT LOG
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS audit_log (
@@ -406,7 +459,6 @@ function setupDatabase(dbInstance) {
         );
       `);
 
-      // Create indexes for audit_log
       dbInstance.run(`
         CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id);
       `);
@@ -418,7 +470,21 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 25. REQUIRED DOCUMENTS
+      // 27. SYSTEM AUDIT LOG (Additional)
+      // ========================================================================
+      dbInstance.run(`
+        CREATE TABLE IF NOT EXISTS system_audit_log (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          event_type TEXT NOT NULL,
+          user_id INTEGER,
+          details TEXT,
+          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+        );
+      `);
+
+      // ========================================================================
+      // 28. REQUIRED DOCUMENTS
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS required_documents (
@@ -430,22 +496,21 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 26. COMMUNICATION LOGS
+      // 29. COMMUNICATION LOGS
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS communication_logs (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           candidate_id INTEGER,
           user_id INTEGER,
-          communication_type TEXT,   
-          details TEXT,     
+          communication_type TEXT,
+          details TEXT,
           createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE SET NULL,
           FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
         );
       `);
 
-      // Create indexes for communication_logs
       dbInstance.run(`
         CREATE INDEX IF NOT EXISTS idx_comm_logs_candidate ON communication_logs(candidate_id);
       `);
@@ -454,7 +519,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 27. BUSINESS THEME
+      // 30. BUSINESS THEME
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS business_theme (
@@ -465,7 +530,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 28. FEATURE FLAGS
+      // 31. FEATURE FLAGS
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS feature_flags (
@@ -479,7 +544,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 29. USER FEATURES (Junction Table)
+      // 32. USER FEATURES (Junction Table)
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS user_features (
@@ -494,44 +559,46 @@ function setupDatabase(dbInstance) {
         );
       `);
 
-      // ============================================================
-// 30. REMINDERS (for medical/interview/travel/etc.)
-// ============================================================
-dbInstance.run(`
-  CREATE TABLE IF NOT EXISTS reminders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    candidate_id INTEGER,
-    module TEXT NOT NULL,          -- 'medical' | 'interview' | 'travel' | 'visa' etc.
-    title TEXT NOT NULL,
-    message TEXT NOT NULL,
-    remind_at TEXT NOT NULL,       -- ISO datetime string
-    delivered INTEGER DEFAULT 0,   -- 0=pending, 1=already fired
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE CASCADE
-  );
-`);
-dbInstance.run(`
-  CREATE TABLE IF NOT EXISTS notifications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    message TEXT NOT NULL,
-    type TEXT DEFAULT 'info',
-    priority TEXT DEFAULT 'normal',
-    link TEXT,
-    candidate_id INTEGER,
-    action_required INTEGER DEFAULT 0,
-    read INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE SET NULL
-  );
-`);
-
-
-      // Create index for user_features
       dbInstance.run(`
         CREATE INDEX IF NOT EXISTS idx_user_features_user ON user_features(user_id);
+      `);
+
+      // ========================================================================
+      // 33. REMINDERS
+      // ========================================================================
+      dbInstance.run(`
+        CREATE TABLE IF NOT EXISTS reminders (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          candidate_id INTEGER,
+          module TEXT NOT NULL,
+          title TEXT NOT NULL,
+          message TEXT NOT NULL,
+          remind_at TEXT NOT NULL,
+          delivered INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE CASCADE
+        );
+      `);
+
+      // ========================================================================
+      // 34. NOTIFICATIONS
+      // ========================================================================
+      dbInstance.run(`
+        CREATE TABLE IF NOT EXISTS notifications (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          message TEXT NOT NULL,
+          type TEXT DEFAULT 'info',
+          priority TEXT DEFAULT 'normal',
+          link TEXT,
+          candidate_id INTEGER,
+          action_required INTEGER DEFAULT 0,
+          read INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE SET NULL
+        );
       `);
 
       // Commit transaction
@@ -576,7 +643,6 @@ function runMigrations(dbInstance) {
                 return reject(err);
               }
               
-              // Add index for performance
               dbInstance.run(
                 `CREATE INDEX IF NOT EXISTS idx_audit_candidate ON audit_log(candidate_id);`,
                 (err) => {
@@ -627,10 +693,8 @@ function initializeDatabase() {
           .then((db) => runMigrations(db))
           .then((db) => ensureInitialUserAndRoles(db))
           .then((db) => {
-            // ✅ Set global.db BEFORE seeding
             global.db = db;
             
-            // Now load and seed features
             const { seedFeatureFlags } = require('./initialDataSeeder.cjs');
             return seedFeatureFlags(db).then(() => db);
           })
@@ -738,6 +802,6 @@ function closeDatabase() {
 module.exports = {
   initializeDatabase,
   getDatabase,
-  getDb: getDatabase, // Alias for compatibility
+  getDb: getDatabase,
   closeDatabase,
 };
