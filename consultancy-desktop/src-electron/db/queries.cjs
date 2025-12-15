@@ -1,5 +1,4 @@
 const { getDatabase } = require("./schema/database.cjs");
-const { validateVerhoeff } = require("../utils/validators.cjs");
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
 
@@ -82,9 +81,13 @@ function mapErrorToFriendly(err) {
     if (msg.toLowerCase().includes("contact")) {
       return "Duplicate contact number found.";
     }
-    if (msg.toLowerCase().includes("username")) {
-      return "Username already exists.";
-    }
+    if (
+  msg.toLowerCase().includes("username") ||
+  msg.toLowerCase().includes("users.username")
+) {
+  return "Username already exists.";
+}
+
     return "Duplicate entry found. Please check your details.";
   }
 
@@ -253,7 +256,7 @@ async function login(username, password) {
       };
     }
   } catch (err) {
-    console.error("Login Error:", err.message);
+    
     return {
       success: false,
       error: mapErrorToFriendly("A database or password error occurred."),
@@ -294,7 +297,7 @@ async function registerNewUser(username, password, role) {
         error: mapErrorToFriendly("Username already exists."),
       };
     }
-    console.error("Registration DB Run Error:", dbErr);
+    
     return { success: false, error: mapErrorToFriendly(dbErr) };
   }
 }
@@ -314,11 +317,11 @@ async function getAllUsers() {
   }
 }
 
-// ✅ FIXED VERSION - Use this EXACT code
+// ✅ ADD USER (Create) - FINAL FIXED VERSION
 async function addUser(username, password, role) {
   const db = getDatabase();
   
-  // Validation only (no permission checks)
+  // Validation
   const errors = {};
   
   if (validateRequired(username, 'Username')) {
@@ -345,9 +348,9 @@ async function addUser(username, password, role) {
     // Hash the password
     const hash = await bcrypt.hash(password, saltRounds);
     
-    // ✅ FIXED: Correct column order - username, password, role
+    // Insert user with correct parameter array format
     const sql = `INSERT INTO users (username, password, role) VALUES (?, ?, ?)`;
-    const result = await dbRun(db, sql, username, hash, role);
+    const result = await dbRun(db, sql, [username, hash, role]);
     
     return { 
       success: true, 
@@ -358,7 +361,6 @@ async function addUser(username, password, role) {
       } 
     };
   } catch (dbErr) {
-    // Handle duplicate username
     if (dbErr.message.includes('UNIQUE constraint failed')) {
       return { 
         success: false, 
@@ -366,13 +368,15 @@ async function addUser(username, password, role) {
       };
     }
     
-    console.error('❌ Add User DB Run Error:', dbErr);
+    console.error('❌ Add User DB Error:', dbErr);
     return { 
       success: false, 
       error: mapErrorToFriendly(dbErr) 
     };
   }
 }
+
+
 
 
 // MODIFIED: Use structured error return

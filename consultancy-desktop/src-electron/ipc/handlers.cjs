@@ -297,141 +297,41 @@ ipcMain.handle('get-user-permissions', async (event, { userId }) => {
     ipcMain.handle('login', (event, { username, password }) => {
         return queries.login(username, password);
     });
-
     ipcMain.handle('register-new-user', (event, { username, password, role }) => {
         return queries.registerNewUser(username, password, role);
     });
-
     ipcMain.handle('get-all-users', (event) => {
         return queries.getAllUsers();
     });
-    
-    
     ipcMain.handle('add-user', async (event, { user, username, password, role }) => {
   try {
-    console.log('🔍 add-user called with:', { 
-      userId: user?.id, 
-      userRole: user?.role,
-      targetUsername: username,
-      targetRole: role 
-    });
-
-    // Authentication & Validation
+    // ✅ FIX: Manual permission check instead of using guard
     if (!user || !user.id) {
-      return { 
-        success: false, 
-        error: 'Authentication required. Please log in again.' 
-      };
+      return { success: false, error: 'Authentication required.' };
+    }
+
+    // Only Admin and SuperAdmin can add users
+    if (user.role !== 'super_admin' && user.role !== 'admin') {
+      return { success: false, error: 'ACCESS_DENIED: Only Admin and Super Admin can add users.' };
+    }
+
+    // Admin can only add Staff users
+    if (user.role === 'admin' && role !== 'staff') {
+      return { success: false, error: 'ACCESS_DENIED: Admins can only add Staff users.' };
+    }
+
+    // Proceed with adding user
+    const result = await queries.addUser(username, password, role);
+    
+    if (result.success) {
+      logAction(user, 'create-user', 'users', result.data.id, `Username: ${username}, Role: ${role}`);
     }
     
-    if (!user.role) {
-      return { 
-        success: false, 
-        error: 'User role information missing.' 
-      };
-    }
-
-    if (!username || !password || !role) {
-      return {
-        success: false,
-        error: 'Username, password, and role are required.'
-      };
-    }
-
-    // ✅ Normalize role - handles all variations
-    const normalizeRole = (roleString) => {
-      return String(roleString)
-        .toLowerCase()
-        .replace(/\s+/g, '')
-        .replace(/[()_-]/g, '') // Also remove underscores and hyphens
-        .trim();
-    };
-
-    const currentUserRole = normalizeRole(user.role);
-    const targetRole = normalizeRole(role);
-
-    console.log('🔍 Normalized roles:', { currentUserRole, targetRole });
-
-    // ✅ Super Admin - Full Access
-    if (currentUserRole === 'superadmin') {
-      console.log('✅ Super Admin detected - granting access');
-      
-      const result = await queries.addUser(username, password, role);
-      
-      if (result.success) {
-        await logAction(
-          user, 
-          'create-user', 
-          'users', 
-          result.data.id, 
-          `Created user: ${username} (Role: ${role})`
-        );
-      }
-      
-      return result;
-    }
-
-    // ✅ Admin - Granular Permission Check
-    if (currentUserRole === 'admin') {
-      console.log('🔍 Admin user - checking permissions');
-      
-      const db = getDatabase();
-      
-      const permission = await db.get(
-        `SELECT enabled FROM user_granular_permissions 
-         WHERE userid = ? AND permissionkey = 'settings_users'`,
-        [user.id]
-      );
-
-      console.log('🔍 Permission check result:', permission);
-
-      if (!permission || permission.enabled !== 1) {
-        return {
-          success: false,
-          error: 'ACCESS_DENIED: You do not have permission to manage users. Please contact Super Admin.'
-        };
-      }
-
-      // Admin can ONLY create Staff users
-      if (targetRole !== 'staff') {
-        return {
-          success: false,
-          error: 'ACCESS_DENIED: You can only create Staff users. Contact Super Admin to create Admin users.'
-        };
-      }
-
-      const result = await queries.addUser(username, password, role);
-      
-      if (result.success) {
-        await logAction(
-          user, 
-          'create-user', 
-          'users', 
-          result.data.id, 
-          `Created staff user: ${username}`
-        );
-      }
-      
-      return result;
-    }
-
-    // ✅ Staff/Other Roles - Deny Access
-    console.log('❌ Access denied - not admin or super admin');
-    
-    return {
-      success: false,
-      error: 'ACCESS_DENIED: Only Admin and Super Admin can create users.'
-    };
-
+    return result;
   } catch (err) {
-    console.error('❌ Error in add-user handler:', err);
-    return { 
-      success: false, 
-      error: 'Failed to create user. Please try again.' 
-    };
+    return { success: false, error: err.code || err.message };
   }
 });
-
 
 // ====================================================================
     ipcMain.handle('reset-user-password', async (event, { user, id, newPassword }) => {
@@ -783,7 +683,7 @@ ipcMain.handle("get-system-audit-log", async (event, { user, userFilter, actionF
         
         // Check if user is admin or super_admin
         const normalizedRole = user.role?.toLowerCase().replace('_', '');
-        if (!['admin', 'superadmin'].includes(normalizedRole)) {
+        if (!['admin', 'super_admin'].includes(normalizedRole)) {
             return {
                 success: false,
                 error: `Access Denied: Only admins can access audit logs. Your role: ${user.role}`
@@ -2631,7 +2531,7 @@ ipcMain.handle('audit:get-system-log', async (event, params) => {
     }
     
     // Check for admin/super_admin access
-    if (currentAuthUser.role === 'superadmin' || currentAuthUser.role === 'super_admin') {
+    if (currentAuthUser.role === 'super_admin' ) {
       // Super admin access granted
     } else if (currentAuthUser.role === 'admin') {
       // Admin access granted

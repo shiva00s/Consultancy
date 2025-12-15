@@ -10,7 +10,7 @@
 // Role Definitions
 // -----------------------------
 const ROLES = Object.freeze({
-  SUPER_ADMIN: 'superadmin',
+  SUPER_ADMIN: 'super_admin',
   ADMIN: 'admin',
   STAFF: 'staff',
 });

@@ -4,7 +4,7 @@
 export const hasPermission = (role, permissions, key) => {
   // Super admin always has full access
   if (!role) return false;
-  if (role.toLowerCase() === 'superadmin' || role.toLowerCase() === 'super_admin') {
+  if (role.toLowerCase() === 'super_admin' || role.toLowerCase() === 'super_admin') {
     return true;
   }
 

@@ -41,7 +41,7 @@ const seedInitialData = (db) => {
 
                     db.run(
                         `INSERT INTO users (username, password, role, features) VALUES (?, ?, ?, ?)`,
-                        ['superadmin', hash, 'super_admin', JSON.stringify(defaultFeatures)],
+                        ['super_admin', hash, 'super_admin', JSON.stringify(defaultFeatures)],
                         function(insertErr) {
                             if (insertErr) {
                                 console.error('Failed to insert initial super admin:', insertErr.message);

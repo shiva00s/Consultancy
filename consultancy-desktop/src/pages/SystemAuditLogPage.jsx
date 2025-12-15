@@ -87,7 +87,7 @@ function SystemAuditLogPage() {
         // Normalize role names
         const normalizedRole = user.role?.toLowerCase().replace('_', '');
         
-        if (!['admin', 'superadmin'].includes(normalizedRole)) {
+        if (!['admin', 'super_admin'].includes(normalizedRole)) {
             setError(`Access denied. Your role (${user.role}) cannot access audit logs.`);
             setLoading(false);
             return;
@@ -122,7 +122,7 @@ function SystemAuditLogPage() {
     }
     
     const normalizedRole = user.role?.toLowerCase().replace('_', '');
-    if (!['admin', 'superadmin'].includes(normalizedRole)) {
+    if (!['admin', 'super_admin'].includes(normalizedRole)) {
         return (
             <div className="reports-page-container">
                 <div className="form-message error">
