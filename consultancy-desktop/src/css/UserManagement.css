@@ -1,0 +1,273 @@
+.user-management-shell {
+  padding: 1.6rem 1.7rem;
+}
+
+/* header */
+
+.user-management-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.3rem;
+}
+
+.user-management-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+}
+
+.user-management-title-emoji {
+  font-size: 1.2rem;
+}
+
+.user-management-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+/* add form – 1 row, 4 columns (Username | Password | Role | Button) */
+
+.user-add-section h2 {
+  font-size: 1rem;
+  margin-bottom: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.user-add-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) minmax(180px, 2fr) minmax(170px, 1.5fr) minmax(160px, 1.2fr);
+  gap: 18px;
+  align-items: end;
+}
+
+.user-add-form .form-group {
+  margin-bottom: 0;
+}
+
+.user-add-button-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-add-button-cell .btn {
+  width: 100%;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* inputs inside this block inherit global settings forms from SettingsPage */
+
+.user-add-form input,
+.user-add-form select {
+  min-height: 46px;
+}
+
+/* list section */
+
+.user-list-section {
+  margin-top: 2rem;
+}
+
+.user-list-section h3 {
+  font-size: 0.95rem;
+  margin-bottom: 0.9rem;
+  color: var(--text-primary);
+}
+
+/* one row, 3 columns for chips */
+
+.user-row-3cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+/* user chip – soft glass look */
+
+.user-chip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-input) 75%, transparent 25%);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(14px);
+}
+
+/* light theme chip tweak */
+
+html[data-theme='light'] .user-chip {
+  background: color-mix(in srgb, #ffffff 88%, #e5e7eb 12%);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.1);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.user-chip-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-chip-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.user-name-row {
+  font-size: 0.96rem;
+  color: var(--text-primary);
+}
+
+.user-avatar-pill {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: radial-gradient(circle at top, #38bdf8, #1d4ed8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #e5f2ff;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.7);
+}
+
+/* light avatar */
+
+html[data-theme='light'] .user-avatar-pill {
+  background: radial-gradient(circle at top, #38bdf8, #93c5fd);
+  color: #0f172a;
+  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.38);
+}
+
+.user-role-pill {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+
+/* actions */
+
+.user-chip-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.user-chip-actions .doc-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.18s ease;
+}
+
+/* light buttons */
+
+html[data-theme='light'] .user-chip-actions .doc-btn {
+  background-color: #f8fafc;
+  border-color: rgba(148, 163, 184, 0.45);
+}
+
+.user-chip-actions .doc-btn:hover:not(:disabled) {
+  background-color: var(--bg-card, var(--bg-secondary));
+  color: var(--text-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.7);
+}
+
+.user-chip-actions .doc-btn.delete:hover:not(:disabled) {
+  background-color: var(--danger-color);
+  color: #ffffff;
+  border-color: var(--danger-color);
+}
+
+/* empty */
+
+.user-empty-state {
+  padding: 1.2rem;
+  border-radius: 12px;
+  border: 1px dashed var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* responsive */
+
+@media (max-width: 1100px) {
+  .user-add-form {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .user-add-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1000px) {
+  .user-row-3cols {
+    grid-template-columns: 1fr;
+  }
+}
+/* smaller, emoji-friendly subtitle under main title */
+.user-management-sub span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* highlight headings with emojis a bit more */
+.user-add-section h2,
+.user-list-section h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* make role pill subtly colorful */
+html[data-theme='light'] .user-role-pill {
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+}
+
+html[data-theme='dark'] .user-role-pill {
+  background: rgba(148, 163, 184, 0.25);
+}
+
+/* ensure emoji buttons look centered */
+.user-chip-actions .doc-btn {
+  font-size: 0.9rem;
+}

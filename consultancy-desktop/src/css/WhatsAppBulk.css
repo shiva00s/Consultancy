@@ -1,4 +1,5 @@
-/* WhatsAppBulk.css – matches System Audit Log layout, dark/light via tokens. */
+/* WhatsAppBulk.css – enhanced glassy cards, tab strip, and table */
+
 
 /* ===== PAGE SHELL ===== */
 
@@ -30,7 +31,68 @@
   color: var(--text-secondary);
 }
 
-/* ===== TABS BAR ===== */
+/* ===== APPLICATION-SETTINGS STYLE TABS (TOP STRIP) ===== */
+
+.wa-tabs-strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  margin-top: var(--space-md);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 4px;
+}
+
+.wa-strip-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--transition-fast),
+    transform var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.wa-strip-tab svg {
+  font-size: 1rem;
+}
+
+.wa-strip-tab::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 2px;
+  background: transparent;
+  border-radius: 999px;
+  transform-origin: left;
+  transform: scaleX(0.6);
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.wa-strip-tab.active {
+  color: var(--text-primary);
+}
+
+.wa-strip-tab.active::after {
+  background: var(--accent, #3b82f6);
+  transform: scaleX(1);
+}
+
+.wa-strip-tab:hover:not(.active) {
+  color: var(--text-primary);
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* ===== LEGACY PILLS BAR (IF REUSED ANYWHERE) ===== */
 
 .wa-tabs-bar {
   display: inline-flex;
@@ -85,16 +147,31 @@
 }
 
 .wa-tab-panel {
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
 }
 
-/* Filters panel shell */
+/* Filters panel shell – glassy card */
+
 .wa-filters-shell {
-  background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
-  padding: 8px 10px;
+  background: linear-gradient(
+      135deg,
+      rgba(148, 163, 184, 0.08),
+      rgba(15, 23, 42, 0.35)
+    );
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.55);
+  padding: 10px 12px;
+  backdrop-filter: blur(18px);
+}
+
+[data-theme="light"] .wa-filters-shell {
+  background: linear-gradient(
+      135deg,
+      rgba(248, 250, 252, 0.85),
+      rgba(226, 232, 240, 0.9)
+    );
+  box-shadow: 0 14px 32px rgba(148, 163, 184, 0.55);
 }
 
 .wa-filters-shell .report-filter-bar {
@@ -115,9 +192,12 @@
   padding: 0 8px;
   min-height: 36px;
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(148, 163, 184, 0.45);
+  border: 1px solid rgba(148, 163, 184, 0.4);
   background: var(--bg-input);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.35);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.35);
+  transition: border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .wa-filters-shell .filter-field svg {
@@ -135,6 +215,12 @@
   font-size: 0.88rem;
 }
 
+.wa-filters-shell .filter-field:focus-within {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.26);
+  transform: translateY(-1px);
+}
+
 .wa-filters-shell .btn {
   height: 36px;
   border-radius: var(--radius-lg);
@@ -142,15 +228,31 @@
   font-size: 0.85rem;
 }
 
-/* WhatsApp panel shell */
+/* WhatsApp panel shell – glass card */
+
 .wa-whatsapp-shell {
-  background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
-  padding: 8px 10px;
+  background: linear-gradient(
+      135deg,
+      rgba(34, 197, 94, 0.05),
+      rgba(15, 23, 42, 0.6)
+    );
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.6);
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
+  backdrop-filter: blur(16px);
+}
+
+[data-theme="light"] .wa-whatsapp-shell {
+  background: linear-gradient(
+      135deg,
+      rgba(240, 253, 244, 0.9),
+      rgba(220, 252, 231, 0.9)
+    );
+  border-color: rgba(34, 197, 94, 0.3);
+  box-shadow: 0 14px 32px rgba(34, 197, 94, 0.2);
 }
 
 /* Inner WhatsApp layout */
@@ -184,12 +286,15 @@
   gap: 6px;
   transition: background var(--transition-fast),
     border-color var(--transition-fast),
-    transform var(--transition-fast);
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .media-upload-button:hover {
   background: var(--bg-hover);
+  border-color: var(--border-focus);
   transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.4);
 }
 
 .media-preview-box {
@@ -233,7 +338,8 @@
   font-family: inherit;
   resize: vertical;
   transition: border-color var(--transition-fast),
-    box-shadow var(--transition-fast);
+    box-shadow var(--transition-fast),
+    background var(--transition-fast);
 }
 
 .whatsapp-message::placeholder {
@@ -245,6 +351,7 @@
   border-color: var(--border-focus);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
   outline: none;
+  background: var(--bg-secondary);
 }
 
 .whatsapp-send-inside {
@@ -266,7 +373,7 @@
     transform var(--transition-fast),
     box-shadow var(--transition-fast);
   margin-top: 6px;
-  box-shadow: 0 6px 14px rgba(34, 197, 94, 0.35);
+  box-shadow: 0 10px 26px rgba(34, 197, 94, 0.5);
 }
 
 .whatsapp-send-inside:hover {
@@ -295,10 +402,25 @@
 }
 
 .report-table-container {
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
-  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: linear-gradient(
+      135deg,
+      rgba(15, 23, 42, 0.98),
+      rgba(15, 23, 42, 0.9)
+    );
   overflow: hidden;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(14px);
+}
+
+[data-theme="light"] .report-table-container {
+  background: linear-gradient(
+      135deg,
+      rgba(248, 250, 252, 0.98),
+      rgba(241, 245, 249, 0.96)
+    );
+  box-shadow: 0 14px 32px rgba(148, 163, 184, 0.45);
 }
 
 .report-table {
@@ -323,11 +445,11 @@
   letter-spacing: 0.06em;
 }
 
-[data-theme='dark'] .report-table tbody tr:hover {
+[data-theme="dark"] .report-table tbody tr:hover {
   background: #020617;
 }
 
-[data-theme='light'] .report-table tbody tr:hover {
+[data-theme="light"] .report-table tbody tr:hover {
   background: #f1f5f9;
 }
 
@@ -341,12 +463,14 @@
   font-size: 0.8rem;
   background: var(--bg-input);
   color: var(--text-primary);
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .single-wa-message:focus {
   border-color: var(--border-focus);
   outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
 }
 
 .single-wa-btn {
@@ -370,8 +494,8 @@
 
 /* Checkbox sizing */
 
-.report-table td input[type='checkbox'],
-.report-table th input[type='checkbox'] {
+.report-table td input[type="checkbox"],
+.report-table th input[type="checkbox"] {
   width: 16px;
   height: 16px;
 }
@@ -389,12 +513,11 @@
     padding: var(--space-md);
   }
 
-  .wa-tabs-bar {
-    width: 100%;
-    justify-content: space-between;
+  .wa-tabs-strip {
+    gap: 16px;
   }
 
-  .wa-tab-btn span {
+  .wa-strip-tab span {
     display: none; /* icons only on very small screens */
   }
 
@@ -402,57 +525,31 @@
     width: 100px;
   }
 }
-/* ===== APPLICATION-SETTINGS STYLE TABS ===== */
-
-.wa-tabs-strip {
-  display: flex;
-  align-items: flex-end;
-  gap: 24px;
-  margin-top: var(--space-md);
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 4px;
-}
-
-.wa-strip-tab {
-  position: relative;
+.single-wa-btn {
+  background: radial-gradient(circle at 30% 30%, #ffffff 0, #ffffff 18%, #22c55e 18%, #16a34a 100%);
+  border: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 0;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 0.95rem;
-  font-weight: 500;
+  justify-content: center;
   cursor: pointer;
-  transition: color var(--transition-fast);
+  font-size: 16px;      /* emoji size */
+  box-shadow: 0 8px 18px rgba(34, 197, 94, 0.45);
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast),
+    filter var(--transition-fast);
 }
 
-.wa-strip-tab svg {
-  font-size: 1rem;
+.single-wa-btn:hover {
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 10px 24px rgba(34, 197, 94, 0.55);
+  filter: brightness(1.03);
 }
 
-.wa-strip-tab::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -4px;
-  height: 2px;
-  background: transparent;
-  border-radius: 999px;
-  transition: background var(--transition-fast), transform var(--transition-fast);
-  transform-origin: left;
-}
-
-.wa-strip-tab.active {
-  color: var(--text-primary);
-}
-
-.wa-strip-tab.active::after {
-  background: var(--accent, #3b82f6);
-}
-
-.wa-strip-tab:hover:not(.active) {
-  color: var(--text-primary);
+.single-wa-btn:active {
+  transform: scale(0.97);
+  box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4);
 }

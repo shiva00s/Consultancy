@@ -4,10 +4,9 @@ import {
   FiFileText,
   FiSend,
   FiFilter,
-  FiMessageCircle
+  FiMessageCircle,
 } from 'react-icons/fi';
 
-import '../css/ReportsPage.css';
 import '../css/WhatsAppBulk.css';
 
 import useDataStore from '../store/dataStore';
@@ -53,39 +52,41 @@ function WhatsAppBulkPage() {
     loadPositions();
   }, []);
 
- // ----- FETCH DATA (USED BY FILTERS + INITIAL LOAD) -----
-const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  // ----- FETCH DATA (USED BY FILTERS + INITIAL LOAD) -----
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
-const fetchData = useCallback(async () => {
-  const payload = {
-    user,
-    searchTerm: nameFilter,
-    position: positionFilter,
-    status: statusFilter,
-    employer: employerFilter,
-  };
+  const fetchData = useCallback(
+    async () => {
+      const payload = {
+        user,
+        searchTerm: nameFilter,
+        position: positionFilter,
+        status: statusFilter,
+        employer: employerFilter,
+      };
 
-  const listRes = await window.electronAPI.getDetailedReportList(payload);
+      const listRes = await window.electronAPI.getDetailedReportList(payload);
 
-  if (listRes.success) {
-    const rows = Array.isArray(listRes.data) ? listRes.data : [];
-    setList(rows);
+      if (listRes.success) {
+        const rows = Array.isArray(listRes.data) ? listRes.data : [];
+        setList(rows);
 
-    // Show success/error toast only after first load
-    if (hasLoadedOnce) {
-      if (rows.length > 0) {
-        toast.success(`Found ${rows.length} candidates.`);
+        // Show success/error toast only after first load
+        if (hasLoadedOnce) {
+          if (rows.length > 0) {
+            toast.success(`Found ${rows.length} candidates.`);
+          } else {
+            toast.error('No matching candidates.');
+          }
+        } else {
+          setHasLoadedOnce(true);
+        }
       } else {
-        toast.error('No matching candidates.');
+        toast.error(listRes.error || 'Failed to fetch data.');
       }
-    } else {
-      setHasLoadedOnce(true);
-    }
-  } else {
-    toast.error(listRes.error || 'Failed to fetch data.');
-  }
-}, [user, nameFilter, positionFilter, statusFilter, employerFilter, hasLoadedOnce]);
-
+    },
+    [user, nameFilter, positionFilter, statusFilter, employerFilter, hasLoadedOnce]
+  );
 
   // ----- INITIAL AUTO-LOAD FOR TABLE -----
   useEffect(() => {
@@ -137,7 +138,7 @@ const fetchData = useCallback(async () => {
       {/* Page header row – match Audit Log spacing */}
       <div className="wa-header-row">
         <div>
-          <h1 className="reports-title">WhatsApp Bulk Messaging</h1>
+          <h1 className="reports-title">📣 WhatsApp Bulk Messaging</h1>
           <p className="wa-header-subtitle">
             Send personalised WhatsApp messages to selected candidates in bulk.
           </p>
@@ -145,25 +146,24 @@ const fetchData = useCallback(async () => {
       </div>
 
       {/* Top tab row – like Application Settings */}
-<div className="wa-tabs-strip">
-  <button
-    type="button"
-    className={`wa-strip-tab ${activeTab === 'filters' ? 'active' : ''}`}
-    onClick={() => setActiveTab('filters')}
-  >
-    <FiFilter />
-    <span>Filters</span>
-  </button>
-  <button
-    type="button"
-    className={`wa-strip-tab ${activeTab === 'whatsapp' ? 'active' : ''}`}
-    onClick={() => setActiveTab('whatsapp')}
-  >
-    <FiMessageCircle />
-    <span>WhatsApp</span>
-  </button>
-</div>
-
+      <div className="wa-tabs-strip">
+        <button
+          type="button"
+          className={`wa-strip-tab ${activeTab === 'filters' ? 'active' : ''}`}
+          onClick={() => setActiveTab('filters')}
+        >
+          <FiFilter />
+          <span> Filters</span>
+        </button>
+        <button
+          type="button"
+          className={`wa-strip-tab ${activeTab === 'whatsapp' ? 'active' : ''}`}
+          onClick={() => setActiveTab('whatsapp')}
+        >
+          <FiMessageCircle />
+          <span> WhatsApp</span>
+        </button>
+      </div>
 
       {/* TAB CONTENT STRIP – full-width card like Audit Log content */}
       <div className="wa-tab-panels">
@@ -181,7 +181,7 @@ const fetchData = useCallback(async () => {
                   <FiSearch />
                   <input
                     type="text"
-                    placeholder="Search Name"
+                    placeholder="🔍 Search Name"
                     value={nameFilter}
                     onChange={(e) => setNameFilter(e.target.value)}
                   />
@@ -193,7 +193,7 @@ const fetchData = useCallback(async () => {
                     value={positionFilter}
                     onChange={(e) => setPositionFilter(e.target.value)}
                   >
-                    <option value="">All Positions</option>
+                    <option value="">📌 All Positions</option>
                     {positions.map((p) => (
                       <option key={p} value={p}>
                         {p}
@@ -208,7 +208,7 @@ const fetchData = useCallback(async () => {
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                   >
-                    <option value="">All Statuses</option>
+                    <option value="">📊 All Statuses</option>
                     {statusOptions.map((opt) => (
                       <option key={opt} value={opt}>
                         {opt}
@@ -223,7 +223,7 @@ const fetchData = useCallback(async () => {
                     value={employerFilter}
                     onChange={(e) => setEmployerFilter(e.target.value)}
                   >
-                    <option value="">All Employers</option>
+                    <option value="">🏢 All Employers</option>
                     {employers.map((emp) => (
                       <option key={emp.id} value={emp.companyName}>
                         {emp.companyName}
@@ -233,14 +233,14 @@ const fetchData = useCallback(async () => {
                 </div>
 
                 <button type="submit" className="btn btn-primary">
-                  Apply Filters
+                  Apply Filters ✅
                 </button>
                 <button
                   type="button"
                   className="btn btn-danger"
                   onClick={handleClearFilters}
                 >
-                  Clear
+                  Clear ✖
                 </button>
               </form>
             </div>
@@ -280,14 +280,17 @@ const fetchData = useCallback(async () => {
 
                 <textarea
                   className="whatsapp-message"
-                  placeholder="Type WhatsApp message here..."
+                  placeholder="✏️ Type WhatsApp message here..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                 />
 
-                <button className="whatsapp-send-inside" onClick={sendWhatsApp}>
+                <button
+                  className="whatsapp-send-inside"
+                  onClick={sendWhatsApp}
+                >
                   <FiSend size={18} style={{ marginRight: 6 }} />
-                  Send WhatsApp
+                  Send WhatsApp 🚀
                 </button>
               </div>
             </div>
@@ -298,43 +301,42 @@ const fetchData = useCallback(async () => {
       {/* TABLE – visually same gutter as Audit Log list */}
       <div className="report-results-section">
         <h3 className="report-section-title">
-          <FiFileText /> Candidates ({list.length} Records)
+          <FiFileText /> Candidates 📋 ({list.length} Records)
         </h3>
 
         <div className="report-table-container">
           <table className="report-table">
             <thead>
-              <tr>
-                <th>
-                  <input
-                    type="checkbox"
-                    checked={
-                      list.length > 0 && list.every((row) => selected[row.id])
-                    }
-                    onChange={() => {
-                      const allSelected = list.every(
-                        (row) => selected[row.id]
-                      );
-                      const updated = {};
-                      if (!allSelected) {
-                        list.forEach((row) => {
-                          updated[row.id] = row.contact;
-                        });
-                      }
-                      setSelected(updated);
-                    }}
-                  />
-                </th>
-                <th>Candidate Name</th>
-                <th>Passport No</th>
-                <th>Position</th>
-                <th>Employer</th>
-                <th>Status</th>
-                <th>Contact</th>
-                <th>Message</th>
-                <th>WhatsApp</th>
-              </tr>
-            </thead>
+  <tr>
+    <th>
+      <input
+        type="checkbox"
+        checked={
+          list.length > 0 && list.every((row) => selected[row.id])
+        }
+        onChange={() => {
+          const allSelected = list.every((row) => selected[row.id]);
+          const updated = {};
+          if (!allSelected) {
+            list.forEach((row) => {
+              updated[row.id] = row.contact;
+            });
+          }
+          setSelected(updated);
+        }}
+      />
+    </th>
+    <th>👤 Candidate Name</th>
+    <th>🛂 Passport No</th>
+    <th>💼 Position</th>
+    <th>🏢 Employer</th>
+    <th>📊 Status</th>
+    <th>📱 Contact</th>
+    <th>✏️ Message</th>
+    <th>💬 WhatsApp</th>
+  </tr>
+</thead>
+
 
             <tbody>
               {list.length === 0 ? (

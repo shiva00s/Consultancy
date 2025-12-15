@@ -1,200 +1,194 @@
-import React, { useState, useEffect } from 'react';
-import { FiUpload, FiFile, FiTrash2, FiDownload, FiEye } from 'react-icons/fi';
-import toast from 'react-hot-toast';
-import '../css/DocumentUploader.css';
+import React, { useState, useRef } from "react";
+import {
+  FiUploadCloud,
+  FiFilePlus,
+  FiTrash2,
+} from "react-icons/fi";
+import "../css/DocumentUploader.css";
 
-const DocumentUploader = ({ candidateId }) => {
-  const [documents, setDocuments] = useState([]);
-  const [uploading, setUploading] = useState(false);
-  const [documentType, setDocumentType] = useState('general');
+function DocumentUploader({
+  user,
+  candidateId,
+  documentCategories,
+  onUploaded,       // (newDocs) => void
+  readFileAsBuffer, // util
+}) {
+  const [uploadCategory, setUploadCategory] = useState("Uncategorized");
+  const [files, setFiles] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
+  const dropRef = useRef(null);
 
-  useEffect(() => {
-    loadDocuments();
-  }, [candidateId]);
-
-  const loadDocuments = async () => {
-    try {
-      const result = await window.api.getCandidateDocuments(candidateId);
-      if (result.success) {
-        setDocuments(result.documents);
-      }
-    } catch (error) {
-      console.error('Failed to load documents:', error);
-      toast.error('Failed to load documents');
-    }
+  const handleFileSelect = (e) => {
+    const list = Array.from(e.target.files || []);
+    if (!list.length) return;
+    setFiles((prev) => [...prev, ...list]);
   };
 
-  const handleFileSelect = async () => {
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropRef.current?.classList.remove("du-drop-over");
+    const list = Array.from(e.dataTransfer.files || []);
+    if (!list.length) return;
+    setFiles((prev) => [...prev, ...list]);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropRef.current?.classList.add("du-drop-over");
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropRef.current?.classList.remove("du-drop-over");
+  };
+
+  const clearFiles = () => setFiles([]);
+
+  const handleUpload = async () => {
+    if (!files.length || isUploading) return;
+
+    setIsUploading(true);
+
     try {
-      const result = await window.api.openFileDialog({
-        filters: [
-          { name: 'All Files', extensions: ['*'] },
-          { name: 'Documents', extensions: ['pdf', 'doc', 'docx', 'txt'] },
-          { name: 'Images', extensions: ['jpg', 'jpeg', 'png'] }
-        ]
+      const fileDataPromises = files.map(async (file) => {
+        const buffer = await readFileAsBuffer(file);
+        return {
+          name: file.name,
+          type: file.type,
+          buffer,
+          category: uploadCategory,
+        };
       });
 
-      if (result.success) {
-        await uploadDocument(result.fileBuffer, result.fileName);
-      }
-    } catch (error) {
-      console.error('File selection failed:', error);
-      toast.error('Failed to select file');
-    }
-  };
+      const fileData = await Promise.all(fileDataPromises);
 
-  const uploadDocument = async (fileBuffer, fileName) => {
-    setUploading(true);
-    try {
-      const result = await window.api.uploadDocument({
+      const res = await window.electronAPI.addDocuments({
+        user,
         candidateId,
-        documentType,
-        fileBuffer,
-        fileName
+        files: fileData,
       });
 
-      if (result.success) {
-        toast.success('Document uploaded successfully!');
-        loadDocuments();
+      if (!res.success) {
+        throw new Error(res.error || "Upload failed");
       }
-    } catch (error) {
-      console.error('Upload failed:', error);
-      toast.error('Failed to upload document');
+
+      onUploaded(res.newDocs);
+      setFiles([]);
+      setUploadCategory("Uncategorized");
+      if (fileInputRef.current) fileInputRef.current.value = null;
+    } catch (err) {
+      console.error("Upload error:", err);
     } finally {
-      setUploading(false);
+      setIsUploading(false);
     }
   };
 
-  const handleDownload = async (documentId, fileName) => {
-    try {
-      const result = await window.api.downloadDocument(documentId);
-      
-      if (result.success) {
-        // Create blob and download
-        const blob = new Blob([new Uint8Array(result.buffer)]);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.success('Document downloaded!');
-      }
-    } catch (error) {
-      console.error('Download failed:', error);
-      toast.error('Failed to download document');
-    }
-  };
-
-  const handleDelete = async (documentId) => {
-    if (!confirm('Are you sure you want to delete this document?')) {
-      return;
-    }
-
-    try {
-      const result = await window.api.deleteDocument(documentId);
-      if (result.success) {
-        toast.success('Document deleted');
-        loadDocuments();
-      }
-    } catch (error) {
-      console.error('Delete failed:', error);
-      toast.error('Failed to delete document');
-    }
-  };
-
-  const formatFileSize = (bytes) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-  };
-
-  const getFileIcon = (fileName) => {
-    const ext = fileName.split('.').pop().toLowerCase();
-    const iconMap = {
-      pdf: '📄',
-      doc: '📝',
-      docx: '📝',
-      txt: '📃',
-      jpg: '🖼️',
-      jpeg: '🖼️',
-      png: '🖼️',
-      zip: '📦',
-      default: '📎'
-    };
-    return iconMap[ext] || iconMap.default;
+  const formatSize = (bytes) => {
+    if (!bytes && bytes !== 0) return "";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   return (
-    <div className="document-uploader">
-      <div className="uploader-header">
-        <h3>📁 Documents</h3>
-        <div className="upload-controls">
-          <select 
-            value={documentType} 
-            onChange={(e) => setDocumentType(e.target.value)}
-            className="document-type-select"
-          >
-            <option value="general">General</option>
-            <option value="resume">Resume</option>
-            <option value="certificate">Certificate</option>
-            <option value="id_proof">ID Proof</option>
-            <option value="education">Education</option>
-            <option value="experience">Experience Letter</option>
-          </select>
-          <button 
-            onClick={handleFileSelect} 
-            disabled={uploading}
-            className="btn-upload"
-          >
-            <FiUpload /> {uploading ? 'Uploading...' : 'Upload Document'}
-          </button>
-        </div>
-      </div>
-
-      <div className="documents-list">
-        {documents.length === 0 ? (
-          <div className="empty-state">
-            <FiFile size={48} />
-            <p>No documents uploaded yet</p>
+    <div className="du-card module-form-card">
+      <header className="du-header">
+        <div className="du-title">
+          <span className="du-emoji">📤</span>
+          <div>
+            <h3>Upload Documents</h3>
+            <p>Drop files or browse. Assign a category and upload.</p>
           </div>
-        ) : (
-          documents.map((doc) => (
-            <div key={doc.id} className="document-item">
-              <div className="doc-icon">
-                {getFileIcon(doc.document_name)}
-              </div>
-              <div className="doc-info">
-                <div className="doc-name">{doc.document_name}</div>
-                <div className="doc-meta">
-                  <span className="doc-type">{doc.document_type}</span>
-                  <span className="doc-date">
-                    {new Date(doc.uploaded_at).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-              <div className="doc-actions">
-                <button 
-                  onClick={() => handleDownload(doc.id, doc.document_name)}
-                  className="btn-icon"
-                  title="Download"
-                >
-                  <FiDownload />
-                </button>
-                <button 
-                  onClick={() => handleDelete(doc.id)}
-                  className="btn-icon btn-danger"
-                  title="Delete"
-                >
-                  <FiTrash2 />
-                </button>
-              </div>
+        </div>
+      </header>
+
+      <div className="du-body">
+        <div className="du-field">
+          <label>Document Category</label>
+          <select
+            value={uploadCategory}
+            onChange={(e) => setUploadCategory(e.target.value)}
+          >
+            {documentCategories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div
+          ref={dropRef}
+          className="du-dropzone"
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <FiUploadCloud className="du-drop-icon" />
+          <div className="du-drop-text">
+            <span>Drag &amp; drop files here</span>
+            <small>or click to browse from your computer</small>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+            onChange={handleFileSelect}
+            style={{ display: "none" }}
+          />
+        </div>
+
+        {files.length > 0 && (
+          <div className="du-files">
+            <div className="du-files-header">
+              <span className="du-files-title">
+                <FiFilePlus /> Selected files ({files.length})
+              </span>
+              <button
+                type="button"
+                className="du-mini-btn"
+                onClick={clearFiles}
+              >
+                <FiTrash2 /> Clear
+              </button>
             </div>
-          ))
+            <ul className="du-files-list">
+              {files.map((f, idx) => (
+                <li key={`${f.name}-${idx}`}>
+                  <span className="du-file-name">{f.name}</span>
+                  <span className="du-file-size">
+                    {formatSize(f.size)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
+
+      <footer className="du-footer">
+        <button
+          type="button"
+          className="du-upload-btn"
+          onClick={handleUpload}
+          disabled={!files.length || isUploading}
+        >
+          <FiUploadCloud />
+          <span>
+            {isUploading
+              ? "Uploading..."
+              : `Upload ${files.length || 0} file(s)`}
+          </span>
+        </button>
+      </footer>
     </div>
   );
-};
+}
 
 export default DocumentUploader;

@@ -1,26 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FiSettings, FiLock, FiUsers, FiMail, FiFileText, 
-  FiDatabase, FiCheckSquare 
+import {
+  FiSettings,
+  FiLock,
+  FiUsers,
+  FiMail,
+  FiFileText,
+  FiDatabase,
+  FiCheckSquare,
 } from 'react-icons/fi';
 import '../css/SettingsPage.css';
 
-// Components
 import UserManagement from '../components/settings/UserManagement';
 import DocumentRequirementManager from '../components/settings/DocumentRequirementManager';
 import EmailSettings from '../components/settings/EmailSettings';
 import OfferTemplateManager from '../components/settings/OfferTemplateManager';
 import BackupUtility from '../components/settings/BackupUtility';
-import ChangePasswordModal from "../components/modals/ChangePasswordModal";
+import ChangePasswordModal from '../components/modals/ChangePasswordModal';
 
 function SettingsPage({ user }) {
-  const [activeTab, setActiveTab] = useState('users'); 
+  const [activeTab, setActiveTab] = useState('users');
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [userPermissions, setUserPermissions] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Wait until user is available
     if (!user) {
       setLoading(true);
       return;
@@ -33,7 +36,6 @@ function SettingsPage({ user }) {
     if (!user) return;
 
     if (user.role === 'super_admin') {
-      // Super Admin has all permissions
       setUserPermissions({
         settings_users: true,
         settings_required_docs: true,
@@ -44,7 +46,9 @@ function SettingsPage({ user }) {
       });
       setLoading(false);
     } else if (user.role === 'admin' || user.role === 'staff') {
-      const res = await window.electronAPI.getUserGranularPermissions({ userId: user.id });
+      const res = await window.electronAPI.getUserGranularPermissions({
+        userId: user.id,
+      });
       if (res.success) {
         setUserPermissions(res.data || {});
       }
@@ -55,16 +59,17 @@ function SettingsPage({ user }) {
     }
   };
 
-  // While user or permissions are loading
   if (!user || loading) {
     return (
       <div className="settings-page-wrapper">
-        <p>Loading settings...</p>
+        <div className="settings-page-loading-card">
+          <div className="settings-loading-spinner" />
+          <p>Loading settings...</p>
+        </div>
       </div>
     );
   }
 
-  // Build tabs based on permissions
   const availableTabs = [];
 
   if (userPermissions.settings_users) {
@@ -72,7 +77,7 @@ function SettingsPage({ user }) {
       id: 'users',
       label: 'Users',
       icon: <FiUsers />,
-      component: <UserManagement currentUser={user} />
+      component: <UserManagement currentUser={user} />,
     });
   }
 
@@ -81,7 +86,7 @@ function SettingsPage({ user }) {
       id: 'doc_req',
       label: 'Required Docs',
       icon: <FiCheckSquare />,
-      component: <DocumentRequirementManager user={user} />
+      component: <DocumentRequirementManager user={user} />,
     });
   }
 
@@ -90,7 +95,7 @@ function SettingsPage({ user }) {
       id: 'email',
       label: 'Email',
       icon: <FiMail />,
-      component: <EmailSettings user={user} />
+      component: <EmailSettings user={user} />,
     });
   }
 
@@ -99,7 +104,7 @@ function SettingsPage({ user }) {
       id: 'templates',
       label: 'Templates',
       icon: <FiFileText />,
-      component: <OfferTemplateManager user={user} />
+      component: <OfferTemplateManager user={user} />,
     });
   }
 
@@ -108,42 +113,47 @@ function SettingsPage({ user }) {
       id: 'backup',
       label: 'Backup',
       icon: <FiDatabase />,
-      component: <BackupUtility user={user} />
+      component: <BackupUtility user={user} />,
     });
   }
 
-  // If no tabs available, show no access message
   if (availableTabs.length === 0) {
     return (
       <div className="settings-page-wrapper">
-        <div className="settings-top-bar">
+        <div className="settings-top-bar elevated">
           <div className="settings-title-area">
-            <h1><FiSettings /> Application Settings</h1>
+            <h1>
+              <FiSettings /> Application Settings
+            </h1>
+            <span className="settings-subtitle">
+              Central place for managing users, documents, email and more.
+            </span>
           </div>
         </div>
-        <div className="no-access-message" style={{
-          padding: '3rem',
-          textAlign: 'center',
-          color: 'var(--text-secondary)'
-        }}>
+        <div className="settings-no-access-card">
           <h2>No Settings Access</h2>
-          <p>You don't have permission to access any settings tabs. Contact your administrator.</p>
+          <p>
+            You don&apos;t have permission to access any settings tabs. Contact
+            your administrator.
+          </p>
         </div>
       </div>
     );
   }
 
-  // Ensure activeTab is always valid
   if (!availableTabs.find(t => t.id === activeTab)) {
     setActiveTab(availableTabs[0].id);
   }
 
   return (
     <div className="settings-page-wrapper">
-      {/* --- HEADER ROW --- */}
-      <div className="settings-top-bar">
+      {/* HEADER */}
+      <div className="settings-top-bar elevated">
         <div className="settings-title-area">
-          <h1><FiSettings /> Application Settings</h1>
+          <h1>
+            <FiSettings /> Application Settings
+          </h1>
+          
         </div>
         <button
           className="btn btn-secondary btn-compact"
@@ -153,31 +163,32 @@ function SettingsPage({ user }) {
         </button>
       </div>
 
-      {/* --- HORIZONTAL TABS --- */}
-      <div className="settings-tabs-row">
+      {/* TABS */}
+      <div className="settings-tabs-row pill-bar">
         {availableTabs.map(tab => (
-          <button 
-            key={tab.id} 
-            className={`settings-tab-item ${activeTab === tab.id ? 'active' : ''}`}
+          <button
+            key={tab.id}
+            className={`settings-tab-item ${
+              activeTab === tab.id ? 'active' : ''
+            }`}
             onClick={() => setActiveTab(tab.id)}
           >
-            {tab.icon}
-            <span>{tab.label}</span>
+            <span className="settings-tab-icon">{tab.icon}</span>
+            <span className="settings-tab-label">{tab.label}</span>
           </button>
         ))}
       </div>
 
-      {/* --- CONTENT AREA --- */}
-      <div className="settings-content-area">
+      {/* CONTENT */}
+      <div className="settings-content-area card-surface">
         {availableTabs.find(t => t.id === activeTab)?.component}
       </div>
 
-      {/* Password Modal */}
       {isPasswordModalOpen && (
-        <ChangePasswordModal 
+        <ChangePasswordModal
           user={user}
           onClose={() => setIsPasswordModalOpen(false)}
-          onPasswordChange={() => window.location.reload()} 
+          onPasswordChange={() => window.location.reload()}
         />
       )}
     </div>

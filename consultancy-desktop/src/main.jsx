@@ -16,7 +16,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     >
       <App />
       <Toaster
-        position="bottom-center"
+        position="top-center"
         reverseOrder={false}
         gutter={8}
         containerStyle={{

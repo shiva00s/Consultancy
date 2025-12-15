@@ -1,73 +1,110 @@
-import React, { useState } from 'react';
-import { FiX, FiAlertTriangle, FiTrash2 } from 'react-icons/fi';
-import toast from 'react-hot-toast';
+import React, { useState } from "react";
+import { FiX, FiAlertTriangle, FiTrash2 } from "react-icons/fi";
+import toast from "react-hot-toast";
+import "../../css/PermanentDeleteModal.css";
 
-function PermanentDeleteModal({user, item, targetType, onClose, onPermanentDelete }) {
+function PermanentDeleteModal({ user, item, targetType, onClose, onPermanentDelete }) {
   const [isDeleting, setIsDeleting] = useState(false);
-  
-  const displayName = item.name || item.companyName || item.positionTitle;
-  const displayType = targetType.replace('_', ' ').replace(/s$/, '');
+
+  const displayName =
+    item.name ||
+    item.companyName ||
+    item.positionTitle ||
+    item.candidateName ||
+    item.passportNumber ||
+    "Unknown";
+
+  const displayType = targetType
+    ? targetType.replace("_", " ").replace(/s$/, "")
+    : "item";
 
   const handleDelete = async () => {
     setIsDeleting(true);
-    
+
     const res = await window.electronAPI.deletePermanently({
       user,
-        id: item.id,
-        targetType: targetType
+      id: item.id,
+      targetType,
     });
 
     if (res.success) {
-      onPermanentDelete(item.id); // Notify parent component to update list
-      toast.success(`${displayType} "${displayName}" permanently deleted.`, { duration: 3000 });
+      onPermanentDelete(item.id);
+      toast.success(
+        `${displayType} "${displayName}" permanently deleted.`,
+        { duration: 3000 }
+      );
       onClose();
     } else {
-      toast.error(res.error || `Failed to permanently delete ${displayType}.`, { duration: 5000 });
+      toast.error(
+        res.error || `Failed to permanently delete ${displayType}.`,
+        { duration: 5000 }
+      );
     }
     setIsDeleting(false);
   };
 
   return (
-    <div className="viewer-modal-backdrop" onClick={onClose}>
-      <div 
-        className="viewer-modal-content payment-modal" 
-        onClick={(e) => e.stopPropagation()} 
-        style={{ maxWidth: '450px', height: 'fit-content', border: '1px solid var(--danger-color)' }}
+    <div className="perm-delete-backdrop" onClick={onClose}>
+      <div
+        className="perm-delete-modal"
+        onClick={(e) => e.stopPropagation()}
       >
-        <button className="viewer-close-btn" onClick={onClose}><FiX /></button>
-        <div className="viewer-header" style={{background: 'var(--danger-color)', color: 'var(--text-on-primary)'}}>
-          <h3><FiAlertTriangle /> PERMANENTLY Delete Item</h3>
-        </div>
-        <div className="payment-modal-body" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '15px'}}>
-          
-          <p style={{color: 'var(--danger-color)', fontWeight: 600}}>
-              You are attempting to permanently delete the following record from the system. This action is **IRREVERSIBLE**.
-          </p>
-          
-          <div style={{background: 'var(--bg-input)', padding: '10px', borderRadius: 'var(--border-radius)'}}>
-             <strong>Type:</strong> {displayType}<br />
-             <strong>Name:</strong> {displayName}
+        {/* close */}
+        <button className="perm-delete-close" onClick={onClose}>
+          <FiX />
+        </button>
+
+        {/* icon */}
+        <div className="perm-delete-icon-wrap">
+          <div className="perm-delete-icon">
+            <FiAlertTriangle />
           </div>
-            
-          <button 
-            type="button" 
-            className="btn btn-danger btn-full-width" 
+        </div>
+
+        {/* text */}
+        <h2 className="perm-delete-title">Permanently delete?</h2>
+        <p className="perm-delete-subtitle">
+          This action <strong>cannot be undone</strong>. The record below will
+          be removed from the system forever.
+        </p>
+
+        {/* info card */}
+        <div className="perm-delete-info-card">
+          <div className="info-row">
+            <span className="info-label">Type</span>
+            <span className="info-value">{displayType}</span>
+          </div>
+          <div className="info-row">
+            <span className="info-label">Name</span>
+            <span className="info-value">{displayName}</span>
+          </div>
+        </div>
+
+        {/* actions */}
+        <div className="perm-delete-actions">
+          <button
+            type="button"
+            className="btn-perm-delete"
             onClick={handleDelete}
             disabled={isDeleting}
-            style={{marginTop: '1rem'}}
           >
-            {isDeleting ? 'Deleting...' : <><FiTrash2 /> Confirm Permanent Deletion</>}
+            {isDeleting ? (
+              "Deleting…"
+            ) : (
+              <>
+                <FiTrash2 /> Yes, delete forever
+              </>
+            )}
           </button>
-          
-          <button 
-            type="button" 
-            className="btn btn-secondary btn-full-width" 
+
+          <button
+            type="button"
+            className="btn-perm-cancel"
             onClick={onClose}
             disabled={isDeleting}
           >
             Cancel
           </button>
-
         </div>
       </div>
     </div>

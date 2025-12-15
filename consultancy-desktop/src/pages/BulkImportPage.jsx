@@ -1,16 +1,16 @@
 // src/pages/BulkImportPage.jsx
 import React, { useState } from 'react';
-import { 
-  FiUploadCloud, 
-  FiGrid, 
-  FiCheckCircle, 
-  FiAlertTriangle, 
-  FiDownload, 
-  FiFile, 
+import {
+  FiUploadCloud,
+  FiGrid,
+  FiCheckCircle,
+  FiAlertTriangle,
+  FiDownload,
+  FiFile,
   FiPackage,
-  FiRefreshCw 
+  FiRefreshCw,
 } from 'react-icons/fi';
-import toast from 'react-hot-toast'; 
+import toast from 'react-hot-toast';
 import '../css/BulkImportPage.css';
 import useAuthStore from '../store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -36,9 +36,13 @@ const getFileName = (filePath) => {
 };
 
 function BulkImportPage() {
-  const { user } = useAuthStore(useShallow((state) => ({ user: state.user })));
-  
-  const [importMode, setImportMode] = useState('data');
+  const { user } = useAuthStore(
+    useShallow((state) => ({
+      user: state.user,
+    }))
+  );
+
+  const [importMode, setImportMode] = useState('data'); // 'data' | 'docs'
   const [step, setStep] = useState(1);
   const [file, setFile] = useState(null);
   const [csvHeaders, setCsvHeaders] = useState([]);
@@ -51,10 +55,16 @@ function BulkImportPage() {
   // File Selection
   const handleFileSelect = async () => {
     setResults(null);
+
     const res = await window.electronAPI.showOpenDialog({
       title: 'Select Data File',
       buttonLabel: 'Select',
-      filters: [{ name: 'Import Files', extensions: ['csv', 'xlsx', 'xls'] }],
+      filters: [
+        {
+          name: 'Import Files',
+          extensions: ['csv', 'xlsx', 'xls'],
+        },
+      ],
       properties: ['openFile'],
     });
 
@@ -62,7 +72,7 @@ function BulkImportPage() {
       const filePath = res.filePaths[0];
       const fileName = getFileName(filePath);
       const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
-      
+
       setFile({ path: filePath, name: fileName, isExcel });
 
       if (isExcel) {
@@ -119,9 +129,9 @@ function BulkImportPage() {
     setSelectedSheet(sheetName);
     setIsLoading(true);
     try {
-      const res = await window.electronAPI.getExcelHeaders({ 
-        filePath: path, 
-        sheetName 
+      const res = await window.electronAPI.getExcelHeaders({
+        filePath: path,
+        sheetName,
       });
       if (res.success) {
         setCsvHeaders(res.headers);
@@ -142,10 +152,11 @@ function BulkImportPage() {
   // Auto Map Headers
   const autoMapHeaders = (headers) => {
     const initialMap = {};
-    headers.forEach(header => {
+    headers.forEach((header) => {
       const simpleHeader = header.toLowerCase().replace(/[\s_]/g, '');
-      const match = dbColumns.find(col => 
-        col.key !== '' && simpleHeader.includes(col.key.toLowerCase())
+      const match = dbColumns.find(
+        (col) =>
+          col.key !== '' && simpleHeader.includes(col.key.toLowerCase())
       );
       initialMap[header] = match ? match.key : '';
     });
@@ -154,14 +165,17 @@ function BulkImportPage() {
 
   // Handle Mapping Change
   const handleMapChange = (csvHeader, dbColumn) => {
-    setMapping(prev => ({ ...prev, [csvHeader]: dbColumn }));
+    setMapping((prev) => ({
+      ...prev,
+      [csvHeader]: dbColumn,
+    }));
   };
 
   // Import Data
   const handleImportData = async () => {
     setIsLoading(true);
     const mappedValues = Object.values(mapping);
-    
+
     if (!mappedValues.includes('name') || !mappedValues.includes('passportNo')) {
       toast.error('You must map columns to "Name" and "Passport No".');
       setIsLoading(false);
@@ -188,13 +202,16 @@ function BulkImportPage() {
       if (res.success) {
         setResults(res.data);
         setStep(3);
-        toast.success(`Import finished. ${res.data.successfulCount} candidates added.`);
+        toast.success(
+          `Import finished. ${res.data.successfulCount} candidates added.`
+        );
       } else {
         toast.error(res.error || 'Import failed');
       }
     } catch (error) {
       toast.error('Import error: ' + error.message);
     }
+
     setIsLoading(false);
   };
 
@@ -229,6 +246,7 @@ function BulkImportPage() {
   // Download Errors
   const handleDownloadErrors = async () => {
     if (!results || results.failedCount === 0) return;
+
     setIsLoading(true);
     toast.loading('Generating error report...');
     try {
@@ -237,6 +255,7 @@ function BulkImportPage() {
         failedRows: results.failures,
       });
       toast.dismiss();
+
       if (res.success) {
         toast.success(`Error report saved to ${res.filePath}`);
       } else {
@@ -267,7 +286,6 @@ function BulkImportPage() {
           candidateIdMap: {},
           archivePath: res.filePaths[0],
         });
-
         toast.dismiss();
         if (importRes.success) {
           toast.success('Documents imported successfully!');
@@ -282,87 +300,103 @@ function BulkImportPage() {
     }
   };
 
-  // Render Step 1
+  // Render Step 1 (Data)
   const renderDataStep1 = () => (
     <div className="import-card">
-      <div 
-        className="file-selection-box" 
-        onClick={handleFileSelect}
-        style={{ 
-          cursor: isLoading ? 'not-allowed' : 'pointer',
-          opacity: isLoading ? 0.6 : 1 
-        }}
-      >
-        {isLoading ? (
-          <>
-            <FiRefreshCw className="spin-icon" style={{ fontSize: '3rem' }} />
-            <h4>Loading file...</h4>
-          </>
-        ) : (
-          <>
-            <FiUploadCloud style={{ fontSize: '3rem' }} />
-            <h4>Drag & Drop your .CSV or .XLSX file here</h4>
-            <p>or</p>
-            <button className="btn btn-secondary">Click to Select File</button>
-          </>
-        )}
-      </div>
-      <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-        <button 
-          className="btn" 
-          onClick={handleDownloadTemplate} 
-          disabled={isLoading}
+      <h3>
+        <FiUploadCloud /> Step 1 · Select file
+      </h3>
+      <p>
+        Choose a CSV or Excel file containing candidate data. The importer will
+        help you map columns to database fields.
+      </p>
+
+      <div className="file-selection-box" onClick={handleFileSelect}>
+        <FiUploadCloud />
+        <h4>Drop your file here or click to browse</h4>
+        <p>
+          Supported formats: <strong>.csv</strong>, <strong>.xlsx</strong>,{' '}
+          <strong>.xls</strong>
+        </p>
+        <button
+          type="button"
+          className="primary-btn"
+          onClick={handleFileSelect}
         >
-          <FiDownload /> Download Excel Template
+          <FiFile /> Choose file
         </button>
+
+        <button
+          type="button"
+          className="ghost-btn"
+          onClick={handleDownloadTemplate}
+        >
+          <FiDownload /> Download Excel template
+        </button>
+
+        {file && (
+          <div className="file-name">
+            <FiGrid />
+            <span>{file.name}</span>
+          </div>
+        )}
       </div>
     </div>
   );
 
-  // Render Step 2
+  // Render Step 2 (Mapping)
   const renderDataStep2 = () => (
     <div className="import-card">
-      <h3>Map Your Columns</h3>
-      <p>File: <strong>{file.name}</strong></p>
-      
-      {file.isExcel && (
-        <div className="form-group" style={{ maxWidth: '400px', marginBottom: '1.5rem' }}>
-          <label><FiGrid /> Select Excel Sheet</label>
-          <select 
-            value={selectedSheet} 
+      <div className="import-card-header-row">
+        <h3>
+          <FiGrid /> Step 2 · Map columns
+        </h3>
+        {file && (
+          <span className="badge-file">
+            <FiFile /> {file.name}
+          </span>
+        )}
+      </div>
+
+      {file?.isExcel && sheetNames.length > 0 && (
+        <div className="sheet-selector">
+          <label htmlFor="sheetSelect">📑 Worksheet:</label>
+          <select
+            id="sheetSelect"
+            value={selectedSheet}
             onChange={(e) => handleSheetSelect(e.target.value)}
-            disabled={isLoading}
           >
-            {sheetNames.map(name => (
-              <option key={name} value={name}>{name}</option>
+            {sheetNames.map((sheet) => (
+              <option key={sheet} value={sheet}>
+                {sheet}
+              </option>
             ))}
           </select>
         </div>
       )}
 
-      {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '2rem' }}>
-          <FiRefreshCw className="spin-icon" style={{ fontSize: '2rem' }} />
-          <p>Loading headers...</p>
-        </div>
+      {csvHeaders.length === 0 ? (
+        <p className="info-text subtle">Loading headers...</p>
       ) : (
         <table className="mapping-table">
           <thead>
             <tr>
-              <th>File Column</th>
-              <th>Database Field</th>
+              <th>File column</th>
+              <th>Database field</th>
             </tr>
           </thead>
           <tbody>
-            {csvHeaders.map(header => (
+            {csvHeaders.map((header) => (
               <tr key={header}>
                 <td>{header}</td>
                 <td>
-                  <select 
-                    value={mapping[header] || ''} 
-                    onChange={(e) => handleMapChange(header, e.target.value)}
+                  <select
+                    value={mapping[header] || ''}
+                    onChange={(e) =>
+                      handleMapChange(header, e.target.value)
+                    }
                   >
-                    {dbColumns.map(col => (
+                    {dbColumns.map((col) => (
                       <option key={col.key} value={col.key}>
                         {col.label}
                       </option>
@@ -375,148 +409,206 @@ function BulkImportPage() {
         </table>
       )}
 
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        marginTop: '1.5rem' 
-      }}>
-        <button 
-          className="btn btn-secondary" 
-          onClick={resetImporter}
-          disabled={isLoading}
+      <div className="card-actions">
+        <button
+          type="button"
+          className="ghost-btn"
+          onClick={() => setStep(1)}
         >
-          Back
+          ◀ Back
         </button>
-        <button 
-          className="btn" 
-          onClick={handleImportData} 
-          disabled={isLoading || csvHeaders.length === 0}
+        <button
+          type="button"
+          className="primary-btn"
+          onClick={handleImportData}
+          disabled={isLoading || !file}
         >
-          {isLoading ? 'Importing...' : 'Run Import'}
+          {isLoading ? (
+            <>
+              <FiRefreshCw className="spin-icon" /> Importing…
+            </>
+          ) : (
+            <>
+              <FiCheckCircle /> Start import
+            </>
+          )}
         </button>
       </div>
     </div>
   );
 
-  // Render Step 3
+  // Render Step 3 (Results)
   const renderDataStep3 = () => (
     <div className="import-card import-results">
-      <h3>Import Complete</h3>
-      
-      {results.successfulCount > 0 && (
-        <div className="form-message success">
-          <FiCheckCircle /> Added {results.successfulCount} candidates.
-        </div>
-      )}
-      
-      {results.failedCount > 0 && (
+      <h3>
+        <FiCheckCircle /> Step 3 · Review results
+      </h3>
+
+      {results && (
         <>
-          <div className="form-message error">
-            <FiAlertTriangle /> Failed {results.failedCount} candidates.
-          </div>
-          <button 
-            className="btn btn-danger" 
-            onClick={handleDownloadErrors} 
-            disabled={isLoading}
+          <div
+            className={`form-message ${
+              results.failedCount > 0 ? 'error' : 'success'
+            }`}
           >
-            <FiDownload /> Download Error Report
-          </button>
+            {results.failedCount > 0 ? (
+              <>
+                <FiAlertTriangle />
+                <span>
+                  {results.successfulCount} records imported,{' '}
+                  {results.failedCount} failed.
+                </span>
+              </>
+            ) : (
+              <>
+                <FiCheckCircle />
+                <span>
+                  All {results.successfulCount} records imported
+                  successfully.
+                </span>
+              </>
+            )}
+          </div>
+
+          <ul>
+            {results.failures?.map((row, idx) => (
+              <li key={idx}>
+                <span className="result-title">
+                  Row {row.rowNumber} – {row.name || 'Unknown'}
+                </span>
+                <span className="result-message">{row.error}</span>
+              </li>
+            ))}
+            {(!results.failures || results.failures.length === 0) && (
+              <li className="result-empty">No errors to display.</li>
+            )}
+          </ul>
+
+          <div className="card-actions">
+            <button
+              type="button"
+              className="ghost-btn"
+              onClick={resetImporter}
+            >
+              <FiRefreshCw /> New import
+            </button>
+            {results.failedCount > 0 && (
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={handleDownloadErrors}
+              >
+                <FiDownload /> Download error report
+              </button>
+            )}
+          </div>
         </>
       )}
-      
-      <button 
-        className="btn" 
-        onClick={resetImporter} 
-        style={{ marginTop: '1rem' }}
-      >
-        Import Another File
-      </button>
     </div>
   );
 
-  // Render Document Import
-  const renderDocumentImport = () => (
+  // Render Docs Import
+  const renderDocsImport = () => (
     <div className="import-card">
-      <div style={{ textAlign: 'center', padding: '2rem' }}>
-        <FiPackage style={{ 
-          fontSize: '3rem', 
-          color: 'var(--primary-color)', 
-          marginBottom: '1rem' 
-        }} />
-        <h3>Bulk Document Import</h3>
-        <p style={{ 
-          maxWidth: '500px', 
-          margin: '0 auto 1.5rem auto', 
-          color: 'var(--text-secondary)' 
-        }}>
-          Upload a <strong>ZIP file</strong> containing candidate documents. 
-          Files should be named using the pattern: <code>PassportNo_DocumentType.pdf</code> 
-          (e.g., <code>A1234567_Resume.pdf</code>).
+      <h3>
+        <FiPackage /> Bulk document import
+      </h3>
+      <p>
+        Upload a <strong>ZIP file</strong> containing candidate documents.
+        Files must be named like{' '}
+        <code>PassportNo_DocumentType.pdf</code> (for example:{' '}
+        <code>A1234567_Resume.pdf</code>). The system matches files to
+        existing candidates by passport number.
+      </p>
+
+      <div
+        className="file-selection-box docs-box"
+        onClick={handleDocArchiveSelect}
+      >
+        <FiPackage />
+        <h4>Drop your ZIP archive here or click to browse</h4>
+        <p>
+          Recommended: group documents by batch and keep file names
+          consistent with your candidate passports.
         </p>
-        <button 
-          className="btn btn-primary" 
-          onClick={handleDocArchiveSelect} 
-          disabled={isLoading}
+        <button
+          type="button"
+          className="primary-btn"
+          onClick={handleDocArchiveSelect}
         >
-          {isLoading ? 'Processing...' : 'Select ZIP Archive'}
+          <FiUploadCloud /> Import documents
         </button>
-        <p style={{ 
-          marginTop: '1rem', 
-          fontSize: '0.85rem', 
-          fontStyle: 'italic', 
-          color: 'var(--text-secondary)' 
-        }}>
-          Note: This feature matches files to existing candidates by Passport Number.
-        </p>
       </div>
     </div>
   );
 
   return (
     <div className="bulk-import-container">
-      <h1><FiUploadCloud /> Bulk Import</h1>
+      <div className="bulk-import-header">
+        <div>
+          <h1>Bulk import</h1>
+          <p className="header-subtitle">
+            Quickly onboard multiple candidates and their documents using
+            smart import tools.
+          </p>
+        </div>
 
-      {/* Mode Switcher */}
-      <div className="custom-tabs-container" style={{ marginBottom: '2rem' }}>
-        <div className="tabs-header">
-          <button 
-            className={`tab-btn ${importMode === 'data' ? 'active' : ''}`} 
+        <div className="import-mode-toggle">
+          <button
+            type="button"
+            className={`mode-btn ${
+              importMode === 'data' ? 'active' : ''
+            }`}
             onClick={() => setImportMode('data')}
           >
-            <FiGrid /> Import Candidate Data
+            <FiGrid /> Data
           </button>
-          <button 
-            className={`tab-btn ${importMode === 'documents' ? 'active' : ''}`} 
-            onClick={() => setImportMode('documents')}
+          <button
+            type="button"
+            className={`mode-btn ${
+              importMode === 'docs' ? 'active' : ''
+            }`}
+            onClick={() => setImportMode('docs')}
           >
-            <FiFile /> Import Documents (ZIP)
+            <FiPackage /> Documents
           </button>
         </div>
       </div>
 
       {importMode === 'data' && (
         <>
-          <ul className="import-stepper">
-            <li className={`stepper-item ${step >= 1 ? 'active' : ''}`}>
-              <span className="step-number">1</span>
-              <span className="step-title">Select</span>
+          <ol className="import-stepper">
+            <li
+              className={`stepper-item ${
+                step === 1 ? 'active' : step > 1 ? 'completed' : ''
+              }`}
+            >
+              <div className="step-number">1</div>
+              <div className="step-title">Select file</div>
             </li>
-            <li className={`stepper-item ${step >= 2 ? (step === 2 ? 'active' : 'completed') : ''}`}>
-              <span className="step-number">2</span>
-              <span className="step-title">Map</span>
+            <li
+              className={`stepper-item ${
+                step === 2 ? 'active' : step > 2 ? 'completed' : ''
+              }`}
+            >
+              <div className="step-number">2</div>
+              <div className="step-title">Map columns</div>
             </li>
-            <li className={`stepper-item ${step === 3 ? 'completed' : ''}`}>
-              <span className="step-number">3</span>
-              <span className="step-title">Result</span>
+            <li
+              className={`stepper-item ${step === 3 ? 'active' : ''}`}
+            >
+              <div className="step-number">3</div>
+              <div className="step-title">Review results</div>
             </li>
-          </ul>
+          </ol>
+
           {step === 1 && renderDataStep1()}
           {step === 2 && renderDataStep2()}
-          {step === 3 && results && renderDataStep3()}
+          {step === 3 && renderDataStep3()}
         </>
       )}
 
-      {importMode === 'documents' && renderDocumentImport()}
+      {importMode === 'docs' && renderDocsImport()}
     </div>
   );
 }

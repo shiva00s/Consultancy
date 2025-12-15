@@ -1,46 +1,40 @@
-.doc-item {
-  /* Overrides module-list-item for document structure */
+.candocs-root {
   display: flex;
-  align-items: center;
-  gap: 10px; /* MODIFIED: Reduced gap for compactness (was 12px) */
-  background-color: var(--bg-secondary);
-  padding: 6px 10px; /* MODIFIED: Reduced vertical padding (was 8px 10px) */
-  border-radius: var(--border-radius);
-  border: 1px solid var(--border-color);
-  transition: all .2s ease;
-}
-.doc-list-card h3 {
-    padding-bottom: 1rem;
-    margin-bottom: 1rem;
-    border-bottom: 1px solid var(--border-color);
-}
-.doc-category-group {
-    margin-bottom: 1.25rem;
-}
-.doc-category-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--primary-color);
-    margin: 0 0 0.5rem 0;
-    padding-bottom: 5px;
-    border-bottom: 1px dashed var(--border-color);
+  flex-direction: column;
+  gap: 20px;
 }
 
-.doc-list-empty {
-    padding: 20px;
-    text-align: center;
-    color: var(--text-secondary);
+/* 2 columns: left stack (check + upload) | right list */
+.candocs-grid-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
+  gap: 20px;
+  align-items: flex-start;
 }
 
-/* --- LIGHT MODE DOC ITEM OVERRIDE (CRITICAL FIX) --- */
-[data-theme="light"] .doc-item {
-    background-color: var(--bg-secondary) !important; /* Enforce white background */
-    color: var(--text-primary) !important;          /* Enforce dark text */
+/* Left column: stack checker + uploader */
+.candocs-left {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-/* Ensure doc item hover is also light */
-[data-theme="light"] .doc-item:hover {
-    background-color: var(--bg-input) !important; /* Slight off-white hover */
-    transform: translateY(-1px);
+/* Right column: list */
+.candocs-right {
+  display: flex;
+  flex-direction: column;
 }
-/* ---------------------------------------------------- */
+
+/* make cards fill column width */
+.candocs-left > .dchk-card,
+.candocs-left > .du-card,
+.candocs-right > .doclist-card {
+  width: 100%;
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .candocs-grid-split {
+    grid-template-columns: 1fr;
+  }
+}

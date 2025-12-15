@@ -1,0 +1,287 @@
+/* ================================
+   🗑️ PERMANENT DELETE MODAL
+================================ */
+
+.perm-delete-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: perm-fade-in 0.2s ease;
+}
+
+@keyframes perm-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.perm-delete-modal {
+  position: relative;
+  width: 460px;
+  max-width: 92vw;
+  background: radial-gradient(
+    circle at top,
+    rgba(15, 23, 42, 0.96),
+    rgba(2, 6, 23, 0.98)
+  );
+  border-radius: 20px;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.9),
+    0 0 0 1px rgba(248, 113, 113, 0.18) inset;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: perm-slide-up 0.25s ease;
+}
+
+@keyframes perm-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* close button */
+
+.perm-delete-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(248, 113, 113, 0.12);
+  color: #fecaca;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.perm-delete-close:hover {
+  background: rgba(248, 113, 113, 0.25);
+  color: #ffffff;
+  transform: scale(1.08);
+}
+
+/* icon */
+
+.perm-delete-icon-wrap {
+  margin-bottom: 16px;
+}
+
+.perm-delete-icon {
+  width: 78px;
+  height: 78px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.2), transparent);
+  border: 2px solid rgba(248, 113, 113, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  color: #f87171;
+  animation: perm-pulse 2s ease infinite;
+}
+
+@keyframes perm-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(248, 113, 113, 0);
+  }
+}
+
+/* titles */
+
+.perm-delete-title {
+  margin: 0 0 8px;
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #fecaca;
+}
+
+.perm-delete-subtitle {
+  margin: 0 0 20px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: rgba(254, 202, 202, 0.9);
+}
+
+.perm-delete-subtitle strong {
+  color: #fca5a5;
+}
+
+/* info card */
+
+.perm-delete-info-card {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.75);
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 14px 16px;
+  margin-bottom: 22px;
+  text-align: left;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.9rem;
+}
+
+.info-row + .info-row {
+  margin-top: 6px;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #9ca3af;
+}
+
+.info-value {
+  color: #e5e7eb;
+  font-weight: 500;
+}
+
+/* actions */
+
+.perm-delete-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-perm-delete {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 14px 30px rgba(239, 68, 68, 0.5),
+    0 0 0 1px rgba(254, 202, 202, 0.2) inset;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.btn-perm-delete:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px rgba(239, 68, 68, 0.6);
+}
+
+.btn-perm-delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-perm-cancel {
+  width: 100%;
+  border-radius: 12px;
+  padding: 12px 18px;
+  background: rgba(31, 41, 55, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  color: #e5e7eb;
+  font-weight: 500;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.btn-perm-cancel:hover:not(:disabled) {
+  background: rgba(17, 24, 39, 0.96);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.75);
+}
+
+.btn-perm-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* light theme tweaks */
+
+html[data-theme="light"] .perm-delete-modal {
+  background: radial-gradient(circle at top, #ffffff, #f9fafb);
+  border-color: rgba(248, 113, 113, 0.3);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.22),
+    0 0 0 1px rgba(248, 113, 113, 0.12) inset;
+}
+
+html[data-theme="light"] .perm-delete-title {
+  color: #ef4444;
+}
+
+html[data-theme="light"] .perm-delete-subtitle {
+  color: #6b7280;
+}
+
+html[data-theme="light"] .perm-delete-subtitle strong {
+  color: #dc2626;
+}
+
+html[data-theme="light"] .perm-delete-info-card {
+  background: #f9fafb;
+}
+
+html[data-theme="light"] .info-label {
+  color: #6b7280;
+}
+
+html[data-theme="light"] .info-value {
+  color: #111827;
+}
+
+html[data-theme="light"] .btn-perm-cancel {
+  background: #f3f4f6;
+  border-color: rgba(148, 163, 184, 0.45);
+  color: #374151;
+}
+
+html[data-theme="light"] .btn-perm-cancel:hover:not(:disabled) {
+  background: #e5e7eb;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
+}
+
+/* responsive */
+
+@media (max-width: 600px) {
+  .perm-delete-modal {
+    width: 94vw;
+    padding: 26px 20px;
+  }
+
+  .perm-delete-icon {
+    width: 70px;
+    height: 70px;
+    font-size: 2rem;
+  }
+}

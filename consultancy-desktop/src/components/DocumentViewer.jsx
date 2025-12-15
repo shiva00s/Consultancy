@@ -1,79 +1,133 @@
-import React, { useState, useEffect } from 'react';
-import '../css/DocumentViewer.css';
-import { FiX, FiLoader } from 'react-icons/fi';
+import React, { useState, useEffect, useMemo } from "react";
+import "../css/DocumentViewer.css";
+import { FiX, FiLoader } from "react-icons/fi";
 
 function DocumentViewer({ doc, onClose }) {
-  const [content, setContent] = useState(null);
+  const [dataUrl, setDataUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const fileType = doc.fileType || "";
+  const isImage = fileType.startsWith("image/");
+  const isPdf = fileType === "application/pdf";
+
+  const mimeForIframe = useMemo(() => {
+    if (isPdf) return "application/pdf";
+    if (isImage) return fileType;
+    return "application/octet-stream";
+  }, [isPdf, isImage, fileType]);
+
   useEffect(() => {
+    let cancelled = false;
+
     const loadDocument = async () => {
       setLoading(true);
       setError(null);
-      const result = await window.electronAPI.getDocumentBase64({
-        filePath: doc.filePath,
-      });
-      if (result.success) {
-        setContent(result.data);
-      } else {
-        setError(result.error);
+      setDataUrl(null);
+
+      try {
+        const result = await window.electronAPI.getDocumentBase64({
+          filePath: doc.filePath,
+        });
+
+        if (!result.success) {
+          throw new Error(result.error || "Failed to load document.");
+        }
+
+        if (cancelled) return;
+
+        const raw = result.data || "";
+        const hasPrefix = raw.startsWith("data:");
+
+        const finalUrl = hasPrefix
+          ? raw
+          : `data:${mimeForIframe};base64,${raw}`;
+
+        setDataUrl(finalUrl);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message || "Error loading document.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
     };
 
     loadDocument();
-  }, [doc]);
+    return () => {
+      cancelled = true;
+    };
+  }, [doc.filePath, mimeForIframe]);
 
-  const isPdf = doc.fileType === 'application/pdf';
-  const isImage = doc.fileType && doc.fileType.startsWith('image/');
+  const emoji =
+    isImage ? "🖼️" : isPdf ? "📄" : "📎";
 
   return (
-    <div className="viewer-modal-backdrop" onClick={onClose}>
-      <div className="viewer-modal-content" onClick={(e) => e.stopPropagation()}>
-        <button className="viewer-close-btn" onClick={onClose}>
+    <div className="dv-backdrop">
+      <div className="dv-shell">
+        <button className="dv-close" onClick={onClose}>
           <FiX />
         </button>
-        <div className="viewer-header">
-          <h3>{doc.fileName}</h3>
-        </div>
-        <div className="viewer-body">
+
+        <header className="dv-header">
+          <div className="dv-title-block">
+            <span className="dv-emoji">{emoji}</span>
+            <div className="dv-title-text">
+              <h3 title={doc.fileName || doc.filePath}>
+                {doc.fileName || "Document Preview"}
+              </h3>
+              <p className="dv-subtitle">
+                {fileType || "Unknown type"}
+              </p>
+            </div>
+          </div>
+        </header>
+
+        <main className="dv-body">
           {loading && (
-            <div className="viewer-loading">
-              <FiLoader className="spinner" />
-              <p>Loading document...</p>
+            <div className="dv-state dv-loading">
+              <FiLoader className="dv-spinner" />
+              <span>Loading your document…</span>
             </div>
           )}
-          {error && <p className="viewer-error">Error: {error}</p>}
-          {!loading && !error && (
+
+          {!loading && error && (
+            <div className="dv-state dv-error">
+              <span>⚠️ Could not open this file.</span>
+              <small>{error}</small>
+            </div>
+          )}
+
+          {!loading && !error && dataUrl && (
             <>
-              {isPdf && (
-                <object
-                  data={content}
-                  type="application/pdf"
-                  width="100%"
-                  height="100%"
-                >
-                  <p>
-                    It appears you don't have a PDF plugin for this browser.
-                    You can{' '}
-                    <a href={content} download={doc.fileName}>
-                      download the PDF
-                    </a>{' '}
-                    instead.
-                  </p>
-                </object>
+              {isImage && (
+                <img
+                  src={dataUrl}
+                  alt={doc.fileName || "Document"}
+                  className="dv-media"
+                />
               )}
-              {isImage && <img src={content} alt={doc.fileName} />}
-              {!isPdf && !isImage && (
-                <p>
-                  In-app preview is not available for this file type (
-                  {doc.fileType}).
-                </p>
+
+              {isPdf && (
+                <iframe
+                  src={dataUrl}
+                  title={doc.fileName || "PDF Preview"}
+                  className="dv-frame"
+                />
+              )}
+
+              {!isImage && !isPdf && (
+                <iframe
+                  src={dataUrl}
+                  title={doc.fileName || "Document Preview"}
+                  className="dv-frame"
+                />
               )}
             </>
           )}
-        </div>
+        </main>
       </div>
     </div>
   );
