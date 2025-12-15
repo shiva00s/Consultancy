@@ -297,33 +297,142 @@ ipcMain.handle('get-user-permissions', async (event, { userId }) => {
     ipcMain.handle('login', (event, { username, password }) => {
         return queries.login(username, password);
     });
+
     ipcMain.handle('register-new-user', (event, { username, password, role }) => {
         return queries.registerNewUser(username, password, role);
     });
+
     ipcMain.handle('get-all-users', (event) => {
         return queries.getAllUsers();
     });
+    
+    
     ipcMain.handle('add-user', async (event, { user, username, password, role }) => {
-    try {
-        // 🔐 Permission enforcement
-        guard(user).enforce(FEATURES.USERS);
+  try {
+    console.log('🔍 add-user called with:', { 
+      userId: user?.id, 
+      userRole: user?.role,
+      targetUsername: username,
+      targetRole: role 
+    });
 
-        const result = await queries.addUser(username, password, role);
-
-        if (result.success) {
-            logAction(
-                user,
-                'create_user',
-                'users',
-                result.data.id,
-                `Username: ${username}, Role: ${role}`
-            );
-        }
-        return result;
-    } catch (err) {
-        return { success: false, error: err.code || err.message };
+    // Authentication & Validation
+    if (!user || !user.id) {
+      return { 
+        success: false, 
+        error: 'Authentication required. Please log in again.' 
+      };
     }
+    
+    if (!user.role) {
+      return { 
+        success: false, 
+        error: 'User role information missing.' 
+      };
+    }
+
+    if (!username || !password || !role) {
+      return {
+        success: false,
+        error: 'Username, password, and role are required.'
+      };
+    }
+
+    // ✅ Normalize role - handles all variations
+    const normalizeRole = (roleString) => {
+      return String(roleString)
+        .toLowerCase()
+        .replace(/\s+/g, '')
+        .replace(/[()_-]/g, '') // Also remove underscores and hyphens
+        .trim();
+    };
+
+    const currentUserRole = normalizeRole(user.role);
+    const targetRole = normalizeRole(role);
+
+    console.log('🔍 Normalized roles:', { currentUserRole, targetRole });
+
+    // ✅ Super Admin - Full Access
+    if (currentUserRole === 'superadmin') {
+      console.log('✅ Super Admin detected - granting access');
+      
+      const result = await queries.addUser(username, password, role);
+      
+      if (result.success) {
+        await logAction(
+          user, 
+          'create-user', 
+          'users', 
+          result.data.id, 
+          `Created user: ${username} (Role: ${role})`
+        );
+      }
+      
+      return result;
+    }
+
+    // ✅ Admin - Granular Permission Check
+    if (currentUserRole === 'admin') {
+      console.log('🔍 Admin user - checking permissions');
+      
+      const db = getDatabase();
+      
+      const permission = await db.get(
+        `SELECT enabled FROM user_granular_permissions 
+         WHERE userid = ? AND permissionkey = 'settings_users'`,
+        [user.id]
+      );
+
+      console.log('🔍 Permission check result:', permission);
+
+      if (!permission || permission.enabled !== 1) {
+        return {
+          success: false,
+          error: 'ACCESS_DENIED: You do not have permission to manage users. Please contact Super Admin.'
+        };
+      }
+
+      // Admin can ONLY create Staff users
+      if (targetRole !== 'staff') {
+        return {
+          success: false,
+          error: 'ACCESS_DENIED: You can only create Staff users. Contact Super Admin to create Admin users.'
+        };
+      }
+
+      const result = await queries.addUser(username, password, role);
+      
+      if (result.success) {
+        await logAction(
+          user, 
+          'create-user', 
+          'users', 
+          result.data.id, 
+          `Created staff user: ${username}`
+        );
+      }
+      
+      return result;
+    }
+
+    // ✅ Staff/Other Roles - Deny Access
+    console.log('❌ Access denied - not admin or super admin');
+    
+    return {
+      success: false,
+      error: 'ACCESS_DENIED: Only Admin and Super Admin can create users.'
+    };
+
+  } catch (err) {
+    console.error('❌ Error in add-user handler:', err);
+    return { 
+      success: false, 
+      error: 'Failed to create user. Please try again.' 
+    };
+  }
 });
+
+
 // ====================================================================
     ipcMain.handle('reset-user-password', async (event, { user, id, newPassword }) => {
     try {
@@ -1948,31 +2057,7 @@ ipcMain.handle('get-activation-status', async () => {
   });
 });
 
-ipcMain.handle('activate-application', async (event, code) => {
-  const db = getDatabase();
 
-  const trimmed = typeof code === 'string' ? code.trim() : '';
-  if (trimmed.length !== 6) {
-    return { success: false, error: 'Invalid activation code.' };
-  }
-
-  // TODO: here you can also verify code against your activations table if needed
-
-  return new Promise((resolve) => {
-    db.run(
-      "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('license_status', 'activated')",
-      [],
-      (err) => {
-        if (err) {
-          console.error('activateApplication update error:', err);
-          return resolve({ success: false, error: 'Failed to save license.' });
-        }
-
-        resolve({ success: true, data: { activated: true } });
-      }
-    );
-  });
-});
 
 
 // -------- END LICENSE / ACTIVATION IPC --------
@@ -2699,6 +2784,150 @@ ipcMain.handle('check-reminders', async () => {
   }
 });
 
+// ✅ COMPLETE: Send Activation Email Handler
+ipcMain.handle('send-activation-email', async (event, { requestCode, machineId }) => {
+  try {
+    const { sendActivationEmail } = require('../services/emailService.cjs');
+    
+    // Generate 6-digit activation code
+    const activationCode = String(Math.floor(100000 + Math.random() * 900000));
+    
+    // Save to database
+    const db = getDatabase();
+    const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(); // 1 year
+    
+    await queries.dbRun(
+      db,
+      `INSERT INTO activation_requests (machine_id, activation_code, expires_at, created_at, email)
+       VALUES (?, ?, ?, ?, ?)`,
+      [machineId, activationCode, expiresAt, new Date().toISOString(), 'prakashshiva368@gmail.com']
+    );
+    
+    // Send email
+    const emailResult = await sendActivationEmail({ requestCode, activationCode });
+    
+    if (emailResult.success) {
+      console.log('✅ Activation email sent successfully');
+      return { success: true, message: 'Activation code sent to email' };
+    } else {
+      console.warn('⚠️ Email failed but code saved:', emailResult.error);
+      return { success: true, message: 'Code generated (email may have failed)' };
+    }
+  } catch (err) {
+    console.error('❌ send-activation-email error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// ✅ ENHANCED: Activate Application Handler (Uses all tables)
+ipcMain.handle('activate-application', async (event, code) => {
+  try {
+    const db = getDatabase();
+    const trimmed = String(code).trim();
+    
+    if (trimmed.length !== 6) {
+      return { success: false, error: 'Activation code must be 6 digits' };
+    }
+
+    // Get machine ID
+    const machineRes = await queries.dbGet(
+      db,
+      'SELECT value FROM system_settings WHERE key = ?',
+      ['machine_id']
+    );
+    const machineId = machineRes?.value || os.hostname().toUpperCase();
+    
+    // 1. Check if already activated
+    const existing = await queries.dbGet(
+      db,
+      'SELECT * FROM license_activation WHERE machine_id = ?',
+      [machineId]
+    );
+    
+    if (existing) {
+      return { success: false, error: 'This machine is already activated' };
+    }
+    
+    // 2. Validate activation code
+    const activation = await queries.dbGet(
+      db,
+      'SELECT * FROM activation_requests WHERE activation_code = ? AND used = 0',
+      [trimmed]
+    );
+    
+    if (!activation) {
+      return { success: false, error: 'Invalid or already used activation code' };
+    }
+    
+    // 3. Check expiry
+    if (new Date(activation.expires_at) < new Date()) {
+      return { success: false, error: 'Activation code expired' };
+    }
+    
+    // 4. Mark code as used
+    await queries.dbRun(
+      db,
+      'UPDATE activation_requests SET used = 1, used_at = ? WHERE id = ?',
+      [new Date().toISOString(), activation.id]
+    );
+    
+    // 5. Record activation in license_activation table
+    await queries.dbRun(
+      db,
+      `INSERT INTO license_activation (machine_id, activated_at, activated_by, notes)
+       VALUES (?, ?, ?, ?)`,
+      [
+        machineId,
+        new Date().toISOString(),
+        'user',
+        `Activated with code: ${trimmed}`
+      ]
+    );
+    
+    // 6. Save license status in system_settings
+    await queries.dbRun(
+      db,
+      "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('license_status', 'activated')",
+      []
+    );
+    
+    console.log('✅ Application activated successfully');
+    return { 
+      success: true, 
+      data: { 
+        activated: true,
+        machineId,
+        activatedAt: new Date().toISOString()
+      } 
+    };
+  } catch (err) {
+    console.error('❌ activate-application error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('reset-activation-status', async () => {
+  try {
+    const db = getDatabase();
+    
+    // Delete activation status
+    await queries.dbRun(
+      db,
+      "DELETE FROM system_settings WHERE key = 'license_status'",
+      []
+    );
+    
+    // Optional: Also clear activation records
+    await queries.dbRun(db, "DELETE FROM license_activation", []);
+    await queries.dbRun(db, "DELETE FROM activation_requests", []);
+    
+    console.log('✅ Activation status reset');
+    return { success: true };
+  } catch (err) {
+    console.error('❌ Reset failed:', err);
+    return { success: false, error: err.message };
+  }
+});
 
 
     module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase,startReminderScheduler  };

@@ -1,0 +1,361 @@
+/* FILE: src/css/ActivationPrompt.css */
+/* ✅ Compact activation page with dark/light mode support - No scrolling */
+
+/* ============================================================================
+   DARK MODE VARIABLES (Default)
+   ============================================================================ */
+:root {
+  --activation-bg-primary: #0f172a;
+  --activation-bg-secondary: #1e293b;
+  --activation-bg-tertiary: #334155;
+  --activation-text-primary: #ffffff;
+  --activation-text-secondary: #cbd5e1;
+  --activation-text-muted: #64748b;
+  --activation-accent: #6366f1;
+  --activation-accent-hover: #4f46e5;
+  --activation-success: #10b981;
+  --activation-success-hover: #059669;
+  --activation-error: #ef4444;
+  --activation-border: #475569;
+  --activation-code-bg: #0f172a;
+  --activation-code-text: #818cf8;
+}
+
+/* ============================================================================
+   LIGHT MODE VARIABLES
+   ============================================================================ */
+@media (prefers-color-scheme: light) {
+  :root {
+    --activation-bg-primary: #f8fafc;
+    --activation-bg-secondary: #ffffff;
+    --activation-bg-tertiary: #e2e8f0;
+    --activation-text-primary: #0f172a;
+    --activation-text-secondary: #475569;
+    --activation-text-muted: #94a3b8;
+    --activation-accent: #6366f1;
+    --activation-accent-hover: #4f46e5;
+    --activation-success: #10b981;
+    --activation-success-hover: #059669;
+    --activation-error: #ef4444;
+    --activation-border: #cbd5e1;
+    --activation-code-bg: #f1f5f9;
+    --activation-code-text: #4f46e5;
+  }
+}
+
+/* ============================================================================
+   CONTAINER - Compact, No Scroll
+   ============================================================================ */
+.activation-container {
+  min-height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--activation-bg-primary) 0%, var(--activation-bg-secondary) 50%, var(--activation-bg-primary) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.activation-content {
+  max-width: 480px;
+  width: 100%;
+}
+
+/* ============================================================================
+   HEADER - Compact
+   ============================================================================ */
+.activation-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.activation-icon-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  background: var(--activation-accent);
+  border-radius: 50%;
+  margin-bottom: 0.75rem;
+}
+
+.activation-icon {
+  font-size: 28px;
+  color: white;
+}
+
+.activation-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--activation-text-primary);
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
+}
+
+.activation-subtitle {
+  color: var(--activation-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  margin-bottom: 0.25rem;
+}
+
+.activation-highlight {
+  color: var(--activation-accent);
+  font-weight: 600;
+}
+
+/* ============================================================================
+   REQUEST CODE BOX - Compact
+   ============================================================================ */
+.request-code-box {
+  background: var(--activation-bg-secondary);
+  border: 2px solid var(--activation-bg-tertiary);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.request-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.request-code-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--activation-text-secondary);
+}
+
+.request-code-label svg {
+  color: var(--activation-error);
+}
+
+.copy-button {
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  transition: background 0.2s;
+  color: var(--activation-accent);
+}
+
+.copy-button:hover:not(:disabled) {
+  background: var(--activation-bg-tertiary);
+}
+
+.copy-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.request-code-display {
+  background: var(--activation-code-bg);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  font-family: 'Courier New', monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--activation-code-text);
+}
+
+.machine-id-text {
+  font-size: 0.75rem;
+  color: var(--activation-text-muted);
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+.machine-id-code {
+  color: var(--activation-text-secondary);
+  font-family: 'Courier New', monospace;
+  font-size: 0.7rem;
+}
+
+/* ============================================================================
+   BUTTONS - Compact
+   ============================================================================ */
+.activation-button {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0.625rem;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.activation-button svg {
+  font-size: 1.125rem;
+}
+
+.email-button {
+  background: var(--activation-accent);
+  color: white;
+  margin-bottom: 1rem;
+}
+
+.email-button:hover:not(:disabled) {
+  background: var(--activation-accent-hover);
+}
+
+.activate-button {
+  background: var(--activation-success);
+  color: white;
+  margin-top: 0.75rem;
+}
+
+.activate-button:hover:not(:disabled) {
+  background: var(--activation-success-hover);
+}
+
+.activation-button:disabled {
+  background: var(--activation-bg-tertiary);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Spinner */
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid white;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================================
+   ACTIVATION FORM - Compact
+   ============================================================================ */
+.activation-form {
+  background: var(--activation-bg-secondary);
+  border: 1px solid var(--activation-bg-tertiary);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+.activation-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--activation-text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.activation-input {
+  width: 100%;
+  background: var(--activation-code-bg);
+  border: 1px solid var(--activation-border);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  color: var(--activation-text-primary);
+  font-family: 'Courier New', monospace;
+  font-size: 1.125rem;
+  letter-spacing: 0.25rem;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.activation-input:focus {
+  border-color: var(--activation-accent);
+}
+
+.activation-input::placeholder {
+  color: var(--activation-text-muted);
+}
+
+/* ============================================================================
+   SUPPORT INFO - Compact
+   ============================================================================ */
+.activation-support {
+  text-align: center;
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  color: var(--activation-text-muted);
+}
+
+.support-highlight {
+  color: var(--activation-accent);
+  font-weight: 600;
+}
+
+/* ============================================================================
+   RESPONSIVE - Extra Compact on Small Screens
+   ============================================================================ */
+@media (max-height: 700px) {
+  .activation-container {
+    padding: 1rem;
+  }
+
+  .activation-header {
+    margin-bottom: 1rem;
+  }
+
+  .activation-icon-container {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 0.5rem;
+  }
+
+  .activation-icon {
+    font-size: 24px;
+  }
+
+  .activation-title {
+    font-size: 1.25rem;
+    margin-bottom: 0.375rem;
+  }
+
+  .activation-subtitle {
+    font-size: 0.8125rem;
+  }
+
+  .request-code-box,
+  .activation-form {
+    padding: 0.75rem;
+  }
+
+  .request-code-display {
+    font-size: 1.25rem;
+    padding: 0.625rem;
+  }
+
+  .activation-button {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.8125rem;
+  }
+
+  .activation-support {
+    margin-top: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .activation-title {
+    font-size: 1.125rem;
+  }
+
+  .request-code-display {
+    font-size: 1.125rem;
+  }
+}

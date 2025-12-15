@@ -1,0 +1,39 @@
+# FILE: .dockerignore
+# ✅ Prevent sensitive files from being copied to Docker
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+
+# Node modules
+node_modules
+npm-debug.log
+
+# Build artifacts
+dist
+build
+out
+
+# Development files
+.vscode
+.idea
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Database files (if local)
+*.db
+*.sqlite
+*.sqlite3
+
+# Electron specific
+release
+dist-electron

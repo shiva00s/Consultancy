@@ -1,6 +1,8 @@
+// FILE: src/pages/LoginPage.jsx
+// ✅ UPDATED: Stores user correctly in auth store
+
 import React, { useState } from 'react';
 import { FiBriefcase } from 'react-icons/fi';
-/* import { Link } from 'react-router-dom';  */
 import '../css/LoginPage.css';
 
 function LoginPage({ onLogin }) {
@@ -14,23 +16,53 @@ function LoginPage({ onLogin }) {
     setError('');
     setLoading(true);
 
-    if (!username || !password) {
+    if (!username?.trim() || !password) {
       setError('Please enter both username and password.');
       setLoading(false);
       return;
     }
 
     try {
-      const result = await window.electronAPI.login({ username, password });
+      const result = await window.electronAPI.login({ 
+        username: username.trim(), 
+        password 
+      });
+      
       if (result.success) {
-       onLogin({ id: result.id, username: result.username, role: result.role });
+        // ✅ Pass complete user object with original role format from DB
+        onLogin({ 
+          id: result.id, 
+          username: result.username, 
+          role: result.role // Keep original format (e.g., "super_admin", "admin", "staff")
+        });
       } else {
-        setError(result.error || 'Login failed');
+        setError(result.error || 'Invalid credentials');
       }
-    } catch {
+    } catch (err) {
+      console.error('Login error:', err);
       setError('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
+  };
+
+  // ⚠️ DEVELOPMENT ONLY - Hidden reset function
+  const handleResetActivation = async () => {
+    if (!window.confirm('⚠️ Reset activation status? This will reload the app.')) {
+      return;
+    }
+    
+    try {
+      const result = await window.electronAPI.resetActivationStatus();
+      if (result?.success) {
+        alert('✅ Activation reset! Reloading...');
+        window.location.reload();
+      } else {
+        alert('❌ Reset failed: ' + (result?.error || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('❌ Error: ' + err.message);
+    }
   };
 
   return (
@@ -47,8 +79,12 @@ function LoginPage({ onLogin }) {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={loading}
+              placeholder="Enter your username"
+              autoComplete="username"
+              autoFocus
             />
           </div>
+          
           <div className="form-group">
             <label>Password</label>
             <input
@@ -56,19 +92,43 @@ function LoginPage({ onLogin }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
+              placeholder="Enter your password"
+              autoComplete="current-password"
             />
           </div>
+          
           {error && <p className="login-error">{error}</p>}
+          
           <button type="submit" className="btn btn-full-width" disabled={loading}>
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
         
-        {/* <Link to="/register" style={{ marginTop: '1.5rem', display: 'inline-block' }}>
-          Register a New User
-        </Link> */}
-        
-        
+        {/* ⚠️ DEVELOPMENT ONLY - HIDDEN RESET BUTTON */}
+        {process.env.NODE_ENV === 'development' && (
+          <button
+            onClick={handleResetActivation}
+            style={{
+              position: 'fixed',
+              bottom: 10,
+              right: 10,
+              opacity: 0.3,
+              fontSize: 10,
+              padding: '5px 10px',
+              background: '#334155',
+              color: '#94a3b8',
+              border: '1px solid #475569',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              transition: 'opacity 0.2s',
+            }}
+            onMouseEnter={(e) => e.target.style.opacity = '1'}
+            onMouseLeave={(e) => e.target.style.opacity = '0.3'}
+            title="Reset activation status (Dev only)"
+          >
+            🔧 Reset Activation
+          </button>
+        )}
       </div>
     </div>
   );

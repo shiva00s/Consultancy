@@ -314,57 +314,66 @@ async function getAllUsers() {
   }
 }
 
-// MODIFIED: Use structured error return
+// ✅ FIXED VERSION - Use this EXACT code
 async function addUser(username, password, role) {
   const db = getDatabase();
-  if (callingUser.role === "admin") {
-    if (role !== "staff") {
-      return {
-        success: false,
-        error: mapErrorToFriendly(
-          "Access Denied: Admins can only create Staff accounts.",
-        ),
-      };
-    }
-  } else if (callingUser.role === "staff") {
-    return {
-      success: false,
-      error: mapErrorToFriendly("Access Denied: Staff cannot add new users."),
+  
+  // Validation only (no permission checks)
+  const errors = {};
+  
+  if (validateRequired(username, 'Username')) {
+    errors.username = validateRequired(username, 'Username');
+  }
+  
+  if (validateRequired(password, 'Password')) {
+    errors.password = validateRequired(password, 'Password');
+  }
+  
+  if (!errors.password && password.length < 6) {
+    errors.password = 'Password must be at least 6 characters.';
+  }
+  
+  if (Object.keys(errors).length > 0) {
+    return { 
+      success: false, 
+      error: mapErrorToFriendly('Validation failed'), 
+      errors 
     };
   }
-  const errors = {};
-  if (validateRequired(username, "Username"))
-    errors.username = validateRequired(username, "Username");
-  if (validateRequired(password, "Password"))
-    errors.password = validateRequired(password, "Password");
-  if (!errors.password && password.length < 6)
-    errors.password = "Password must be at least 6 characters.";
-  if (Object.keys(errors).length > 0)
-    return {
-      success: false,
-      error: mapErrorToFriendly("Validation failed"),
-      errors: errors,
-    };
 
   try {
+    // Hash the password
     const hash = await bcrypt.hash(password, saltRounds);
-    const sql = "INSERT INTO users (password, username, role) VALUES (?, ?, ?)";
-    const result = await dbRun(db, sql, [hash, username, role]);
-    return {
-      success: true,
-      data: { id: result.lastID, username, role },
+    
+    // ✅ FIXED: Correct column order - username, password, role
+    const sql = `INSERT INTO users (username, password, role) VALUES (?, ?, ?)`;
+    const result = await dbRun(db, sql, username, hash, role);
+    
+    return { 
+      success: true, 
+      data: { 
+        id: result.lastID, 
+        username, 
+        role 
+      } 
     };
   } catch (dbErr) {
-    if (dbErr.message.includes("UNIQUE constraint failed")) {
-      return {
-        success: false,
-        error: mapErrorToFriendly("Username already exists."),
+    // Handle duplicate username
+    if (dbErr.message.includes('UNIQUE constraint failed')) {
+      return { 
+        success: false, 
+        error: mapErrorToFriendly('Username already exists.') 
       };
     }
-    console.error("Add User DB Run Error:", dbErr);
-    return { success: false, error: mapErrorToFriendly(dbErr) };
+    
+    console.error('❌ Add User DB Run Error:', dbErr);
+    return { 
+      success: false, 
+      error: mapErrorToFriendly(dbErr) 
+    };
   }
 }
+
 
 // MODIFIED: Use structured error return
 async function resetUserPassword(id, newPassword) {

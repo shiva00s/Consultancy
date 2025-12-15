@@ -6,6 +6,7 @@ const { runMigrations } = require('./src-electron/db/migrations.cjs');
 const { registerIpcHandlers,startReminderScheduler, } = require('./src-electron/ipc/handlers.cjs');
 const { fileManager } = require('./src-electron/utils/fileManager.cjs');
 
+
 // 🔐 Permission Engine
 const {
   PermissionEngine,

@@ -20,9 +20,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
   showOpenDialog: (options) => ipcRenderer.invoke("show-open-dialog", options),
   backupDatabase: (args) => ipcRenderer.invoke("backup-database", args),
   restoreDatabase: (args) => ipcRenderer.invoke("restore-database", args),
-  getActivationStatus: () => ipcRenderer.invoke("get-activation-status"),
-  activateApplication: (args) => ipcRenderer.invoke("activate-application", args),
-  getMachineId: () => ipcRenderer.invoke("get-machine-id"),
+  
+  // SYSTEM
+sendActivationEmail: (data) => ipcRenderer.invoke('send-activation-email', data),
+activateApplication: (code) => ipcRenderer.invoke('activate-application', code),
+getMachineId: () => ipcRenderer.invoke('get-machine-id'),
+getActivationStatus: () => ipcRenderer.invoke('get-activation-status'),
+resetActivationStatus: () => ipcRenderer.invoke('reset-activation-status'),
+
   getServerIP: () => ipcRenderer.invoke("get-server-ip"),
 
   // =====================================================================

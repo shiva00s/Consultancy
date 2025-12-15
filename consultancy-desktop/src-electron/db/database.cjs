@@ -1,4 +1,6 @@
-// src-electron/db/database.cjs
+// FILE: src-electron/db/database.cjs
+// ✅ UPDATED: Auto-creates SMTP settings on initialization
+
 const { app } = require('electron');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
@@ -48,7 +50,24 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 3. ✅ LICENSE ACTIVATION TABLES (FIXED)
+      // 3. SMTP SETTINGS (IMPORTANT FOR EMAIL)
+      // ========================================================================
+      dbInstance.run(`
+        CREATE TABLE IF NOT EXISTS smtp_settings (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          host TEXT NOT NULL,
+          port INTEGER NOT NULL,
+          user TEXT NOT NULL,
+          pass TEXT NOT NULL,
+          from_email TEXT,
+          is_configured INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // ========================================================================
+      // 4. LICENSE ACTIVATION TABLES
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS license_activation (
@@ -84,7 +103,7 @@ function setupDatabase(dbInstance) {
       `);
 
       // ========================================================================
-      // 4. OLD ACTIVATIONS TABLE (Keep for backwards compatibility)
+      // 5. OLD ACTIVATIONS TABLE (Keep for backwards compatibility)
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS activations (
@@ -93,23 +112,6 @@ function setupDatabase(dbInstance) {
           code TEXT,
           activated INTEGER DEFAULT 0,
           createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-
-      // ========================================================================
-      // 5. SMTP SETTINGS (IMPORTANT FOR EMAIL)
-      // ========================================================================
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS smtp_settings (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          host TEXT NOT NULL,
-          port INTEGER NOT NULL,
-          user TEXT NOT NULL,
-          pass TEXT NOT NULL,
-          from_email TEXT,
-          is_configured INTEGER DEFAULT 0,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
       `);
 
@@ -667,6 +669,55 @@ function runMigrations(dbInstance) {
 }
 
 // ============================================================================
+// ✅ NEW: ENSURE DEFAULT SMTP SETTINGS
+// ============================================================================
+
+async function ensureDefaultSmtpSettings(dbInstance) {
+  return new Promise((resolve, reject) => {
+    // Check if SMTP config exists in system_settings
+    dbInstance.get(
+      "SELECT value FROM system_settings WHERE key = 'smtp_config'",
+      [],
+      (err, row) => {
+        if (err) {
+          console.error('❌ Error checking SMTP settings:', err);
+          return reject(err);
+        }
+
+        if (!row) {
+          console.log('📧 Creating default SMTP configuration...');
+          
+          // Default SMTP config (Gmail example - user must configure)
+          const defaultSmtpConfig = {
+            host: 'smtp.gmail.com',
+            port: 587,
+            secure: false,
+            user: 'prakashshiva368@gmail.com', // User must change this
+            pass: 'dijc fgcf zfxv bhpc',     // User must change this
+          };
+
+          dbInstance.run(
+            "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('smtp_config', ?)",
+            [JSON.stringify(defaultSmtpConfig)],
+            (err) => {
+              if (err) {
+                console.error('❌ Error creating default SMTP config:', err);
+                return reject(err);
+              }
+              console.log('✅ Default SMTP configuration created (needs user configuration)');
+              resolve(dbInstance);
+            }
+          );
+        } else {
+          console.log('✅ SMTP configuration already exists');
+          resolve(dbInstance);
+        }
+      }
+    );
+  });
+}
+
+// ============================================================================
 // DATABASE INITIALIZATION
 // ============================================================================
 
@@ -692,6 +743,7 @@ function initializeDatabase() {
         setupDatabase(dbInstance)
           .then((db) => runMigrations(db))
           .then((db) => ensureInitialUserAndRoles(db))
+          .then((db) => ensureDefaultSmtpSettings(db)) // ✅ NEW: Setup SMTP
           .then((db) => {
             global.db = db;
             

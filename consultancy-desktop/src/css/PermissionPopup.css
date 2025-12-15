@@ -1,507 +1,708 @@
+/* FILE: src/css/PermissionPopup.css */
+/* ✅ COMPLETE: Permission Popup with Dark/Light Mode Support */
+
 /* ============================================
-   THEME VARIABLES
+   ROOT VARIABLES - DARK & LIGHT THEMES
    ============================================ */
+
 :root {
-  /* Dark Theme (Default) */
-  --perm-modal-bg: #0f1419;
-  --perm-card-bg: #1a1f2e;
-  --perm-border: #2d3748;
-  --perm-text-main: #f7fafc;
-  --perm-text-muted: #a0aec0;
-  --perm-accent: #3b82f6;
-  --perm-accent-hover: #2563eb;
-  --perm-accent-soft: rgba(59, 130, 246, 0.12);
-  --perm-danger: #ef4444;
+  /* Dark Mode (Default) */
+  --perm-bg-overlay: rgba(0, 0, 0, 0.7);
+  --perm-bg-modal: #1e293b;
+  --perm-bg-section: #0f172a;
+  --perm-bg-header: rgba(255, 255, 255, 0.02);
+  --perm-bg-info: rgba(99, 102, 241, 0.1);
+  --perm-bg-hover: rgba(255, 255, 255, 0.03);
+  
+  --perm-border: #334155;
+  --perm-border-accent: #6366f1;
+  
+  --perm-text-primary: #f1f5f9;
+  --perm-text-secondary: #94a3b8;
+  --perm-text-muted: #64748b;
+  
+  --perm-toggle-off: #475569;
+  --perm-toggle-off-hover: #64748b;
+  --perm-toggle-on: #6366f1;
+  --perm-toggle-on-hover: #4f46e5;
+  
   --perm-success: #10b981;
-  --perm-warning: #f59e0b;
-  --perm-toggle-off: #1e293b;
-  --perm-toggle-knob: #e2e8f0;
-  --perm-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
-  --perm-card-hover: rgba(59, 130, 246, 0.05);
+  --perm-error: #ef4444;
+  
+  --perm-btn-primary-bg: #6366f1;
+  --perm-btn-primary-hover: #4f46e5;
+  --perm-btn-secondary-bg: #334155;
+  --perm-btn-secondary-hover: #475569;
 }
 
-/* Light Theme */
-[data-theme="light"] {
-  --perm-modal-bg: #ffffff;
-  --perm-card-bg: #f8fafc;
+/* Light Mode */
+[data-theme="light"],
+.light-mode {
+  --perm-bg-overlay: rgba(0, 0, 0, 0.5);
+  --perm-bg-modal: #ffffff;
+  --perm-bg-section: #f8fafc;
+  --perm-bg-header: #f1f5f9;
+  --perm-bg-info: rgba(99, 102, 241, 0.1);
+  --perm-bg-hover: #e2e8f0;
+  
   --perm-border: #e2e8f0;
-  --perm-text-main: #1e293b;
-  --perm-text-muted: #64748b;
-  --perm-accent: #2563eb;
-  --perm-accent-hover: #1d4ed8;
-  --perm-accent-soft: rgba(37, 99, 235, 0.08);
-  --perm-danger: #dc2626;
-  --perm-success: #059669;
-  --perm-warning: #d97706;
+  --perm-border-accent: #6366f1;
+  
+  --perm-text-primary: #0f172a;
+  --perm-text-secondary: #475569;
+  --perm-text-muted: #94a3b8;
+  
   --perm-toggle-off: #cbd5e1;
-  --perm-toggle-knob: #ffffff;
-  --perm-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  --perm-card-hover: rgba(37, 99, 235, 0.04);
+  --perm-toggle-off-hover: #94a3b8;
+  --perm-toggle-on: #6366f1;
+  --perm-toggle-on-hover: #4f46e5;
+  
+  --perm-success: #10b981;
+  --perm-error: #ef4444;
+  
+  --perm-btn-primary-bg: #6366f1;
+  --perm-btn-primary-hover: #4f46e5;
+  --perm-btn-secondary-bg: #e2e8f0;
+  --perm-btn-secondary-hover: #cbd5e1;
 }
 
 /* ============================================
-   MODAL OVERLAY & CONTAINER (✅ FINAL FIX)
+   MODAL OVERLAY & CONTAINER
    ============================================ */
+
 .perm-modal-overlay {
-  position: fixed !important;
-  inset: 0 !important;
-  background: rgba(0, 0, 0, 0.75) !important;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--perm-bg-overlay);
   backdrop-filter: blur(4px);
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  z-index: 2147483647 !important;
-  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
   animation: fadeIn 0.2s ease;
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .perm-modal {
-  background: var(--perm-modal-bg);
-  border-radius: 16px;
-  width: 100%;
-  max-width: 1100px;
-  max-height: 88vh;
+  background: var(--perm-bg-modal);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 1000px;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--perm-shadow);
-  border: 1px solid var(--perm-border);
-  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.3s ease;
-  position: relative !important;
-  z-index: 2147483647 !important;
 }
 
 @keyframes slideUp {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 /* ============================================
    HEADER
    ============================================ */
+
 .perm-modal-header {
-  padding: 24px 28px;
+  padding: 20px 24px;
   border-bottom: 1px solid var(--perm-border);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  background: var(--perm-card-bg);
 }
 
 .perm-modal-header h2 {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--perm-text-main);
+  margin: 0 0 6px 0;
+  font-size: 22px;
+  color: var(--perm-text-primary);
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.perm-modal-header h2::before {
-  content: "🔐";
-  font-size: 1.4rem;
+  gap: 8px;
 }
 
 .perm-subtitle {
-  margin: 6px 0 0;
-  font-size: 0.9rem;
-  color: var(--perm-text-muted);
-  font-weight: 400;
+  color: var(--perm-text-secondary);
+  font-size: 13px;
+  margin: 0;
 }
 
-.perm-subtitle strong {
-  color: var(--perm-accent);
+.perm-role-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  background: var(--perm-toggle-on);
+  color: white;
+  border-radius: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
   font-weight: 600;
 }
 
 .perm-close-btn {
-  border: none;
   background: transparent;
-  color: var(--perm-text-muted);
-  font-size: 1.5rem;
+  border: none;
+  font-size: 24px;
+  color: var(--perm-text-secondary);
   cursor: pointer;
-  padding: 8px;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
 }
 
 .perm-close-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--perm-danger);
-  transform: rotate(90deg);
+  background: var(--perm-bg-hover);
+  color: var(--perm-text-primary);
 }
 
 /* ============================================
    INFO BAR
    ============================================ */
+
 .perm-info-bar {
+  padding: 10px 24px;
+  background: var(--perm-bg-info);
+  border-left: 3px solid var(--perm-border-accent);
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 28px;
-  background: var(--perm-accent-soft);
-  border-bottom: 1px solid var(--perm-border);
-  color: var(--perm-accent);
-  font-size: 0.88rem;
-  line-height: 1.6;
-  font-weight: 500;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--perm-text-secondary);
 }
 
 .perm-info-icon {
+  font-size: 16px;
+  color: var(--perm-border-accent);
   flex-shrink: 0;
-  font-size: 1.3rem;
-  margin-top: 2px;
 }
 
 /* ============================================
-   BODY (SCROLLABLE)
+   STATS BAR
    ============================================ */
+
+.perm-stats-bar {
+  padding: 12px 24px;
+  background: var(--perm-bg-section);
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  border-bottom: 1px solid var(--perm-border);
+  flex-wrap: wrap;
+}
+
+.perm-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--perm-text-secondary);
+}
+
+.perm-stat-icon {
+  font-size: 16px;
+}
+
+.perm-stat-icon.enabled {
+  color: var(--perm-success);
+}
+
+.perm-stat-icon.disabled {
+  color: var(--perm-text-muted);
+}
+
+.perm-expand-controls {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.perm-expand-btn {
+  padding: 5px 12px;
+  background: var(--perm-btn-secondary-bg);
+  color: var(--perm-text-primary);
+  border: 1px solid var(--perm-border);
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.perm-expand-btn:hover {
+  background: var(--perm-btn-secondary-hover);
+}
+
+/* ============================================
+   BODY & LOADING
+   ============================================ */
+
 .perm-modal-body {
-  padding: 20px 28px;
+  padding: 16px 24px;
   overflow-y: auto;
   flex: 1;
-  min-height: 0;
-  background: var(--perm-modal-bg);
+}
+
+.perm-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 16px;
+}
+
+.perm-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--perm-border);
+  border-top-color: var(--perm-toggle-on);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ============================================
-   SECTION CARDS
+   3-COLUMN GRID FOR SECTION CARDS
    ============================================ */
+
+.perm-sections-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
 .perm-section-card {
-  background: var(--perm-card-bg);
-  border-radius: 12px;
+  background: var(--perm-bg-section);
   border: 1px solid var(--perm-border);
-  padding: 18px 20px;
-  margin-bottom: 16px;
-  transition: all 0.2s ease;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.3s ease;
 }
 
-[data-theme="light"] .perm-section-card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.perm-section-card:hover {
-  border-color: var(--perm-accent);
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.1);
+/* ============================================
+   SECTION HEADER WITH COMPACT MASTER TOGGLE
+   ============================================ */
+
+.perm-section-header-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--perm-bg-header);
+  border-bottom: 1px solid var(--perm-border);
 }
 
 .perm-section-header {
-  margin-bottom: 14px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--perm-border);
+  flex: 1;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.perm-section-header:hover {
+  opacity: 0.8;
+}
+
+.perm-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.perm-chevron {
+  font-size: 16px;
+  color: var(--perm-toggle-on);
+  transition: transform 0.2s;
+  flex-shrink: 0;
 }
 
 .perm-section-header h3 {
   margin: 0;
-  font-size: 1.05rem;
-  color: var(--perm-text-main);
+  font-size: 14px;
+  color: var(--perm-text-primary);
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.perm-section-header h3::before {
-  content: "▸";
-  color: var(--perm-accent);
-  font-size: 1.2rem;
-}
-
-/* ============================================
-   PERMISSION GRID
-   ============================================ */
-.perm-section-content {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px 16px;
-}
-
-@media (max-width: 768px) {
-  .perm-section-content {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 500px) {
-  .perm-section-content {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ============================================
-   PERMISSION ROW
-   ============================================ */
-.perm-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: transparent;
-  transition: all 0.2s ease;
-  border: 1px solid transparent;
-}
-
-.perm-row:hover:not(.perm-row-disabled) {
-  background: var(--perm-card-hover);
-  border-color: var(--perm-border);
-}
-
-.perm-row-text {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
   flex: 1;
 }
 
-.perm-label {
-  font-size: 0.9rem;
-  color: var(--perm-text-main);
-  font-weight: 500;
-  line-height: 1.3;
-}
-
-.perm-row-disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.perm-row-disabled .perm-label {
-  color: var(--perm-text-muted);
-}
-
-/* ============================================
-   CONTROLS (TOGGLE + LOCK)
-   ============================================ */
-.perm-row-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.perm-lock-hint {
-  color: var(--perm-text-muted);
-  font-size: 1rem;
+.perm-section-count {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  background: var(--perm-toggle-on);
+  color: white;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
-/* ============================================
-   TOGGLE SWITCH (MODERN)
-   ============================================ */
-.perm-toggle {
-  width: 44px;
-  height: 24px;
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background: var(--perm-toggle-off);
+.perm-section-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 24px;
+}
+
+.perm-section-enabled {
+  font-size: 12px;
+  color: var(--perm-success);
+  font-weight: 500;
+}
+
+.perm-section-desc {
+  margin: 0;
+  font-size: 11px;
+  color: var(--perm-text-muted);
+  line-height: 1.4;
+}
+
+/* ✅ COMPACT MASTER TOGGLE */
+.perm-master-toggle {
   position: relative;
-  padding: 0;
+  width: 36px;
+  height: 18px;
+  background: var(--perm-toggle-off);
+  border: 1px solid var(--perm-border);
+  border-radius: 9px;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s;
+  padding: 0;
   flex-shrink: 0;
+  align-self: center;
+}
+
+.perm-master-toggle:hover {
+  background: var(--perm-toggle-off-hover);
+}
+
+.perm-master-toggle.on {
+  background: var(--perm-toggle-on);
+  border-color: var(--perm-toggle-on);
+}
+
+.perm-master-toggle.on:hover {
+  background: var(--perm-toggle-on-hover);
 }
 
 .perm-toggle-knob {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
+  background: white;
   border-radius: 50%;
-  background: var(--perm-toggle-knob);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s;
 }
 
-/* Toggle ON State */
-.perm-toggle.on {
-  background: var(--perm-accent);
-  border-color: var(--perm-accent);
+.perm-master-toggle.on .perm-toggle-knob {
+  transform: translateX(18px);
 }
 
-.perm-toggle.on .perm-toggle-knob {
-  transform: translateX(20px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+/* ============================================
+   SECTION CONTENT - SUB-PERMISSIONS
+   ============================================ */
+
+.perm-section-content {
+  padding: 10px;
+  flex: 1;
 }
 
-.perm-toggle.on:hover {
-  background: var(--perm-accent-hover);
+.perm-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
 }
 
-/* Toggle OFF State */
-.perm-toggle.off:hover:not(.toggle-disabled) {
-  background: rgba(148, 163, 184, 0.2);
+/* ✅ Individual Permission Grid Item */
+.perm-grid-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: var(--perm-bg-modal);
+  border: 1px solid var(--perm-border);
+  border-radius: 5px;
+  transition: all 0.2s;
 }
 
-/* Disabled Toggle */
-.toggle-disabled {
+.perm-grid-item:hover {
+  background: var(--perm-bg-hover);
+  border-color: var(--perm-toggle-on);
+}
+
+.perm-grid-item.perm-item-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.perm-item-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.perm-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.perm-label {
+  font-size: 12px;
+  color: var(--perm-text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ✅ MINI TOGGLE (Individual permissions) */
+.perm-toggle-mini {
+  position: relative;
+  width: 36px;
+  height: 18px;
+  background: var(--perm-toggle-off);
+  border: 1px solid var(--perm-border);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.3s;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.perm-toggle-mini:not(.toggle-disabled):hover {
+  background: var(--perm-toggle-off-hover);
+}
+
+.perm-toggle-mini.on {
+  background: var(--perm-toggle-on);
+  border-color: var(--perm-toggle-on);
+}
+
+.perm-toggle-mini.on:not(.toggle-disabled):hover {
+  background: var(--perm-toggle-on-hover);
+}
+
+.perm-toggle-mini.toggle-disabled {
   cursor: not-allowed;
   opacity: 0.4;
+}
+
+.perm-toggle-knob-mini {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s;
+}
+
+.perm-toggle-mini.on .perm-toggle-knob-mini {
+  transform: translateX(18px);
 }
 
 /* ============================================
    FOOTER
    ============================================ */
+
 .perm-modal-footer {
-  padding: 18px 28px;
+  padding: 14px 24px;
   border-top: 1px solid var(--perm-border);
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  background: var(--perm-card-bg);
-  flex-shrink: 0;
+  gap: 10px;
+  align-items: center;
+  background: var(--perm-bg-section);
 }
 
-.perm-modal-footer .btn {
-  padding: 10px 24px;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  transition: all 0.2s ease;
+.perm-footer-hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--perm-text-muted);
+}
+
+.perm-footer-hint kbd {
+  padding: 2px 5px;
+  background: var(--perm-bg-modal);
+  border: 1px solid var(--perm-border);
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 10px;
+  color: var(--perm-text-primary);
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+
+.btn {
+  padding: 8px 18px;
   border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s;
 }
 
-.perm-modal-footer .btn:not(.btn-secondary) {
-  background: var(--perm-accent);
+.btn-primary {
+  background: var(--perm-btn-primary-bg);
   color: white;
 }
 
-.perm-modal-footer .btn:not(.btn-secondary):hover {
-  background: var(--perm-accent-hover);
+.btn-primary:hover:not(:disabled) {
+  background: var(--perm-btn-primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
 }
 
-.perm-modal-footer .btn-secondary {
-  background: transparent;
-  color: var(--perm-text-main);
+.btn-secondary {
+  background: var(--perm-btn-secondary-bg);
+  color: var(--perm-text-primary);
   border: 1px solid var(--perm-border);
 }
 
-.perm-modal-footer .btn-secondary:hover {
-  background: var(--perm-card-hover);
-  border-color: var(--perm-accent);
+.btn-secondary:hover:not(:disabled) {
+  background: var(--perm-btn-secondary-hover);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ============================================
-   SCROLLBAR
+   RESPONSIVE - TABLET & MOBILE
    ============================================ */
+
+/* Tablet - 2 columns */
+@media (max-width: 1024px) {
+  .perm-sections-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile - 1 column */
+@media (max-width: 768px) {
+  .perm-modal {
+    width: 95%;
+    max-height: 95vh;
+  }
+
+  .perm-sections-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .perm-stats-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .perm-expand-controls {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .perm-footer-hint {
+    display: none;
+  }
+
+  .perm-section-header h3 {
+    font-size: 13px;
+  }
+
+  .perm-label {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .perm-modal-header h2 {
+    font-size: 18px;
+  }
+}
+
+/* ============================================
+   SCROLLBAR STYLING
+   ============================================ */
+
 .perm-modal-body::-webkit-scrollbar {
-  width: 10px;
+  width: 8px;
 }
 
 .perm-modal-body::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--perm-bg-section);
+  border-radius: 4px;
 }
 
 .perm-modal-body::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.3);
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+  background: var(--perm-toggle-off);
+  border-radius: 4px;
 }
 
 .perm-modal-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.5);
-  background-clip: padding-box;
+  background: var(--perm-toggle-on);
 }
 
 /* ============================================
-   LOADING STATE
+   ACCESSIBILITY
    ============================================ */
-.perm-modal-body p {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--perm-text-muted);
-  font-size: 1rem;
+
+.perm-toggle-mini:focus,
+.perm-master-toggle:focus,
+.btn:focus {
+  outline: 2px solid var(--perm-toggle-on);
+  outline-offset: 2px;
 }
 
-/* ============================================
-   RESPONSIVE
-   ============================================ */
-@media (max-width: 768px) {
+/* High contrast mode support */
+@media (prefers-contrast: high) {
   .perm-modal {
-    max-width: 100%;
-    height: 100%;
-    max-height: 100vh;
-    border-radius: 0;
+    border: 2px solid var(--perm-border);
   }
 
-  .perm-modal-header {
-    padding: 20px;
-  }
-
-  .perm-info-bar {
-    padding: 12px 20px;
-  }
-
-  .perm-modal-body {
-    padding: 16px 20px;
-  }
-
-  .perm-modal-footer {
-    padding: 16px 20px;
-  }
-
-  .perm-section-card {
-    padding: 14px 16px;
+  .perm-grid-item {
+    border-width: 2px;
   }
 }
 
-@media (max-width: 500px) {
-  .perm-modal-header h2 {
-    font-size: 1.25rem;
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
-
-  .perm-modal-footer {
-    flex-direction: column-reverse;
-  }
-
-  .perm-modal-footer .btn {
-    width: 100%;
-  }
-}
-
-/* ============================================
-   LIGHT THEME SPECIFIC ENHANCEMENTS
-   ============================================ */
-[data-theme="light"] .perm-modal {
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-}
-
-[data-theme="light"] .perm-toggle.off {
-  background: #e2e8f0;
-  border: 1px solid #cbd5e1;
-}
-
-[data-theme="light"] .perm-toggle.on {
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
-}
-
-[data-theme="light"] .perm-info-bar {
-  background: rgba(37, 99, 235, 0.08);
-  border: 1px solid rgba(37, 99, 235, 0.2);
 }
