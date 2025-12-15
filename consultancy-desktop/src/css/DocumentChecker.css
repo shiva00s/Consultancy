@@ -1,0 +1,407 @@
+/* ============================================
+   DOC CHECKER - DARK & LIGHT MODE
+   ============================================ */
+.doc-checker-card {
+  background: var(--card-background, #2a2e39);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border-color, #3a3f4b);
+  margin-top: 24px;
+}
+
+/* LIGHT MODE */
+.light-theme .doc-checker-card,
+.light .doc-checker-card,
+[data-theme="light"] .doc-checker-card {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.doc-checker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.doc-checker-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* LIGHT MODE H3 */
+.light-theme .doc-checker-header h3,
+.light .doc-checker-header h3,
+[data-theme="light"] .doc-checker-header h3 {
+  color: #1f2937;
+}
+
+.completion-badge {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.completion-badge[data-status="complete"] {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+}
+
+.completion-badge[data-status="incomplete"] {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+}
+
+/* Progress Bar */
+.progress-container {
+  margin-bottom: 20px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background: var(--background-secondary, #1e2128);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* LIGHT MODE PROGRESS */
+.light-theme .progress-bar,
+.light .progress-bar,
+[data-theme="light"] .progress-bar {
+  background: #e5e7eb;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.4s ease, background 0.3s ease;
+  border-radius: 10px;
+}
+
+.progress-fill[data-status="complete"] {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.progress-fill[data-status="incomplete"] {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+/* Status Message */
+.status-message {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.status-message.success {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #10b981;
+}
+
+/* LIGHT MODE SUCCESS */
+.light-theme .status-message.success,
+.light .status-message.success,
+[data-theme="light"] .status-message.success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.status-message.error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+/* LIGHT MODE ERROR */
+.light-theme .status-message.error,
+.light .status-message.error,
+[data-theme="light"] .status-message.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+/* 3-COLUMN GRID */
+.doc-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.status-column {
+  background: var(--background-secondary, #1e2128);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+/* LIGHT MODE COLUMN */
+.light-theme .status-column,
+.light .status-column,
+[data-theme="light"] .status-column {
+  background: #f9fafb;
+}
+
+.status-column.missing {
+  border-color: #ef4444;
+}
+
+.status-column.complete {
+  border-color: #10b981;
+}
+
+.status-column.uploaded {
+  border-color: #4a90e2;
+}
+
+.column-header {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-color, #3a3f4b);
+}
+
+/* LIGHT MODE COLUMN HEADER */
+.light-theme .column-header,
+.light .column-header,
+[data-theme="light"] .column-header {
+  border-bottom-color: #e5e7eb;
+}
+
+.column-header h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+  flex: 1;
+}
+
+/* LIGHT MODE H4 */
+.light-theme .column-header h4,
+.light .column-header h4,
+[data-theme="light"] .column-header h4 {
+  color: #1f2937;
+}
+
+.column-icon {
+  font-size: 18px;
+}
+
+.status-column.missing .column-icon,
+.status-column.missing .column-header h4 {
+  color: #ef4444;
+}
+
+.status-column.complete .column-icon,
+.status-column.complete .column-header h4 {
+  color: #10b981;
+}
+
+.status-column.uploaded .column-icon,
+.status-column.uploaded .column-header h4 {
+  color: #4a90e2;
+}
+
+.column-content {
+  padding: 16px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.column-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.column-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+/* LIGHT MODE SCROLLBAR */
+.light-theme .column-content::-webkit-scrollbar-thumb,
+.light .column-content::-webkit-scrollbar-thumb,
+[data-theme="light"] .column-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-secondary, #9ca3af);
+  font-size: 13px;
+  font-style: italic;
+  padding: 20px 10px;
+}
+
+/* LIGHT MODE EMPTY */
+.light-theme .empty-state,
+.light .empty-state,
+[data-theme="light"] .empty-state {
+  color: #6b7280;
+}
+
+.doc-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.doc-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  font-size: 13px;
+  transition: background 0.2s ease;
+}
+
+/* LIGHT MODE DOC ITEM */
+.light-theme .doc-item,
+.light .doc-item,
+[data-theme="light"] .doc-item {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.doc-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* LIGHT MODE HOVER */
+.light-theme .doc-item:hover,
+.light .doc-item:hover,
+[data-theme="light"] .doc-item:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.item-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.status-column.missing .doc-item {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.status-column.complete .doc-item {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.category-badge {
+  padding: 4px 10px;
+  background: rgba(74, 144, 226, 0.2);
+  border-radius: 12px;
+  font-size: 12px;
+  color: #4a90e2;
+  font-weight: 500;
+}
+
+/* LIGHT MODE BADGE */
+.light-theme .category-badge,
+.light .category-badge,
+[data-theme="light"] .category-badge {
+  background: rgba(74, 144, 226, 0.15);
+  color: #3b82f6;
+}
+
+/* Loading & Notice */
+.doc-checker-loading,
+.doc-checker-notice {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-secondary, #9ca3af);
+  background: var(--card-background, #2a2e39);
+  border-radius: 8px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* LIGHT MODE LOADING */
+.light-theme .doc-checker-loading,
+.light-theme .doc-checker-notice,
+.light .doc-checker-loading,
+.light .doc-checker-notice,
+[data-theme="light"] .doc-checker-loading,
+[data-theme="light"] .doc-checker-notice {
+  background: #ffffff;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #4a90e2;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* LIGHT MODE SPINNER */
+.light-theme .spinner,
+.light .spinner,
+[data-theme="light"] .spinner {
+  border-color: rgba(0, 0, 0, 0.1);
+  border-top-color: #3b82f6;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* RESPONSIVE */
+@media (max-width: 1024px) {
+  .doc-status-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .column-content {
+    max-height: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .doc-checker-card {
+    padding: 16px;
+  }
+
+  .doc-checker-header h3 {
+    font-size: 16px;
+  }
+
+  .completion-badge {
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+
+  .status-message {
+    font-size: 13px;
+    padding: 12px 14px;
+  }
+}

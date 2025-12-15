@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   FiFileText,
   FiSave,
@@ -7,8 +7,8 @@ import {
   FiRotateCcw,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import '../../css/OfferTemplateManager.css';
 
-// --- FACTORY DEFAULT TEMPLATE ---
 const DEFAULT_TEMPLATE = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -134,63 +134,80 @@ const DEFAULT_TEMPLATE = `<!DOCTYPE html>
 
 function OfferTemplateManager({ user }) {
   const [templateContent, setTemplateContent] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const didMountRef = useRef(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  
+  const isMountedRef = useRef(false);
+  const hasInitialLoadRef = useRef(false);
 
-  const fetchTemplate = async () => {
-  // Hard guard: never proceed without a valid user object
-  if (!user || !user.id) {
-    console.warn('OfferTemplateManager: user not ready, skipping fetch');
-    setLoading(false);
-    setTemplateContent('');
-    return;
-  }
-
-  try {
-    setLoading(true);
-    const res = await window.electronAPI.readOfferTemplate({ user });
-
-    if (!res || res.success === false) {
-      if (res?.error === 'AUTH_REQUIRED') {
-        toast.error('You must be logged in to load the offer template.');
-      } else if (res?.error === 'ACCESS_DENIED') {
-        toast.error('You do not have permission to edit offer templates.');
-      } else {
-        toast.error(res?.error || 'Failed to read template file.');
-      }
+  const fetchTemplate = useCallback(async () => {
+    if (!user || !user.id) {
       setTemplateContent('');
+      setLoading(false);
+      setHasLoaded(false);
       return;
     }
 
-    if (!res.data || res.data.trim() === '') {
-      setTemplateContent(DEFAULT_TEMPLATE);
-      toast('Loaded default template (file was empty).', { icon: 'ℹ️' });
-    } else {
-      setTemplateContent(res.data);
-      toast.success('Template loaded successfully.');
+    try {
+      setLoading(true);
+      const res = await window.electronAPI.readOfferTemplate({ user });
+
+      if (!res || res.success === false) {
+        if (res?.error === 'AUTH_REQUIRED') {
+          toast.error('Session expired. Please refresh the page.');
+        } else if (res?.error === 'ACCESS_DENIED') {
+          toast.error('You do not have permission to edit templates.');
+        } else if (res?.error === 'Template file not found.') {
+          setTemplateContent(DEFAULT_TEMPLATE);
+          setHasLoaded(true);
+          setLoading(false);
+          return;
+        } else {
+          toast.error(res?.error || 'Failed to load template.');
+        }
+        setTemplateContent('');
+        setHasLoaded(false);
+        setLoading(false);
+        return;
+      }
+
+      if (!res.data || res.data.trim() === '') {
+        setTemplateContent(DEFAULT_TEMPLATE);
+      } else {
+        setTemplateContent(res.data);
+      }
+      
+      setHasLoaded(true);
+    } catch (err) {
+      toast.error('Failed to load template.');
+      setTemplateContent('');
+      setHasLoaded(false);
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error('readOfferTemplate failed', err);
-    toast.error('Unexpected error while reading template.');
-    setTemplateContent('');
-  } finally {
-    setLoading(false);
-  }
-};
+  }, [user]);
 
+  useEffect(() => {
+    isMountedRef.current = true;
 
-useEffect(() => {
-  if (!didMountRef.current && user && user.id) {
-    didMountRef.current = true;
-    fetchTemplate();
-  }
-}, [user]);
+    if (user && user.id && !hasInitialLoadRef.current) {
+      hasInitialLoadRef.current = true;
+      fetchTemplate();
+    } else if (!user || !user.id) {
+      setTemplateContent('');
+      setHasLoaded(false);
+      hasInitialLoadRef.current = false;
+    }
 
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [user?.id]);
 
   const handleSave = async () => {
-    if (!user) {
-      toast.error('You must be logged in to save the offer template.');
+    if (!user || !user.id) {
+      toast.error('You must be logged in to save the template.');
       return;
     }
 
@@ -203,99 +220,99 @@ useEffect(() => {
 
       if (!res || res.success === false) {
         if (res?.error === 'AUTH_REQUIRED') {
-          toast.error('Login required to save offer template.');
+          toast.error('Session expired. Please log in again.');
         } else if (res?.error === 'ACCESS_DENIED') {
-          toast.error('You are not allowed to modify offer templates.');
+          toast.error('You do not have permission to save templates.');
         } else {
-          toast.error(res?.error || 'Failed to save template file.');
+          toast.error(res?.error || 'Failed to save template.');
         }
-      } else {
-        toast.success('Offer Letter Template saved!');
+        return;
       }
+
+      toast.success('✅ Offer Letter Template saved!');
     } catch (err) {
-      console.error('writeOfferTemplate failed', err);
-      toast.error('Unexpected error while saving template.');
+      toast.error('Unexpected error while saving.');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleRestoreDefault = () => {
-    if (
-      window.confirm(
-        'Are you sure you want to overwrite the current editor content with the Factory Default template?'
-      )
-    ) {
+    if (window.confirm('Overwrite current content with Factory Default template?')) {
       setTemplateContent(DEFAULT_TEMPLATE);
-      toast.success('Restored Factory Default Template.');
+      toast.success('🔄 Factory Default Template loaded.');
     }
   };
 
   const handleRevert = () => {
-    fetchTemplate();
+    if (window.confirm('Discard all unsaved changes?')) {
+      fetchTemplate();
+    }
   };
 
+  if (!user || !user.id) {
+    return (
+      <div className="template-editor-section">
+        <div className="template-editor-header">
+          <h2 className="template-editor-title">
+            <FiFileText /> Offer Letter Template Editor
+          </h2>
+        </div>
+        <div className="template-auth-error">
+          <FiAlertTriangle size={24} />
+          <p>You must be logged in to load the offer template.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className="settings-section-card"
-      style={{ gridColumn: '1 / -1', marginTop: '1.5rem' }}
-    >
-      <h2>
-        <FiFileText /> Offer Letter Template Editor
-      </h2>
-      <p style={{ color: 'var(--text-secondary)' }}>
-        Edit the EJS template content below. Use variables like{' '}
-        <code>&lt;%= candidateName %&gt;</code> and{' '}
-        <code>&lt;%= monthlySalary %&gt;</code>. Saving overwrites the existing
-        file on disk.
-      </p>
+    <div className="template-editor-section">
+      <div className="template-editor-header">
+        <h2 className="template-editor-title">
+          <FiFileText /> Offer Letter Template Editor
+        </h2>
+        <p className="template-editor-description">
+          Edit the EJS template content below. Use variables like{' '}
+          <code className="variable-code">&lt;%= candidateName %&gt;</code> and{' '}
+          <code className="variable-code">&lt;%= monthlySalary %&gt;</code>. 
+          Saving overwrites the existing file on disk.
+        </p>
+      </div>
 
       {loading ? (
-        <p>Loading template...</p>
+        <div className="template-loading-state">
+          <div className="spinner"></div>
+          <p>⏳ Loading template...</p>
+        </div>
       ) : (
         <>
           <textarea
+            className="template-editor-textarea"
             value={templateContent}
             onChange={(e) => setTemplateContent(e.target.value)}
-            rows="20"
-            style={{
-              width: '100%',
-              fontFamily: 'monospace',
-              fontSize: '0.9rem',
-              marginBottom: '1rem',
-              padding: '10px',
-              backgroundColor: 'var(--bg-input)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border-color)',
-              borderRadius: 'var(--border-radius)',
-              outline: 'none',
-            }}
+            placeholder="Enter your EJS/HTML template here..."
           />
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr',
-              gap: '15px',
-              marginTop: '1.5rem',
-            }}
-          >
+          <div className="template-editor-actions">
             <button
-              className="btn"
+              className="btn btn-save"
               onClick={handleSave}
               disabled={isSaving || loading}
             >
-              <FiSave /> Save Changes
+              <FiSave /> {isSaving ? 'Saving...' : 'Save Changes'}
             </button>
+            
             <button
-              className="btn btn-secondary"
+              className="btn btn-secondary btn-revert"
               onClick={handleRevert}
-              disabled={isSaving || loading}
+              disabled={isSaving || loading || !hasLoaded}
             >
               <FiRefreshCw /> Revert Changes
             </button>
+            
             <button
-              className="btn btn-danger"
+              className="btn btn-danger btn-default"
               onClick={handleRestoreDefault}
               disabled={isSaving || loading}
             >
@@ -303,13 +320,13 @@ useEffect(() => {
             </button>
           </div>
 
-          <p
-            className="form-message error"
-            style={{ marginTop: '1.5rem' }}
-          >
-            <FiAlertTriangle /> <strong>WARNING:</strong> Editing raw EJS/HTML
-            may cause PDF generation errors if syntax is invalid.
-          </p>
+          <div className="template-warning-message">
+            <FiAlertTriangle className="warning-icon" />
+            <div className="warning-text">
+              <strong>WARNING:</strong> Editing raw EJS/HTML may cause PDF generation 
+              errors if syntax is invalid. Always test after making changes.
+            </div>
+          </div>
         </>
       )}
     </div>

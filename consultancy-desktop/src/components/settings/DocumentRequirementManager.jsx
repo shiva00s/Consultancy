@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiFileText, FiPlus, FiTrash2, FiAlertTriangle } from 'react-icons/fi';
+import { FiFileText, FiPlus, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import '../../css/DocumentRequirementManager.css';
 
-// --- Hardcoded list of frequently used documents ---
+// Standard documents list
 const STANDARD_DOCUMENTS = [
     'Passport', 
     'Resume', 
@@ -16,7 +17,6 @@ const STANDARD_DOCUMENTS = [
     'Medical Certificate',
     'Driving License'
 ];
-// ---------------------------------------------------
 
 function DocumentRequirementManager({ user }) {
     const [requiredDocs, setRequiredDocs] = useState([]);
@@ -40,11 +40,28 @@ function DocumentRequirementManager({ user }) {
         fetchDocs();
     }, [fetchDocs]);
 
+    // ✅ FILTER: Hide already added documents from dropdown
+    const availableDocuments = STANDARD_DOCUMENTS.filter(doc => 
+        !requiredDocs.some(existingDoc => 
+            existingDoc.name.toLowerCase() === doc.toLowerCase()
+        )
+    );
+
     const handleAddDoc = async (e) => {
         e.preventDefault();
         const name = newDocName.trim();
         if (!name) {
             toast.error('Document name cannot be empty.');
+            return;
+        }
+
+        // Check if already exists (case-insensitive)
+        const alreadyExists = requiredDocs.some(doc => 
+            doc.name.toLowerCase() === name.toLowerCase()
+        );
+        
+        if (alreadyExists) {
+            toast.error(`"${name}" is already in the required documents list.`);
             return;
         }
 
@@ -55,7 +72,7 @@ function DocumentRequirementManager({ user }) {
             setRequiredDocs(prev => [...prev, res.data]);
             setNewDocName('');
             setSelectedStandardDoc('');
-            toast.success(`Document "${name}" added.`);
+            toast.success(`✅ Document "${name}" added.`);
         } else {
             toast.error(res.error || 'Failed to add document.');
         }
@@ -69,7 +86,7 @@ function DocumentRequirementManager({ user }) {
         
         if (res.success) {
             setRequiredDocs(prev => prev.filter(doc => doc.id !== id));
-            toast.success(`Document "${name}" removed from required list.`);
+            toast.success(`🗑️ Document "${name}" removed from required list.`);
         } else {
             toast.error(res.error || 'Failed to delete document.');
         }
@@ -79,82 +96,93 @@ function DocumentRequirementManager({ user }) {
         const value = e.target.value;
         setSelectedStandardDoc(value);
         if (value) {
-            setNewDocName(value); // Fill the input box
+            setNewDocName(value);
         }
     };
 
     return (
-        <div className="document-manager-section" style={{marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)'}}>
-            <h3><FiFileText /> Manage Required Documents</h3>
-            <p style={{fontSize: '0.9rem', color: 'var(--text-secondary)'}}>
-                Define a master list of mandatory documents. Candidates lacking these will be flagged in the Document Checker. (Current count: {requiredDocs.length})
-            </p>
+        <div className="doc-req-section">
+            {/* Header */}
+            <div className="doc-req-header">
+                <h3 className="doc-req-title">
+                    <FiFileText /> Manage Required Documents
+                </h3>
+                <p className="doc-req-description">
+                    Define a master list of mandatory documents. Candidates lacking these will be flagged in the Document Checker. (Current count: <strong>{requiredDocs.length}</strong>)
+                </p>
+            </div>
 
-            {/* --- ADD FORM (Fixed Alignment) --- */}
-            <form onSubmit={handleAddDoc} style={{ 
-                display: 'grid', 
-                gridTemplateColumns: '1fr 1fr auto', // Flexible columns + button
-                gap: '16px', 
-                alignItems: 'end', // Bottom alignment
-                margin: '1rem 0' 
-            }}>
-                
-                <div className="form-group" style={{marginBottom: 0}}>
+            {/* Add Form - 3 Column Pattern */}
+            <form onSubmit={handleAddDoc} className="doc-req-form">
+                <div className="form-group">
                     <label>Select Frequent Document</label>
                     <select 
+                        className="form-select"
                         value={selectedStandardDoc} 
                         onChange={handleStandardDocSelect}
+                        disabled={availableDocuments.length === 0}
                     >
-                        <option value="">-- Select or Type Below --</option>
-                        {STANDARD_DOCUMENTS.map(doc => (<option key={doc} value={doc}>{doc}</option>))}
+                        <option value="">
+                            {availableDocuments.length === 0 
+                                ? '-- All documents added --' 
+                                : '-- Select or Type Below --'
+                            }
+                        </option>
+                        {availableDocuments.map(doc => (
+                            <option key={doc} value={doc}>{doc}</option>
+                        ))}
                     </select>
                 </div>
 
-                <div className="form-group" style={{marginBottom: 0}}>
+                <div className="form-group">
                     <label>Custom Document Name</label>
                     <input
                         type="text"
+                        className="form-input"
                         value={newDocName}
                         onChange={(e) => setNewDocName(e.target.value)}
                         placeholder="Enter Category Name"
                     />
                 </div>
                 
-                {/* Button with Spacer Label */}
-                <div className="form-group" style={{marginBottom: 0}}>
+                <div className="form-group">
                     <label style={{visibility: 'hidden'}}>Action</label>
-                    <button type="submit" className="btn" disabled={isSaving || !newDocName.trim()} style={{minWidth: '140px'}}>
+                    <button 
+                        type="submit" 
+                        className="btn btn-add" 
+                        disabled={isSaving || !newDocName.trim()}
+                    >
                         <FiPlus /> Add
                     </button>
                 </div>
             </form>
 
-            {/* --- LIST --- */}
-            <div className="required-doc-list" style={{marginTop: '1rem'}}>
+            {/* Document Cards Grid */}
+            <div className="doc-req-list">
                 {loading ? (
-                    <p>Loading...</p>
+                    <p className="loading-text">⏳ Loading documents...</p>
                 ) : requiredDocs.length === 0 ? (
-                    <p style={{color: 'var(--danger-color)'}}>No required documents defined yet.</p>
+                    <div className="empty-state">
+                        <p>📄 No required documents defined yet. Add your first document above.</p>
+                    </div>
                 ) : (
-                    <ul className="user-list"> 
+                    <div className="doc-req-cards">
                         {requiredDocs.map(doc => (
-                            <li key={doc.id} className="user-item">
-                                <div className="user-item-info">
-                                    <strong>{doc.name}</strong>
-                                    <span style={{marginLeft: '10px'}}>(Category Must Match Upload)</span>
+                            <div key={doc.id} className="doc-req-card">
+                                <div className="doc-card-content">
+                                    <span className="doc-card-name">{doc.name}</span>
+                                    <span className="doc-card-note">(CATEGORY MUST MATCH UPLOAD)</span>
                                 </div>
-                                <div className="user-item-actions">
-                                    <button
-                                        className="doc-btn delete"
-                                        title="Remove from Required List (Soft Delete)"
-                                        onClick={() => handleDeleteDoc(doc.id, doc.name)}
-                                    >
-                                        <FiTrash2 />
-                                    </button>
-                                </div>
-                            </li>
+                                <button
+                                    className="doc-delete-btn"
+                                    title="Remove from Required List"
+                                    onClick={() => handleDeleteDoc(doc.id, doc.name)}
+                                >
+                                    <FiTrash2 />
+                                </button>
+                            </div>
                         ))}
-                    </ul>
+                    </div>
                 )}
             </div>
         </div>

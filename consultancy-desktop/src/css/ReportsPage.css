@@ -1,160 +1,270 @@
+/* ReportsPage.css – audit-log visual style, using global light/dark tokens */
+
+/* Page container – no internal scroll */
 .reports-page-container {
-   margin: 0 auto;
-}
-
-.report-widget-grid {
-  display: grid;
-  /* CRITICAL FIX: Use minmax for responsiveness with a safe minimum size and ensure separation */
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
-  gap: 20px; 
-  margin-bottom: 2rem;
-}
-
-.report-charts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); /* MODIFIED: Smaller min size */
-  gap: 20px; /* MODIFIED: Reduced gap */
-}
-
-.report-chart-card {
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  padding: 1.5rem; /* MODIFIED: Reduced padding */
-}
-
-.report-chart-card h3 {
-  margin-top: 0;
-  margin-bottom: 1rem; /* MODIFIED: Reduced margin */
-  padding-bottom: 0.8rem; /* MODIFIED: Reduced padding */
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.report-chart-card h3 svg {
-  color: var(--primary-color);
-}
-
-.report-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+  margin: 0 auto;
+  padding: var(--space-lg);
+  background: var(--bg-primary);
+  color: var(--text-primary);
   display: flex;
   flex-direction: column;
-  gap: 10px; /* MODIFIED: Reduced gap */
-  max-height: 250px; /* MODIFIED: Added max height for no scrolling */
-  overflow-y: auto;
-  padding-right: 5px;
-}
-.report-list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: var(--bg-secondary);
-  padding: 10px 14px; /* MODIFIED: Reduced padding */
-  border-radius: var(--border-radius);
-  font-size: 0.95rem; /* MODIFIED: Smaller font */
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-.report-list-value {
-  color: var(--text-primary);
-  font-weight: 600;
-  font-size: 1rem; /* MODIFIED: Smaller font */
-  background-color: var(--bg-input);
-  padding: 3px 8px; /* MODIFIED: Reduced padding */
-  border-radius: 4px;
+  gap: var(--space-md);
 }
 
-.report-list p {
-  color: var(--text-secondary);
-  text-align: center;
-  padding: 1rem;
+/* Header and title */
+.reports-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
 }
-.report-chart-card { border-radius: var(--border-radius); }
-.report-chart-card h3 { font-weight: 600; }
-.report-list li { transition: background-color .2s ease; }
-.report-list li:hover { background-color: var(--bg-input); }
-/* --- NEW: Filter Bar Styling --- */
+
+.reports-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+/* Filter bar */
 .report-filter-bar {
   display: flex;
-  gap: 10px;
   align-items: center;
-  background: var(--bg-tertiary);
-  padding: 10px 15px;
-  border-radius: var(--border-radius);
+  gap: var(--space-sm);
+  background: var(--bg-secondary);
+  padding: 10px 14px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
-  margin-bottom: 1.5rem;
 }
+
 .report-filter-bar .filter-field {
   display: flex;
   align-items: center;
   flex-grow: 1;
+  background: var(--bg-input);
+  border-radius: var(--radius-md);
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
 }
 
 .report-filter-bar .filter-field svg {
-  color: var(--text-secondary);
-  margin-right: 8px;
+  color: var(--text-tertiary);
+  margin-right: 6px;
   flex-shrink: 0;
-  opacity: 0.7;
 }
 
 .report-filter-bar select {
   width: 100%;
   height: 36px;
-  padding: 0 10px;
+  padding: 0 6px;
   font-size: 0.9rem;
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
+  background: transparent;
+  border: none;
   outline: none;
   color: var(--text-primary);
-  box-sizing: border-box;
 }
 
+/* Buttons (build on global .btn) */
 .report-filter-bar .btn {
-    height: 36px;
-    padding: 0 18px;
-    font-size: 0.95rem;
-    flex-shrink: 0;
+  height: 36px;
+  padding: 0 16px;
+  font-size: 0.9rem;
 }
-/* Table Styling */
+
+/* Override only colors to match audit style */
+.btn-primary {
+  background-color: var(--primary);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-secondary {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-hover);
+}
+
+.btn-danger {
+  background-color: var(--danger);
+}
+
+/* Section titles */
+.report-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 var(--space-sm);
+  color: var(--text-primary);
+}
+
+/* Table container – full height, only page scroll */
+.report-results-section {
+  margin-top: var(--space-md);
+}
+
 .report-table-container {
-    background-color: var(--bg-secondary);
-    border-radius: var(--border-radius);
-    border: 1px solid var(--border-color);
-    overflow-x: auto;
-    margin-bottom: 2rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  overflow: hidden; /* rounded corners only */
 }
 
+/* Table */
 .report-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.9rem;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
 }
 
-.report-table th, .report-table td {
-    padding: 12px 15px;
-    text-align: left;
-    border-bottom: 1px solid var(--border-color);
+.report-table th,
+.report-table td {
+  padding: 11px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .report-table th {
-    background-color: var(--bg-tertiary);
-    color: var(--text-secondary);
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 0.8rem;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
 }
 
-.report-table tr:hover {
-    background-color: var(--bg-tertiary);
+/* Hover state tuned per theme */
+[data-theme='dark'] .report-table tbody tr:hover {
+  background: #020617;
 }
 
-/* Footer Summary Section */
+[data-theme='light'] .report-table tbody tr:hover {
+  background: #f1f5f9;
+}
+
+/* Paid and balance cells */
+.cell-paid {
+  color: var(--success);
+  font-weight: 500;
+}
+
+.balance-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.balance-emoji {
+  font-size: 0.9rem;
+}
+
+.balance-clear {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+}
+
+.balance-overdue {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
+}
+
+/* Status badges – audit style, token colors */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-badge.badge-green {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+}
+
+.status-badge.badge-red {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+}
+
+.status-badge.badge-amber {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--warning);
+}
+
+.status-badge.badge-blue {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--primary);
+}
+
+.status-badge.badge-cyan {
+  background: rgba(6, 182, 212, 0.12);
+  color: var(--info);
+}
+
+.status-badge.badge-grey {
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--text-secondary);
+}
+
+/* Summary widgets */
 .report-summary-footer {
-    margin-top: 2rem;
-    padding-top: 1rem;
-    border-top: 2px dashed var(--border-color);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px dashed var(--border-color);
+}
+
+.report-widget-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-md);
+}
+
+/* If your ReportWidget uses .card / .premium-card it will already match.
+   This is only a safe fallback if it has a custom root class. */
+.report-widget-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+}
+
+/* Loading text */
+.loading-text {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-secondary);
+}
+
+/* Responsive tweaks */
+@media (max-width: 1024px) {
+  .reports-page-container {
+    padding: var(--space-md);
+  }
+}
+
+@media (max-width: 768px) {
+  .report-filter-bar {
+    flex-wrap: wrap;
+  }
+
+  .report-filter-bar .btn {
+    flex: 1 1 48%;
+  }
+
+  .reports-title {
+    font-size: 1.6rem;
+  }
 }

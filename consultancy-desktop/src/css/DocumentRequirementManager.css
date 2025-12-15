@@ -1,0 +1,363 @@
+/* =========================================================
+   DOCUMENT REQUIREMENT MANAGER - COMPACT DESIGN
+   1366×768 Optimized | Dark/Light Mode Ready
+   ========================================================= */
+
+/* ========================================
+   SECTION CONTAINER
+   ======================================== */
+
+.doc-req-section {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
+  border-top: 2px solid var(--border-color);
+}
+
+/* ========================================
+   HEADER
+   ======================================== */
+
+.doc-req-header {
+  margin-bottom: var(--space-lg);
+}
+
+.doc-req-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-sm) 0;
+}
+
+.doc-req-title svg {
+  width: 22px;
+  height: 22px;
+  color: var(--primary);
+}
+
+.doc-req-description {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.doc-req-description strong {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* ========================================
+   FORM - 3 COLUMN PATTERN (COMPACT)
+   ======================================== */
+
+.doc-req-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: var(--space-md);
+  align-items: end;
+  margin-bottom: var(--space-lg);
+  
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  
+  box-shadow: var(--shadow-sm);
+}
+
+.doc-req-form .form-group {
+  margin-bottom: 0;
+}
+
+.doc-req-form label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Inputs - Compact */
+.doc-req-form .form-select,
+.doc-req-form .form-input {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 12px;
+  
+  font-size: 0.8125rem;
+  
+  background: var(--bg-input);
+  color: var(--text-primary);
+  
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.doc-req-form .form-select:hover,
+.doc-req-form .form-input:hover {
+  border-color: var(--border-strong);
+}
+
+.doc-req-form .form-select:focus,
+.doc-req-form .form-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Add Button - Compact */
+.doc-req-form .btn-add {
+  min-width: 120px;
+  min-height: 36px;
+  
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  
+  padding: 8px 16px;
+  
+  background: var(--primary);
+  color: white;
+  
+  border: none;
+  border-radius: var(--radius-md);
+  
+  font-size: 0.8125rem;
+  font-weight: 600;
+  
+  cursor: pointer;
+  
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.doc-req-form .btn-add:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: var(--shadow-md);
+}
+
+.doc-req-form .btn-add:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.doc-req-form .btn-add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.doc-req-form .btn-add svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ========================================
+   DOCUMENT CARDS - GRID LAYOUT
+   ======================================== */
+
+.doc-req-list {
+  margin-top: var(--space-lg);
+}
+
+.doc-req-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+}
+
+.doc-req-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  
+  padding: var(--space-md);
+  
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.doc-req-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Card Content */
+.doc-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-card-name {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+  
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-card-note {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Delete Button */
+.doc-delete-btn {
+  width: 32px;
+  height: 32px;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  
+  border: none;
+  border-radius: var(--radius-md);
+  
+  cursor: pointer;
+  flex-shrink: 0;
+  
+  transition: all var(--transition-fast);
+}
+
+.doc-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  transform: translateY(-2px) scale(1.08);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.doc-delete-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ========================================
+   EMPTY & LOADING STATES
+   ======================================== */
+
+.loading-text {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: var(--space-xl);
+  font-size: 0.9375rem;
+  font-style: italic;
+}
+
+.empty-state {
+  text-align: center;
+  padding: var(--space-xl);
+  
+  background: rgba(239, 68, 68, 0.05);
+  border: 1.5px dashed var(--danger);
+  border-radius: var(--radius-lg);
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+/* ========================================
+   RESPONSIVE - COMPACT BREAKPOINTS
+   ======================================== */
+
+/* Medium screens (1024px - 1366px) */
+@media (max-width: 1366px) {
+  .doc-req-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Small laptops (768px - 1024px) */
+@media (max-width: 1024px) {
+  .doc-req-form {
+    grid-template-columns: 1fr;
+    gap: var(--space-md);
+  }
+  
+  .doc-req-form .btn-add {
+    width: 100%;
+  }
+  
+  .doc-req-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tablets */
+@media (max-width: 768px) {
+  .doc-req-section {
+    margin-top: var(--space-lg);
+    padding-top: var(--space-md);
+  }
+  
+  .doc-req-title {
+    font-size: 1.125rem;
+  }
+  
+  .doc-req-description {
+    font-size: 0.75rem;
+  }
+  
+  .doc-req-form {
+    padding: var(--space-md);
+  }
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .doc-req-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .doc-delete-btn {
+    align-self: flex-end;
+  }
+}
+
+/* ========================================
+   DARK MODE ENHANCEMENTS
+   ======================================== */
+
+[data-theme="dark"] .doc-req-title svg {
+  color: var(--primary-light);
+}
+
+[data-theme="dark"] .doc-req-form {
+  background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .doc-req-card:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+[data-theme="dark"] .empty-state {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* =========================================================
+   END - DOCUMENT REQUIREMENT MANAGER
+   ========================================================= */

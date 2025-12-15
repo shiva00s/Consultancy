@@ -281,11 +281,11 @@ resetActivationStatus: () => ipcRenderer.invoke('reset-activation-status'),
   // =====================================================================
   // PDF / OFFER LETTER
   // =====================================================================
-  readOfferTemplate: () => ipcRenderer.invoke("read-offer-template"),
-  writeOfferTemplate: (args) =>
-    ipcRenderer.invoke("write-offer-template", args),
-  generateOfferLetter: (args) =>
-    ipcRenderer.invoke("generate-offer-letter", args),
+
+  readOfferTemplate: (args) => ipcRenderer.invoke("read-offer-template", args),
+writeOfferTemplate: (args) => ipcRenderer.invoke("write-offer-template", args),
+
+  generateOfferLetter: (args) =>    ipcRenderer.invoke("generate-offer-letter", args),
   printToPDF: (url) => ipcRenderer.invoke("print-to-pdf", url),
 
   // =====================================================================

@@ -674,37 +674,52 @@ ipcMain.handle('get-feature-flags', async (event, { user } = {}) => {
 }
 
 
-ipcMain.handle("get-system-audit-log", async (event, { user, userFilter, actionFilter, limit, offset }) => {
-    try {
-        // ✅ FIXED: User is now passed as a parameter from frontend
-        if (!user || !user.id) {
-            return { success: false, error: "Authentication required. Please log in again." };
-        }
-        
-        // Check if user is admin or super_admin
-        const normalizedRole = user.role?.toLowerCase().replace('_', '');
-        if (!['admin', 'super_admin'].includes(normalizedRole)) {
-            return {
-                success: false,
-                error: `Access Denied: Only admins can access audit logs. Your role: ${user.role}`
-            };
-        }
-        
-        // Call the queries function with user parameter
-        return await queries.getSystemAuditLog({
-            user: user,  // ✅ Pass the user object
-            userFilter: userFilter || '',
-            actionFilter: actionFilter || '',
-            limit: limit || 30,
-            offset: offset || 0
-        });
-        
-    } catch (error) {
-        return {
-            success: false,
-            error: error.message || "Failed to fetch audit logs"
-        };
+// ✅ FIXED: Destructure the args object properly
+ipcMain.handle('get-system-audit-log', async (event, args) => {
+  try {
+    // ✅ Destructure from args
+    const { user, userFilter, actionFilter, limit, offset } = args || {};
+    
+    // Authentication check
+    if (!user || !user.id) {
+      return { success: false, error: 'Authentication required. Please log in again.' };
     }
+
+    // ✅ FIX: Normalize role to handle both "super_admin" and "superadmin"
+    const normalizeRole = (roleString) => {
+      if (!roleString) return '';
+      return String(roleString)
+        .toLowerCase()
+        .replace(/_/g, '') // Remove underscores: super_admin -> superadmin
+        .replace(/-/g, '') // Remove hyphens just in case
+        .trim();
+    };
+
+    const normalizedRole = normalizeRole(user.role);
+
+    // ✅ FIX: Allow both admin and superadmin (including super_admin)
+    if (!['admin', 'superadmin'].includes(normalizedRole)) {
+      console.error(`Audit log access denied for user: ${user.username}, role: ${user.role}`);
+      return { 
+        success: false, 
+        error: `Access Denied: Only administrators can access audit logs. Your role: ${user.role}` 
+      };
+    }
+
+    console.log(`✅ Audit log access granted for ${user.username} (${user.role})`);
+
+    // Call the queries function
+    return await queries.getSystemAuditLog({
+      user: user,
+      userFilter: userFilter || '',
+      actionFilter: actionFilter || '',
+      limit: limit || 30,
+      offset: offset || 0
+    });
+  } catch (error) {
+    console.error('get-system-audit-log error:', error);
+    return { success: false, error: error.message || 'Failed to fetch audit logs' };
+  }
 });
 
 

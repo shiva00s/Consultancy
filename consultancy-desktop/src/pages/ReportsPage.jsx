@@ -1,10 +1,16 @@
+// ReportsPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  FiUsers, FiDollarSign, FiCheckCircle,
-  FiAlertTriangle, FiSearch, FiDownload, FiFileText
+  FiUsers,
+  FiDollarSign,
+  FiCheckCircle,
+  FiAlertTriangle,
+  FiSearch,
+  FiDownload,
+  FiFileText,
 } from 'react-icons/fi';
 
-import "../css/ReportsPage.css";
+import '../css/ReportsPage.css';
 import ReportWidget from '../components/ReportWidget';
 import { formatCurrency } from '../utils/format.js';
 
@@ -13,29 +19,25 @@ import toast from 'react-hot-toast';
 import useAuthStore from '../store/useAuthStore';
 
 const statusOptions = [
-  'New', 'Documents Collected', 'Visa Applied',
-  'In Progress', 'Completed', 'Rejected',
+  'New',
+  'Documents Collected',
+  'Visa Applied',
+  'In Progress',
+  'Completed',
+  'Rejected',
 ];
 
 function ReportsPage() {
-
-  // ------------------------------------
-  // FIXED ZUSTAND SELECTORS (NO OBJECTS)
-  // ------------------------------------
-  const user = useAuthStore(state => state.user);
-  const employers = useDataStore(state => state.employers);
+  const user = useAuthStore((state) => state.user);
+  const employers = useDataStore((state) => state.employers);
 
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [reportList, setReportList] = useState([]);
 
-  // Filters
   const [statusFilter, setStatusFilter] = useState('');
   const [employerFilter, setEmployerFilter] = useState('');
 
-  // ------------------------------------
-  // FETCH DATA
-  // ------------------------------------
   const fetchData = useCallback(async () => {
     setLoading(true);
 
@@ -59,13 +61,15 @@ function ReportsPage() {
         if (listRes.data?.length > 0) {
           toast.success(`Found ${listRes.data.length} records.`);
         } else {
-          toast.error("No matching records found.");
+          toast.error('No matching records found.');
         }
       }
     } else {
       setStats(null);
       setReportList([]);
-      toast.error(statsRes.error || listRes.error || "Failed to fetch report data.");
+      toast.error(
+        statsRes.error || listRes.error || 'Failed to fetch report data.'
+      );
     }
 
     setLoading(false);
@@ -86,20 +90,43 @@ function ReportsPage() {
   };
 
   const handleExport = () => {
-    alert("Export not implemented yet.");
+    alert('Export not implemented yet.');
   };
 
-  if (loading && !stats) return <p className="loading-text">Generating Report...</p>;
-  if (!stats) return <h2>No data available.</h2>;
+  if (loading && !stats) {
+    return <p className="loading-text">Generating Report...</p>;
+  }
+
+  if (!stats) {
+    return <h2>No data available.</h2>;
+  }
+
+  const getStatusBadgeClass = (status) => {
+    const s = String(status || '').toLowerCase();
+    if (s === 'completed') return 'status-badge badge-green';
+    if (s === 'rejected') return 'status-badge badge-red';
+    if (s === 'in progress' || s === 'visa applied') return 'status-badge badge-amber';
+    if (s === 'documents collected') return 'status-badge badge-blue';
+    if (s === 'new') return 'status-badge badge-cyan';
+    return 'status-badge badge-grey';
+  };
+
+  const getBalanceClass = (balance) =>
+    balance > 0 ? 'balance-pill balance-overdue' : 'balance-pill balance-clear';
+
+  const getBalanceEmoji = (balance) => {
+    if (balance <= 0) return '✅';
+    if (balance < 5000) return '🟡';
+    return '🔴';
+  };
 
   return (
     <div className="reports-page-container">
+      {/* Header + Filters */}
       <div className="reports-header">
-
-        <h1>Comprehensive Activity Report</h1>
+        <h1 className="reports-title">Comprehensive Activity Report</h1>
 
         <form className="report-filter-bar" onSubmit={handleFilterSubmit}>
-          
           {/* Status Filter */}
           <div className="filter-field">
             <FiSearch />
@@ -108,8 +135,10 @@ function ReportsPage() {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="">All Statuses</option>
-              {statusOptions.map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
+              {statusOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
               ))}
             </select>
           </div>
@@ -122,7 +151,7 @@ function ReportsPage() {
               onChange={(e) => setEmployerFilter(e.target.value)}
             >
               <option value="">All Employers</option>
-              {employers.map(emp => (
+              {employers.map((emp) => (
                 <option key={emp.id} value={emp.id}>
                   {emp.companyName}
                 </option>
@@ -130,17 +159,31 @@ function ReportsPage() {
             </select>
           </div>
 
-          <button type="submit" className="btn btn-primary">Apply Filters</button>
-          <button type="button" className="btn btn-danger" onClick={handleClearFilters}>Clear</button>
-          <button type="button" className="btn btn-secondary" onClick={handleExport}>
+          <button type="submit" className="btn btn-primary">
+            Apply Filters
+          </button>
+          <button
+            type="button"
+            className="btn btn-danger"
+            onClick={handleClearFilters}
+          >
+            Clear
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleExport}
+          >
             <FiDownload /> Export
           </button>
         </form>
       </div>
 
-      {/* Detailed Report Table */}
+      {/* Detailed Report Table – full height, normal page scroll */}
       <div className="report-results-section">
-        <h3><FiFileText /> Detailed Report ({reportList.length} Records)</h3>
+        <h3 className="report-section-title">
+          <FiFileText /> Detailed Report ({reportList.length} Records)
+        </h3>
 
         <div className="report-table-container">
           <table className="report-table">
@@ -160,31 +203,44 @@ function ReportsPage() {
             <tbody>
               {reportList.length === 0 ? (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: "center", padding: "2rem" }}>
+                  <td
+                    colSpan="8"
+                    style={{ textAlign: 'center', padding: '2rem' }}
+                  >
                     No records found matching criteria.
                   </td>
                 </tr>
               ) : (
-                reportList.map(row => (
-                  <tr key={row.id}>
-                    <td><strong>{row.name}</strong></td>
-                    <td>{row.passportNo}</td>
-                    <td>{row.Position || '-'}</td>
-                    <td>{row.companyName || "Unassigned"}</td>
-                    <td>
-                      <span className={`status-badge badge-${row.status === "New" ? "cyan" : "grey"}`}>
-                        {row.status}
-                      </span>
-                    </td>
-                    <td>{formatCurrency(row.totalDue)}</td>
-                    <td style={{ color: "var(--success-color)" }}>
-                      {formatCurrency(row.totalPaid)}
-                    </td>
-                    <td style={{ color: "var(--danger-color)", fontWeight: "bold" }}>
-                      {formatCurrency(row.totalDue - row.totalPaid)}
-                    </td>
-                  </tr>
-                ))
+                reportList.map((row) => {
+                  const totalDue = row.totalDue || 0;
+                  const totalPaid = row.totalPaid || 0;
+                  const balance = totalDue - totalPaid;
+                  const emoji = getBalanceEmoji(balance);
+
+                  return (
+                    <tr key={row.id}>
+                      <td>
+                        <strong>{row.name}</strong>
+                      </td>
+                      <td>{row.passportNo}</td>
+                      <td>{row.Position || '-'}</td>
+                      <td>{row.companyName || 'Unassigned'}</td>
+                      <td>
+                        <span className={getStatusBadgeClass(row.status)}>
+                          {row.status}
+                        </span>
+                      </td>
+                      <td>{formatCurrency(totalDue)}</td>
+                      <td className="cell-paid">
+                        {formatCurrency(totalPaid)}
+                      </td>
+                      <td className={getBalanceClass(balance)}>
+                        <span className="balance-emoji">{emoji}</span>
+                        {formatCurrency(balance)}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -193,30 +249,30 @@ function ReportsPage() {
 
       {/* Summary Widgets */}
       <div className="report-summary-footer">
-        <h3>Summary Totals</h3>
+        <h3 className="report-section-title">Summary Totals</h3>
 
         <div className="report-widget-grid">
           <ReportWidget
             icon={<FiDollarSign />}
-            title="Total Invoiced"
+            title="Total Invoiced 💼"
             value={formatCurrency(stats.totalDue)}
             color="blue"
           />
           <ReportWidget
             icon={<FiCheckCircle />}
-            title="Total Collected"
+            title="Total Collected 💰"
             value={formatCurrency(stats.totalPaid)}
             color="green"
           />
           <ReportWidget
             icon={<FiAlertTriangle />}
-            title="Total Pending"
+            title="Total Pending ⏳"
             value={formatCurrency(stats.totalPending)}
             color="yellow"
           />
           <ReportWidget
             icon={<FiUsers />}
-            title="Active Candidates"
+            title="Active Candidates 👥"
             value={stats.totalCandidates}
             color="purple"
           />
