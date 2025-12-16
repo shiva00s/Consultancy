@@ -1,0 +1,5 @@
+/* Staff selector uses CustomDropdown - no additional CSS needed */
+.form-group {
+  display: flex;
+  flex-direction: column;
+}

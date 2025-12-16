@@ -9,13 +9,20 @@ const { v4: uuidv4 } = require('uuid');
 const archiver = require('archiver');
 const mime = require('mime');
 const { getDatabase } = require('../db/database.cjs');
-const { getAdminAssignedFeatures,getUserPermissions,getAdminEffectiveFlags, } = require('../db/queries.cjs');
+const { 
+  getAdminAssignedFeatures,
+  getUserPermissions,
+  getAdminEffectiveFlags,
+  dbRun,      // ✅ Already imported
+  dbGet,      // ✅ Already imported
+  dbAll,      // ✅ ADD THIS - Missing import
+  getCanonicalUserContext: getCanonicalUserContextFromQueries 
+} = require('../db/queries.cjs');
 const ejs = require('ejs');
 const tempFile = require('temp-file');
 const csv = require('csv-parser');
 const XLSX = require('xlsx');
 const queries = require('../db/queries.cjs');
-const { dbRun, dbGet, getCanonicalUserContext: getCanonicalUserContextFromQueries } = require('../db/queries.cjs'); 
 const { sendEmail, saveSmtpSettings } = require('../utils/emailSender.cjs');
 const Tesseract = require('tesseract.js');
 const extract = require('extract-zip');
@@ -29,6 +36,7 @@ const sendWhatsAppBulk = require("./sendWhatsAppBulk.cjs");
 const openWhatsAppSingle = require("./openWhatsAppSingle.cjs");
 const { guard, FEATURES } = require('./security/ipcPermissionGuard.cjs');
 //const sendTwilioWhatsApp = require("./twilioSendWhatsApp.cjs");
+
 
 
 const tempDir = path.join(os.tmpdir(), "paddle_ocr_temp");
@@ -3013,6 +3021,22 @@ ipcMain.handle("get-all-staff", async (event) => {
     return { success: false, error: "Failed to fetch staff list" };
   }
 });
+ipcMain.handle("get-users", async (event, { user }) => {
+  try {
+    const db = getDatabase();
+    const sql = `
+      SELECT id, username, fullName, role, email
+      FROM users 
+      ORDER BY fullName ASC
+    `;
+    const rows = await dbAll(db, sql, []);
+    return { success: true, data: rows };
+  } catch (err) {
+    return { success: false, error: "Failed to fetch users" };
+  }
+});
+
+
 
 
 

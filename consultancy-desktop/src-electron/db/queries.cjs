@@ -3601,66 +3601,49 @@ async function getRecentRemindersForUser(userId, limit = 30) {
 // ENHANCED PASSPORT TRACKING QUERIES
 // ====================================================================
 
-async function getPassportMovements(candidateId) {
+async function getPassportMovements(candidate_id) {
   const db = getDatabase();
   
-  const sql = `
-    SELECT 
-      pt.*,
-      (SELECT COUNT(*) FROM passport_movement_photos 
-       WHERE movement_id = pt.id AND isDeleted = 0) as photo_count
-    FROM passport_tracking pt
-    WHERE pt.candidate_id = ? AND pt.isDeleted = 0
-    ORDER BY 
-      CASE 
-        WHEN pt.date IS NOT NULL THEN pt.date
-        WHEN pt.received_date IS NOT NULL THEN pt.received_date
-        WHEN pt.dispatch_date IS NOT NULL THEN pt.dispatch_date
-        ELSE pt.createdAt
-      END DESC
-  `;
-  
   try {
-    const rows = await dbAll(db, sql, [candidateId]);
+    const sql = `
+      SELECT 
+        pt.*,
+        (SELECT COUNT(*) FROM passport_movement_photos WHERE movement_id = pt.id) as photo_count
+      FROM passport_tracking pt
+      WHERE pt.candidate_id = ? AND pt.isDeleted = 0
+      ORDER BY pt.date DESC, pt.createdAt DESC
+    `;
     
-    // Transform data for frontend compatibility
-    const data = rows.map(row => ({
-      ...row,
-      has_photos: row.photo_count > 0,
-      
-      // Map to frontend-friendly field names
-      type: row.movement_type || (row.passport_status === 'Dispatched' ? 'SEND' : 'RECEIVE'),
-      
-      // Use new 'date' field if available, fallback to legacy fields
-      date: row.date || row.received_date || row.dispatch_date,
-      
-      // Method and courier info
-      method: row.method || row.source_type,
-      courier_number: row.courier_number || row.docket_number,
-      
-      // Notes - combine or use appropriate field
-      notes: row.notes || 
-             (row.movement_type === 'RECEIVE' ? row.received_notes : row.dispatch_notes) ||
-             row.received_notes || 
-             row.dispatch_notes,
-      
-      // RECEIVE specific fields
-      received_from: row.received_from || row.source_type,
+    const rows = await dbAll(db, sql, [candidate_id]);
+    
+    
+    
+    // ✅ Map each row to frontend format
+    const mappedRows = rows.map(row => ({
+      id: row.id,
+      candidate_id: row.candidate_id,
+      type: row.movement_type,
+      movement_type: row.movement_type, // For compatibility
+      date: row.date,
+      method: row.method,
+      courier_number: row.courier_number,
+      notes: row.notes,
+      // RECEIVE fields
+      received_from: row.received_from,
       received_by: row.received_by,
-      
-      // SEND specific fields
+      // SEND fields
       send_to: row.send_to,
       send_to_name: row.send_to_name,
       send_to_contact: row.send_to_contact,
       sent_by: row.sent_by,
-      
-      // Legacy status field
-      passport_status: row.passport_status,
-      source_type: row.source_type,
-      agent_contact: row.agent_contact
+      // Photo info
+      has_photos: (row.photo_count || 0) > 0,
+      photo_count: row.photo_count || 0,
+      // Timestamps
+      createdAt: row.createdAt
     }));
     
-    return { success: true, data };
+    return { success: true, data: mappedRows };
   } catch (err) {
     console.error("❌ getPassportMovements error:", err);
     return { success: false, error: mapErrorToFriendly(err) };
@@ -3672,11 +3655,11 @@ async function addPassportMovement(data) {
   const db = getDatabase();
   const errors = {};
 
-  // Validation based on type
+  // Validation
   if (data.type === 'RECEIVE') {
     if (!data.received_from) errors.received_from = "Received From is required";
     if (!data.method) errors.method = "Delivery Method is required";
-    if (!data.date) errors.date = "Date Received is required";
+    if (!data.date) errors.date = "Date is required";
     if (!data.received_by) errors.received_by = "Received By Staff is required";
     
     if (data.method === 'By Courier' && !data.courier_number) {
@@ -3685,7 +3668,7 @@ async function addPassportMovement(data) {
   } else if (data.type === 'SEND') {
     if (!data.send_to) errors.send_to = "Send To is required";
     if (!data.method) errors.method = "Delivery Method is required";
-    if (!data.date) errors.date = "Date Sent is required";
+    if (!data.date) errors.date = "Date is required";
     if (!data.sent_by) errors.sent_by = "Sent By Staff is required";
     
     if (data.method === 'By Courier' && !data.courier_number) {
@@ -3697,7 +3680,7 @@ async function addPassportMovement(data) {
     return { success: false, error: "Validation failed", errors };
   }
 
-  // Use the ACTUAL column names from your database
+  // ✅ SINGLE INSERT WITH ALL COLUMNS
   const sql = `
     INSERT INTO passport_tracking (
       candidate_id,
@@ -3724,10 +3707,10 @@ async function addPassportMovement(data) {
     data.courier_number || null,
     data.date,
     data.notes || null,
-    // RECEIVE specific
+    // RECEIVE fields (null if SEND)
     data.type === 'RECEIVE' ? data.received_from : null,
     data.type === 'RECEIVE' ? data.received_by : null,
-    // SEND specific
+    // SEND fields (null if RECEIVE)
     data.type === 'SEND' ? data.send_to : null,
     data.type === 'SEND' ? (data.send_to_name || null) : null,
     data.type === 'SEND' ? (data.send_to_contact || null) : null,
@@ -3742,17 +3725,17 @@ async function addPassportMovement(data) {
       [result.lastID]
     );
     
-    // Map to frontend format
+    console.log('✅ Inserted movement:', row); // Debug log
+    
+    // ✅ Map to frontend format with BOTH field names
     const mappedRow = {
-      ...row,
+      id: row.id,
+      candidate_id: row.candidate_id,
       type: row.movement_type,
-      // Use the actual 'date' column
+      movement_type: row.movement_type, // For compatibility
       date: row.date,
-      // Use the actual 'method' column
       method: row.method,
-      // Use the actual 'courier_number' column
       courier_number: row.courier_number,
-      // Use the actual 'notes' column
       notes: row.notes,
       // RECEIVE fields
       received_from: row.received_from,
@@ -3762,7 +3745,7 @@ async function addPassportMovement(data) {
       send_to_name: row.send_to_name,
       send_to_contact: row.send_to_contact,
       sent_by: row.sent_by,
-      // Photo count
+      // Photo info
       has_photos: false,
       photo_count: 0
     };
@@ -3773,7 +3756,6 @@ async function addPassportMovement(data) {
     return { success: false, error: mapErrorToFriendly(err) };
   }
 }
-
 
 
 async function addPassportReceive(data) {
