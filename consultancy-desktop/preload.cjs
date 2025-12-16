@@ -293,15 +293,12 @@ writeOfferTemplate: (args) => ipcRenderer.invoke("write-offer-template", args),
   // =====================================================================
 
   // WhatsApp
-  sendWhatsAppBulk: (payload) =>
-    ipcRenderer.invoke("send-whatsapp-bulk", payload),
-  openWhatsAppSingle: (payload) =>
-    ipcRenderer.invoke("open-whatsapp-single", payload),
+  sendWhatsAppBulk: (payload) =>    ipcRenderer.invoke("send-whatsapp-bulk", payload),
+  openWhatsAppSingle: (payload) =>    ipcRenderer.invoke("open-whatsapp-single", payload),
 
   // Communication Logs
   logCommunication: (data) => ipcRenderer.invoke("logCommunication", data),
-  getCommunicationLogs: (data) =>
-    ipcRenderer.invoke("getCommunicationLogs", data),
+  getCommunicationLogs: (data) =>    ipcRenderer.invoke("getCommunicationLogs", data),
   getCommLogs: (args) => ipcRenderer.invoke("get-comm-logs", args),
 
   // =====================================================================
@@ -310,60 +307,56 @@ writeOfferTemplate: (args) => ipcRenderer.invoke("write-offer-template", args),
   sendEmail: (args) => ipcRenderer.invoke("send-email", args),
   getSmtpSettings: () => ipcRenderer.invoke("get-smtp-settings"),
   saveSmtpSettings: (args) => ipcRenderer.invoke("save-smtp-settings", args),
-  testSmtpConnection: (args) =>
-    ipcRenderer.invoke("test-smtp-connection", args),
+  testSmtpConnection: (args) =>    ipcRenderer.invoke("test-smtp-connection", args),
 
   // =====================================================================
   // INTELLIGENCE (OCR / AI)
   // =====================================================================
   scanPassport: (params) => ipcRenderer.invoke("ocr-scan-passport", params),
-  ocrScanPassport: (params) =>
-    ipcRenderer.invoke("ocr-scan-passport", params),
+  ocrScanPassport: (params) =>    ipcRenderer.invoke("ocr-scan-passport", params),
 
   // =====================================================================
   // CLOUD SYNC / BACKUP
   // =====================================================================
-  initCloudSync: (provider, config) =>
-    ipcRenderer.invoke("init-cloud-sync", provider, config),
+  initCloudSync: (provider, config) =>    ipcRenderer.invoke("init-cloud-sync", provider, config),
   testCloudConnection: (provider, config) =>
     ipcRenderer.invoke("test-cloud-connection", provider, config),
 
   createBackup: () => ipcRenderer.invoke("create-backup"),
-  createLocalBackup: (path) =>
-    ipcRenderer.invoke("create-local-backup", path),
+  createLocalBackup: (path) =>    ipcRenderer.invoke("create-local-backup", path),
 
   listBackups: () => ipcRenderer.invoke("list-backups"),
-  getBackupDetails: (fileId) =>
-    ipcRenderer.invoke("get-backup-details", fileId),
+  getBackupDetails: (fileId) =>    ipcRenderer.invoke("get-backup-details", fileId),
 
   restoreBackup: (fileId) => ipcRenderer.invoke("restore-backup", fileId),
-  restoreLocalBackup: (path) =>
-    ipcRenderer.invoke("restore-local-backup", path),
+  restoreLocalBackup: (path) =>    ipcRenderer.invoke("restore-local-backup", path),
 
   deleteBackup: (fileId) => ipcRenderer.invoke("delete-backup", fileId),
 
-  enableAutoSync: (schedule) =>
-    ipcRenderer.invoke("enable-auto-sync", schedule),
+  enableAutoSync: (schedule) =>    ipcRenderer.invoke("enable-auto-sync", schedule),
   disableAutoSync: () => ipcRenderer.invoke("disable-auto-sync"),
   getSyncStatus: () => ipcRenderer.invoke("get-sync-status"),
 
-  exportDatabase: (destinationPath) =>
-    ipcRenderer.invoke("export-database", destinationPath),
-  importDatabase: (sourcePath) =>
-    ipcRenderer.invoke("import-database", sourcePath),
+  exportDatabase: (destinationPath) =>    ipcRenderer.invoke("export-database", destinationPath),
+  importDatabase: (sourcePath) =>    ipcRenderer.invoke("import-database", sourcePath),
 
   // =====================================================================
   // LICENSE
   // =====================================================================
   getLicenseStatus: () => ipcRenderer.invoke("license:get-status"),
   activateLicense: (args) => ipcRenderer.invoke("license:activate", args),
-  requestActivationCode: () =>
-    ipcRenderer.invoke("request-activation-code"),
+  requestActivationCode: () =>    ipcRenderer.invoke("request-activation-code"),
 
-  getUserReminders: (params) =>
-    ipcRenderer.invoke("get-user-reminders", params),
-  createReminder: (params) =>
-    ipcRenderer.invoke("create-reminder", params),
+  getUserReminders: (params) =>    ipcRenderer.invoke("get-user-reminders", params),
+  createReminder: (params) =>    ipcRenderer.invoke("create-reminder", params),
+
+  // ====================================================================
+  // ENHANCED PASSPORT TRACKING API
+  // ====================================================================
+  getPassportMovements: (candidateId) =>     ipcRenderer.invoke("get-passport-movements", candidateId),  
+  addPassportReceive: (data) =>     ipcRenderer.invoke("add-passport-receive", data),  
+  addPassportSend: (data) =>     ipcRenderer.invoke("add-passport-send", data),  
+  deletePassportMovement: (id) =>     ipcRenderer.invoke("delete-passport-movement", id),
 
   // Notifications
 getNotifications: (args) => ipcRenderer.invoke('get-notifications', args),
@@ -373,10 +366,13 @@ deleteNotification: (args) => ipcRenderer.invoke('delete-notification', args),
 clearAllNotifications: () => ipcRenderer.invoke('clear-all-notifications'),
 createNotification: (data) => ipcRenderer.invoke('create-notification', data),
 
-onNotification: (callback) => {
-  const handler = (_event, data) => callback(data);
+onNotification: (callback) => {  const handler = (_event, data) => callback(data);
   ipcRenderer.on('notification-created', handler);
   return () => ipcRenderer.removeListener('notification-created', handler);
+
+
+  
+
 },
 
 

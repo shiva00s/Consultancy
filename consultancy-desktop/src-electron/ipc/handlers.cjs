@@ -9,7 +9,7 @@ const { v4: uuidv4 } = require('uuid');
 const archiver = require('archiver');
 const mime = require('mime');
 const { getDatabase } = require('../db/database.cjs');
-const { getAdminAssignedFeatures,getUserPermissions,getAdminEffectiveFlags } = require('../db/queries.cjs');
+const { getAdminAssignedFeatures,getUserPermissions,getAdminEffectiveFlags, } = require('../db/queries.cjs');
 const ejs = require('ejs');
 const tempFile = require('temp-file');
 const csv = require('csv-parser');
@@ -2908,6 +2908,47 @@ ipcMain.handle('reset-activation-status', async () => {
     return { success: false, error: err.message };
   }
 });
+
+// ====================================================================
+// ENHANCED PASSPORT TRACKING HANDLERS
+// ====================================================================
+
+ipcMain.handle("get-passport-movements", async (event, candidateId) => {
+  try {
+    return await queries.getPassportMovements(candidateId);
+  } catch (err) {
+    console.error("❌ get-passport-movements handler error:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("add-passport-receive", async (event, data) => {
+  try {
+    return await queries.addPassportReceive(data);
+  } catch (err) {
+    console.error("❌ add-passport-receive handler error:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("add-passport-send", async (event, data) => {
+  try {
+    return await queries.addPassportSend(data);
+  } catch (err) {
+    console.error("❌ add-passport-send handler error:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("delete-passport-movement", async (event, id) => {
+  try {
+    return await queries.deletePassportMovement(id);
+  } catch (err) {
+    console.error("❌ delete-passport-movement handler error:", err);
+    return { success: false, error: err.message };
+  }
+});
+
 
 
     module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase,startReminderScheduler  };

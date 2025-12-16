@@ -24,6 +24,8 @@ function setupDatabase(dbInstance) {
         }
       });
 
+      
+
       // ========================================================================
       // 1. USERS TABLE
       // ========================================================================
@@ -337,20 +339,38 @@ function setupDatabase(dbInstance) {
       // ========================================================================
       dbInstance.run(`
         CREATE TABLE IF NOT EXISTS passport_tracking (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          candidate_id INTEGER NOT NULL,
-          received_date TEXT,
-          received_notes TEXT,
-          dispatch_date TEXT,
-          docket_number TEXT,
-          dispatch_notes TEXT,
-          passport_status TEXT NOT NULL DEFAULT 'Received',
-          source_type TEXT NOT NULL DEFAULT 'Direct Candidate',
-          agent_contact TEXT,
-          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-          isDeleted INTEGER DEFAULT 0,
-          FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE
-        );
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    candidate_id INTEGER NOT NULL,
+    
+    -- Movement Type
+    movement_type TEXT NOT NULL CHECK(movement_type IN ('RECEIVED', 'SENT')),
+    
+    -- RECEIVE FIELDS
+    received_from TEXT,  -- Candidate/Agent/Embassy/Other
+    received_by_method TEXT, -- By Hand/By Courier
+    received_courier_number TEXT,
+    date_received TEXT,
+    received_by_staff TEXT,
+    received_notes TEXT,
+    received_photo_path TEXT,
+    
+    -- SEND FIELDS
+    send_to TEXT, -- Candidate/Agent/Embassy/Employer/Other
+    send_to_name TEXT,
+    send_to_contact TEXT,
+    send_by_method TEXT, -- By Hand/By Courier
+    send_courier_number TEXT,
+    date_sent TEXT,
+    sent_by_staff TEXT,
+    sent_notes TEXT,
+    sent_photo_path TEXT,
+    
+    -- Metadata
+    createdAt TEXT DEFAULT (datetime('now')),
+    isDeleted INTEGER DEFAULT 0,
+    
+    FOREIGN KEY (candidate_id) REFERENCES candidates(id)
+  );
       `);
 
       // ========================================================================
@@ -610,6 +630,8 @@ function setupDatabase(dbInstance) {
         );
       `);
 
+
+      
       // Commit transaction
       dbInstance.run('COMMIT', (err) => {
         if (err) {

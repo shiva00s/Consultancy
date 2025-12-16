@@ -1,101 +1,38 @@
 /* ============================================
-   SCANNER MODAL - PREMIUM OVERLAY DESIGN
+   SCANNER MODAL
    ============================================ */
 
 .scanner-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
+  animation: fadeIn 0.2s ease-out;
   padding: 20px;
 }
 
 .scanner-modal-content {
+  position: relative;
   background: var(--bg-card);
   border-radius: 20px;
   border: 1px solid var(--border-color);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  padding: 28px;
   max-width: 600px;
   width: 100%;
   max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Header */
-.scanner-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border-color);
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-card) 100%);
-}
-
-.scanner-modal-header h2 {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.modal-close-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.25s ease;
-}
-
-.modal-close-btn:hover {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: #ef4444;
-  color: #ef4444;
-  transform: rotate(90deg);
-}
-
-/* Body */
-.scanner-modal-body {
-  padding: 24px;
   overflow-y: auto;
-  flex: 1;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUpModal 0.3s ease-out;
 }
 
-/* Animations */
-.fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
-
-.slide-up {
-  animation: slideUp 0.4s ease-out;
-}
-
-@keyframes fadeIn {
+@keyframes slideUpModal {
   from {
     opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(40px) scale(0.95);
+    transform: translateY(30px) scale(0.95);
   }
   to {
     opacity: 1;
@@ -103,23 +40,84 @@
   }
 }
 
+.modal-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.modal-close-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #fca5a5;
+  transform: scale(1.1);
+}
+
+.scanner-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scanner-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.scanner-icon {
+  font-size: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+}
+
+.scanner-header h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.scanner-header p {
+  margin: 4px 0 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .scanner-modal-content {
-    max-width: 100%;
-    max-height: 95vh;
+    padding: 20px;
     border-radius: 16px;
   }
-  .scanner-modal-header {
-    padding: 16px 20px;
-  }
-  .scanner-modal-body {
-    padding: 20px;
-  }
-}
 
-/* Emoji */
-.emoji-inline {
-  display: inline-block;
-  font-style: normal;
+  .scanner-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .scanner-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 1.6rem;
+  }
 }

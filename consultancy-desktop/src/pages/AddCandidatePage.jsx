@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { readFileAsBuffer } from '../utils/file';
-import { FiPlus, FiTrash2, FiUser, FiRefreshCw, FiCreditCard, FiFileText } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiUser, FiRefreshCw } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import useAuthStore from '../store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
-import ScannerModal from '../components/ScannerModal';
+import ScannerModal from '../components/tools/ScannerModal';
 import '../css/AddCandidatePage.css';
+import CustomDropdown from '../components/tools/CustomDropdown';
 
 const sanitizeDate = (dateString) => {
   if (!dateString) return '';
@@ -24,8 +25,8 @@ const initialTextData = {
   contact: '',
   aadhar: '',
   status: 'New',
-  Position: '',
   notes: '',
+  Position: '',
 };
 
 function AddCandidatePage() {
@@ -34,11 +35,12 @@ function AddCandidatePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({});
   const [resetKey, setResetKey] = useState(0);
-  const [scannerModal, setScannerModal] = useState({ open: false, type: null });
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState(null);
   const [jobPositions, setJobPositions] = useState([]);
-
   const { user } = useAuthStore(useShallow((state) => ({ user: state.user })));
 
+  // ✅ FETCH JOB POSITIONS ON LOAD
   useEffect(() => {
     const fetchJobPositions = async () => {
       try {
@@ -56,132 +58,69 @@ function AddCandidatePage() {
     fetchJobPositions();
   }, [user]);
 
- const handleReset = () => {
-  setTextData(initialTextData);
-  setFiles([]);
-  setErrors({});
-  setResetKey((prev) => prev + 1);
-  
-  // ✅ Defer toast to next tick
-  setTimeout(() => {
-    toast('✨ Form fully reset');
-  }, 0);
-};
-
-
-  const openScanner = (type) => {
-    setScannerModal({ open: true, type });
+  const handleReset = () => {
+    setTextData(initialTextData);
+    setFiles([]);
+    setErrors({});
+    setResetKey(prev => prev + 1);
+    toast('Form fully reset ✨');
   };
 
-  const closeScanner = () => {
-    setScannerModal({ open: false, type: null });
+  const openScanner = (type) => {
+    setModalType(type);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setModalType(null);
   };
 
   const handleQRData = useCallback((data, fileObject) => {
-  console.log('📥 Aadhaar Data:', data);
-  
-  if (!data || !data.uid) {
-    toast.error('Invalid Aadhaar QR data');
-    return;
-  }
-
-  // ✅ FIX: Convert DD-MM-YYYY to YYYY-MM-DD
-  const convertDobFormat = (dobString) => {
-    if (!dobString) return '';
-    const ddmmyyyyRegex = /^(\d{2})-(\d{2})-(\d{4})$/;
-    const match = dobString.match(ddmmyyyyRegex);
-    if (match) {
-      const [, day, month, year] = match;
-      return `${year}-${month}-${day}`;
-    }
-    const yyyymmddRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (yyyymmddRegex.test(dobString)) {
-      return dobString;
-    }
-    return '';
-  };
-
-  const formattedDob = data.dob 
-    ? convertDobFormat(data.dob) 
-    : (!data.dob && data.yob ? `${data.yob}-01-01` : '');
-
-  // ✅ FIX: Defer state updates to avoid React warning
-  requestAnimationFrame(() => {
-    setTextData((prev) => ({
-      ...prev,
-      name: data.name || prev.name,
-      aadhar: data.uid,
-      dob: formattedDob || prev.dob,
-      notes: prev.notes 
-        ? `${prev.notes}\n[✅ Verified Aadhaar]: Name: ${data.name || 'N/A'}, UID: ${data.uid}, Address: ${data.co || ''}, ${data.vtc || ''}, ${data.pc || ''}`
-        : `[✅ Verified Aadhaar]: Name: ${data.name || 'N/A'}, UID: ${data.uid}, Address: ${data.co || ''}, ${data.vtc || ''}, ${data.pc || ''}`,
-    }));
-
-    setErrors((prev) => ({ ...prev, aadhar: null, name: null, dob: null }));
-
-    if (fileObject) {
-      setFiles((prev) => {
-        const exists = prev.some(f => f.name === fileObject.name && f.size === fileObject.size);
-        if (exists) {
-          toast('📎 Aadhaar image already attached');
-          return prev;
-        }
-        toast.success('📎 Aadhaar image attached');
-        return [...prev, fileObject];
-      });
-    }
-  });
-}, []);
-
-
+    if (!data || !data.uid) return;
+    
+    requestAnimationFrame(() => {
+      setTextData((prev) => ({
+        ...prev,
+        name: data.name || prev.name,
+        aadhar: data.uid,
+        dob: !prev.dob && data.yob ? `${data.yob}-01-01` : data.dob || prev.dob,
+        notes: prev.notes + (prev.notes ? '\n' : '') + `[Verified Address]: ${data.co}, ${data.vtc}, ${data.pc}`,
+      }));
+      
+      setErrors((prev) => ({ ...prev, aadhar: null }));
+      
+      if (fileObject) {
+        setFiles((prev) => [...prev, fileObject]);
+        toast.success('Aadhaar image attached 📎');
+      }
+      
+      closeModal();
+    });
+  }, []);
 
   const handlePassportData = (data) => {
-    console.log('📥 Passport Data:', data);
-    
-    if (!data || !data.passport || !data.passport.passportNo) {
-      toast.error('Invalid Passport data');
-      return;
-    }
-
-    const passportInfo = data.passport;
-
+    if (!data || !data.passport || !data.passport.passportNo) return;
     setTextData((prev) => ({
       ...prev,
-      name: passportInfo.name || prev.name,
-      passportNo: passportInfo.passportNo || prev.passportNo,
-      passportExpiry: sanitizeDate(passportInfo.expiry) || prev.passportExpiry,
-      dob: sanitizeDate(passportInfo.dob) || prev.dob,
+      passportNo: data.passport.passportNo || prev.passportNo,
+      passportExpiry: sanitizeDate(data.passport.expiry) || prev.passportExpiry,
+      dob: sanitizeDate(data.passport.dob) || prev.dob,
     }));
 
-    setErrors((prev) => ({ ...prev, passportNo: null, name: null, dob: null }));
-
     if (data.fileObject) {
-      setFiles((prev) => {
-        const exists = prev.some(f => f.name === data.fileObject.name && f.size === data.fileObject.size);
-        if (exists) {
-          toast('🛄 Passport image already attached');
-          return prev;
-        }
-        toast.success('🛄 Passport image attached');
-        return [...prev, data.fileObject];
-      });
+      setFiles((prev) => [...prev, data.fileObject]);
+      toast.success('Passport image attached 🛄');
     } else if (data.filePath) {
       const mockFile = {
         name: data.filePath.split(/[/\\]/).pop(),
         path: data.filePath,
         type: 'image/jpeg',
-        size: 0,
       };
-      setFiles((prev) => {
-        const exists = prev.some(f => f.name === mockFile.name && f.path === mockFile.path);
-        if (exists) {
-          toast('🛄 Passport image already attached');
-          return prev;
-        }
-        toast.success('🛄 Passport image attached');
-        return [...prev, mockFile];
-      });
+      setFiles((prev) => [...prev, mockFile]);
+      toast.success('Passport image attached 🛄');
     }
+    closeModal();
   };
 
   const handleTextChange = (e) => {
@@ -206,10 +145,12 @@ function AddCandidatePage() {
     e.preventDefault();
     setErrors({});
     setIsSaving(true);
+
     try {
       const fileDataPromises = files.map(async (file) => {
         let buffer;
         let fileType = file.type;
+
         if (file.path) {
           const readRes = await window.electronAPI.readAbsoluteFileBuffer({
             filePath: file.path,
@@ -222,6 +163,7 @@ function AddCandidatePage() {
         } else {
           buffer = await readFileAsBuffer(file);
         }
+
         return {
           name: file.name,
           type: fileType,
@@ -230,6 +172,7 @@ function AddCandidatePage() {
       });
 
       const fileData = await Promise.all(fileDataPromises);
+
       const result = await window.electronAPI.saveCandidateMulti({
         user,
         textData,
@@ -237,76 +180,66 @@ function AddCandidatePage() {
       });
 
       if (result.success) {
-        toast.success(`✅ Candidate saved! ID: ${result.id}`);
+        toast.success(`Candidate saved ✅ ID: ${result.id}`);
         handleReset();
       } else if (result.errors) {
         setErrors(result.errors);
-        toast.error('⚠️ Please fix the highlighted fields');
+        toast.error('Please fix the highlighted fields ⚠️');
       } else {
         toast.error(`Error: ${result.error}`);
       }
     } catch (err) {
       toast.error(`Unexpected error: ${err.message}`);
     }
+
     setIsSaving(false);
   };
 
   return (
     <div className="add-candidate-container fade-in">
-      {/* HEADER */}
-      <div className="add-candidate-header">
+      <header className="add-candidate-header">
         <div className="header-left">
           <div className="avatar-circle">
             <FiUser size={20} />
           </div>
           <div>
-            <h1>
-              <span className="emoji-inline">✨</span> New Candidate
-            </h1>
-            <p className="header-subtitle">Fill in candidate details below</p>
+            <h1>New Candidate 🚀</h1>
+            <p className="header-subtitle">
+              Scan documents or manually fill the form. All data auto-saved below.
+            </p>
           </div>
         </div>
 
         <div className="header-actions">
           <button
+            type="button"
             className="scanner-btn aadhaar-btn"
             onClick={() => openScanner('aadhaar')}
-            type="button"
-            title="Scan Aadhaar QR"
           >
-            <FiCreditCard size={16} />
-            <span className="emoji-inline">🟢</span> Aadhaar
+            🔐 Scan Aadhaar
           </button>
           <button
+            type="button"
             className="scanner-btn passport-btn"
             onClick={() => openScanner('passport')}
-            type="button"
-            title="Scan Passport MRZ"
           >
-            <FiFileText size={16} />
-            <span className="emoji-inline">🔵</span> Passport
+            🛄 Scan Passport
           </button>
           <button
+            type="button"
             className="header-reset-btn"
             onClick={handleReset}
-            type="button"
-            title="Reset Form"
           >
             <FiRefreshCw size={16} />
             Reset
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* MAIN FORM */}
-      <div className="candidate-form-card card-elevated slide-up">
-        <form onSubmit={handleSubmit} className="form-grid-5">
-          {/* Row 1 */}
+      <form className="candidate-form-card card-elevated slide-up" onSubmit={handleSubmit}>
+        <div className="form-grid-5">
           <div className={`form-group ${errors.name ? 'error' : ''}`}>
-            <label>
-              <span className="emoji-inline">👤</span> Name{' '}
-              <span style={{ color: 'red' }}>*</span>
-            </label>
+            <label>👤 Name</label>
             <input
               type="text"
               name="name"
@@ -314,54 +247,11 @@ function AddCandidatePage() {
               onChange={handleTextChange}
               placeholder="Full name"
             />
-            {errors.name && <span className="error-text">{errors.name}</span>}
-          </div>
-
-          <div className="form-group">
-            <label>
-              <span className="emoji-inline">🎓</span> Education
-            </label>
-            <input
-              type="text"
-              name="education"
-              value={textData.education}
-              onChange={handleTextChange}
-              placeholder="e.g., B.Tech, MCA"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>
-              <span className="emoji-inline">💼</span> Experience (Years)
-            </label>
-            <input
-              type="text"
-              name="experience"
-              value={textData.experience}
-              onChange={handleTextChange}
-              placeholder="e.g., 2"
-            />
-          </div>
-
-          <div className={`form-group ${errors.dob ? 'error' : ''}`}>
-            <label>
-              <span className="emoji-inline">🎂</span> Date of Birth{' '}
-              <span style={{ color: 'red' }}>*</span>
-            </label>
-            <input
-              type="date"
-              name="dob"
-              value={textData.dob}
-              onChange={handleTextChange}
-            />
-            {errors.dob && <span className="error-text">{errors.dob}</span>}
+            {errors.name && <p className="error-text">{errors.name}</p>}
           </div>
 
           <div className={`form-group ${errors.passportNo ? 'error' : ''}`}>
-            <label>
-              <span className="emoji-inline">🛂</span> Passport No{' '}
-              <span style={{ color: 'red' }}>*</span>
-            </label>
+            <label>🛂 Passport No</label>
             <input
               type="text"
               name="passportNo"
@@ -369,117 +259,137 @@ function AddCandidatePage() {
               onChange={handleTextChange}
               placeholder="e.g., M1234567"
             />
-            {errors.passportNo && (
-              <span className="error-text">{errors.passportNo}</span>
-            )}
+            {errors.passportNo && <p className="error-text">{errors.passportNo}</p>}
           </div>
 
-          {/* Row 2 */}
           <div className="form-group">
-            <label>
-              <span className="emoji-inline">📅</span> Passport Expiry
-            </label>
+            <label>📅 Passport Expiry</label>
             <input
               type="date"
               name="passportExpiry"
-              value={textData.passportExpiry}
+              value={sanitizeDate(textData.passportExpiry)}
               onChange={handleTextChange}
             />
           </div>
 
+          <div className="form-group">
+            <label>🎓 Education</label>
+            <input
+              type="text"
+              name="education"
+              value={textData.education}
+              onChange={handleTextChange}
+              placeholder="e.g., B.Tech"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>💼 Experience</label>
+            <input
+              type="text"
+              name="experience"
+              value={textData.experience}
+              onChange={handleTextChange}
+              placeholder="Years"
+            />
+          </div>
+
           <div className={`form-group ${errors.contact ? 'error' : ''}`}>
-            <label>
-              <span className="emoji-inline">📞</span> Contact{' '}
-              <span style={{ color: 'red' }}>*</span>
-            </label>
+            <label>📞 Contact</label>
             <input
               type="text"
               name="contact"
               value={textData.contact}
               onChange={handleTextChange}
-              placeholder="Phone number"
+              placeholder="Phone"
             />
-            {errors.contact && (
-              <span className="error-text">{errors.contact}</span>
-            )}
+            {errors.contact && <p className="error-text">{errors.contact}</p>}
           </div>
 
           <div className={`form-group ${errors.aadhar ? 'error' : ''}`}>
-            <label>
-              <span className="emoji-inline">🪪</span> Aadhaar Number{' '}
-              <span style={{ color: 'red' }}>*</span>
-            </label>
+            <label>🪪 Aadhaar</label>
             <input
               type="text"
               name="aadhar"
               value={textData.aadhar}
               onChange={handleTextChange}
-              placeholder="12-digit Aadhaar"
+              placeholder="12 digits"
             />
-            {errors.aadhar && (
-              <span className="error-text">{errors.aadhar}</span>
-            )}
+            {errors.aadhar && <p className="error-text">{errors.aadhar}</p>}
           </div>
 
-          <div className="form-group">
-            <label>
-              <span className="emoji-inline">📊</span> Status
-            </label>
-            <select name="status" value={textData.status} onChange={handleTextChange}>
-              <option value="New">🟢 New</option>
-              <option value="Active">🔵 Active</option>
-              <option value="Inactive">⚫ Inactive</option>
-            </select>
-          </div>
+          <div className={`form-group ${errors.Position ? 'error' : ''}`}>
+  <label>🎯 Position</label>
+  <CustomDropdown
+    name="Position"
+    value={textData.Position}
+    onChange={handleTextChange}
+    options={jobPositions}
+    placeholder="Select or type position"
+    allowCustom={true}
+  />
+  {errors.Position && <p className="error-text">{errors.Position}</p>}
+</div>
 
-          <div className="form-group">
-            <label>
-              <span className="emoji-inline">🎯</span> Position
-            </label>
-            <select
-              name="Position"
-              value={textData.Position}
+
+          <div className={`form-group ${errors.dob ? 'error' : ''}`}>
+            <label>🎂 DOB</label>
+            <input
+              type="date"
+              name="dob"
+              value={sanitizeDate(textData.dob)}
               onChange={handleTextChange}
-            >
-              <option value="">Role applied for</option>
-              {jobPositions.map((pos, idx) => (
-                <option key={idx} value={pos}>
-                  {pos}
-                </option>
-              ))}
+            />
+            {errors.dob && <p className="error-text">{errors.dob}</p>}
+          </div>
+
+          <div className="form-group">
+            <label>📊 Status</label>
+            <select name="status" value={textData.status} onChange={handleTextChange}>
+              <option value="New">New</option>
+              <option value="Documents Collected">Documents Collected</option>
+              <option value="Visa Applied">Visa Applied</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+              <option value="Rejected">Rejected</option>
             </select>
           </div>
 
-          {/* Row 3 - Notes (Full Width) */}
           <div className="form-group full-width">
-            <label>
-              <span className="emoji-inline">📝</span> Notes
-            </label>
+            <label>📝 Notes</label>
             <textarea
               name="notes"
               value={textData.notes}
               onChange={handleTextChange}
+              placeholder="Additional information..."
               rows={3}
-              placeholder="Extra info or verified address..."
             />
           </div>
-        </form>
-      </div>
+        </div>
 
-      {/* DOCUMENTS SECTION */}
-      <div className="documents-section card-elevated slide-up-delay">
-        <h2>
-          <span className="emoji-inline">📎</span> Documents
-        </h2>
+        <button type="submit" className="primary-btn full-width-btn" disabled={isSaving}>
+          {isSaving ? (
+            <>
+              <FiRefreshCw className="spin-icon" size={18} />
+              Saving...
+            </>
+          ) : (
+            '💾 Save Candidate'
+          )}
+        </button>
+      </form>
+
+      <section className="documents-section card-elevated slide-up-delay">
+        <h2>📎 Attached Documents</h2>
 
         <div className="custom-file-input">
           <input
             type="file"
-            id="file-upload"
+            id="add-candidate-files"
             multiple
             onChange={handleFileChange}
           />
-          <label htmlFor="file-upload" className="file-input-label">
+          <label htmlFor="add-candidate-files" className="file-input-label">
             <FiPlus size={16} />
             Upload Files
           </label>
@@ -488,58 +398,38 @@ function AddCandidatePage() {
         {files.length > 0 ? (
           <div className="file-grid">
             {files.map((file, index) => (
-              <div key={index} className="file-chip">
-                <span className="file-name">{file.name}</span>
-                <span className="file-size">
-                  {file.size ? (file.size / 1024).toFixed(1) + ' KB' : ''}
+              <div className="file-chip" key={index}>
+                <span className="file-name">
+                  {file.name}
+                  {typeof file.size === 'number' && (
+                    <span className="file-size"> ({(file.size / 1024).toFixed(1)} KB)</span>
+                  )}
                 </span>
                 <button
                   type="button"
                   className="remove-file-btn"
                   onClick={() => removeFile(index)}
-                  title="Remove file"
+                  title="Remove"
                 >
-                  <FiTrash2 />
+                  <FiTrash2 size={14} />
                 </button>
               </div>
             ))}
           </div>
         ) : (
-          <p className="file-empty-hint">
-            <span className="emoji-inline">📭</span> No documents attached yet.
-            Start by adding a file
-          </p>
+          <p className="file-empty-hint">📭 No documents yet</p>
         )}
-      </div>
+      </section>
 
-      {/* SUBMIT BUTTON */}
-      <button
-        type="submit"
-        className="primary-btn full-width-btn"
-        disabled={isSaving}
-        onClick={handleSubmit}
-      >
-        {isSaving ? (
-          <>
-            <FiRefreshCw className="spin-icon" size={18} />
-            Saving...
-          </>
-        ) : (
-          <>
-            <span className="emoji-inline">💾</span> Save Candidate
-          </>
-        )}
-      </button>
-
-      {/* SCANNER MODAL */}
-      <ScannerModal
-        open={scannerModal.open}
-        type={scannerModal.type}
-        onClose={closeScanner}
-        onQRData={handleQRData}
-        onPassportData={handlePassportData}
-        resetKey={resetKey}
-      />
+      {showModal && (
+        <ScannerModal
+          type={modalType}
+          resetKey={resetKey}
+          onClose={closeModal}
+          onQRData={handleQRData}
+          onPassportData={handlePassportData}
+        />
+      )}
     </div>
   );
 }
