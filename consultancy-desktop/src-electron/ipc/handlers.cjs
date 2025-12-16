@@ -129,41 +129,47 @@ ipcMain.handle('request-activation-code', async () => {
 
 // ===================== REMINDER SCHEDULER =====================
 function startReminderScheduler(mainWindow) {
-  // ✅ Add this line at the very top of the function
+  // ✅ Explicitly import Notification inside function scope
   const { Notification } = require('electron');
   
   setInterval(async () => {
-    const nowIso = new Date().toISOString();
-    const due = await queries.getDueReminders(nowIso);
-    if (!due || !due.length) return;
-    
-    const ids = [];
-    due.forEach((rem) => {
-      ids.push(rem.id);
+    try {
+      const nowIso = new Date().toISOString();
+      const due = await queries.getDueReminders(nowIso);
+      if (!due || !due.length) return;
       
-      const notification = new Notification({
-        title: rem.title,
-        body: rem.message,
-      });
-      notification.show();
-      
-      // Send to renderer
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('reminder-due', {
-          id: rem.id,
-          userId: rem.userid,
-          candidateId: rem.candidateid,
-          module: rem.module,
-          title: rem.title,
-          message: rem.message,
-          remindAt: rem.remindat,
+      const ids = [];
+      due.forEach((rem) => {
+        ids.push(rem.id);
+        
+        // ✅ Create and show notification
+        const notification = new Notification({
+          title: rem.title || 'Reminder',
+          body: rem.message || 'You have a reminder',
         });
-      }
-    });
-    
-    await queries.markRemindersDelivered(ids);
-  }, 60 * 1000);
+        notification.show();
+        
+        // Send to renderer
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('reminder-due', {
+            id: rem.id,
+            userId: rem.userid,
+            candidateId: rem.candidateid,
+            module: rem.module,
+            title: rem.title,
+            message: rem.message,
+            remindAt: rem.remindat,
+          });
+        }
+      });
+      
+      await queries.markRemindersDelivered(ids);
+    } catch (error) {
+      console.error('❌ Reminder scheduler error:', error.message);
+    }
+  }, 60 * 1000); // check every 60s
 }
+
 
 
 // =============================================================

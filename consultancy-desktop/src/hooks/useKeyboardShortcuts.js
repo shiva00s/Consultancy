@@ -7,6 +7,9 @@ import { useEffect, useCallback } from 'react';
  */
 export const useKeyboardShortcuts = (shortcuts, deps = []) => {
   const handleKeyDown = useCallback((event) => {
+    // ✅ FIX: Guard against undefined event.key
+    if (!event || !event.key) return;
+    
     const key = event.key.toLowerCase();
     const ctrl = event.ctrlKey || event.metaKey;
     const shift = event.shiftKey;
@@ -67,4 +70,5 @@ export const useGlobalShortcuts = (navigate, user) => {
     }),
   }, [navigate, user]);
 };
+
 export default { useKeyboardShortcuts, useGlobalShortcuts };
