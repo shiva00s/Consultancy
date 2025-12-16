@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FiTrash2 } from 'react-icons/fi';
+import { FiBriefcase, FiPlus, FiEdit2, FiTrash2, FiX, FiSave } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import '../css/JobOrderListPage.css';
 import '../css/EmployerListPage.css';
@@ -48,6 +48,7 @@ function EmployerListPage() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [viewForm, setViewForm] = useState(initialForm);
   const [viewErrors, setViewErrors] = useState({});
+  const [isEditing, setIsEditing] = useState(false);
   const [viewSaving, setViewSaving] = useState(false);
 
   const selectedEmployer = employers[selectedIndex] || null;
@@ -95,6 +96,7 @@ function EmployerListPage() {
       if (employers.length === 0) {
         setSelectedIndex(0);
         setViewForm(initialForm);
+        setIsEditing(false);
       } else if (selectedIndex >= employers.length) {
         setSelectedIndex(0);
         syncSelectedToForm(0);
@@ -109,6 +111,7 @@ function EmployerListPage() {
     setActiveTab(tab);
     if (tab === 'list') {
       setViewErrors({});
+      setIsEditing(false);
       if (employers.length > 0) {
         setSelectedIndex(0);
         syncSelectedToForm(0);
@@ -137,7 +140,7 @@ function EmployerListPage() {
       addEmployer(res.data);
       setAddForm(initialForm);
       setAddErrors({});
-      toast.success('Employer added.');
+      toast.success('Employer added successfully!');
     } else {
       toast.error(res.error || 'Add failed.');
     }
@@ -151,34 +154,58 @@ function EmployerListPage() {
     if (viewErrors[name]) setViewErrors((p) => ({ ...p, [name]: null }));
   };
 
-  const onViewSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedEmployer) return;
-    if (!validate(viewForm, setViewErrors)) {
-      toast.error('Fix errors before saving.');
-      return;
-    }
-    setViewSaving(true);
-    const res = await window.electronAPI.updateEmployer({
-      user,
-      id: selectedEmployer.id,
-      data: viewForm,
-    });
-    if (res.success) {
-      updateEmployer(res.data);
-      toast.success('Employer updated.');
-    } else {
-      toast.error(res.error || 'Update failed.');
-    }
-    setViewSaving(false);
-  };
-
   const onEmployerSelect = (e) => {
     const idx = Number(e.target.value);
     setSelectedIndex(idx);
     syncSelectedToForm(idx);
     setViewErrors({});
+    setIsEditing(false);
   };
+
+  const startEdit = () => {
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    syncSelectedToForm(selectedIndex);
+    setViewErrors({});
+  };
+
+  const saveEdit = async (e) => {
+  e.preventDefault();
+  if (!selectedEmployer) return;
+  if (!validate(viewForm, setViewErrors)) {
+    toast.error('Fix errors before saving.');
+    return;
+  }
+  setViewSaving(true);
+  const res = await window.electronAPI.updateEmployer({
+    user,
+    id: selectedEmployer.id,
+    data: viewForm,
+  });
+  if (res.success) {
+    updateEmployer(res.data); // ✅ Store updated
+    
+    // 🔥 FIX: Immediately sync viewForm with updated data
+    setViewForm({
+      companyName: res.data.companyName || '',
+      country: res.data.country || '',
+      contactPerson: res.data.contactPerson || '',
+      contactEmail: res.data.contactEmail || '',
+      notes: res.data.notes || '',
+    });
+    
+    toast.success(`Employer "${res.data.companyName}" updated successfully.`);
+    setIsEditing(false);
+    setViewErrors({});
+  } else {
+    toast.error(res.error || 'Update failed.');
+  }
+  setViewSaving(false);
+};
+
 
   // open confirm dialog
   const onDeleteClick = () => {
@@ -216,19 +243,18 @@ function EmployerListPage() {
   if (!isLoaded) {
     return (
       <div className="job-page-container">
-        <p className="empty-text">Loading employers...</p>
+        <p className="empty-text">
+          <span className="emoji-inline">⏳</span> Loading employers...
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="job-page-container">
+    <div className="job-page-container fade-in">
       <header className="job-page-header">
         <h1>
-          <span className="emoji-inline" aria-hidden="true">
-            🏢
-          </span>
-          Employer Management
+          <span className="emoji-inline">🏢</span> Employer Management
         </h1>
       </header>
 
@@ -238,10 +264,7 @@ function EmployerListPage() {
           className={`job-tab ${activeTab === 'add' ? 'job-tab-active' : ''}`}
           onClick={() => handleTabChange('add')}
         >
-          <span className="emoji-inline" aria-hidden="true">
-            ✨
-          </span>
-          Add New
+          <FiPlus /> <span className="emoji-inline">✨</span> Add New
         </button>
         <button
           type="button"
@@ -250,27 +273,23 @@ function EmployerListPage() {
           }`}
           onClick={() => handleTabChange('list')}
         >
-          <span className="emoji-inline" aria-hidden="true">
-            📋
+          <FiBriefcase /> <span className="emoji-inline">📊</span> View/Edit
+          <span className="tab-count-pill">
+            <span className="emoji-inline">👥</span> {employerCount}
           </span>
-          View / Manage
-          <span className="tab-count-pill">👥 {employerCount}</span>
         </button>
       </div>
 
       {/* TAB 1: ADD NEW */}
       {activeTab === 'add' && (
-        <section className="job-card-wide job-card-elevated fade-in">
+        <section className="job-card-wide job-card-elevated slide-up">
           <div className="job-card-header">
             <div className="job-title-block">
               <div className="job-title">
-                <span className="emoji-inline" aria-hidden="true">
-                  🏗️
-                </span>
-                New Employer Setup
+                <span className="emoji-inline">🏗️</span> New Employer Setup
               </div>
               <div className="job-subtitle">
-                Create a company profile that can be linked to job orders.
+                <span className="emoji-inline">💡</span> Create a company profile that can be linked to job orders
               </div>
             </div>
           </div>
@@ -278,22 +297,16 @@ function EmployerListPage() {
           <div className="job-card-body">
             <form onSubmit={onAddSubmit}>
               <div className="job-grid-4">
-                <div
-                  className={`form-group form-group-full ${
-                    addErrors.companyName ? 'error' : ''
-                  }`}
-                >
+                <div className={`form-group form-group-full ${addErrors.companyName ? 'error' : ''}`}>
                   <label>
-                    <span className="emoji-inline" aria-hidden="true">
-                      🏢
-                    </span>
-                    Company Name *
+                    <span className="emoji-inline">🏢</span> Company Name *
                   </label>
                   <input
                     name="companyName"
                     value={addForm.companyName}
                     onChange={onAddChange}
                     placeholder="🏙️ ACME International"
+                    style={addErrors.companyName ? { borderColor: 'red' } : {}}
                   />
                   {addErrors.companyName && (
                     <p className="error-text">{addErrors.companyName}</p>
@@ -302,10 +315,7 @@ function EmployerListPage() {
 
                 <div className="form-group">
                   <label>
-                    <span className="emoji-inline" aria-hidden="true">
-                      🌍
-                    </span>
-                    Country
+                    <span className="emoji-inline">🌍</span> Country
                   </label>
                   <input
                     name="country"
@@ -317,10 +327,7 @@ function EmployerListPage() {
 
                 <div className="form-group">
                   <label>
-                    <span className="emoji-inline" aria-hidden="true">
-                      🧑‍💼
-                    </span>
-                    Contact Person
+                    <span className="emoji-inline">🧑‍💼</span> Contact Person
                   </label>
                   <input
                     name="contactPerson"
@@ -330,22 +337,16 @@ function EmployerListPage() {
                   />
                 </div>
 
-                <div
-                  className={`form-group ${
-                    addErrors.contactEmail ? 'error' : ''
-                  }`}
-                >
+                <div className={`form-group ${addErrors.contactEmail ? 'error' : ''}`}>
                   <label>
-                    <span className="emoji-inline" aria-hidden="true">
-                      📧
-                    </span>
-                    Contact Email
+                    <span className="emoji-inline">📧</span> Contact Email
                   </label>
                   <input
                     name="contactEmail"
                     value={addForm.contactEmail}
                     onChange={onAddChange}
                     placeholder="📨 name@company.com"
+                    style={addErrors.contactEmail ? { borderColor: 'red' } : {}}
                   />
                   {addErrors.contactEmail && (
                     <p className="error-text">{addErrors.contactEmail}</p>
@@ -354,10 +355,7 @@ function EmployerListPage() {
 
                 <div className="form-group form-group-full">
                   <label>
-                    <span className="emoji-inline" aria-hidden="true">
-                      📝
-                    </span>
-                    Notes
+                    <span className="emoji-inline">📝</span> Notes
                   </label>
                   <textarea
                     name="notes"
@@ -375,7 +373,15 @@ function EmployerListPage() {
                   className="btn-primary-lg"
                   disabled={addSaving}
                 >
-                  {addSaving ? 'Saving…' : 'Save Employer'}
+                  {addSaving ? (
+                    <>
+                      <span className="emoji-inline">⏳</span> Saving…
+                    </>
+                  ) : (
+                    <>
+                      <span className="emoji-inline">💾</span> Save Employer
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -384,173 +390,203 @@ function EmployerListPage() {
       )}
 
       {/* TAB 2: VIEW / MANAGE */}
-      {activeTab === 'list' && (
-        <section className="job-card-wide job-card-elevated job-card-editing fade-in">
-          <div className="job-card-header">
-            <div className="job-title-block">
-              <div className="job-title">
-                <span className="emoji-inline" aria-hidden="true">
-                  🧾
-                </span>
-                {selectedEmployer
-                  ? selectedEmployer.companyName
-                  : 'No Employer Selected'}
-                <span className="emoji-inline" aria-hidden="true">
-                  👥
-                </span>
-              </div>
-              <div className="job-subtitle">
-                Inline edit employer master data. Changes apply to all linked
-                job orders.
-              </div>
+{activeTab === 'list' && (
+  <>
+    {employerCount === 0 ? (
+      <p className="empty-text">
+        <span className="emoji-inline">📭</span> No employers available. Create one from the Add New tab.
+      </p>
+    ) : (
+      <section className="job-card-wide job-card-elevated job-card-editing slide-up">
+        <div className="job-card-header">
+          <div className="job-title-block">
+            <div className="job-title">
+              <span className="emoji-inline">🏢</span>{' '}
+              {viewForm.companyName || 'No Employer Selected'}
             </div>
+            <div className="job-subtitle">
+              {(viewForm.country || viewForm.contactPerson) && (
+                <>
+                  <span className="emoji-inline">🌍</span> {viewForm.country || 'N/A'} •{' '}
+                  <span className="emoji-inline">🧑‍💼</span> {viewForm.contactPerson || 'No contact'}
+                </>
+              )}
+            </div>
+          </div>
 
-            <div className="job-header-actions">
-              <span className="employer-count-chip">
-                👥 {employerCount} Employers
-              </span>
 
-              <select
-                className="employer-picker-select"
-                value={selectedIndex}
-                onChange={onEmployerSelect}
-                disabled={employers.length === 0}
-              >
-                {employers.length === 0 ? (
-                  <option>No employers found</option>
+                <div className="job-header-actions">
+                  <span className="job-count-chip">
+                    <span className="emoji-inline">👥</span> {employerCount} Employers
+                  </span>
+
+                  <select
+                    className="job-picker-select"
+                    value={selectedIndex}
+                    onChange={onEmployerSelect}
+                    disabled={employers.length === 0}
+                  >
+                    {employers.length === 0 ? (
+                      <option>No employers found</option>
+                    ) : (
+                      employers.map((e, i) => (
+                        <option key={e.id} value={i}>
+                          {i + 1}. {e.companyName}
+                        </option>
+                      ))
+                    )}
+                  </select>
+
+                  {!isEditing ? (
+                    <>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        title="Edit employer"
+                        onClick={startEdit}
+                      >
+                        <FiEdit2 />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-btn danger"
+                        title="Move employer to Recycle Bin"
+                        onClick={onDeleteClick}
+                        disabled={!selectedEmployer}
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="icon-btn success"
+                        title="Save changes"
+                        onClick={saveEdit}
+                        disabled={viewSaving}
+                      >
+                        <FiSave />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-btn muted"
+                        title="Cancel editing"
+                        onClick={cancelEdit}
+                        disabled={viewSaving}
+                      >
+                        <FiX />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="job-card-body">
+                {selectedEmployer ? (
+                  <form onSubmit={saveEdit} className={isEditing ? 'job-grid-4' : 'read-grid'}>
+                    <div className={isEditing ? 'form-group form-group-full' : 'detail-full'}>
+                      <label className={isEditing ? '' : 'detail-label'}>
+                        <span className="emoji-inline">🏢</span> Company Name
+                      </label>
+                      {isEditing ? (
+                        <>
+                          <input
+                            name="companyName"
+                            value={viewForm.companyName}
+                            onChange={onViewChange}
+                            placeholder="🏙️ Company name"
+                            style={viewErrors.companyName ? { borderColor: 'red' } : {}}
+                          />
+                          {viewErrors.companyName && (
+                            <p className="error-text">{viewErrors.companyName}</p>
+                          )}
+                        </>
+                      ) : (
+                        <div className="detail-value">{viewForm.companyName || 'N/A'}</div>
+                      )}
+                    </div>
+
+                    <div className={isEditing ? 'form-group' : 'detail-item'}>
+                      <label className={isEditing ? '' : 'detail-label'}>
+                        <span className="emoji-inline">🌍</span> Country
+                      </label>
+                      {isEditing ? (
+                        <input
+                          name="country"
+                          value={viewForm.country}
+                          onChange={onViewChange}
+                          placeholder="🌎 Country"
+                        />
+                      ) : (
+                        <div className="detail-value">{viewForm.country || 'N/A'}</div>
+                      )}
+                    </div>
+
+                    <div className={isEditing ? 'form-group' : 'detail-item'}>
+                      <label className={isEditing ? '' : 'detail-label'}>
+                        <span className="emoji-inline">🧑‍💼</span> Contact Person
+                      </label>
+                      {isEditing ? (
+                        <input
+                          name="contactPerson"
+                          value={viewForm.contactPerson}
+                          onChange={onViewChange}
+                          placeholder="👔 Person in charge"
+                        />
+                      ) : (
+                        <div className="detail-value">{viewForm.contactPerson || 'N/A'}</div>
+                      )}
+                    </div>
+
+                    <div className={isEditing ? 'form-group' : 'detail-item'}>
+                      <label className={isEditing ? '' : 'detail-label'}>
+                        <span className="emoji-inline">📧</span> Contact Email
+                      </label>
+                      {isEditing ? (
+                        <>
+                          <input
+                            name="contactEmail"
+                            value={viewForm.contactEmail}
+                            onChange={onViewChange}
+                            placeholder="📨 Email address"
+                            style={viewErrors.contactEmail ? { borderColor: 'red' } : {}}
+                          />
+                          {viewErrors.contactEmail && (
+                            <p className="error-text">{viewErrors.contactEmail}</p>
+                          )}
+                        </>
+                      ) : (
+                        <div className="detail-value">{viewForm.contactEmail || 'N/A'}</div>
+                      )}
+                    </div>
+
+                    <div className={isEditing ? 'form-group form-group-full' : 'detail-full'}>
+                      <label className={isEditing ? '' : 'detail-label'}>
+                        <span className="emoji-inline">📝</span> Notes
+                      </label>
+                      {isEditing ? (
+                        <textarea
+                          name="notes"
+                          rows={3}
+                          value={viewForm.notes}
+                          onChange={onViewChange}
+                          placeholder="💡 Any special conditions, communication notes, etc."
+                        />
+                      ) : (
+                        <div className="detail-value">{viewForm.notes || 'N/A'}</div>
+                      )}
+                    </div>
+                  </form>
                 ) : (
-                  employers.map((e, i) => (
-                    <option key={e.id} value={i}>
-                      🏢 {e.companyName}
-                    </option>
-                  ))
+                  <p className="empty-text">
+                    <span className="emoji-inline">📭</span> No employers available. Create one from the Add New tab.
+                  </p>
                 )}
-              </select>
-
-              <button
-                type="button"
-                className="icon-btn danger"
-                title="Move employer to Recycle Bin"
-                onClick={onDeleteClick}
-                disabled={!selectedEmployer}
-              >
-                <FiTrash2 />
-              </button>
-            </div>
-          </div>
-
-          <div className="job-card-body">
-            {selectedEmployer ? (
-              <form onSubmit={onViewSubmit}>
-                <div className="job-grid-4">
-                  <div
-                    className={`form-group form-group-full ${
-                      viewErrors.companyName ? 'error' : ''
-                    }`}
-                  >
-                    <label>
-                      <span className="emoji-inline" aria-hidden="true">
-                        🏢
-                      </span>
-                      Company Name *
-                    </label>
-                    <input
-                      name="companyName"
-                      value={viewForm.companyName}
-                      onChange={onViewChange}
-                      placeholder="🏙️ Company name"
-                    />
-                    {viewErrors.companyName && (
-                      <p className="error-text">{viewErrors.companyName}</p>
-                    )}
-                  </div>
-
-                  <div className="form-group">
-                    <label>
-                      <span className="emoji-inline" aria-hidden="true">
-                        🌍
-                      </span>
-                      Country
-                    </label>
-                    <input
-                      name="country"
-                      value={viewForm.country}
-                      onChange={onViewChange}
-                      placeholder="🌎 Country"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>
-                      <span className="emoji-inline" aria-hidden="true">
-                        🧑‍💼
-                      </span>
-                      Contact Person
-                    </label>
-                    <input
-                      name="contactPerson"
-                      value={viewForm.contactPerson}
-                      onChange={onViewChange}
-                      placeholder="👔 Person in charge"
-                    />
-                  </div>
-
-                  <div
-                    className={`form-group ${
-                      viewErrors.contactEmail ? 'error' : ''
-                    }`}
-                  >
-                    <label>
-                      <span className="emoji-inline" aria-hidden="true">
-                        📧
-                      </span>
-                      Contact Email
-                    </label>
-                    <input
-                      name="contactEmail"
-                      value={viewForm.contactEmail}
-                      onChange={onViewChange}
-                      placeholder="📨 Email address"
-                    />
-                    {viewErrors.contactEmail && (
-                      <p className="error-text">{viewErrors.contactEmail}</p>
-                    )}
-                  </div>
-
-                  <div className="form-group form-group-full">
-                    <label>
-                      <span className="emoji-inline" aria-hidden="true">
-                        📝
-                      </span>
-                      Notes
-                    </label>
-                    <textarea
-                      name="notes"
-                      rows={3}
-                      value={viewForm.notes}
-                      onChange={onViewChange}
-                      placeholder="💡 Any special conditions, communication notes, etc."
-                    />
-                  </div>
-                </div>
-
-                <div className="form-footer">
-                  <button
-                    type="submit"
-                    className="btn-primary-lg"
-                    disabled={viewSaving}
-                  >
-                    {viewSaving ? 'Saving…' : 'Save Changes'}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <p className="empty-text">
-                No employers available. Create one from the Add New tab.
-              </p>
-            )}
-          </div>
-        </section>
+              </div>
+            </section>
+          )}
+        </>
       )}
 
       <ConfirmDialog

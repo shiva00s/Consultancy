@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FiClipboard,
   FiPlus,
@@ -38,11 +38,18 @@ function JobOrderListPage() {
   const user = useAuthStore((state) => state.user);
 
   const [activeTab, setActiveTab] = useState("add");
+
+  // ADD TAB STATE
   const [formData, setFormData] = useState(initialForm);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({});
-  const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({});
+
+  // VIEW TAB STATE
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [viewForm, setViewForm] = useState(initialForm);
+  const [viewErrors, setViewErrors] = useState({});
+  const [isEditing, setIsEditing] = useState(false);
+  const [viewSaving, setViewSaving] = useState(false);
 
   const [confirmState, setConfirmState] = useState({
     open: false,
@@ -57,15 +64,71 @@ function JobOrderListPage() {
     "Direct Client Interview",
   ];
 
+  const selectedJob = jobs[selectedIndex] || null;
+  const jobCount = jobs.length;
+
   const getEmployerName = (employerId) => {
     const emp = employers.find((e) => e.id === employerId);
     return emp ? emp.companyName : "Unknown";
   };
 
+  // Sync selected job to viewForm
+  const syncSelectedToForm = (idx) => {
+    const job = jobs[idx];
+    if (!job) {
+      setViewForm(initialForm);
+      return;
+    }
+    setViewForm({
+      employer_id: job.employer_id,
+      positionTitle: job.positionTitle,
+      country: job.country || "",
+      openingsCount: job.openingsCount?.toString() || "1",
+      status: job.status,
+      requirements: job.requirements || "",
+      food: job.food || "",
+      accommodation: job.accommodation || "",
+      dutyHours: job.dutyHours || "",
+      overtime: job.overtime || "",
+      contractPeriod: job.contractPeriod || "",
+      selectionType: job.selectionType || "CV Selection",
+    });
+  };
+
+  // Keep viewForm in sync when jobs change
+  useEffect(() => {
+    if (activeTab === "list") {
+      if (jobs.length === 0) {
+        setSelectedIndex(0);
+        setViewForm(initialForm);
+        setIsEditing(false);
+      } else if (selectedIndex >= jobs.length) {
+        setSelectedIndex(0);
+        syncSelectedToForm(0);
+      } else {
+        syncSelectedToForm(selectedIndex);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs, activeTab]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (tab === "list") {
+      setViewErrors({});
+      setIsEditing(false);
+      if (jobs.length > 0) {
+        setSelectedIndex(0);
+        syncSelectedToForm(0);
+      } else {
+        setViewForm(initialForm);
+      }
+    }
+  };
+
   const handleFormChange = (state, setState) => (e) => {
     const { name, value } = e.target;
     let v = value;
-
     if (
       ["openingsCount", "dutyHours", "overtime", "contractPeriod"].includes(
         name
@@ -73,14 +136,13 @@ function JobOrderListPage() {
     ) {
       v = value.replace(/[^\d]/g, "");
     }
-
     const next = { ...state, [name]: v };
     setState(next);
-
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
+    if (viewErrors[name]) setViewErrors((prev) => ({ ...prev, [name]: null }));
   };
 
-  const validateForm = (state) => {
+  const validateForm = (state, setErr) => {
     const newErrors = {};
     if (!state.employer_id) newErrors.employer_id = "Select an employer.";
     if (!state.positionTitle || state.positionTitle.trim() === "")
@@ -88,7 +150,7 @@ function JobOrderListPage() {
     const openings = parseInt(state.openingsCount, 10);
     if (isNaN(openings) || openings < 1)
       newErrors.openingsCount = "Openings must be at least 1.";
-    setErrors(newErrors);
+    setErr(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
@@ -107,9 +169,10 @@ function JobOrderListPage() {
     selectionType: state.selectionType,
   });
 
+  // ADD TAB HANDLERS
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm(formData)) {
+    if (!validateForm(formData, setErrors)) {
       toast.error("Please correct the errors in the form.");
       return;
     }
@@ -127,69 +190,66 @@ function JobOrderListPage() {
     setIsSaving(false);
   };
 
-  const startEdit = (job) => {
-    setEditingId(job.id);
-    setEditForm({
-      employer_id: job.employer_id,
-      positionTitle: job.positionTitle,
-      country: job.country || "",
-      openingsCount: job.openingsCount?.toString() || "1",
-      status: job.status,
-      requirements: job.requirements || "",
-      food: job.food || "",
-      accommodation: job.accommodation || "",
-      dutyHours: job.dutyHours || "",
-      overtime: job.overtime || "",
-      contractPeriod: job.contractPeriod || "",
-      selectionType: job.selectionType || "CV Selection",
-    });
+  // VIEW TAB HANDLERS
+  const onJobSelect = (e) => {
+    const idx = Number(e.target.value);
+    setSelectedIndex(idx);
+    syncSelectedToForm(idx);
+    setViewErrors({});
+    setIsEditing(false);
+  };
+
+  const startEdit = () => {
+    setIsEditing(true);
   };
 
   const cancelEdit = () => {
-    setEditingId(null);
-    setEditForm({});
+    setIsEditing(false);
+    syncSelectedToForm(selectedIndex);
+    setViewErrors({});
   };
 
-  const saveEdit = async (jobId) => {
-    if (!validateForm(editForm)) {
+  const saveEdit = async (e) => {
+    e.preventDefault();
+    if (!selectedJob) return;
+    if (!validateForm(viewForm, setViewErrors)) {
       toast.error("Fix validation errors before saving.");
       return;
     }
-    const payload = buildPayload(editForm);
+    setViewSaving(true);
+    const payload = buildPayload(viewForm);
     const res = await window.electronAPI.updateJobOrder({
       user,
-      id: jobId,
+      id: selectedJob.id,
       data: payload,
     });
     if (res.success) {
       updateJobInStore(res.data);
       toast.success(`Job "${res.data.positionTitle}" updated successfully.`);
-      setEditingId(null);
-      setEditForm({});
+      setIsEditing(false);
+      setViewErrors({});
     } else {
       toast.error(res.error || "Update failed");
     }
+    setViewSaving(false);
   };
 
-  // ---- Confirm delete flow ----
-  const askDeleteJob = (id, name) => {
+  // DELETE HANDLERS
+  const askDeleteJob = () => {
+    if (!selectedJob) return;
     setConfirmState({
       open: true,
-      id,
-      name: name || "",
+      id: selectedJob.id,
+      name: selectedJob.positionTitle || "",
     });
   };
 
   const confirmDeleteJob = async () => {
     const { id, name } = confirmState;
-    if (!id) {
-      setConfirmState({ open: false, id: null, name: "" });
-      return;
-    }
+    setConfirmState({ open: false, id: null, name: "" });
+    if (!id) return;
 
     const res = await window.electronAPI.deleteJobOrder({ user, id });
-    setConfirmState({ open: false, id: null, name: "" });
-
     if (res.success) {
       deleteJobToStore(id);
       toast.success(
@@ -220,364 +280,665 @@ function JobOrderListPage() {
   if (!isLoaded) {
     return (
       <div className="job-page-container">
-        <p>Loading jobs and employers...</p>
+        <p className="empty-text">
+          <span className="emoji-inline">⏳</span> Loading jobs and employers...
+        </p>
       </div>
     );
   }
 
-  const renderJobFormFields = (state, setState, disabled = false) => {
-    const onChange = disabled ? () => {} : handleFormChange(state, setState);
-
-    return (
-      <div className={`job-grid-4 ${disabled ? "read-grid" : ""}`}>
-        <div className="form-group">
-          <label>🏢 Company (Employer)</label>
-          <select
-            name="employer_id"
-            value={state.employer_id}
-            onChange={onChange}
-            disabled={disabled}
-          >
-            <option value="">-- Select Employer --</option>
-            {employers.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.companyName}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label>💺 Position</label>
-          <input
-            type="text"
-            name="positionTitle"
-            value={state.positionTitle}
-            onChange={onChange}
-            placeholder="e.g. Admin"
-            disabled={disabled}
-          />
-        </div>
-
-        <div className="form-group">
-          <label>🌏 Country</label>
-          <input
-            type="text"
-            name="country"
-            value={state.country}
-            onChange={onChange}
-            placeholder="e.g. Japan"
-            disabled={disabled}
-          />
-        </div>
-
-        <div className="form-group">
-          <label>👥 No. of Openings</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            name="openingsCount"
-            value={state.openingsCount}
-            onChange={onChange}
-            placeholder="1"
-            disabled={disabled}
-          />
-        </div>
-
-        {/* Food */}
-        <div className="form-group">
-          <label>🍽 Food</label>
-          <select
-            name="food"
-            value={state.food}
-            onChange={onChange}
-            disabled={disabled}
-          >
-            <option value="">-- Select --</option>
-            <option value="Yes">Yes</option>
-            <option value="No">No</option>
-            <option value="Company Provided">Company Provided</option>
-            <option value="Self">Self</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-
-        {/* Accommodation */}
-        <div className="form-group">
-          <label>🏠 Accommodation</label>
-          <select
-            name="accommodation"
-            value={state.accommodation}
-            onChange={onChange}
-            disabled={disabled}
-          >
-            <option value="">-- Select --</option>
-            <option value="Yes">Yes</option>
-            <option value="No">No</option>
-            <option value="Company Provided">Company Provided</option>
-            <option value="Self">Self</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label>⏰ Duty Hours</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            name="dutyHours"
-            value={state.dutyHours}
-            onChange={onChange}
-            placeholder="e.g. 8"
-            disabled={disabled}
-          />
-        </div>
-
-        <div className="form-group">
-          <label>⏱ Overtime (OT)</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            name="overtime"
-            value={state.overtime}
-            onChange={onChange}
-            placeholder="e.g. 2"
-            disabled={disabled}
-          />
-        </div>
-
-        <div className="form-group">
-          <label>📅 Contract Period (months)</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            name="contractPeriod"
-            value={state.contractPeriod}
-            onChange={onChange}
-            placeholder="e.g. 24"
-            disabled={disabled}
-          />
-        </div>
-
-        <div className="form-group">
-          <label>🎯 Selection Type</label>
-          <select
-            name="selectionType"
-            value={state.selectionType}
-            onChange={onChange}
-            disabled={disabled}
-          >
-            {selectionTypeOptions.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label>📌 Status</label>
-          <select
-            name="status"
-            value={state.status}
-            onChange={onChange}
-            disabled={disabled}
-          >
-            <option value="Open">Open</option>
-            <option value="On Hold">On Hold</option>
-            <option value="Closed">Closed</option>
-          </select>
-        </div>
-
-        <div className="form-group form-group-empty" />
-
-        <div className="form-group form-group-full">
-          <label>✅ Requirements</label>
-          <textarea
-            name="requirements"
-            value={state.requirements}
-            onChange={onChange}
-            rows={3}
-            disabled={disabled}
-          />
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="job-page-container">
+    <div className="job-page-container fade-in">
+      {/* HEADER */}
       <div className="job-page-header">
         <h1>
-          <FiClipboard /> Job Order Management
+          <span className="emoji-inline">📋</span> Job Order Management
         </h1>
       </div>
 
+      {/* TABS */}
       <div className="job-tabs">
         <button
           className={`job-tab ${activeTab === "add" ? "job-tab-active" : ""}`}
-          onClick={() => setActiveTab("add")}
+          onClick={() => handleTabChange("add")}
         >
-          <FiPlus /> Add New
+          <FiPlus /> <span className="emoji-inline">✨</span> Add New
         </button>
         <button
-          className={`job-tab ${activeTab === "view" ? "job-tab-active" : ""}`}
-          onClick={() => setActiveTab("view")}
+          className={`job-tab ${activeTab === "list" ? "job-tab-active" : ""}`}
+          onClick={() => handleTabChange("list")}
         >
-          📋 View & Edit
+          <FiClipboard /> <span className="emoji-inline">📊</span> View/Edit
+          <span className="tab-count-pill">
+            <span className="emoji-inline">💼</span> {jobCount}
+          </span>
         </button>
       </div>
 
+      {/* TAB CONTENT */}
       {activeTab === "add" && (
-        <div className="tab-panel fade-in">
-          <div className="job-card-wide job-card-elevated">
-            <div className="job-card-header">
-              <h2>➕ Add New Job Order</h2>
+        <div className="job-card-wide job-card-elevated slide-up">
+          <div className="job-card-header">
+            <div className="job-title-block">
+              <div className="job-title">
+                <span className="emoji-inline">🏗️</span> Create New Job Order
+              </div>
+              <div className="job-subtitle">
+                <span className="emoji-inline">💡</span> Define position requirements and selection criteria
+              </div>
             </div>
-            <div className="job-card-body">
-              <form onSubmit={handleSubmit}>
-                {renderJobFormFields(formData, setFormData, false)}
-                <div className="form-footer">
-                  <button
-                    type="submit"
-                    className="btn-primary-lg"
-                    disabled={isSaving}
-                  >
-                    {isSaving ? "Saving..." : "Add Job Order"}
-                  </button>
-                </div>
-              </form>
-            </div>
+          </div>
+          <div className="job-card-body">
+            <form onSubmit={handleSubmit} className="job-grid-4">
+              {/* Employer */}
+              <div className="form-group">
+                <label>
+                  <span className="emoji-inline">🏢</span> Employer{" "}
+                  <span style={{ color: "red" }}>*</span>
+                </label>
+                <select
+                  name="employer_id"
+                  value={formData.employer_id}
+                  onChange={handleFormChange(formData, setFormData)}
+                  style={errors.employer_id ? { borderColor: "red" } : {}}
+                >
+                  <option value="">
+                    <span className="emoji-inline">👇</span> Select Employer
+                  </option>
+                  {employers.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.companyName}
+                    </option>
+                  ))}
+                </select>
+                {errors.employer_id && (
+                  <span className="error-text">{errors.employer_id}</span>
+                )}
+              </div>
+
+              {/* Position Title */}
+              <div className="form-group">
+                <label>
+                  <span className="emoji-inline">💼</span> Position Title{" "}
+                  <span style={{ color: "red" }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  name="positionTitle"
+                  value={formData.positionTitle}
+                  onChange={handleFormChange(formData, setFormData)}
+                  placeholder="e.g. Software Engineer"
+                  style={errors.positionTitle ? { borderColor: "red" } : {}}
+                />
+                {errors.positionTitle && (
+                  <span className="error-text">{errors.positionTitle}</span>
+                )}
+              </div>
+
+              {/* Country */}
+              <div className="form-group">
+                <label>
+                  <span className="emoji-inline">🌍</span> Country
+                </label>
+                <input
+                  type="text"
+                  name="country"
+                  value={formData.country}
+                  onChange={handleFormChange(formData, setFormData)}
+                  placeholder="e.g. UAE"
+                />
+              </div>
+
+              {/* Openings Count */}
+              <div className="form-group">
+                <label>
+                  <span className="emoji-inline">🔢</span> Openings{" "}
+                  <span style={{ color: "red" }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  name="openingsCount"
+                  value={formData.openingsCount}
+                  onChange={handleFormChange(formData, setFormData)}
+                  placeholder="1"
+                  style={errors.openingsCount ? { borderColor: "red" } : {}}
+                />
+                {errors.openingsCount && (
+                  <span className="error-text">{errors.openingsCount}</span>
+                )}
+              </div>
+
+              {/* Status */}
+              <div className="form-group">
+                <label>
+                  <span className="emoji-inline">📊</span> Status
+                </label>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleFormChange(formData, setFormData)}
+                >
+                  <option value="Open">🟢 Open</option>
+                  <option value="Closed">⚫ Closed</option>
+                  <option value="On Hold">🟡 On Hold</option>
+                </select>
+              </div>
+
+              {/* Selection Type */}
+              <div className="form-group">
+                <label>
+                  <span className="emoji-inline">🎯</span> Selection Type
+                </label>
+                <select
+                  name="selectionType"
+                  value={formData.selectionType}
+                  onChange={handleFormChange(formData, setFormData)}
+                >
+                  {selectionTypeOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Food */}
+              <div className="form-group">
+                <label>
+                  <span className="emoji-inline">🍽️</span> Food
+                </label>
+                <input
+                  type="text"
+                  name="food"
+                  value={formData.food}
+                  onChange={handleFormChange(formData, setFormData)}
+                  placeholder="e.g. Provided"
+                />
+              </div>
+
+              {/* Accommodation */}
+              <div className="form-group">
+                <label>
+                  <span className="emoji-inline">🏠</span> Accommodation
+                </label>
+                <input
+                  type="text"
+                  name="accommodation"
+                  value={formData.accommodation}
+                  onChange={handleFormChange(formData, setFormData)}
+                  placeholder="e.g. Shared"
+                />
+              </div>
+
+              {/* Duty Hours */}
+              <div className="form-group">
+                <label>
+                  <span className="emoji-inline">⏰</span> Duty Hours
+                </label>
+                <input
+                  type="text"
+                  name="dutyHours"
+                  value={formData.dutyHours}
+                  onChange={handleFormChange(formData, setFormData)}
+                  placeholder="e.g. 8"
+                />
+              </div>
+
+              {/* Overtime */}
+              <div className="form-group">
+                <label>
+                  <span className="emoji-inline">⏱️</span> Overtime (hrs)
+                </label>
+                <input
+                  type="text"
+                  name="overtime"
+                  value={formData.overtime}
+                  onChange={handleFormChange(formData, setFormData)}
+                  placeholder="e.g. 2"
+                />
+              </div>
+
+              {/* Contract Period */}
+              <div className="form-group">
+                <label>
+                  <span className="emoji-inline">📅</span> Contract Period (months)
+                </label>
+                <input
+                  type="text"
+                  name="contractPeriod"
+                  value={formData.contractPeriod}
+                  onChange={handleFormChange(formData, setFormData)}
+                  placeholder="e.g. 24"
+                />
+              </div>
+
+              {/* Requirements */}
+              <div className="form-group form-group-full">
+                <label>
+                  <span className="emoji-inline">📝</span> Requirements
+                </label>
+                <textarea
+                  name="requirements"
+                  value={formData.requirements}
+                  onChange={handleFormChange(formData, setFormData)}
+                  rows={3}
+                  placeholder="Job requirements..."
+                />
+              </div>
+
+              {/* Submit */}
+              <div className="form-footer form-group-full">
+                <button
+                  type="submit"
+                  className="btn-primary-lg"
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <>
+                      <span className="emoji-inline">⏳</span> Saving...
+                    </>
+                  ) : (
+                    <>
+                      <span className="emoji-inline">💾</span> Save Job Order
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
-      {activeTab === "view" && (
-        <div className="tab-panel fade-in">
-          <div className="view-tab-header">
-            <span className="view-tab-pill">
-              ✨ Showing {jobs.length} Job Orders
-            </span>
-            <span className="view-tab-hint">
-              💡 Tip: Click ✏ to edit or 🗑 to move to recycle bin
-            </span>
-          </div>
-
-          {jobs.length === 0 ? (
+      {activeTab === "list" && (
+        <>
+          {jobCount === 0 ? (
             <p className="empty-text">
-              No job orders found. Switch to "Add New" to create one.
+              <span className="emoji-inline">📭</span> No job orders found.
+              Switch to "Add New" to create one.
             </p>
           ) : (
-            <div className="job-grid-cards">
-              {jobs.map((job) => {
-                const isEditing = editingId === job.id;
+            <div className="job-card-wide job-card-elevated job-card-editing slide-up">
+              {/* CARD HEADER - Dropdown + Actions */}
+              <div className="job-card-header">
+                <div className="job-title-block">
+                  <div className="job-title">
+                    <span className="emoji-inline">📋</span>{" "}
+                    {selectedJob ? selectedJob.positionTitle : "Select Job"}
+                  </div>
+                  <div className="job-subtitle">
+                    {selectedJob && (
+                      <>
+                        <span className="emoji-inline">🏢</span>{" "}
+                        {getEmployerName(selectedJob.employer_id)} •{" "}
+                        <span className="emoji-inline">🌍</span>{" "}
+                        {selectedJob.country || "N/A"}
+                      </>
+                    )}
+                  </div>
+                </div>
 
-                const viewState = {
-                  employer_id: job.employer_id,
-                  positionTitle: job.positionTitle,
-                  country: job.country || "",
-                  openingsCount: job.openingsCount?.toString() || "1",
-                  status: job.status,
-                  requirements: job.requirements || "",
-                  food: job.food || "",
-                  accommodation: job.accommodation || "",
-                  dutyHours: job.dutyHours || "",
-                  overtime: job.overtime || "",
-                  contractPeriod: job.contractPeriod || "",
-                  selectionType: job.selectionType || "CV Selection",
-                };
+                <div className="job-header-actions">
+                  <span className="job-count-chip">
+                    <span className="emoji-inline">💼</span> {jobCount} Jobs
+                  </span>
 
-                return (
-                  <div
-                    key={job.id}
-                    className={`job-card-wide job-card-elevated ${
-                      isEditing ? "job-card-editing" : ""
-                    }`}
+                  {/* Dropdown */}
+                  <select
+                    value={selectedIndex}
+                    onChange={onJobSelect}
+                    className="job-picker-select"
                   >
-                    <div className="job-card-header">
-                      <div className="job-title-block">
-                        <span className="job-title">
-                          {isEditing ? "✏ Editing Job Order" : job.positionTitle}
-                        </span>
-                        <span className="job-subtitle">
-                          🏢 {getEmployerName(job.employer_id)} • 🌏{" "}
-                          {job.country || "N/A"}
-                        </span>
+                    {jobs.map((job, idx) => (
+                      <option key={job.id} value={idx}>
+                        {idx + 1}. {job.positionTitle} ({job.status})
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Edit/Save/Cancel Buttons */}
+                  {!isEditing ? (
+                    <>
+                      <button
+                        className="icon-btn"
+                        onClick={startEdit}
+                        title="Edit"
+                      >
+                        <FiEdit2 />
+                      </button>
+                      <button
+                        className="icon-btn danger"
+                        onClick={askDeleteJob}
+                        title="Delete"
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="icon-btn success"
+                        onClick={saveEdit}
+                        disabled={viewSaving}
+                        title="Save"
+                      >
+                        <FiSave />
+                      </button>
+                      <button
+                        className="icon-btn muted"
+                        onClick={cancelEdit}
+                        disabled={viewSaving}
+                        title="Cancel"
+                      >
+                        <FiX />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* CARD BODY - Form */}
+              <div className="job-card-body">
+                <form
+                  onSubmit={saveEdit}
+                  className={isEditing ? "job-grid-4" : "read-grid"}
+                >
+                  {/* Employer */}
+                  <div className={isEditing ? "form-group" : "detail-item"}>
+                    <label className={isEditing ? "" : "detail-label"}>
+                      <span className="emoji-inline">🏢</span> Employer
+                    </label>
+                    {isEditing ? (
+                      <>
+                        <select
+                          name="employer_id"
+                          value={viewForm.employer_id}
+                          onChange={handleFormChange(viewForm, setViewForm)}
+                          style={
+                            viewErrors.employer_id ? { borderColor: "red" } : {}
+                          }
+                        >
+                          <option value="">-- Select Employer --</option>
+                          {employers.map((emp) => (
+                            <option key={emp.id} value={emp.id}>
+                              {emp.companyName}
+                            </option>
+                          ))}
+                        </select>
+                        {viewErrors.employer_id && (
+                          <span className="error-text">
+                            {viewErrors.employer_id}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <div className="detail-value">
+                        {getEmployerName(viewForm.employer_id)}
                       </div>
-                      <div className="job-header-actions">
+                    )}
+                  </div>
+
+                  {/* Position Title */}
+                  <div className={isEditing ? "form-group" : "detail-item"}>
+                    <label className={isEditing ? "" : "detail-label"}>
+                      <span className="emoji-inline">💼</span> Position Title
+                    </label>
+                    {isEditing ? (
+                      <>
+                        <input
+                          type="text"
+                          name="positionTitle"
+                          value={viewForm.positionTitle}
+                          onChange={handleFormChange(viewForm, setViewForm)}
+                          style={
+                            viewErrors.positionTitle
+                              ? { borderColor: "red" }
+                              : {}
+                          }
+                        />
+                        {viewErrors.positionTitle && (
+                          <span className="error-text">
+                            {viewErrors.positionTitle}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <div className="detail-value">
+                        {viewForm.positionTitle || "N/A"}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Country */}
+                  <div className={isEditing ? "form-group" : "detail-item"}>
+                    <label className={isEditing ? "" : "detail-label"}>
+                      <span className="emoji-inline">🌍</span> Country
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="country"
+                        value={viewForm.country}
+                        onChange={handleFormChange(viewForm, setViewForm)}
+                      />
+                    ) : (
+                      <div className="detail-value">
+                        {viewForm.country || "N/A"}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Openings Count */}
+                  <div className={isEditing ? "form-group" : "detail-item"}>
+                    <label className={isEditing ? "" : "detail-label"}>
+                      <span className="emoji-inline">🔢</span> Openings
+                    </label>
+                    {isEditing ? (
+                      <>
+                        <input
+                          type="text"
+                          name="openingsCount"
+                          value={viewForm.openingsCount}
+                          onChange={handleFormChange(viewForm, setViewForm)}
+                          style={
+                            viewErrors.openingsCount
+                              ? { borderColor: "red" }
+                              : {}
+                          }
+                        />
+                        {viewErrors.openingsCount && (
+                          <span className="error-text">
+                            {viewErrors.openingsCount}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <div className="detail-value">
+                        {viewForm.openingsCount || "N/A"}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Status */}
+                  <div className={isEditing ? "form-group" : "detail-item"}>
+                    <label className={isEditing ? "" : "detail-label"}>
+                      <span className="emoji-inline">📊</span> Status
+                    </label>
+                    {isEditing ? (
+                      <select
+                        name="status"
+                        value={viewForm.status}
+                        onChange={handleFormChange(viewForm, setViewForm)}
+                      >
+                        <option value="Open">🟢 Open</option>
+                        <option value="Closed">⚫ Closed</option>
+                        <option value="On Hold">🟡 On Hold</option>
+                      </select>
+                    ) : (
+                      <div className="detail-value">
                         <span
                           className={`status-pill ${getStatusBadgeClass(
-                            job.status
+                            viewForm.status
                           )}`}
                         >
-                          {job.status === "Open" && "🟢 "}
-                          {job.status === "On Hold" && "🟡 "}
-                          {job.status === "Closed" && "⚪ "}
-                          {job.status}
+                          {viewForm.status}
                         </span>
-                        {!isEditing ? (
-                          <>
-                            <button
-                              className="icon-btn"
-                              title="Edit"
-                              onClick={() => startEdit(job)}
-                            >
-                              <FiEdit2 />
-                            </button>
-                            <button
-                              className="icon-btn danger"
-                              title="Delete"
-                              onClick={() =>
-                                askDeleteJob(job.id, job.positionTitle)
-                              }
-                            >
-                              <FiTrash2 />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              className="icon-btn success"
-                              title="Save"
-                              onClick={() => saveEdit(job.id)}
-                            >
-                              <FiSave />
-                            </button>
-                            <button
-                              className="icon-btn muted"
-                              title="Cancel"
-                              onClick={cancelEdit}
-                            >
-                              <FiX />
-                            </button>
-                          </>
-                        )}
                       </div>
-                    </div>
-
-                    <div className="job-card-body">
-                      {isEditing
-                        ? renderJobFormFields(editForm, setEditForm, false)
-                        : renderJobFormFields(viewState, () => {}, true)}
-                    </div>
+                    )}
                   </div>
-                );
-              })}
+
+                  {/* Selection Type */}
+                  <div className={isEditing ? "form-group" : "detail-item"}>
+                    <label className={isEditing ? "" : "detail-label"}>
+                      <span className="emoji-inline">🎯</span> Selection Type
+                    </label>
+                    {isEditing ? (
+                      <select
+                        name="selectionType"
+                        value={viewForm.selectionType}
+                        onChange={handleFormChange(viewForm, setViewForm)}
+                      >
+                        {selectionTypeOptions.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="detail-value">
+                        {viewForm.selectionType || "N/A"}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Food */}
+                  <div className={isEditing ? "form-group" : "detail-item"}>
+                    <label className={isEditing ? "" : "detail-label"}>
+                      <span className="emoji-inline">🍽️</span> Food
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="food"
+                        value={viewForm.food}
+                        onChange={handleFormChange(viewForm, setViewForm)}
+                      />
+                    ) : (
+                      <div className="detail-value">
+                        {viewForm.food || "N/A"}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Accommodation */}
+                  <div className={isEditing ? "form-group" : "detail-item"}>
+                    <label className={isEditing ? "" : "detail-label"}>
+                      <span className="emoji-inline">🏠</span> Accommodation
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="accommodation"
+                        value={viewForm.accommodation}
+                        onChange={handleFormChange(viewForm, setViewForm)}
+                      />
+                    ) : (
+                      <div className="detail-value">
+                        {viewForm.accommodation || "N/A"}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Duty Hours */}
+                  <div className={isEditing ? "form-group" : "detail-item"}>
+                    <label className={isEditing ? "" : "detail-label"}>
+                      <span className="emoji-inline">⏰</span> Duty Hours
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="dutyHours"
+                        value={viewForm.dutyHours}
+                        onChange={handleFormChange(viewForm, setViewForm)}
+                      />
+                    ) : (
+                      <div className="detail-value">
+                        {viewForm.dutyHours || "N/A"}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Overtime */}
+                  <div className={isEditing ? "form-group" : "detail-item"}>
+                    <label className={isEditing ? "" : "detail-label"}>
+                      <span className="emoji-inline">⏱️</span> Overtime (hrs)
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="overtime"
+                        value={viewForm.overtime}
+                        onChange={handleFormChange(viewForm, setViewForm)}
+                      />
+                    ) : (
+                      <div className="detail-value">
+                        {viewForm.overtime || "N/A"}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Contract Period */}
+                  <div className={isEditing ? "form-group" : "detail-item"}>
+                    <label className={isEditing ? "" : "detail-label"}>
+                      <span className="emoji-inline">📅</span> Contract Period (months)
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="contractPeriod"
+                        value={viewForm.contractPeriod}
+                        onChange={handleFormChange(viewForm, setViewForm)}
+                      />
+                    ) : (
+                      <div className="detail-value">
+                        {viewForm.contractPeriod || "N/A"}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Requirements */}
+                  <div
+                    className={
+                      isEditing ? "form-group form-group-full" : "detail-full"
+                    }
+                  >
+                    <label className={isEditing ? "" : "detail-label"}>
+                      <span className="emoji-inline">📝</span> Requirements
+                    </label>
+                    {isEditing ? (
+                      <textarea
+                        name="requirements"
+                        value={viewForm.requirements}
+                        onChange={handleFormChange(viewForm, setViewForm)}
+                        rows={3}
+                      />
+                    ) : (
+                      <div className="detail-value">
+                        {viewForm.requirements || "N/A"}
+                      </div>
+                    )}
+                  </div>
+                </form>
+              </div>
             </div>
           )}
-        </div>
+        </>
       )}
 
+      {/* CONFIRM DELETE DIALOG */}
       <ConfirmDialog
         open={confirmState.open}
-        title="Move job order to Recycle Bin?"
-        message={
-          confirmState.name
-            ? `Job "${confirmState.name}" and all linked placements will be moved to the Recycle Bin.`
-            : "This job order and all linked placements will be moved to the Recycle Bin."
-        }
-        confirmLabel="Yes, move to Recycle Bin"
-        cancelLabel="No, keep job"
+        title="Delete Job Order"
+        message={`Are you sure you want to delete "${confirmState.name}"? This will also move linked placements to Recycle Bin.`}
         onConfirm={confirmDeleteJob}
         onCancel={cancelDeleteJob}
       />
