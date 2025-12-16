@@ -337,20 +337,20 @@ function JobOrderListPage() {
                   <span style={{ color: "red" }}>*</span>
                 </label>
                 <select
-                  name="employer_id"
-                  value={formData.employer_id}
-                  onChange={handleFormChange(formData, setFormData)}
-                  style={errors.employer_id ? { borderColor: "red" } : {}}
-                >
-                  <option value="">
-                    <span className="emoji-inline">👇</span> Select Employer
-                  </option>
-                  {employers.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.companyName}
-                    </option>
-                  ))}
-                </select>
+  name="employer_id"
+  value={formData.employer_id}
+  onChange={handleFormChange(formData, setFormData)}
+  style={errors.employer_id ? { borderColor: "red" } : {}}
+>
+  <option value="">👇 Select Employer</option>
+
+  {employers.map((emp) => (
+    <option key={emp.id} value={emp.id}>
+      {emp.companyName}
+    </option>
+  ))}
+</select>
+
                 {errors.employer_id && (
                   <span className="error-text">{errors.employer_id}</span>
                 )}

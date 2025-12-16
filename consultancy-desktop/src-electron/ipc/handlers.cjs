@@ -129,39 +129,43 @@ ipcMain.handle('request-activation-code', async () => {
 
 // ===================== REMINDER SCHEDULER =====================
 function startReminderScheduler(mainWindow) {
+  // ✅ Add this line at the very top of the function
+  const { Notification } = require('electron');
+  
   setInterval(async () => {
     const nowIso = new Date().toISOString();
     const due = await queries.getDueReminders(nowIso);
     if (!due || !due.length) return;
-
+    
     const ids = [];
-
     due.forEach((rem) => {
       ids.push(rem.id);
-
-      // OS notification
-      new Notification({
+      
+      const notification = new Notification({
         title: rem.title,
         body: rem.message,
-      }).show();
-
+      });
+      notification.show();
+      
       // Send to renderer
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('reminder-due', {
           id: rem.id,
-          userId: rem.user_id,
-          candidateId: rem.candidate_id,
+          userId: rem.userid,
+          candidateId: rem.candidateid,
           module: rem.module,
           title: rem.title,
           message: rem.message,
-          remindAt: rem.remind_at,
+          remindAt: rem.remindat,
         });
       }
     });
-
+    
     await queries.markRemindersDelivered(ids);
-  }, 60 * 1000); // check every 60s
+  }, 60 * 1000);
 }
+
+
 // =============================================================
 
 
