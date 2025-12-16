@@ -44,24 +44,35 @@ export const useAutoFillCandidateData = (candidateId) => {
         });
 
         // Get active job placements for this candidate
-        const jobPlacements = await window.electronAPI.getCandidateJobPlacements({ 
+        const jobPlacementsResponse = await window.electronAPI.getCandidateJobPlacements({ 
           candidateId 
         });
 
+        // ✅ FIX: Handle response properly - check if it's success object or array
+        let jobPlacements = [];
+        if (jobPlacementsResponse?.success && Array.isArray(jobPlacementsResponse.data)) {
+          jobPlacements = jobPlacementsResponse.data;
+        } else if (Array.isArray(jobPlacementsResponse)) {
+          jobPlacements = jobPlacementsResponse;
+        }
+
         // Get the most recent/active job placement
-        const activeJob = jobPlacements?.find(j => j.status === 'ASSIGNED') || 
-                          jobPlacements?.[0];
+        const activeJob = jobPlacements.find(j => j.status === 'ASSIGNED') || 
+                          jobPlacements[0];
 
         let jobData = null;
         if (activeJob) {
           // Get detailed job order information
-          jobData = await window.electronAPI.getJobOrderById({ 
+          const jobResponse = await window.electronAPI.getJobOrderById({ 
             jobId: activeJob.employer_job_id 
           });
+          
+          // ✅ FIX: Handle job response properly
+          jobData = jobResponse?.success ? jobResponse.data : jobResponse;
         }
 
         // Prepare combined position field
-        const profilePosition = candidateData.position_applying_for || '';
+        const profilePosition = candidateData?.position_applying_for || '';
         const jobPosition = jobData?.position_title || '';
         
         let positionCombined = '';
@@ -75,15 +86,15 @@ export const useAutoFillCandidateData = (candidateId) => {
 
         setAutoFillData({
           // Profile data
-          name: candidateData.name || '',
-          passport_no: candidateData.passport_no || '',
-          passport_expiry: candidateData.passport_expiry || '',
-          position_applying_for: candidateData.position_applying_for || '',
-          dob: candidateData.dob || '',
-          education: candidateData.education || '',
-          experience_years: candidateData.experience_years || '',
-          contact_number: candidateData.contact_number || '',
-          aadhar_number: candidateData.aadhar_number || '',
+          name: candidateData?.name || '',
+          passport_no: candidateData?.passport_no || '',
+          passport_expiry: candidateData?.passport_expiry || '',
+          position_applying_for: candidateData?.position_applying_for || '',
+          dob: candidateData?.dob || '',
+          education: candidateData?.education || '',
+          experience_years: candidateData?.experience_years || '',
+          contact_number: candidateData?.contact_number || '',
+          aadhar_number: candidateData?.aadhar_number || '',
           
           // Job placement data
           job_position: jobPosition,
