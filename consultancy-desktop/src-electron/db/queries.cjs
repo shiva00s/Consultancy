@@ -3601,33 +3601,181 @@ async function getRecentRemindersForUser(userId, limit = 30) {
 // ENHANCED PASSPORT TRACKING QUERIES
 // ====================================================================
 
-/**
- * Get all passport movements for a candidate
- */
 async function getPassportMovements(candidateId) {
   const db = getDatabase();
+  
   const sql = `
-    SELECT * FROM passport_tracking
-    WHERE candidate_id = ? AND isDeleted = 0
+    SELECT 
+      pt.*,
+      (SELECT COUNT(*) FROM passport_movement_photos 
+       WHERE movement_id = pt.id AND isDeleted = 0) as photo_count
+    FROM passport_tracking pt
+    WHERE pt.candidate_id = ? AND pt.isDeleted = 0
     ORDER BY 
       CASE 
-        WHEN movement_type = 'RECEIVED' THEN date_received
-        WHEN movement_type = 'SENT' THEN date_sent
+        WHEN pt.date IS NOT NULL THEN pt.date
+        WHEN pt.received_date IS NOT NULL THEN pt.received_date
+        WHEN pt.dispatch_date IS NOT NULL THEN pt.dispatch_date
+        ELSE pt.createdAt
       END DESC
   `;
   
   try {
     const rows = await dbAll(db, sql, [candidateId]);
-    return { success: true, data: rows };
+    
+    // Transform data for frontend compatibility
+    const data = rows.map(row => ({
+      ...row,
+      has_photos: row.photo_count > 0,
+      
+      // Map to frontend-friendly field names
+      type: row.movement_type || (row.passport_status === 'Dispatched' ? 'SEND' : 'RECEIVE'),
+      
+      // Use new 'date' field if available, fallback to legacy fields
+      date: row.date || row.received_date || row.dispatch_date,
+      
+      // Method and courier info
+      method: row.method || row.source_type,
+      courier_number: row.courier_number || row.docket_number,
+      
+      // Notes - combine or use appropriate field
+      notes: row.notes || 
+             (row.movement_type === 'RECEIVE' ? row.received_notes : row.dispatch_notes) ||
+             row.received_notes || 
+             row.dispatch_notes,
+      
+      // RECEIVE specific fields
+      received_from: row.received_from || row.source_type,
+      received_by: row.received_by,
+      
+      // SEND specific fields
+      send_to: row.send_to,
+      send_to_name: row.send_to_name,
+      send_to_contact: row.send_to_contact,
+      sent_by: row.sent_by,
+      
+      // Legacy status field
+      passport_status: row.passport_status,
+      source_type: row.source_type,
+      agent_contact: row.agent_contact
+    }));
+    
+    return { success: true, data };
   } catch (err) {
     console.error("❌ getPassportMovements error:", err);
     return { success: false, error: mapErrorToFriendly(err) };
   }
 }
 
-/**
- * Add RECEIVE passport entry
- */
+
+async function addPassportMovement(data) {
+  const db = getDatabase();
+  const errors = {};
+
+  // Validation based on type
+  if (data.type === 'RECEIVE') {
+    if (!data.received_from) errors.received_from = "Received From is required";
+    if (!data.method) errors.method = "Delivery Method is required";
+    if (!data.date) errors.date = "Date Received is required";
+    if (!data.received_by) errors.received_by = "Received By Staff is required";
+    
+    if (data.method === 'By Courier' && !data.courier_number) {
+      errors.courier_number = "Courier Number is required";
+    }
+  } else if (data.type === 'SEND') {
+    if (!data.send_to) errors.send_to = "Send To is required";
+    if (!data.method) errors.method = "Delivery Method is required";
+    if (!data.date) errors.date = "Date Sent is required";
+    if (!data.sent_by) errors.sent_by = "Sent By Staff is required";
+    
+    if (data.method === 'By Courier' && !data.courier_number) {
+      errors.courier_number = "Courier Number is required";
+    }
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return { success: false, error: "Validation failed", errors };
+  }
+
+  // Use the ACTUAL column names from your database
+  const sql = `
+    INSERT INTO passport_tracking (
+      candidate_id,
+      movement_type,
+      method,
+      courier_number,
+      date,
+      notes,
+      received_from,
+      received_by,
+      send_to,
+      send_to_name,
+      send_to_contact,
+      sent_by,
+      createdAt,
+      isDeleted
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 0)
+  `;
+
+  const params = [
+    data.candidate_id,
+    data.type, // 'RECEIVE' or 'SEND'
+    data.method || null,
+    data.courier_number || null,
+    data.date,
+    data.notes || null,
+    // RECEIVE specific
+    data.type === 'RECEIVE' ? data.received_from : null,
+    data.type === 'RECEIVE' ? data.received_by : null,
+    // SEND specific
+    data.type === 'SEND' ? data.send_to : null,
+    data.type === 'SEND' ? (data.send_to_name || null) : null,
+    data.type === 'SEND' ? (data.send_to_contact || null) : null,
+    data.type === 'SEND' ? data.sent_by : null
+  ];
+
+  try {
+    const result = await dbRun(db, sql, params);
+    const row = await dbGet(
+      db, 
+      "SELECT * FROM passport_tracking WHERE id = ?", 
+      [result.lastID]
+    );
+    
+    // Map to frontend format
+    const mappedRow = {
+      ...row,
+      type: row.movement_type,
+      // Use the actual 'date' column
+      date: row.date,
+      // Use the actual 'method' column
+      method: row.method,
+      // Use the actual 'courier_number' column
+      courier_number: row.courier_number,
+      // Use the actual 'notes' column
+      notes: row.notes,
+      // RECEIVE fields
+      received_from: row.received_from,
+      received_by: row.received_by,
+      // SEND fields
+      send_to: row.send_to,
+      send_to_name: row.send_to_name,
+      send_to_contact: row.send_to_contact,
+      sent_by: row.sent_by,
+      // Photo count
+      has_photos: false,
+      photo_count: 0
+    };
+    
+    return { success: true, data: mappedRow };
+  } catch (err) {
+    console.error("❌ addPassportMovement error:", err);
+    return { success: false, error: mapErrorToFriendly(err) };
+  }
+}
+
+
+
 async function addPassportReceive(data) {
   const db = getDatabase();
   const errors = {};
@@ -3728,9 +3876,6 @@ async function addPassportSend(data) {
   }
 }
 
-/**
- * Delete passport movement entry
- */
 async function deletePassportMovement(id) {
   const db = getDatabase();
   
@@ -3740,10 +3885,44 @@ async function deletePassportMovement(id) {
       return { success: false, error: "Entry not found" };
     }
 
+    // Soft delete movement and its photos
     await dbRun(db, "UPDATE passport_tracking SET isDeleted = 1 WHERE id = ?", [id]);
+    await dbRun(db, "UPDATE passport_movement_photos SET isDeleted = 1 WHERE movement_id = ?", [id]);
+    
     return { success: true, data: row };
   } catch (err) {
     console.error("❌ deletePassportMovement error:", err);
+    return { success: false, error: mapErrorToFriendly(err) };
+  }
+}
+
+
+
+async function getPassportMovementPhotos(movementId) {
+  const db = getDatabase();
+  const sql = `
+    SELECT * FROM passport_movement_photos
+    WHERE movement_id = ? AND isDeleted = 0
+    ORDER BY uploaded_at DESC
+  `;
+  
+  try {
+    const rows = await dbAll(db, sql, [movementId]);
+    return { success: true, data: rows };
+  } catch (err) {
+    console.error("❌ getPassportMovementPhotos error:", err);
+    return { success: false, error: mapErrorToFriendly(err) };
+  }
+}
+
+async function deletePassportMovementPhoto(photoId) {
+  const db = getDatabase();
+  
+  try {
+    await dbRun(db, "UPDATE passport_movement_photos SET isDeleted = 1 WHERE id = ?", [photoId]);
+    return { success: true };
+  } catch (err) {
+    console.error("❌ deletePassportMovementPhoto error:", err);
     return { success: false, error: mapErrorToFriendly(err) };
   }
 }
@@ -3827,6 +4006,34 @@ async function clearAllNotifications() {
   await dbRun(db, `DELETE FROM notifications`, []);
 }
 
+async function addPassportMovementPhoto(data) {
+  const db = getDatabase();
+  
+  if (!data.movement_id || !data.file_name || !data.file_type || !data.file_data) {
+    return { success: false, error: "Missing required photo data" };
+  }
+
+  const sql = `
+    INSERT INTO passport_movement_photos (
+      movement_id, file_name, file_type, file_data
+    ) VALUES (?, ?, ?, ?)
+  `;
+
+  try {
+    const result = await dbRun(db, sql, [
+      data.movement_id,
+      data.file_name,
+      data.file_type,
+      data.file_data
+    ]);
+    
+    const row = await dbGet(db, "SELECT * FROM passport_movement_photos WHERE id = ?", [result.lastID]);
+    return { success: true, data: row };
+  } catch (err) {
+    console.error("❌ addPassportMovementPhoto error:", err);
+    return { success: false, error: mapErrorToFriendly(err) };
+  }
+}
 
 
 module.exports = {
@@ -3835,6 +4042,10 @@ module.exports = {
   dbGet,
   dbAll,
   getPassportMovements,
+  addPassportMovementPhoto,
+  getPassportMovementPhotos,
+  deletePassportMovementPhoto,
+  addPassportMovement,
   addPassportReceive,
   addPassportSend,
   deletePassportMovement,

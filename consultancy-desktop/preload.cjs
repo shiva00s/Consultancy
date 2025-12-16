@@ -351,12 +351,15 @@ writeOfferTemplate: (args) => ipcRenderer.invoke("write-offer-template", args),
   createReminder: (params) =>    ipcRenderer.invoke("create-reminder", params),
 
   // ====================================================================
-  // ENHANCED PASSPORT TRACKING API
-  // ====================================================================
-  getPassportMovements: (candidateId) =>     ipcRenderer.invoke("get-passport-movements", candidateId),  
-  addPassportReceive: (data) =>     ipcRenderer.invoke("add-passport-receive", data),  
-  addPassportSend: (data) =>     ipcRenderer.invoke("add-passport-send", data),  
-  deletePassportMovement: (id) =>     ipcRenderer.invoke("delete-passport-movement", id),
+// ENHANCED PASSPORT TRACKING API
+// ====================================================================
+getPassportMovements: (data) =>   ipcRenderer.invoke("get-passport-movements", data),
+addPassportMovement: (data) =>   ipcRenderer.invoke("add-passport-movement", data),
+deletePassportMovement: (data) =>   ipcRenderer.invoke("delete-passport-movement", data),
+addPassportMovementPhoto: (data) =>   ipcRenderer.invoke("add-passport-movement-photo", data),
+getPassportMovementPhotos: (data) =>   ipcRenderer.invoke("get-passport-movement-photos", data),
+deletePassportMovementPhoto: (data) =>   ipcRenderer.invoke("delete-passport-movement-photo", data),
+
 
   // Notifications
 getNotifications: (args) => ipcRenderer.invoke('get-notifications', args),

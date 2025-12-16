@@ -2913,8 +2913,13 @@ ipcMain.handle('reset-activation-status', async () => {
 // ENHANCED PASSPORT TRACKING HANDLERS
 // ====================================================================
 
-ipcMain.handle("get-passport-movements", async (event, candidateId) => {
+ipcMain.handle("get-passport-movements", async (event, { candidateId, user }) => {
   try {
+    // Auth check
+    if (!user || !user.id) {
+      return { success: false, error: "Authentication required. Please log in." };
+    }
+    
     return await queries.getPassportMovements(candidateId);
   } catch (err) {
     console.error("❌ get-passport-movements handler error:", err);
@@ -2922,30 +2927,90 @@ ipcMain.handle("get-passport-movements", async (event, candidateId) => {
   }
 });
 
-ipcMain.handle("add-passport-receive", async (event, data) => {
+ipcMain.handle("add-passport-movement", async (event, { data, user }) => {
   try {
-    return await queries.addPassportReceive(data);
+    // Auth check
+    if (!user || !user.id) {
+      return { success: false, error: "Authentication required. Please log in." };
+    }
+    
+    return await queries.addPassportMovement(data);
   } catch (err) {
-    console.error("❌ add-passport-receive handler error:", err);
+    console.error("❌ add-passport-movement handler error:", err);
     return { success: false, error: err.message };
   }
 });
 
-ipcMain.handle("add-passport-send", async (event, data) => {
+ipcMain.handle("delete-passport-movement", async (event, { id, user }) => {
   try {
-    return await queries.addPassportSend(data);
-  } catch (err) {
-    console.error("❌ add-passport-send handler error:", err);
-    return { success: false, error: err.message };
-  }
-});
-
-ipcMain.handle("delete-passport-movement", async (event, id) => {
-  try {
+    // Auth check
+    if (!user || !user.id) {
+      return { success: false, error: "Authentication required. Please log in." };
+    }
+    
     return await queries.deletePassportMovement(id);
   } catch (err) {
     console.error("❌ delete-passport-movement handler error:", err);
     return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("add-passport-movement-photo", async (event, { data, user }) => {
+  try {
+    // Auth check
+    if (!user || !user.id) {
+      return { success: false, error: "Authentication required. Please log in." };
+    }
+    
+    return await queries.addPassportMovementPhoto(data);
+  } catch (err) {
+    console.error("❌ add-passport-movement-photo handler error:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("get-passport-movement-photos", async (event, { movementId, user }) => {
+  try {
+    // Auth check
+    if (!user || !user.id) {
+      return { success: false, error: "Authentication required. Please log in." };
+    }
+    
+    return await queries.getPassportMovementPhotos(movementId);
+  } catch (err) {
+    console.error("❌ get-passport-movement-photos handler error:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("delete-passport-movement-photo", async (event, { photoId, user }) => {
+  try {
+    // Auth check
+    if (!user || !user.id) {
+      return { success: false, error: "Authentication required. Please log in." };
+    }
+    
+    return await queries.deletePassportMovementPhoto(photoId);
+  } catch (err) {
+    console.error("❌ delete-passport-movement-photo handler error:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("get-all-staff", async (event) => {
+  try {
+    const db = getDatabase();
+    const sql = `
+      SELECT id, username, fullName, role 
+      FROM users 
+      WHERE isActive = 1 
+      ORDER BY fullName ASC
+    `;
+    const rows = await dbAll(db, sql, []);
+    return { success: true, data: rows };
+  } catch (err) {
+    console.error("❌ get-all-staff error:", err);
+    return { success: false, error: "Failed to fetch staff list" };
   }
 });
 
