@@ -189,19 +189,26 @@ function setupDatabase(dbInstance) {
       // 10. JOB ORDERS
       // ========================================================================
       dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS job_orders (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          employer_id INTEGER NOT NULL,
-          positionTitle TEXT NOT NULL,
-          country TEXT,
-          openingsCount INTEGER DEFAULT 1,
-          status TEXT DEFAULT 'Open',
-          requirements TEXT,
-          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-          isDeleted INTEGER DEFAULT 0,
-          FOREIGN KEY (employer_id) REFERENCES employers (id) ON DELETE CASCADE
-        );
-      `);
+  CREATE TABLE IF NOT EXISTS job_orders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  employer_id INTEGER NOT NULL,
+  positionTitle TEXT NOT NULL,
+  country TEXT,
+  openingsCount INTEGER DEFAULT 1,
+  status TEXT DEFAULT 'Open',
+  requirements TEXT,
+  food TEXT,
+  accommodation TEXT,
+  dutyHours TEXT,
+  overtime TEXT,
+  contractPeriod TEXT,
+  selectionType TEXT DEFAULT 'CV Selection',
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  isDeleted INTEGER DEFAULT 0,
+  FOREIGN KEY (employer_id) REFERENCES employers (id) ON DELETE CASCADE
+);
+
+`);
 
       // ========================================================================
       // 11. PLACEMENTS

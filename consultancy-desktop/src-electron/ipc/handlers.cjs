@@ -930,37 +930,7 @@ ipcMain.handle('getImageBase64', (event, { filePath }) => {
         }
         return result;
     });
-// ====================================================================
-    // 6. JOB ORDER MANAGEMENT (REFACTORED)
-    // ====================================================================
 
-    ipcMain.handle('get-job-orders', (event) => {
-        return queries.getJobOrders();
-    });
-// ====================================================================
-    ipcMain.handle('add-job-order', async (event, { user, data }) => {
-        const result = await queries.addJobOrder(user, data);
-        if (result.success) {
-            logAction(user, 'create_job', 'job_orders', result.id, `Position: ${data.positionTitle}`);
-        }
-        return result;
-    });
-// ====================================================================
-    ipcMain.handle('update-job-order', async (event, { user, id, data }) => {
-        const result = await queries.updateJobOrder(user, id, data);
-        if (result.success) {
-            logAction(user, 'update_job', 'job_orders', id, `Position: ${data.positionTitle}, Status: ${data.status}`);
-        }
-        return result;
-    });
-// ====================================================================
-    ipcMain.handle('delete-job-order', async (event, { user, id }) => {
-        const result = await queries.deleteJobOrder(user, id);
-        if (result.success) {
-            logAction(user, 'delete_job', 'job_orders', id);
-        }
-        return result;
-    });
 // ====================================================================
     // 7. PLACEMENT & SUB-MODULES (REFACTORED)
     // ====================================================================
@@ -1244,10 +1214,15 @@ ipcMain.handle('restore-employer', async (event, { user, id }) => {
   return result;
 });
 
-// --- JOB ORDERS ---
+// ====================================================================
+// 6. JOB ORDER MANAGEMENT (UPDATED)
+// ====================================================================
+
+// Deleted / restore (unchanged)
 ipcMain.handle('get-deleted-job-orders', () => {
   return queries.getDeletedJobOrders();
 });
+
 ipcMain.handle('restore-job-order', async (event, { user, id }) => {
   const result = await queries.restoreJobOrder(id);
   if (result.success) {
@@ -1255,6 +1230,113 @@ ipcMain.handle('restore-job-order', async (event, { user, id }) => {
   }
   return result;
 });
+
+// --------------------------------------------------------------------
+// Get single Job Order by ID (with employer info)
+// --------------------------------------------------------------------
+ipcMain.handle('get-job-order-by-id', async (event, { jobId }) => {
+  const db = getDatabase();
+
+  return new Promise((resolve) => {
+    db.get(
+      `SELECT 
+         j.id,
+         j.employer_id,
+         j.positionTitle,
+         j.country,
+         j.openingsCount,
+         j.status,
+         j.requirements,
+         j.food,
+         j.accommodation,
+         j.dutyHours,
+         j.overtime,
+         j.contractPeriod,
+         j.selectionType,
+         j.createdAt,
+         j.isDeleted,
+         e.companyName AS employer_name,
+         e.country     AS employer_country
+       FROM job_orders j
+       LEFT JOIN employers e ON j.employer_id = e.id
+       WHERE j.id = ?
+         AND j.isDeleted = 0`,
+      [jobId],
+      (err, row) => {
+        if (err) {
+          console.error('Error fetching job order:', err);
+          resolve({ success: false, error: err.message });
+        } else if (!row) {
+          resolve({ success: false, error: 'Job order not found' });
+        } else {
+          resolve({ success: true, data: row });
+        }
+      }
+    );
+  });
+});
+
+// --------------------------------------------------------------------
+// Get all Job Orders
+// --------------------------------------------------------------------
+ipcMain.handle('get-job-orders', () => {
+  // queries.getJobOrders() should already select new columns (food, accommodation, etc.)
+  return queries.getJobOrders();
+});
+
+// --------------------------------------------------------------------
+// Add Job Order
+// --------------------------------------------------------------------
+ipcMain.handle('add-job-order', async (event, { user, data }) => {
+  // data contains: employer_id, positionTitle, country, openingsCount, status,
+  // requirements, food, accommodation, dutyHours, overtime, contractPeriod, selectionType
+  const result = await queries.addJobOrder(user, data);
+
+  if (result.success) {
+    logAction(
+      user,
+      'create_job',
+      'job_orders',
+      result.id,
+      `Position: ${data.positionTitle}, Employer: ${data.employer_id}, Country: ${data.country}`
+    );
+  }
+
+  return result;
+});
+
+// --------------------------------------------------------------------
+// Update Job Order
+// --------------------------------------------------------------------
+ipcMain.handle('update-job-order', async (event, { user, id, data }) => {
+  const result = await queries.updateJobOrder(user, id, data);
+
+  if (result.success) {
+    logAction(
+      user,
+      'update_job',
+      'job_orders',
+      id,
+      `Position: ${data.positionTitle}, Status: ${data.status}, Employer: ${data.employer_id}`
+    );
+  }
+
+  return result;
+});
+
+// --------------------------------------------------------------------
+// Soft Delete Job Order
+// --------------------------------------------------------------------
+ipcMain.handle('delete-job-order', async (event, { user, id }) => {
+  const result = await queries.deleteJobOrder(user, id);
+
+  if (result.success) {
+    logAction(user, 'delete_job', 'job_orders', id);
+  }
+
+  return result;
+});
+
 
 // --- PLACEMENTS ---
 ipcMain.handle('get-deleted-placements', () => {
@@ -2476,34 +2558,7 @@ ipcMain.handle('get-candidate-job-placements', async (event, { candidateId }) =>
   });
 });
 
-// Handler 3: Get Job Order By ID (for detailed job information)
-ipcMain.handle('get-job-order-by-id', async (event, { jobId }) => {
-  const db = getDatabase();
-  
-  return new Promise((resolve) => {
-    db.get(
-      `SELECT 
-        j.*,
-        e.companyName as employer_name,
-        e.country as employer_country
-       FROM job_orders j
-       LEFT JOIN employers e ON j.employer_id = e.id
-       WHERE j.id = ?
-       AND j.isDeleted = 0`,
-      [jobId],
-      (err, row) => {
-        if (err) {
-          console.error('Error fetching job order:', err);
-          resolve({ success: false, error: err.message });
-        } else if (!row) {
-          resolve({ success: false, error: 'Job order not found' });
-        } else {
-          resolve({ success: true, data: row });
-        }
-      }
-    );
-  });
-});
+
 
 ipcMain.handle('ui-can-access', async (event, { feature }) => {
     try {

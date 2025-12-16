@@ -2232,41 +2232,7 @@ async function restoreEmployer(id) {
   }
 }
 
-// ---------- JOB ORDERS ----------
-async function getDeletedJobOrders() {
-  const db = getDatabase();
-  const sql = `
-    SELECT j.*, e.companyName
-    FROM job_orders j
-    LEFT JOIN employers e ON j.employer_id = e.id
-    WHERE j.isDeleted = 1
-    ORDER BY j.positionTitle ASC
-  `;
-  try {
-    const rows = await dbAll(db, sql, []);
-    return { success: true, data: rows };
-  } catch (err) {
-    return { success: false, error: mapErrorToFriendly(err) };
-  }
-}
 
-async function restoreJobOrder(id) {
-  const db = getDatabase();
-  try {
-    await dbRun(db, "BEGIN TRANSACTION");
-    await dbRun(db, "UPDATE job_orders SET isDeleted = 0 WHERE id = ?", [id]);
-    await dbRun(
-      db,
-      "UPDATE placements SET isDeleted = 0 WHERE job_order_id = ? AND isDeleted = 1",
-      [id],
-    );
-    await dbRun(db, "COMMIT");
-    return { success: true };
-  } catch (err) {
-    await dbRun(db, "ROLLBACK");
-    return { success: false, error: mapErrorToFriendly(err) };
-  }
-}
 
 // ---------- REQUIRED DOCUMENTS ----------
 async function getRequiredDocuments() {
@@ -3305,6 +3271,42 @@ async function deleteEmployer(user, id) {
 // 6. JOB ORDER MANAGEMENT
 // ====================================================================
 
+// ---------- JOB ORDERS ----------
+async function getDeletedJobOrders() {
+  const db = getDatabase();
+  const sql = `
+    SELECT j.*, e.companyName
+    FROM job_orders j
+    LEFT JOIN employers e ON j.employer_id = e.id
+    WHERE j.isDeleted = 1
+    ORDER BY j.positionTitle ASC
+  `;
+  try {
+    const rows = await dbAll(db, sql, []);
+    return { success: true, data: rows };
+  } catch (err) {
+    return { success: false, error: mapErrorToFriendly(err) };
+  }
+}
+
+async function restoreJobOrder(id) {
+  const db = getDatabase();
+  try {
+    await dbRun(db, "BEGIN TRANSACTION");
+    await dbRun(db, "UPDATE job_orders SET isDeleted = 0 WHERE id = ?", [id]);
+    await dbRun(
+      db,
+      "UPDATE placements SET isDeleted = 0 WHERE job_order_id = ? AND isDeleted = 1",
+      [id]
+    );
+    await dbRun(db, "COMMIT");
+    return { success: true };
+  } catch (err) {
+    await dbRun(db, "ROLLBACK");
+    return { success: false, error: mapErrorToFriendly(err) };
+  }
+}
+
 async function getJobOrders() {
   const db = getDatabase();
   try {
@@ -3324,36 +3326,73 @@ async function getJobOrders() {
   }
 }
 
+// ---------- ADD JOB ORDER ----------
 async function addJobOrder(user, data) {
   const errors = {};
   if (validateRequired(data.employer_id, "Employer ID"))
     errors.employer_id = "Employer is required.";
   if (validateRequired(data.positionTitle, "Position Title"))
     errors.positionTitle = "Position Title is required.";
+
   const openings = parseInt(data.openingsCount, 10);
   if (isNaN(openings) || openings < 1)
     errors.openingsCount = "Openings must be at least 1.";
+
   if (Object.keys(errors).length > 0)
     return {
       success: false,
       error: mapErrorToFriendly("Validation failed"),
-      errors: errors,
+      errors,
     };
 
   const db = getDatabase();
-  const sql = `INSERT INTO job_orders (employer_id, positionTitle, country, openingsCount, status, requirements)
-               VALUES (?, ?, ?, ?, ?, ?)`;
+  const now = new Date().toISOString();
+
+  const sql = `
+    INSERT INTO job_orders (
+      employer_id,
+      positionTitle,
+      country,
+      openingsCount,
+      status,
+      requirements,
+      food,
+      accommodation,
+      dutyHours,
+      overtime,
+      contractPeriod,
+      selectionType,
+      createdAt,
+      updatedAt,
+      createdBy,
+      updatedBy,
+      isDeleted
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+  `;
+
   const params = [
     data.employer_id,
     data.positionTitle,
-    data.country,
-    data.openingsCount,
-    data.status,
-    data.requirements,
+    data.country || null,
+    openings,
+    data.status || "Open",
+    data.requirements || null,
+    data.food || null,
+    data.accommodation || null,
+    data.dutyHours || null,
+    data.overtime || null,
+    data.contractPeriod || null,
+    data.selectionType || "CV Selection",
+    now,
+    now,
+    user.id,
+    user.id,
   ];
+
   try {
     const result = await dbRun(db, sql, params);
     const newJobId = result.lastID;
+
     const getSql = `
       SELECT j.*, e.companyName
       FROM job_orders j
@@ -3367,6 +3406,7 @@ async function addJobOrder(user, data) {
   }
 }
 
+// ---------- UPDATE JOB ORDER ----------
 async function updateJobOrder(user, id, data) {
   const errors = {};
   if (!data.employer_id) errors.employer_id = "Employer is required.";
@@ -3375,27 +3415,54 @@ async function updateJobOrder(user, id, data) {
   const openings = parseInt(data.openingsCount, 10);
   if (isNaN(openings) || openings < 1)
     errors.openingsCount = "Openings must be at least 1.";
+
   if (Object.keys(errors).length > 0)
     return {
       success: false,
       error: mapErrorToFriendly("Validation failed"),
-      errors: errors,
+      errors,
     };
 
   const db = getDatabase();
-  const sql = `UPDATE job_orders SET
-               employer_id = ?, positionTitle = ?, country = ?, openingsCount = ?, status = ?, requirements = ?
-    WHERE id = ?`;
+  const now = new Date().toISOString();
+
+  const sql = `
+    UPDATE job_orders SET
+      employer_id   = ?,
+      positionTitle = ?,
+      country       = ?,
+      openingsCount = ?,
+      status        = ?,
+      requirements  = ?,
+      food          = ?,
+      accommodation = ?,
+      dutyHours     = ?,
+      overtime      = ?,
+      contractPeriod= ?,
+      selectionType = ?,
+      updatedAt     = ?,
+      updatedBy     = ?
+    WHERE id = ? AND isDeleted = 0
+  `;
 
   const params = [
     data.employer_id,
     data.positionTitle,
-    data.country,
-    data.openingsCount,
-    data.status,
-    data.requirements,
+    data.country || null,
+    openings,
+    data.status || "Open",
+    data.requirements || null,
+    data.food || null,
+    data.accommodation || null,
+    data.dutyHours || null,
+    data.overtime || null,
+    data.contractPeriod || null,
+    data.selectionType || "CV Selection",
+    now,
+    user.id,
     id,
   ];
+
   try {
     await dbRun(db, sql, params);
 
@@ -3406,13 +3473,14 @@ async function updateJobOrder(user, id, data) {
       WHERE j.id = ?
     `;
     const row = await dbGet(db, getSql, [id]);
-    return { success: true, id: id, data: row };
+    return { success: true, id, data: row };
   } catch (err) {
     console.error("Update Job Error:", err.message);
     return { success: false, error: mapErrorToFriendly(err) };
   }
 }
 
+// ---------- DELETE JOB ORDER ----------
 async function deleteJobOrder(user, id) {
   const db = getDatabase();
 
@@ -3422,7 +3490,7 @@ async function deleteJobOrder(user, id) {
     await dbRun(
       db,
       "UPDATE placements SET isDeleted = 1 WHERE job_order_id = ?",
-      [id],
+      [id]
     );
     await dbRun(db, "COMMIT");
     return { success: true };
@@ -3432,6 +3500,7 @@ async function deleteJobOrder(user, id) {
     return { success: false, error: mapErrorToFriendly(err) };
   }
 }
+
 
 // ============================================================================
 // COMMUNICATION LOGS
