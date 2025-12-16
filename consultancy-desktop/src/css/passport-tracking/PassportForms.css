@@ -1,342 +1,658 @@
-/* ============================================
-   5 COLUMN RESPONSIVE GRID - COMPACT VERSION
-   ============================================ */
-.passport-form {
-  padding: 16px;
+/* =========================================================
+   BALANCED DUAL THEME – LIGHT & COMFORTABLE DARK
+   ========================================================= */
+
+/* Form Container */
+.passport-form-container {
   max-width: 100%;
+  margin: 0 auto;
+  border-radius: 12px;
+  padding: 24px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.form-grid-5 {
+[data-theme="dark"] .passport-form-container {
+  background: #1e293b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Header */
+.passport-form-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+[data-theme="dark"] .passport-form-header {
+  border-bottom-color: #334155;
+}
+
+.passport-form-header .form-icon {
+  font-size: 24px;
+  color: #2563eb;
+}
+
+[data-theme="dark"] .passport-form-header .form-icon {
+  color: #60a5fa;
+}
+
+.passport-form-header h3 {
+  margin: 0;
+  font-size: 20px;
+  color: #111827;
+}
+
+[data-theme="dark"] .passport-form-header h3 {
+  color: #f1f5f9;
+}
+
+/* ========================================
+   CANDIDATE INFO SECTION
+   ======================================== */
+.candidate-info-section {
+  margin-bottom: 24px;
+}
+
+.candidate-info-header {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
+  gap: 16px;
+  padding: 0 16px 8px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 8px;
 }
 
-/* COLUMN SPAN UTILITIES */
+[data-theme="dark"] .candidate-info-header {
+  border-bottom-color: #334155;
+}
+
+.candidate-info-header .header-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #6b7280;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+[data-theme="dark"] .candidate-info-header .header-label {
+  color: #94a3b8;
+}
+
+.candidate-info-header .header-label svg {
+  font-size: 14px;
+  color: #2563eb;
+}
+
+[data-theme="dark"] .candidate-info-header .header-label svg {
+  color: #60a5fa;
+}
+
+/* Candidate Info Bar */
+.candidate-info-bar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+[data-theme="dark"] .candidate-info-bar {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.candidate-info-bar .info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  padding: 10px 14px;
+  border-left: 3px solid #2563eb;
+  background: #ffffff;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .candidate-info-bar .info-item {
+  background: #1e293b;
+  border-left-color: #60a5fa;
+}
+
+.candidate-info-bar .info-item:hover {
+  background: #f3f4f6;
+  transform: translateX(2px);
+}
+
+[data-theme="dark"] .candidate-info-bar .info-item:hover {
+  background: #334155;
+}
+
+.candidate-info-bar .info-item svg {
+  display: none;
+}
+
+.candidate-info-bar .info-item span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #111827;
+  font-weight: 500;
+  width: 100%;
+}
+
+[data-theme="dark"] .candidate-info-bar .info-item span {
+  color: #f1f5f9;
+}
+
+/* ========================================
+   FORM LAYOUT
+   ======================================== */
+.passport-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.form-row-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
-.col-span-2 {
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-group.span-2 {
   grid-column: span 2;
 }
 
-.col-span-3 {
+.form-group.span-3 {
   grid-column: span 3;
 }
 
-.col-span-4 {
-  grid-column: span 4;
-}
-
-.col-span-5 {
-  grid-column: span 5;
-}
-
-/* ============================================
-   FORM LABELS - COMPACT
-   ============================================ */
-.form-label {
+.form-group label {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  color: var(--text-secondary);
-}
-
-.form-label svg {
-  font-size: 0.9rem;
-  color: var(--primary-color, #00c9ff);
-}
-
-.form-label .required {
-  color: #ef4444;
-  margin-left: 2px;
-}
-
-/* ============================================
-   FORM INPUTS - COMPACT
-   ============================================ */
-.form-input,
-.form-textarea-compact {
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1.5px solid var(--border-color, rgba(255, 255, 255, 0.1));
-  font-size: 0.8rem;
+  gap: 8px;
+  font-size: 14px;
   font-weight: 500;
-  transition: all 0.2s ease;
-  color: var(--text-primary);
-  font-family: inherit;
+  color: #111827;
+}
+
+[data-theme="dark"] .form-group label {
+  color: #f1f5f9;
+}
+
+.form-group label svg {
+  color: #2563eb;
+  font-size: 16px;
+}
+
+[data-theme="dark"] .form-group label svg {
+  color: #60a5fa;
+}
+
+/* ========================================
+   FORM INPUTS
+   ======================================== */
+.form-input,
+.form-select,
+.form-textarea {
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 14px;
+  transition: all 0.3s ease;
 }
 
 [data-theme="dark"] .form-input,
-[data-theme="dark"] .form-textarea-compact {
-  background: rgba(0, 0, 0, 0.3);
+[data-theme="dark"] .form-select,
+[data-theme="dark"] .form-textarea {
+  background: #0f172a;
+  border-color: #334155;
+  color: #f1f5f9;
 }
 
-[data-theme="light"] .form-input,
-[data-theme="light"] .form-textarea-compact,
-body:not([data-theme="dark"]) .form-input,
-body:not([data-theme="dark"]) .form-textarea-compact {
-  background: rgba(255, 255, 255, 0.8);
-  border-color: rgba(0, 0, 0, 0.15);
+.form-input:hover,
+.form-select:hover,
+.form-textarea:hover {
+  border-color: #2563eb;
+}
+
+[data-theme="dark"] .form-input:hover,
+[data-theme="dark"] .form-select:hover,
+[data-theme="dark"] .form-textarea:hover {
+  border-color: #60a5fa;
 }
 
 .form-input:focus,
-.form-textarea-compact:focus {
+.form-select:focus,
+.form-textarea:focus {
   outline: none;
-  border-color: #00c9ff;
-  box-shadow: 0 0 0 2px rgba(0, 201, 255, 0.1);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  background: #ffffff;
+}
+
+[data-theme="dark"] .form-input:focus,
+[data-theme="dark"] .form-select:focus,
+[data-theme="dark"] .form-textarea:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+  background: #1e293b;
 }
 
 .form-input::placeholder,
-.form-textarea-compact::placeholder {
-  color: var(--text-secondary);
-  opacity: 0.6;
+.form-textarea::placeholder {
+  color: #9ca3af;
 }
 
-/* READ-ONLY INPUT */
-.readonly-input {
-  background: rgba(0, 0, 0, 0.15) !important;
-  cursor: not-allowed;
-  font-weight: 600;
-  opacity: 0.9;
+[data-theme="dark"] .form-input::placeholder,
+[data-theme="dark"] .form-textarea::placeholder {
+  color: #64748b;
 }
 
-[data-theme="light"] .readonly-input,
-body:not([data-theme="dark"]) .readonly-input {
-  background: rgba(0, 0, 0, 0.05) !important;
-}
-
-/* TEXTAREA COMPACT */
-.form-textarea-compact {
-  min-height: 50px;
+.form-textarea {
   resize: vertical;
-  line-height: 1.4;
+  min-height: 80px;
+  line-height: 1.5;
+  font-family: inherit;
 }
 
-/* DIVIDER */
-.form-divider {
-  height: 1.5px;
-  background: linear-gradient(90deg, transparent, var(--border-color, rgba(255, 255, 255, 0.15)), transparent);
-  margin: 6px 0;
+/* Select Dropdown */
+.form-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232563eb' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  cursor: pointer;
 }
 
-[data-theme="light"] .form-divider,
-body:not([data-theme="dark"]) .form-divider {
-  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.1), transparent);
+[data-theme="dark"] .form-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2360a5fa' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
 }
 
-/* ============================================
-   PHOTO UPLOAD - COMPACT
-   ============================================ */
-.photo-upload-area-compact {
-  padding: 12px;
-  border-radius: 6px;
-  border: 2px dashed var(--border-color, rgba(255, 255, 255, 0.15));
-  text-align: center;
+/* ========================================
+   FILE UPLOAD
+   ======================================== */
+.form-file-input {
+  display: none;
 }
 
-[data-theme="dark"] .photo-upload-area-compact {
-  background: rgba(0, 0, 0, 0.2);
-}
-
-[data-theme="light"] .photo-upload-area-compact,
-body:not([data-theme="dark"]) .photo-upload-area-compact {
-  background: rgba(0, 0, 0, 0.02);
-  border-color: rgba(0, 0, 0, 0.15);
-}
-
-.photo-upload-button {
+.file-input-label {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, #00c9ff 0%, #0099cc 100%);
-  color: white;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
+  gap: 8px;
+  padding: 12px 24px;
+  background: #f9fafb;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  color: #374151;
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.3s ease;
-  border: none;
 }
 
-.photo-upload-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 201, 255, 0.4);
+[data-theme="dark"] .file-input-label {
+  background: #0f172a;
+  border-color: #334155;
+  color: #94a3b8;
 }
 
-/* COMPACT PHOTO PREVIEW GRID */
-.photo-preview-grid-compact {
+.file-input-label:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+[data-theme="dark"] .file-input-label:hover {
+  border-color: #60a5fa;
+  color: #60a5fa;
+  background: #1e293b;
+}
+
+.file-input-label svg {
+  font-size: 18px;
+}
+
+/* ========================================
+   PHOTO PREVIEW
+   ======================================== */
+.photo-preview-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
   margin-top: 12px;
 }
 
-.photo-preview-item-compact {
+.photo-preview-item {
   position: relative;
-  width: 100%;
-  padding-top: 100%;
-  border-radius: 6px;
+  aspect-ratio: 1;
+  border-radius: 8px;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.1);
+  border: 2px solid #e5e7eb;
+  transition: all 0.3s ease;
 }
 
-.photo-preview-item-compact img {
-  position: absolute;
-  top: 0;
-  left: 0;
+[data-theme="dark"] .photo-preview-item {
+  border-color: #334155;
+}
+
+.photo-preview-item:hover {
+  border-color: #2563eb;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+[data-theme="dark"] .photo-preview-item:hover {
+  border-color: #60a5fa;
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.2);
+}
+
+.photo-preview-item img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.photo-remove-btn-compact {
+.remove-photo-btn {
   position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
+  top: 4px;
+  right: 4px;
+  padding: 6px;
   background: #ef4444;
-  color: white;
   border: none;
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.75rem;
 }
 
-.photo-remove-btn-compact:hover {
+.remove-photo-btn:hover {
   background: #dc2626;
-  transform: scale(1.1);
+  transform: scale(1.15);
 }
 
-/* ============================================
-   CENTERED FORM ACTIONS
-   ============================================ */
-.form-actions-center {
+.remove-photo-btn svg {
+  font-size: 14px;
+}
+
+/* ========================================
+   FORM ACTIONS
+   ======================================== */
+.form-actions {
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
   margin-top: 8px;
 }
 
-.btn {
-  padding: 10px 28px;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: none;
+[data-theme="dark"] .form-actions {
+  border-top-color: #334155;
+}
+
+.btn-save {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 12px 32px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.btn-primary {
-  background: linear-gradient(135deg, #00c9ff 0%, #0099cc 100%);
-  color: white;
+[data-theme="dark"] .btn-save {
+  background: #3b82f6;
 }
 
-.btn-primary:hover:not(:disabled) {
+.btn-save:hover:not(:disabled) {
+  background: #1d4ed8;
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 201, 255, 0.4);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
-.btn:disabled {
-  opacity: 0.5;
+[data-theme="dark"] .btn-save:hover:not(:disabled) {
+  background: #60a5fa;
+}
+
+.btn-save:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-save:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-/* ============================================
-   RESPONSIVE DESIGN
-   ============================================ */
-
-/* LARGE TABLET (4 columns) */
-@media (max-width: 1200px) {
-  .form-grid-5 {
-    grid-template-columns: repeat(4, 1fr);
-  }
-  
-  .col-span-5 {
-    grid-column: span 4;
-  }
+.btn-save svg {
+  font-size: 16px;
 }
 
-/* TABLET (3 columns) */
-@media (max-width: 900px) {
-  .form-grid-5 {
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ========================================
+   LOADING STATE
+   ======================================== */
+.passport-form-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 60px;
+  color: #6b7280;
+  background: #ffffff;
+  border-radius: 12px;
+}
+
+[data-theme="dark"] .passport-form-loading {
+  background: #1e293b;
+  color: #94a3b8;
+}
+
+.passport-form-loading p {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+[data-theme="dark"] .spinner {
+  border-color: #334155;
+  border-top-color: #60a5fa;
+}
+
+/* ========================================
+   RESPONSIVE BREAKPOINTS
+   ======================================== */
+@media (max-width: 1400px) {
+  .candidate-info-header,
+  .candidate-info-bar {
     grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
   }
   
-  .col-span-5 {
-    grid-column: span 3;
-  }
-  
-  .col-span-2 {
-    grid-column: span 3;
+  .form-row {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
-/* SMALL TABLET (2 columns) */
-@media (max-width: 600px) {
-  .form-grid-5 {
+@media (max-width: 1024px) {
+  .candidate-info-header,
+  .candidate-info-bar {
     grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
   }
   
-  .col-span-5,
-  .col-span-2 {
-    grid-column: span 2;
+  .form-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .form-row-3 {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
-/* MOBILE (1 column) */
-@media (max-width: 480px) {
-  .passport-form {
-    padding: 10px;
-  }
-  
-  .form-grid-5 {
+@media (max-width: 768px) {
+  .candidate-info-header,
+  .candidate-info-bar,
+  .form-row,
+  .form-row-2,
+  .form-row-3 {
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 12px;
   }
   
-  .form-group,
-  .col-span-5,
-  .col-span-2,
-  .col-span-3,
-  .col-span-4 {
-    grid-column: span 1;
+  .passport-form-container {
+    padding: 16px;
   }
   
-  .btn {
+  .passport-form-header h3 {
+    font-size: 18px;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .btn-save {
     width: 100%;
     justify-content: center;
   }
   
-  .photo-preview-grid-compact {
-    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  .photo-preview-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   }
 }
-/* ============================================
-   COMPACT TEXTAREA - DECREASED HEIGHT
-   ============================================ */
-.form-textarea-compact {
-  min-height: 45px !important; /* Decreased from 50px to 40px */
-  max-height: 40px;
-  resize: vertical;
-  line-height: 1.3;
+
+@media (max-width: 480px) {
+  .passport-form-container {
+    padding: 12px;
+    border-radius: 8px;
+  }
+  
+  .candidate-info-bar {
+    padding: 12px;
+  }
+  
+  .passport-form-header {
+    margin-bottom: 16px;
+  }
+  
+  .form-group label {
+    font-size: 13px;
+  }
+  
+  .form-input,
+  .form-select,
+  .form-textarea {
+    padding: 10px;
+    font-size: 13px;
+  }
+}
+
+/* ========================================
+   ACCESSIBILITY
+   ======================================== */
+.form-input:focus-visible,
+.form-select:focus-visible,
+.form-textarea:focus-visible,
+.btn-save:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+[data-theme="dark"] .form-input:focus-visible,
+[data-theme="dark"] .form-select:focus-visible,
+[data-theme="dark"] .form-textarea:focus-visible,
+[data-theme="dark"] .btn-save:focus-visible {
+  outline-color: #60a5fa;
+}
+
+/* Custom Scrollbar */
+.form-textarea::-webkit-scrollbar {
+  width: 8px;
+}
+
+.form-textarea::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+[data-theme="dark"] .form-textarea::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.form-textarea::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+[data-theme="dark"] .form-textarea::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+.form-textarea::-webkit-scrollbar-thumb:hover {
+  background: #2563eb;
+}
+
+[data-theme="dark"] .form-textarea::-webkit-scrollbar-thumb:hover {
+  background: #60a5fa;
 }

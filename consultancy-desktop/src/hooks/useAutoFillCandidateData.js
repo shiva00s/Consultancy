@@ -1,123 +1,125 @@
-// src/hooks/useAutoFillCandidateData.js
+import { useState, useEffect, useCallback } from 'react';
 
-import { useState, useEffect } from 'react';
-
-export const useAutoFillCandidateData = (candidateId) => {
-  const [autoFillData, setAutoFillData] = useState({
-    // Profile data
-    name: '',
-    passport_no: '',
-    passport_expiry: '',
-    position_applying_for: '',
-    dob: '',
-    education: '',
-    experience_years: '',
-    contact_number: '',
-    aadhar_number: '',
-    
-    // Job placement data (if assigned)
-    job_position: '',
-    job_country: '',
-    employer_name: '',
-    employer_country: '',
-    salary: '',
-    
-    // Combined/Computed fields
-    position_combined: '', // Profile + Job position
-    country: '', // From job placement
-  });
-
-  const [loading, setLoading] = useState(false);
+export function useAutoFillCandidateData(candidateId) {
+  const [autoFillData, setAutoFillData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (!candidateId) return;
+  const fetchAutoFillData = useCallback(async () => {
+    if (!candidateId) {
+      setAutoFillData({
+        name: 'N/A',
+        position: 'N/A',
+        passport: 'N/A',
+        phone: 'N/A',
+        country: 'N/A',
+      });
+      setLoading(false);
+      return;
+    }
 
-    const fetchAutoFillData = async () => {
-      setLoading(true);
-      setError(null);
+    setLoading(true);
+    setError(null);
 
-      try {
-        // Get candidate profile data
-        const candidateData = await window.electronAPI.getCandidateById({ 
-          candidateId 
-        });
+    try {
+      // 1. Get candidate profile data
+      const candidateRes = await window.electronAPI.getCandidateById({ 
+        candidateId 
+      });
 
-        // Get active job placements for this candidate
-        const jobPlacementsResponse = await window.electronAPI.getCandidateJobPlacements({ 
-          candidateId 
-        });
+      if (!candidateRes.success || !candidateRes.data || Object.keys(candidateRes.data).length === 0) {
+        throw new Error('No candidate data found');
+      }
 
-        // ✅ FIX: Handle response properly - check if it's success object or array
-        let jobPlacements = [];
-        if (jobPlacementsResponse?.success && Array.isArray(jobPlacementsResponse.data)) {
-          jobPlacements = jobPlacementsResponse.data;
-        } else if (Array.isArray(jobPlacementsResponse)) {
-          jobPlacements = jobPlacementsResponse;
-        }
+      const candidateData = candidateRes.data;
 
-        // Get the most recent/active job placement
-        const activeJob = jobPlacements.find(j => j.status === 'ASSIGNED') || 
-                          jobPlacements[0];
+      // 2. Get job placements
+      const jobPlacementsRes = await window.electronAPI.getCandidateJobPlacements({ 
+        candidateId 
+      });
 
-        let jobData = null;
-        if (activeJob) {
-          // Get detailed job order information
-          const jobResponse = await window.electronAPI.getJobOrderById({ 
-            jobId: activeJob.employer_job_id 
+      let jobData = null;
+      let positionFromJob = null;
+
+      if (jobPlacementsRes.success && jobPlacementsRes.data?.length > 0) {
+        const activeJob = jobPlacementsRes.data.find(j => j.placementStatus === 'Assigned') || 
+                          jobPlacementsRes.data[0];
+
+        if (activeJob && activeJob.jobId) {
+          const jobOrderRes = await window.electronAPI.getJobOrderById({ 
+            jobId: activeJob.jobId 
           });
           
-          // ✅ FIX: Handle job response properly
-          jobData = jobResponse?.success ? jobResponse.data : jobResponse;
+          if (jobOrderRes.success && jobOrderRes.data) {
+            jobData = jobOrderRes.data;
+            positionFromJob = jobData.position;
+          }
         }
-
-        // Prepare combined position field
-        const profilePosition = candidateData?.position_applying_for || '';
-        const jobPosition = jobData?.position_title || '';
-        
-        let positionCombined = '';
-        if (profilePosition && jobPosition) {
-          // Both exist - combine with comma
-          positionCombined = `${profilePosition}, ${jobPosition}`;
-        } else {
-          // Use whichever exists (priority to profile)
-          positionCombined = profilePosition || jobPosition || '';
-        }
-
-        setAutoFillData({
-          // Profile data
-          name: candidateData?.name || '',
-          passport_no: candidateData?.passport_no || '',
-          passport_expiry: candidateData?.passport_expiry || '',
-          position_applying_for: candidateData?.position_applying_for || '',
-          dob: candidateData?.dob || '',
-          education: candidateData?.education || '',
-          experience_years: candidateData?.experience_years || '',
-          contact_number: candidateData?.contact_number || '',
-          aadhar_number: candidateData?.aadhar_number || '',
-          
-          // Job placement data
-          job_position: jobPosition,
-          job_country: jobData?.country || '',
-          employer_name: jobData?.employer_name || '',
-          employer_country: jobData?.employer_country || '',
-          salary: jobData?.salary || '',
-          
-          // Combined fields
-          position_combined: positionCombined,
-          country: jobData?.country || '', // Always from job order
-        });
-
-      } catch (err) {
-        console.error('Error fetching auto-fill data:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
       }
-    };
 
-    fetchAutoFillData();
+      // 3. Build auto-fill data with comprehensive fallbacks
+      setAutoFillData({
+        name: candidateData.fullName || 
+              candidateData.full_name || 
+              candidateData.name || 
+              candidateData.candidateName ||
+              candidateData.candidate_name ||
+              'N/A',
+        
+        phone: candidateData.mobile || 
+               candidateData.mobile_number || 
+               candidateData.mobileNumber ||
+               candidateData.phone || 
+               candidateData.phone_number || 
+               candidateData.phoneNumber ||
+               candidateData.contact ||
+               candidateData.contact_number ||
+               candidateData.contactNumber ||
+               candidateData.whatsapp ||
+               candidateData.whatsapp_number ||
+               'N/A',
+        
+        passport: candidateData.passport_number || 
+                  candidateData.passportNumber || 
+                  candidateData.passport || 
+                  'N/A',
+        
+        position: candidateData.position_applying_for || 
+                  candidateData.positionApplyingFor ||
+                  positionFromJob || 
+                  candidateData.position || 
+                  candidateData.designation ||
+                  'N/A',
+        
+        country: jobData?.country || 'N/A',
+        
+        employer: jobData?.employerName || null,
+        candidateId: candidateId,
+      });
+
+    } catch (error) {
+      setError(error.message);
+      
+      setAutoFillData({
+        name: 'N/A',
+        position: 'N/A',
+        passport: 'N/A',
+        phone: 'N/A',
+        country: 'N/A',
+      });
+    } finally {
+      setLoading(false);
+    }
   }, [candidateId]);
 
-  return { autoFillData, loading, error };
-};
+  useEffect(() => {
+    fetchAutoFillData();
+  }, [fetchAutoFillData]);
+
+  return { 
+    autoFillData, 
+    loading, 
+    error,
+    refetch: fetchAutoFillData 
+  };
+}
