@@ -1,0 +1,267 @@
+/* ========================================
+   PHASE 1: CSS VARIABLES - ZERO LAG THEME
+   ======================================== */
+
+/* ROOT VARIABLES - GPU ACCELERATED */
+:root {
+  /* SPACING SCALE (4px multiples) */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-base: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* TYPOGRAPHY (Compact 1366x768) */
+  --font-label: 11px;
+  --font-body: 13px;
+  --font-subheading: 15px;
+  --font-title: 18px;
+  --line-height: 1.4;
+
+  /* COLORS - LIGHT MODE */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8fafc;
+  --color-bg-tertiary: #f1f5f9;
+  --color-bg-card: #ffffff;
+  --color-bg-glass: rgba(255, 255, 255, 0.85);
+  --color-bg-glass-hover: rgba(255, 255, 255, 0.95);
+
+  --color-fg-primary: #0f172a;
+  --color-fg-secondary: #475569;
+  --color-fg-muted: #64748b;
+  --color-fg-inverted: #ffffff;
+
+  --color-border: #e2e8f0;
+  --color-border-muted: #f1f5f9;
+
+  /* PSYCHOLOGY COLORS */
+  --color-success: #10b981;
+  --color-success-fg: #ffffff;
+  --color-warning: #f59e0b;
+  --color-warning-fg: #ffffff;
+  --color-danger: #ef4444;
+  --color-danger-fg: #ffffff;
+  --color-info: #3b82f6;
+  --color-info-fg: #ffffff;
+
+  /* GRADIENTS */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  --gradient-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+
+  /* GLASSMORPHISM */
+  --glass-backdrop: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+
+  /* ANIMATIONS (GPU ONLY) */
+  --transition-instant: 0ms;
+  --transition-fast: 150ms;
+  --transition-normal: 250ms;
+  --transition-slow: 300ms;
+  --easing: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* DARK MODE */
+[data-theme="dark"] {
+  --color-bg-primary: #0f0f23;
+  --color-bg-secondary: #1e1e2e;
+  --color-bg-tertiary: #24243e;
+  --color-bg-card: #1a1a2e;
+  --color-bg-glass: rgba(26, 26, 46, 0.85);
+  --color-bg-glass-hover: rgba(26, 26, 46, 0.95);
+
+  --color-fg-primary: #f8fafc;
+  --color-fg-secondary: #cbd5e1;
+  --color-fg-muted: #94a3b8;
+  --color-fg-inverted: #0f172a;
+
+  --color-border: #334155;
+  --color-border-muted: #475569;
+
+  --glass-backdrop: rgba(15, 15, 35, 0.3);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* SYSTEM FONTS - ZERO LOAD */
+*,
+*::before,
+*::after {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, 
+               Cantarell, sans-serif;
+  font-feature-settings: 'liga' 1, 'calt' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* GPU ACCELERATION LAYER */
+* {
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  contain: layout style paint;
+}
+
+/* BASE STYLES - COMPACT 1366x768 */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-bg-primary);
+  color: var(--color-fg-primary);
+  line-height: var(--line-height);
+  transition: background-color var(--transition-normal), 
+              color var(--transition-normal);
+}
+
+body {
+  font-size: var(--font-body);
+}
+
+/* COMPACT LAYOUT TARGET */
+.app-container {
+  height: 100vh;
+  max-width: 1366px;
+  margin: 0 auto;
+  display: grid;
+  grid-template: 
+    "header" 50px
+    "main" 1fr / 1fr;
+}
+
+/* GLASSMORPHISM COMPONENTS */
+.glass-card {
+  background: var(--color-bg-glass);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: var(--glass-shadow);
+  transition: all var(--transition-fast) var(--easing);
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* BUTTONS - COMPACT */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: var(--font-body);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast) var(--easing);
+  text-decoration: none;
+  height: 35px;
+  min-height: 35px;
+}
+
+.btn-primary {
+  background: var(--gradient-primary);
+  color: var(--color-fg-inverted);
+}
+
+.btn-success {
+  background: var(--gradient-success);
+  color: var(--color-success-fg);
+}
+
+.btn-warning {
+  background: var(--gradient-warning);
+  color: var(--color-warning-fg);
+}
+
+.btn-danger {
+  background: var(--gradient-danger);
+  color: var(--color-danger-fg);
+}
+
+.btn:hover {
+  transform: translateY(-1px) scale(1.02);
+}
+
+/* TABLES - DENSE 25px ROWS */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-body);
+  background: var(--color-bg-card);
+}
+
+.table th {
+  font-size: var(--font-label);
+  font-weight: 600;
+  padding: var(--spacing-sm) var(--spacing-md);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--color-bg-secondary);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.table td {
+  padding: 8px 12px;
+  height: 25px;
+  border-bottom: 1px solid var(--color-border-muted);
+}
+
+/* INPUTS - COMPACT 35px */
+.input, .select, .textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-card);
+  color: var(--color-fg-primary);
+  font-size: var(--font-body);
+  height: 35px;
+  transition: all var(--transition-fast);
+}
+
+.input:focus, .select:focus, .textarea:focus {
+  outline: none;
+  border-color: var(--color-info);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* SIDEBAR - COLLAPSIBLE */
+.sidebar-collapsed {
+  width: 60px;
+}
+
+.sidebar-expanded {
+  width: 240px;
+}
+
+/* HEADER - FIXED 50px */
+.header {
+  height: 50px;
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-lg);
+  gap: var(--spacing-lg);
+}
+
+/* STATUS INDICATORS */
+.status-online { background: var(--color-success); }
+.status-offline { background: var(--color-danger); }
+.status-busy { background: var(--color-warning); }
+
+/* RESPONSIVE */
+@media (max-width: 1366px) {
+  .app-container {
+    grid-template-columns: 1fr;
+  }
+}
+/* ========================================
+   END OF THEME VARIABLES CSS
+   ======================================== */

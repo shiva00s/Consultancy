@@ -1,34 +1,53 @@
-// src/store/useThemeStore.js
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
-const useThemeStore = create((set) => {
-  // Get saved theme or default to system preference
-  const savedTheme = localStorage.getItem('theme') || 
-    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  
-  // CRITICAL FIX: Apply theme IMMEDIATELY on store creation
-  if (typeof document !== 'undefined') {
-    document.body.dataset.theme = savedTheme;
-  }
-  
-  return {
-    theme: savedTheme,
-    
-    toggleTheme: () => set((state) => {
-      const newTheme = state.theme === 'dark' ? 'light' : 'dark';
-      localStorage.setItem('theme', newTheme);
-      document.body.dataset.theme = newTheme;
-      return { theme: newTheme };
+const useThemeStore = create(
+  persist(
+    (set, get) => ({
+      theme: 'dark',
+      isDark: true,
+      systemTheme: 'dark',
+      toggleTheme: () => {
+        const current = get().theme;
+        const nextTheme = current === 'dark' ? 'light' : 'dark';
+        set({ theme: nextTheme, isDark: nextTheme === 'dark' });
+        document.body.dataset.theme = nextTheme;
+        document.documentElement.style.setProperty('--transition-duration', '150ms');
+      },
+      setSystemTheme: (theme) => set({ systemTheme: theme }),
+      syncSystemTheme: () => {
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        const theme = mediaQuery.matches ? 'dark' : 'light';
+        set({ systemTheme: theme });
+        if (get().theme === 'system') {
+          set({ theme, isDark: theme === 'dark' });
+          document.body.dataset.theme = theme;
+        }
+      },
+      setTheme: (theme) => {
+        set({ theme, isDark: theme === 'dark' });
+        document.body.dataset.theme = theme;
+      },
     }),
-    
-    // NEW: Programmatic theme setter
-    setTheme: (newTheme) => {
-      if (newTheme !== 'dark' && newTheme !== 'light') return;
-      localStorage.setItem('theme', newTheme);
-      document.body.dataset.theme = newTheme;
-      set({ theme: newTheme });
+    {
+      name: 'consultancy-theme',
+      partialize: (state) => ({ theme: state.theme }),
     }
-  };
-});
+  )
+);
+
+// Auto-sync system theme changes
+if (typeof window !== 'undefined') {
+  useThemeStore.persist.onFinishHydration(() => {
+    const store = useThemeStore.getState();
+    store.syncSystemTheme();
+    
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e) => store.setSystemTheme(e.matches ? 'dark' : 'light');
+    mediaQuery.addEventListener('change', handleChange);
+    
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  });
+}
 
 export default useThemeStore;
