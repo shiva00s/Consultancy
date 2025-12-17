@@ -4,6 +4,8 @@ import ReactDOM from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import App from './App';
 import './css/App.css';
+import './css/utility.css';
+import './styles/theme-variables.css';
 import { Toaster } from 'react-hot-toast';
 
 ReactDOM.createRoot(document.getElementById('root')).render(

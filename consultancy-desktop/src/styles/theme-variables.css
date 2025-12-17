@@ -97,40 +97,34 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* GPU ACCELERATION LAYER */
-* {
+/* Limit GPU/layout containment to explicit utility classes only */
+.gpu-layer {
   transform: translateZ(0);
   will-change: transform, opacity;
   contain: layout style paint;
 }
 
-/* BASE STYLES - COMPACT 1366x768 */
+
 html, body {
   margin: 0;
   padding: 0;
-  height: 100%;
-  overflow: hidden;
+  min-height: 100%;
+  /* allow scroll – let layout decide */
+  overflow-x: hidden;
+  overflow-y: auto;
   background: var(--color-bg-primary);
   color: var(--color-fg-primary);
   line-height: var(--line-height);
-  transition: background-color var(--transition-normal), 
+  transition: background-color var(--transition-normal),
               color var(--transition-normal);
 }
+
 
 body {
   font-size: var(--font-body);
 }
 
-/* COMPACT LAYOUT TARGET */
-.app-container {
-  height: 100vh;
-  max-width: 1366px;
-  margin: 0 auto;
-  display: grid;
-  grid-template: 
-    "header" 50px
-    "main" 1fr / 1fr;
-}
+
 
 /* GLASSMORPHISM COMPONENTS */
 .glass-card {
@@ -231,25 +225,6 @@ body {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-/* SIDEBAR - COLLAPSIBLE */
-.sidebar-collapsed {
-  width: 60px;
-}
-
-.sidebar-expanded {
-  width: 240px;
-}
-
-/* HEADER - FIXED 50px */
-.header {
-  height: 50px;
-  background: var(--color-bg-card);
-  border-bottom: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  padding: 0 var(--spacing-lg);
-  gap: var(--spacing-lg);
-}
 
 /* STATUS INDICATORS */
 .status-online { background: var(--color-success); }
