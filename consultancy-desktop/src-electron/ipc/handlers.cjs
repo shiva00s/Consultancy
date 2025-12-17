@@ -2945,42 +2945,30 @@ ipcMain.handle('reset-activation-status', async () => {
 // ENHANCED PASSPORT TRACKING HANDLERS
 // ====================================================================
 
-
-
-ipcMain.handle('get-passport-movement-photos', async (event, { movementId, user }) => {
-  const db = getDatabase();
-  
+ipcMain.handle('get-passport-movement-photos', async (event, movementId, user) => {
   try {
-    const movement = await queries.dbGet(
-      db,
-      `SELECT photos FROM passport_tracking WHERE id = ?`,
-      [movementId]
-    );
+    const db = getDatabase();
     
-    if (!movement || !movement.photos) {
-      return { success: true, data: [] };
+    // Auth check
+    if (!user || !user.role) {
+      return { success: false, error: 'Unauthorized access' };
     }
-    
-    const photos = JSON.parse(movement.photos);
-    
-    // Map to expected format with id
-    const mappedPhotos = photos.map((photo, index) => ({
-      id: index + 1,
-      movement_id: movementId,
-      file_name: photo.file_name,
-      file_type: photo.file_type,
-      file_data: photo.file_data,
-      uploaded_at: photo.uploaded_at || new Date().toISOString()
+
+    // Fetch photos from database
+    const photos = await getPassportMovementPhotos(db, movementId);
+
+    // ✅ FIX: Convert base64 data to proper data URLs for preview
+    const photosWithDataUrls = photos.map(photo => ({
+      ...photo,
+      filedata: `data:${photo.filetype};base64,${photo.filedata}` // Add prefix back for display
     }));
-    
-    return { success: true, data: mappedPhotos };
+
+    return { success: true, data: photosWithDataUrls };
   } catch (error) {
-    console.error('❌ get-passport-movement-photos error:', error);
+    console.error('Error getting photos:', error);
     return { success: false, error: error.message };
   }
 });
-
-
 
 
 
@@ -3035,7 +3023,7 @@ ipcMain.handle('addPassportMovementWithPhotos', async (event, { movement, photos
             send_to, send_to_name, send_to_contact, sent_by,
             dispatch_date, dispatch_notes, docket_number,
             method, courier_number, passport_status,
-            source_type, agent_contact, notes, created_by, created_at
+            source_type, agent_contact, notes, created_by, createdAt
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
@@ -3061,7 +3049,7 @@ ipcMain.handle('addPassportMovementWithPhotos', async (event, { movement, photos
           movement.agent_contact || null,
           movement.notes || null,
           movement.created_by || null,
-          movement.created_at || new Date().toISOString()
+          movement.createdAt || new Date().toISOString()
         ];
 
         db.run(movementSql, movementValues, function(err) {
@@ -3199,51 +3187,30 @@ ipcMain.handle('add-passport-movement', async (event, { data, user }) => {
   }
 });
 
-/**
- * ✅ ADD photos to an existing movement (update the movement row)
- */
-ipcMain.handle('add-passport-movement-photo', async (event, { movementId, photoData, user }) => {
-  const db = getDatabase();
-  
+ipcMain.handle('add-passport-movement-photo', async (event, data, user) => {
   try {
-    // Get existing movement
-    const movement = await queries.dbGet(
-      db,
-      `SELECT photos, photo_count FROM passport_tracking WHERE id = ?`,
-      [movementId]
-    );
-    
-    if (!movement) {
-      return { success: false, error: 'Movement not found' };
+    // Auth check
+    if (!user || !user.id) {
+      return { success: false, error: 'Authentication required. Please log in.' };
     }
-    
-    // Parse existing photos
-    let photos = movement.photos ? JSON.parse(movement.photos) : [];
-    
-    // Add new photo
-    photos.push({
-      file_name: photoData.file_name,
-      file_type: photoData.file_type,
-      file_data: photoData.file_data,
-      uploaded_at: new Date().toISOString()
-    });
-    
-    // Update movement with new photos
-    await queries.dbRun(
-      db,
-      `UPDATE passport_tracking 
-       SET photos = ?, photo_count = ?, updated_at = datetime('now', 'localtime')
-       WHERE id = ?`,
-      [JSON.stringify(photos), photos.length, movementId]
-    );
-    
-    return { success: true };
-  } catch (error) {
-    console.error('❌ add-passport-movement-photo error:', error);
-    return { success: false, error: error.message };
+
+    // ✅ FIX: Remove base64 prefix if present
+    let cleanBase64 = data.filedata;
+    if (cleanBase64 && cleanBase64.includes(',')) {
+      cleanBase64 = cleanBase64.split(',')[1]; // Remove "data:image/jpeg;base64," prefix
+    }
+
+    const photoData = {
+      ...data,
+      filedata: cleanBase64 // Store only the clean base64
+    };
+
+    return await queries.addPassportMovementPhoto(photoData);
+  } catch (err) {
+    console.error('add-passport-movement-photo handler error:', err);
+    return { success: false, error: err.message };
   }
 });
-
 
 
 

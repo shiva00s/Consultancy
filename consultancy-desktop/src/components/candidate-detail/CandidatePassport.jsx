@@ -6,7 +6,6 @@ import { useShallow } from 'zustand/react/shallow';
 import PassportReceiveForm from './PassportReceiveForm';
 import PassportSendForm from './PassportSendForm';
 import PassportHistoryTimeline from './PassportHistoryTimeline';
-import PassportPhotoGallery from './PassportPhotoGallery';
 import '../../css/passport-tracking/PassportTracking.css';
 
 function CandidatePassport({ candidateId, candidateData }) {
