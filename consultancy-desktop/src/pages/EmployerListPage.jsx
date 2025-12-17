@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 import '../css/JobOrderListPage.css';
 import '../css/EmployerListPage.css';
 import useDataStore from '../store/dataStore';
-import { useShallow } from 'zustand/react/shallow';
 import useAuthStore from '../store/useAuthStore';
 import ConfirmDialog from '../components/ConfirmDialog';
 
@@ -18,33 +17,22 @@ function EmployerListPage() {
     notes: '',
   };
 
-  const {
-    employers,
-    isLoaded,
-    addEmployer,
-    updateEmployer,
-    deleteEmployer,
-  } = useDataStore(
-    useShallow((state) => ({
-      employers: state.employers,
-      isLoaded: state.isLoaded,
-      addEmployer: state.addEmployer,
-      updateEmployer: state.updateEmployer,
-      deleteEmployer: state.deleteEmployer,
-    })),
-  );
-
-  const { user } = useAuthStore(
-    useShallow((state) => ({ user: state.user })),
-  );
+  // ✅ Direct zustand selectors
+  const employers = useDataStore((state) => state.employers);
+  const isLoaded = useDataStore((state) => state.isLoaded);
+  const addEmployer = useDataStore((state) => state.addEmployer);
+  const updateEmployer = useDataStore((state) => state.updateEmployer);
+  const deleteEmployer = useDataStore((state) => state.deleteEmployer);
+  
+  const user = useAuthStore((state) => state.user);
 
   const [activeTab, setActiveTab] = useState('add');
-
+  
   // ADD TAB
   const [addForm, setAddForm] = useState(initialForm);
   const [addErrors, setAddErrors] = useState({});
   const [addSaving, setAddSaving] = useState(false);
-
+  
   // VIEW TAB
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [viewForm, setViewForm] = useState(initialForm);
@@ -65,7 +53,6 @@ function EmployerListPage() {
   const validate = (data, setErr) => {
     const errs = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
     if (!data.companyName || data.companyName.trim() === '') {
       errs.companyName = 'Company Name is required.';
     }
@@ -76,50 +63,27 @@ function EmployerListPage() {
     return Object.keys(errs).length === 0;
   };
 
-  const syncSelectedToForm = (idx) => {
-    const emp = employers[idx];
-    if (!emp) {
-      setViewForm(initialForm);
-      return;
+  useEffect(() => {
+    if (activeTab === 'list' && employers.length > 0) {
+      const emp = employers[selectedIndex];
+      if (emp) {
+        setViewForm({
+          companyName: emp.companyName || '',
+          country: emp.country || '',
+          contactPerson: emp.contactPerson || '',
+          position: emp.position || '',
+          contactEmail: emp.contactEmail || '',
+          notes: emp.notes || '',
+        });
+      }
     }
-    setViewForm({
-      companyName: emp.companyName || '',
-      country: emp.country || '',
-      contactPerson: emp.contactPerson || '',
-      position: emp.position || '',
-      contactEmail: emp.contactEmail || '',
-      notes: emp.notes || '',
-    });
-  };
-
-  // Keep viewForm in sync when employers change
-useEffect(() => {
-  if (activeTab === 'list') {
-    if (employers.length === 0) {
-      setSelectedIndex(0);
-      setViewForm(initialForm);
-      setIsEditing(false);
-    } else if (selectedIndex >= employers.length) {
-      setSelectedIndex(0);
-      syncSelectedToForm(0);
-    } else {
-      // ✅ Always sync when employer data changes
-      syncSelectedToForm(selectedIndex);
-    }
-  }
-}, [employers, activeTab, selectedIndex]); // Added selectedIndex
-
+  }, [employers, activeTab, selectedIndex]);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     if (tab === 'list') {
       setViewErrors({});
       setIsEditing(false);
-      if (employers.length > 0) {
-        syncSelectedToForm(selectedIndex);
-      } else {
-        setViewForm(initialForm);
-      }
     }
   };
 
@@ -159,7 +123,6 @@ useEffect(() => {
   const onEmployerSelect = (e) => {
     const idx = Number(e.target.value);
     setSelectedIndex(idx);
-    syncSelectedToForm(idx);
     setViewErrors({});
     setIsEditing(false);
   };
@@ -170,58 +133,57 @@ useEffect(() => {
 
   const cancelEdit = () => {
     setIsEditing(false);
-    syncSelectedToForm(selectedIndex);
+    if (selectedEmployer) {
+      setViewForm({
+        companyName: selectedEmployer.companyName || '',
+        country: selectedEmployer.country || '',
+        contactPerson: selectedEmployer.contactPerson || '',
+        position: selectedEmployer.position || '',
+        contactEmail: selectedEmployer.contactEmail || '',
+        notes: selectedEmployer.notes || '',
+      });
+    }
     setViewErrors({});
   };
 
   const saveEdit = async (e) => {
   e.preventDefault();
   if (!selectedEmployer) return;
-  
+
   if (!validate(viewForm, setViewErrors)) {
     toast.error('Fix errors before saving.');
     return;
   }
-  
+
   setViewSaving(true);
-  
+
   try {
     const res = await window.electronAPI.updateEmployer({
       user,
       id: selectedEmployer.id,
       data: viewForm,
     });
-    
+
     if (res.success) {
-      // ✅ Update global store with new object
-      updateEmployer({ ...res.data });
-      
-      // ✅ Immediately sync viewForm
-      setViewForm({
-        companyName: res.data.companyName || '',
-        country: res.data.country || '',
-        contactPerson: res.data.contactPerson || '',
-        position: res.data.position || '',
-        contactEmail: res.data.contactEmail || '',
-        notes: res.data.notes || '',
-      });
-      
-      setIsEditing(false);
-      setViewErrors({});
+      updateEmployer(res.data);
       toast.success(`Employer "${res.data.companyName}" updated successfully.`);
+      
+      // ✅ FIXED: Page refresh after successful save
+      setTimeout(() => {
+        window.location.reload();
+      }, 500); // Wait 500ms so toast shows first
     } else {
       toast.error(res.error || 'Update failed.');
+      setViewSaving(false);
     }
   } catch (error) {
     console.error('Update error:', error);
     toast.error('An error occurred while updating.');
-  } finally {
     setViewSaving(false);
   }
 };
 
 
-  // open confirm dialog
   const onDeleteClick = () => {
     if (!selectedEmployer) return;
     setConfirmDeleteState({
@@ -231,17 +193,12 @@ useEffect(() => {
     });
   };
 
-  // confirm delete from dialog
   const handleConfirmDelete = async () => {
     const { employerId, employerName } = confirmDeleteState;
     setConfirmDeleteState({ open: false, employerId: null, employerName: '' });
-
     if (!employerId) return;
 
-    const res = await window.electronAPI.deleteEmployer({
-      user,
-      id: employerId,
-    });
+    const res = await window.electronAPI.deleteEmployer({ user, id: employerId });
     if (res.success) {
       deleteEmployer(employerId);
       toast.success(`Employer "${employerName}" moved to Recycle Bin.`);
@@ -278,18 +235,18 @@ useEffect(() => {
           className={`job-tab ${activeTab === 'add' ? 'job-tab-active' : ''}`}
           onClick={() => handleTabChange('add')}
         >
-          <FiPlus /> <span className="emoji-inline">✨</span> Add New
+          <FiPlus />
+          <span className="emoji-inline">➕</span> Add New
         </button>
         <button
           type="button"
-          className={`job-tab ${
-            activeTab === 'list' ? 'job-tab-active' : ''
-          }`}
+          className={`job-tab ${activeTab === 'list' ? 'job-tab-active' : ''}`}
           onClick={() => handleTabChange('list')}
         >
-          <FiBriefcase /> <span className="emoji-inline">📊</span> View/Edit
+          <FiBriefcase />
+          <span className="emoji-inline">👁️</span> View/Edit{' '}
           <span className="tab-count-pill">
-            <span className="emoji-inline">👥</span> {employerCount}
+            <span className="emoji-inline">📊</span> {employerCount}
           </span>
         </button>
       </div>
@@ -300,10 +257,11 @@ useEffect(() => {
           <div className="job-card-header">
             <div className="job-title-block">
               <div className="job-title">
-                <span className="emoji-inline">🏗️</span> New Employer Setup
+                <span className="emoji-inline">🆕</span> New Employer Setup
               </div>
               <div className="job-subtitle">
-                <span className="emoji-inline">💡</span> Create a company profile that can be linked to job orders
+                <span className="emoji-inline">📋</span> Create a company profile that can be
+                linked to job orders
               </div>
             </div>
           </div>
@@ -311,15 +269,19 @@ useEffect(() => {
           <div className="job-card-body">
             <form onSubmit={onAddSubmit}>
               <div className="job-grid-4">
-                <div className={`form-group form-group-full ${addErrors.companyName ? 'error' : ''}`}>
+                <div
+                  className={`form-group form-group-full ${
+                    addErrors.companyName ? 'error' : ''
+                  }`}
+                >
                   <label>
-                    <span className="emoji-inline">🏢</span> Company Name *
+                    <span className="emoji-inline">🏢</span> Company Name
                   </label>
                   <input
                     name="companyName"
                     value={addForm.companyName}
                     onChange={onAddChange}
-                    placeholder="🏙️ ACME International"
+                    placeholder="ACME International"
                     style={addErrors.companyName ? { borderColor: 'red' } : {}}
                   />
                   {addErrors.companyName && (
@@ -335,25 +297,25 @@ useEffect(() => {
                     name="country"
                     value={addForm.country}
                     onChange={onAddChange}
-                    placeholder="🌎 Dubai / Japan / Qatar"
+                    placeholder="Dubai / Japan / Qatar"
                   />
                 </div>
 
                 <div className="form-group">
                   <label>
-                    <span className="emoji-inline">🧑‍💼</span> Contact Person
+                    <span className="emoji-inline">👤</span> Contact Person
                   </label>
                   <input
                     name="contactPerson"
                     value={addForm.contactPerson}
                     onChange={onAddChange}
-                    placeholder="👔 Main decision maker"
+                    placeholder="Main decision maker"
                   />
                 </div>
 
                 <div className="form-group">
                   <label>
-                    <span className="emoji-inline">🏷️</span> Position
+                    <span className="emoji-inline">💼</span> Position
                   </label>
                   <input
                     name="position"
@@ -371,7 +333,7 @@ useEffect(() => {
                     name="contactEmail"
                     value={addForm.contactEmail}
                     onChange={onAddChange}
-                    placeholder="📨 name@company.com"
+                    placeholder="name@company.com"
                     style={addErrors.contactEmail ? { borderColor: 'red' } : {}}
                   />
                   {addErrors.contactEmail && (
@@ -385,29 +347,22 @@ useEffect(() => {
                   </label>
                   <textarea
                     name="notes"
-                    rows={3}
+                    rows="3"
                     value={addForm.notes}
                     onChange={onAddChange}
-                    placeholder="💡 Payment terms, VIP handling, reminders..."
+                    placeholder="Payment terms, VIP handling, reminders..."
                   />
                 </div>
               </div>
 
               <div className="form-footer">
-                <button
-                  type="submit"
-                  className="btn-primary-lg"
-                  disabled={addSaving}
-                >
+                <button type="submit" className="btn-primary-lg" disabled={addSaving}>
                   {addSaving ? (
-                    <>
-                      <span className="emoji-inline">⏳</span> Saving…
-                    </>
+                    <span className="emoji-inline">⏳</span>
                   ) : (
-                    <>
-                      <span className="emoji-inline">💾</span> Save Employer
-                    </>
-                  )}
+                    <span className="emoji-inline">💾</span>
+                  )}{' '}
+                  Save Employer
                 </button>
               </div>
             </form>
@@ -415,220 +370,228 @@ useEffect(() => {
         </section>
       )}
 
-      {/* TAB 2: VIEW / MANAGE */}
-      {activeTab === 'list' && (
-        <>
-          {employerCount === 0 ? (
-            <p className="empty-text">
-              <span className="emoji-inline">📭</span> No employers available. Create one from the Add New tab.
-            </p>
-          ) : (
-            <section className="job-card-wide job-card-elevated job-card-editing slide-up">
-              <div className="job-card-header">
-                <div className="job-title-block">
-                  <div className="job-title">
-                    <span className="emoji-inline">🏢</span>{' '}
-                    {viewForm.companyName || 'No Employer Selected'}
-                  </div>
-                  <div className="job-subtitle">
-                    {(viewForm.country || viewForm.contactPerson) && (
-                      <>
-                        <span className="emoji-inline">🌍</span> {viewForm.country || 'N/A'} •{' '}
-                        <span className="emoji-inline">🧑‍💼</span> {viewForm.contactPerson || 'No contact'}
-                      </>
-                    )}
-                  </div>
+      {/* TAB 2: VIEW & MANAGE */}
+      {activeTab === 'list' &&
+        (employerCount === 0 ? (
+          <p className="empty-text">
+            <span className="emoji-inline">📭</span> No employers available. Create one from the
+            Add New tab.
+          </p>
+        ) : (
+          <section className="job-card-wide job-card-elevated job-card-editing slide-up">
+            <div className="job-card-header">
+              <div className="job-title-block">
+                <div className="job-title">
+                  <span className="emoji-inline">🏢</span>{' '}
+                  {viewForm.companyName || 'No Employer Selected'}
                 </div>
-
-                <div className="job-header-actions">
-                  <span className="job-count-chip">
-                    <span className="emoji-inline">👥</span> {employerCount} Employers
-                  </span>
-
-                  <select
-                    className="job-picker-select"
-                    value={selectedIndex}
-                    onChange={onEmployerSelect}
-                    disabled={employers.length === 0}
-                  >
-                    {employers.length === 0 ? (
-                      <option>No employers found</option>
-                    ) : (
-                      employers.map((e, i) => (
-                        <option key={e.id} value={i}>
-                          {i + 1}. {e.companyName}
-                        </option>
-                      ))
-                    )}
-                  </select>
-
-                  {!isEditing ? (
+                <div className="job-subtitle">
+                  {viewForm.country || viewForm.contactPerson ? (
                     <>
-                      <button
-                        type="button"
-                        className="icon-btn"
-                        title="Edit employer"
-                        onClick={startEdit}
-                      >
-                        <FiEdit2 />
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-btn danger"
-                        title="Move employer to Recycle Bin"
-                        onClick={onDeleteClick}
-                        disabled={!selectedEmployer}
-                      >
-                        <FiTrash2 />
-                      </button>
+                      <span className="emoji-inline">🌍</span> {viewForm.country || 'N/A'}{' '}
+                      <span className="emoji-inline">👤</span> {viewForm.contactPerson || 'No contact'}
                     </>
                   ) : (
-                    <>
-                      <button
-                        type="button"
-                        className="icon-btn success"
-                        title="Save changes"
-                        onClick={saveEdit}
-                        disabled={viewSaving}
-                      >
-                        <FiSave />
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-btn muted"
-                        title="Cancel editing"
-                        onClick={cancelEdit}
-                        disabled={viewSaving}
-                      >
-                        <FiX />
-                      </button>
-                    </>
+                    ''
                   )}
                 </div>
               </div>
 
-              <div className="job-card-body">
-                {selectedEmployer ? (
-                  <form onSubmit={saveEdit} className={isEditing ? 'job-grid-4' : 'read-grid'}>
-                    <div className={isEditing ? 'form-group form-group-full' : 'detail-full'}>
-                      <label className={isEditing ? '' : 'detail-label'}>
-                        <span className="emoji-inline">🏢</span> Company Name
-                      </label>
-                      {isEditing ? (
-                        <>
-                          <input
-                            name="companyName"
-                            value={viewForm.companyName}
-                            onChange={onViewChange}
-                            placeholder="🏙️ Company name"
-                            style={viewErrors.companyName ? { borderColor: 'red' } : {}}
-                          />
-                          {viewErrors.companyName && (
-                            <p className="error-text">{viewErrors.companyName}</p>
-                          )}
-                        </>
-                      ) : (
-                        <div className="detail-value">{viewForm.companyName || 'N/A'}</div>
-                      )}
-                    </div>
+              <div className="job-header-actions">
+                <span className="job-count-chip">
+                  <span className="emoji-inline">📊</span> {employerCount} Employers
+                </span>
+                <select
+                  className="job-picker-select"
+                  value={selectedIndex}
+                  onChange={onEmployerSelect}
+                  disabled={employers.length === 0}
+                >
+                  {employers.length === 0 ? (
+                    <option>No employers found</option>
+                  ) : (
+                    employers.map((e, i) => (
+                      <option key={e.id} value={i}>
+                        {i + 1}. {e.companyName}
+                      </option>
+                    ))
+                  )}
+                </select>
 
-                    <div className={isEditing ? 'form-group' : 'detail-item'}>
-                      <label className={isEditing ? '' : 'detail-label'}>
-                        <span className="emoji-inline">🌍</span> Country
-                      </label>
-                      {isEditing ? (
-                        <input
-                          name="country"
-                          value={viewForm.country}
-                          onChange={onViewChange}
-                          placeholder="🌎 Country"
-                        />
-                      ) : (
-                        <div className="detail-value">{viewForm.country || 'N/A'}</div>
-                      )}
-                    </div>
-
-                    <div className={isEditing ? 'form-group' : 'detail-item'}>
-                      <label className={isEditing ? '' : 'detail-label'}>
-                        <span className="emoji-inline">🧑‍💼</span> Contact Person
-                      </label>
-                      {isEditing ? (
-                        <input
-                          name="contactPerson"
-                          value={viewForm.contactPerson}
-                          onChange={onViewChange}
-                          placeholder="👔 Person in charge"
-                        />
-                      ) : (
-                        <div className="detail-value">{viewForm.contactPerson || 'N/A'}</div>
-                      )}
-                    </div>
-
-                    <div className={isEditing ? 'form-group' : 'detail-item'}>
-                      <label className={isEditing ? '' : 'detail-label'}>
-                        <span className="emoji-inline">🏷️</span> Position
-                      </label>
-                      {isEditing ? (
-                        <input
-                          name="position"
-                          value={viewForm.position}
-                          onChange={onViewChange}
-                          placeholder="Manager / HR"
-                        />
-                      ) : (
-                        <div className="detail-value">{viewForm.position || 'N/A'}</div>
-                      )}
-                    </div>
-
-                    <div className={isEditing ? 'form-group' : 'detail-item'}>
-                      <label className={isEditing ? '' : 'detail-label'}>
-                        <span className="emoji-inline">📧</span> Contact Email
-                      </label>
-                      {isEditing ? (
-                        <>
-                          <input
-                            name="contactEmail"
-                            value={viewForm.contactEmail}
-                            onChange={onViewChange}
-                            placeholder="📨 Email address"
-                            style={viewErrors.contactEmail ? { borderColor: 'red' } : {}}
-                          />
-                          {viewErrors.contactEmail && (
-                            <p className="error-text">{viewErrors.contactEmail}</p>
-                          )}
-                        </>
-                      ) : (
-                        <div className="detail-value">{viewForm.contactEmail || 'N/A'}</div>
-                      )}
-                    </div>
-
-                    <div className={isEditing ? 'form-group form-group-full' : 'detail-full'}>
-                      <label className={isEditing ? '' : 'detail-label'}>
-                        <span className="emoji-inline">📝</span> Notes
-                      </label>
-                      {isEditing ? (
-                        <textarea
-                          name="notes"
-                          rows={3}
-                          value={viewForm.notes}
-                          onChange={onViewChange}
-                          placeholder="💡 Any special conditions, communication notes, etc."
-                        />
-                      ) : (
-                        <div className="detail-value">{viewForm.notes || 'N/A'}</div>
-                      )}
-                    </div>
-                  </form>
+                {!isEditing ? (
+                  <>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      title="Edit employer"
+                      onClick={startEdit}
+                    >
+                      <FiEdit2 />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn danger"
+                      title="Move employer to Recycle Bin"
+                      onClick={onDeleteClick}
+                      disabled={!selectedEmployer}
+                    >
+                      <FiTrash2 />
+                    </button>
+                  </>
                 ) : (
-                  <p className="empty-text">
-                    <span className="emoji-inline">📭</span> No employers available. Create one from the Add New tab.
-                  </p>
+                  <>
+                    <button
+                      type="button"
+                      className="icon-btn success"
+                      title="Save changes"
+                      onClick={saveEdit}
+                      disabled={viewSaving}
+                    >
+                      <FiSave />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn muted"
+                      title="Cancel editing"
+                      onClick={cancelEdit}
+                      disabled={viewSaving}
+                    >
+                      <FiX />
+                    </button>
+                  </>
                 )}
               </div>
-            </section>
-          )}
-        </>
-      )}
+            </div>
+
+            <div className="job-card-body">
+              {selectedEmployer ? (
+                <form onSubmit={saveEdit} className={isEditing ? 'job-grid-4' : 'read-grid'}>
+                  <div
+                    className={
+                      isEditing ? 'form-group form-group-full' : 'detail-full'
+                    }
+                  >
+                    <label className={isEditing ? '' : 'detail-label'}>
+                      <span className="emoji-inline">🏢</span> Company Name
+                    </label>
+                    {isEditing ? (
+                      <>
+                        <input
+                          name="companyName"
+                          value={viewForm.companyName}
+                          onChange={onViewChange}
+                          placeholder="Company name"
+                          style={viewErrors.companyName ? { borderColor: 'red' } : {}}
+                        />
+                        {viewErrors.companyName && (
+                          <p className="error-text">{viewErrors.companyName}</p>
+                        )}
+                      </>
+                    ) : (
+                      <div className="detail-value">{viewForm.companyName || 'N/A'}</div>
+                    )}
+                  </div>
+
+                  <div className={isEditing ? 'form-group' : 'detail-item'}>
+                    <label className={isEditing ? '' : 'detail-label'}>
+                      <span className="emoji-inline">🌍</span> Country
+                    </label>
+                    {isEditing ? (
+                      <input
+                        name="country"
+                        value={viewForm.country}
+                        onChange={onViewChange}
+                        placeholder="Country"
+                      />
+                    ) : (
+                      <div className="detail-value">{viewForm.country || 'N/A'}</div>
+                    )}
+                  </div>
+
+                  <div className={isEditing ? 'form-group' : 'detail-item'}>
+                    <label className={isEditing ? '' : 'detail-label'}>
+                      <span className="emoji-inline">👤</span> Contact Person
+                    </label>
+                    {isEditing ? (
+                      <input
+                        name="contactPerson"
+                        value={viewForm.contactPerson}
+                        onChange={onViewChange}
+                        placeholder="Person in charge"
+                      />
+                    ) : (
+                      <div className="detail-value">{viewForm.contactPerson || 'N/A'}</div>
+                    )}
+                  </div>
+
+                  <div className={isEditing ? 'form-group' : 'detail-item'}>
+                    <label className={isEditing ? '' : 'detail-label'}>
+                      <span className="emoji-inline">💼</span> Position
+                    </label>
+                    {isEditing ? (
+                      <input
+                        name="position"
+                        value={viewForm.position}
+                        onChange={onViewChange}
+                        placeholder="Manager / HR"
+                      />
+                    ) : (
+                      <div className="detail-value">{viewForm.position || 'N/A'}</div>
+                    )}
+                  </div>
+
+                  <div className={isEditing ? 'form-group' : 'detail-item'}>
+                    <label className={isEditing ? '' : 'detail-label'}>
+                      <span className="emoji-inline">📧</span> Contact Email
+                    </label>
+                    {isEditing ? (
+                      <>
+                        <input
+                          name="contactEmail"
+                          value={viewForm.contactEmail}
+                          onChange={onViewChange}
+                          placeholder="Email address"
+                          style={viewErrors.contactEmail ? { borderColor: 'red' } : {}}
+                        />
+                        {viewErrors.contactEmail && (
+                          <p className="error-text">{viewErrors.contactEmail}</p>
+                        )}
+                      </>
+                    ) : (
+                      <div className="detail-value">{viewForm.contactEmail || 'N/A'}</div>
+                    )}
+                  </div>
+
+                  <div
+                    className={
+                      isEditing ? 'form-group form-group-full' : 'detail-full'
+                    }
+                  >
+                    <label className={isEditing ? '' : 'detail-label'}>
+                      <span className="emoji-inline">📝</span> Notes
+                    </label>
+                    {isEditing ? (
+                      <textarea
+                        name="notes"
+                        rows="3"
+                        value={viewForm.notes}
+                        onChange={onViewChange}
+                        placeholder="Any special conditions, communication notes, etc."
+                      />
+                    ) : (
+                      <div className="detail-value">{viewForm.notes || 'N/A'}</div>
+                    )}
+                  </div>
+                </form>
+              ) : (
+                <p className="empty-text">
+                  <span className="emoji-inline">📭</span> No employers available. Create one from
+                  the Add New tab.
+                </p>
+              )}
+            </div>
+          </section>
+        ))}
 
       <ConfirmDialog
         open={confirmDeleteState.open}
