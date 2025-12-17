@@ -559,3 +559,70 @@
     min-width: 150px;
   }
 }
+/* Custom input field for "Other" option */
+.custom-input-field {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #3a4556;
+  border-radius: 6px;
+  background: #1e2530;
+  color: #e0e5ec;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.custom-input-field:focus {
+  outline: none;
+  border-color: #4a90e2;
+  background: #252d3a;
+}
+
+.custom-value-display {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #2a3441;
+  border-radius: 4px;
+  color: #a0a8b4;
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* Job selector bar */
+.job-selector-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: linear-gradient(135deg, #2a3441 0%, #1e2530 100%);
+  border-radius: 8px;
+  border: 1px solid #3a4556;
+}
+
+.job-selector-bar label {
+  font-weight: 600;
+  color: #e0e5ec;
+  white-space: nowrap;
+}
+
+.job-selector-bar select {
+  flex: 1;
+  padding: 10px 14px;
+  background: #1e2530;
+  border: 1px solid #3a4556;
+  border-radius: 6px;
+  color: #e0e5ec;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.job-selector-bar select:hover {
+  border-color: #4a90e2;
+}
+
+.job-selector-bar select:focus {
+  outline: none;
+  border-color: #4a90e2;
+  background: #252d3a;
+}

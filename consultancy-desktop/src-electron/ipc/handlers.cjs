@@ -2799,7 +2799,7 @@ ipcMain.handle('check-reminders', async () => {
 // ✅ COMPLETE: Send Activation Email Handler
 ipcMain.handle('send-activation-email', async (event, { requestCode, machineId }) => {
   try {
-    const { sendActivationEmail } = require('../services/emailService.cjs');
+    const { sendActivationEmail } = require('../utils/emailService.cjs');
     
     // Generate 6-digit activation code
     const activationCode = String(Math.floor(100000 + Math.random() * 900000));

@@ -4110,11 +4110,11 @@ async function getPassportMovements(candidateId) {
       photos,
       photo_count,
       created_by,
-      created_at,
+      createdAt,
       updated_at
     FROM passport_tracking
     WHERE candidate_id = ? AND isDeleted = 0
-    ORDER BY date DESC, created_at DESC
+    ORDER BY date DESC, createdAt DESC
   `;
 
   try {
@@ -4145,7 +4145,7 @@ async function getPassportMovements(candidateId) {
       has_photos: (row.photo_count || 0) > 0,
       // Audit
       created_by: row.created_by,
-      created_at: row.created_at,
+      created_at: row.createdAt,
       updated_at: row.updated_at
     }));
 
@@ -4208,7 +4208,7 @@ async function addPassportMovement(data, photos = []) {
       photos,
       photo_count,
       created_by,
-      created_at,
+      createdAt,
       isDeleted
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'), 0)
   `;
@@ -4266,7 +4266,7 @@ async function addPassportMovement(data, photos = []) {
       photo_count: row.photo_count || 0,
       has_photos: (row.photo_count || 0) > 0,
       created_by: row.created_by,
-      created_at: row.created_at
+      created_at: row.createdAt
     };
 
     return { success: true, data: mappedRow };

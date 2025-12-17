@@ -343,26 +343,17 @@ dbInstance.run(`
   CREATE TABLE IF NOT EXISTS passport_tracking (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     candidate_id INTEGER NOT NULL,
-    
-    -- Movement tracking fields (NEW)
     movement_type TEXT CHECK(movement_type IN ('RECEIVE', 'SEND')),
     method TEXT,
     courier_number TEXT,
     date TEXT,
     notes TEXT,
-    
-    -- RECEIVE specific fields
     received_from TEXT,
     received_by TEXT,
-    
-    -- SEND specific fields
     send_to TEXT,
     send_to_name TEXT,
     send_to_contact TEXT,
     sent_by TEXT,
-    notes TEXT,
-    
-    -- Legacy fields (keep for backward compatibility)
     received_date TEXT,
     received_notes TEXT,
     dispatch_date TEXT,
@@ -371,14 +362,16 @@ dbInstance.run(`
     passport_status TEXT DEFAULT 'Received',
     source_type TEXT DEFAULT 'Direct Candidate',
     agent_contact TEXT,
-    
-    -- Meta fields
-    created_at TEXT DEFAULT (datetime('now')),
+    photos TEXT DEFAULT '[]',
+    photo_count INTEGER DEFAULT 0,
+    created_by TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT (datetime('now')),
     isDeleted INTEGER DEFAULT 0,
-    
     FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE CASCADE
   );
 `);
+
 
 // Passport movement photos table
 dbInstance.run(`
@@ -394,7 +387,6 @@ dbInstance.run(`
     FOREIGN KEY (movement_id) REFERENCES passport_tracking(id) ON DELETE CASCADE
   );
 `);
-
 
 
 // Create indexes for better performance
