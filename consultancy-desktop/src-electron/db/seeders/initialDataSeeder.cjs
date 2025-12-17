@@ -1,76 +1,31 @@
+// FILE: src-electron/db/seeders/initialDataSeeder.cjs
+
 const bcrypt = require('bcrypt');
-const { getDatabase } = require('../database.cjs');
 
 const saltRounds = 10;
 
-
 /**
- * Seeds initial feature flags into the database
+ * Seeds initial feature flags into the database.
+ * @param {import('sqlite3').Database} db
  */
-async function seedFeatureFlags() {
-  const db = getDatabase();
-  
+async function seedFeatureFlags(db) {
+  if (!db) {
+    throw new Error('seedFeatureFlags: db is null/undefined');
+  }
+
   const features = [
-    {
-      key: 'REPORTS',
-      label: 'Reports & Analytics',
-      description: 'Access to all reports and analytics'
-    },
-    {
-      key: 'BULK_IMPORT',
-      label: 'Bulk Import',
-      description: 'Import candidates in bulk via CSV/Excel'
-    },
-    {
-      key: 'SYSTEM_AUDIT',
-      label: 'System Audit Log',
-      description: 'View system-wide audit logs'
-    },
-    {
-      key: 'USER_MANAGEMENT',
-      label: 'User Management',
-      description: 'Create and manage users'
-    },
-    {
-      key: 'ADVANCED_ANALYTICS',
-      label: 'Advanced Analytics',
-      description: 'Access to advanced analytics dashboard'
-    },
-    {
-      key: 'WHATSAPP_BULK',
-      label: 'WhatsApp Bulk Messaging',
-      description: 'Send bulk WhatsApp messages'
-    },
-    {
-      key: 'RECYCLE_BIN',
-      label: 'Recycle Bin',
-      description: 'Manage deleted records'
-    },
-    {
-      key: 'EMPLOYERS',
-      label: 'Employer Management',
-      description: 'Manage employer companies'
-    },
-    {
-      key: 'JOB_ORDERS',
-      label: 'Job Orders',
-      description: 'Manage job orders and placements'
-    },
-    {
-      key: 'VISA_KANBAN',
-      label: 'Visa Kanban Board',
-      description: 'Visual visa tracking board'
-    },
-    {
-      key: 'SYSTEM_MODULES',
-      label: 'System Module Control',
-      description: 'Enable/disable system modules'
-    },
-    {
-      key: 'SETTINGS',
-      label: 'System Settings',
-      description: 'Manage system-wide settings'
-    }
+    { key: 'REPORTS',         label: 'Reports & Analytics',      description: 'Access to all reports and analytics' },
+    { key: 'BULK_IMPORT',     label: 'Bulk Import',              description: 'Import candidates in bulk via CSV/Excel' },
+    { key: 'SYSTEM_AUDIT',    label: 'System Audit Log',         description: 'View system-wide audit logs' },
+    { key: 'USER_MANAGEMENT', label: 'User Management',          description: 'Create and manage users' },
+    { key: 'ADVANCED_ANALYTICS', label: 'Advanced Analytics',    description: 'Access to advanced analytics dashboard' },
+    { key: 'WHATSAPP_BULK',   label: 'WhatsApp Bulk Messaging',  description: 'Send bulk WhatsApp messages' },
+    { key: 'RECYCLE_BIN',     label: 'Recycle Bin',              description: 'Manage deleted records' },
+    { key: 'EMPLOYERS',       label: 'Employer Management',      description: 'Manage employer companies' },
+    { key: 'JOB_ORDERS',      label: 'Job Orders',               description: 'Manage job orders and placements' },
+    { key: 'VISA_KANBAN',     label: 'Visa Kanban Board',        description: 'Visual visa tracking board' },
+    { key: 'SYSTEM_MODULES',  label: 'System Module Control',    description: 'Enable/disable system modules' },
+    { key: 'SETTINGS',        label: 'System Settings',          description: 'Manage system-wide settings' },
   ];
 
   return new Promise((resolve, reject) => {
@@ -80,7 +35,7 @@ async function seedFeatureFlags() {
         VALUES (?, ?, ?)
       `);
 
-      features.forEach(feature => {
+      features.forEach((feature) => {
         stmt.run(
           feature.key,
           feature.label,
@@ -106,30 +61,29 @@ async function seedFeatureFlags() {
 }
 
 /**
- * Seeds initial data into the database, specifically creating a default super_admin
- * account if no users exist.
- * @param {import('sqlite3').Database} db The database instance.
+ * Seeds initial data into the database, specifically creating a default
+ * super_admin account if no users exist.
+ * @param {import('sqlite3').Database} db
  */
 const seedInitialData = (db) => {
   return new Promise((resolve, reject) => {
-    db.get("SELECT COUNT(*) as count FROM users", (userCountErr, row) => {
+    db.get('SELECT COUNT(*) as count FROM users', (userCountErr, row) => {
       if (userCountErr) {
-        console.error("Error checking for existing users:", userCountErr.message);
+        console.error('Error checking for existing users:', userCountErr.message);
         return reject(userCountErr);
       }
-      
+
       if (row.count === 0) {
         bcrypt.hash('superadmin123', saltRounds, (hashErr, hash) => {
           if (hashErr) {
             console.error('Error hashing super admin password:', hashErr.message);
             return reject(hashErr);
           }
-          
-          // Insert default feature flags for the super_admin
+
           const defaultFeatures = {
             isEmployersEnabled: true,
             isJobsEnabled: true,
-            isVisaKanbanEnabled: true, 
+            isVisaKanbanEnabled: true,
             isDocumentsEnabled: true,
             isVisaTrackingEnabled: true,
             isFinanceTrackingEnabled: true,
@@ -137,8 +91,8 @@ const seedInitialData = (db) => {
             isInterviewEnabled: true,
             isTravelEnabled: true,
             isHistoryEnabled: true,
-            isBulkImportEnabled: true,           
-            isMobileAccessEnabled: true,             
+            isBulkImportEnabled: true,
+            isMobileAccessEnabled: true,
             canViewReports: true,
             canAccessSettings: true,
             canAccessRecycleBin: true,
@@ -146,9 +100,10 @@ const seedInitialData = (db) => {
           };
 
           db.run(
-            `INSERT INTO users (username, password, role, features) VALUES (?, ?, ?, ?)`,
+            `INSERT INTO users (username, password, role, features)
+             VALUES (?, ?, ?, ?)`,
             ['super_admin', hash, 'super_admin', JSON.stringify(defaultFeatures)],
-            function(insertErr) {
+            function (insertErr) {
               if (insertErr) {
                 console.error('Failed to insert initial super admin:', insertErr.message);
                 reject(insertErr);
@@ -160,13 +115,13 @@ const seedInitialData = (db) => {
           );
         });
       } else {
-        resolve(); // No seeding needed, users already exist
+        resolve();
       }
     });
   });
 };
 
-module.exports = { 
+module.exports = {
   seedInitialData,
-  seedFeatureFlags // ✅ Export new function
+  seedFeatureFlags,
 };

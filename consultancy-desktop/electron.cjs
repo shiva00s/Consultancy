@@ -1,17 +1,17 @@
+// FILE: electron.cjs
+
 const { app, BrowserWindow, dialog } = require('electron');
 const path = require('path');
 
 const { initializeDatabase, closeDatabase } = require('./src-electron/db/database.cjs');
-const { runMigrations } = require('./src-electron/db/schema/migrations.cjs');
-const { registerIpcHandlers,startReminderScheduler, } = require('./src-electron/ipc/handlers.cjs');
+const { registerIpcHandlers, startReminderScheduler } = require('./src-electron/ipc/handlers.cjs');
 const { fileManager } = require('./src-electron/utils/fileManager.cjs');
-
 
 // 🔐 Permission Engine
 const {
   PermissionEngine,
   ROLES,
-  FEATURES
+  FEATURES,
 } = require('./src-electron/ipc/security/permissionEngine.cjs');
 
 // Suppress Electron security warnings in development
@@ -47,7 +47,7 @@ const permissionContext = {
       superAdminEnabled: this.superAdminEnabled,
       adminGranted: this.adminGranted,
     });
-  }
+  },
 };
 
 function createWindow() {
@@ -64,32 +64,28 @@ function createWindow() {
       webSecurity: process.env.NODE_ENV === 'production',
       devTools: process.env.NODE_ENV !== 'production',
     },
-    show: false, // Don't show until ready
-    backgroundColor: '#1a1d2e', // Match your app's dark theme
+    show: false,
+    backgroundColor: '#1a1d2e',
   });
 
-  // Show window when ready to prevent white flash
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
 
-  // ✅ FIXED: New console-message event signature (no deprecation warning)
   mainWindow.webContents.on('console-message', (event) => {
     const { level, message, lineNumber, sourceId } = event;
-    
-    // Suppress known non-critical warnings
+
     const suppressPatterns = [
       'Autofill.enable failed',
       'Autofill.setAddresses failed',
       'protocol_client.js',
-      'Download the React DevTools', // React DevTools suggestion
+      'Download the React DevTools',
     ];
-    
-    if (suppressPatterns.some(pattern => message.includes(pattern))) {
-      return; // Don't log these
+
+    if (suppressPatterns.some((pattern) => message.includes(pattern))) {
+      return;
     }
-    
-    // Map level strings to console methods
+
     switch (level) {
       case 'error':
         console.error(`[Renderer Error] ${message}`);
@@ -98,7 +94,6 @@ function createWindow() {
         }
         break;
       case 'warning':
-        // Only log warnings in development
         if (process.env.NODE_ENV !== 'production') {
           console.warn(`[Renderer Warning] ${message}`);
         }
@@ -120,54 +115,43 @@ function createWindow() {
     }
   });
 
-  // ✅ Disable autofill and cleanup after window loads
   mainWindow.webContents.once('did-finish-load', () => {
-    mainWindow.webContents.executeJavaScript(`
-      // Disable autofill
-      if (window.chrome && window.chrome.autofill) {
-        delete window.chrome.autofill;
-      }
-      
-      // Suppress React DevTools message
-      if (typeof window.__REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object') {
-        for (let [key, value] of Object.entries(window.__REACT_DEVTOOLS_GLOBAL_HOOK__)) {
-          if (typeof value === 'function') {
-            window.__REACT_DEVTOOLS_GLOBAL_HOOK__[key] = () => {};
+    mainWindow.webContents
+      .executeJavaScript(`
+        if (window.chrome && window.chrome.autofill) {
+          delete window.chrome.autofill;
+        }
+        
+        if (typeof window.__REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object') {
+          for (let [key, value] of Object.entries(window.__REACT_DEVTOOLS_GLOBAL_HOOK__)) {
+            if (typeof value === 'function') {
+              window.__REACT_DEVTOOLS_GLOBAL_HOOK__[key] = () => {};
+            }
           }
         }
-      }
-    `).catch(() => {
-      // Silently ignore if it fails
-    });
+      `)
+      .catch(() => {});
   });
 
-  // Prevent navigation to external URLs (security)
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    const allowedOrigins = [
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'file://',
-    ];
-    
-    const isAllowed = allowedOrigins.some(origin => url.startsWith(origin));
-    
+    const allowedOrigins = ['http://localhost:5173', 'http://localhost:3000', 'file://'];
+
+    const isAllowed = allowedOrigins.some((origin) => url.startsWith(origin));
+
     if (!isAllowed) {
       event.preventDefault();
       console.warn('⚠️ Navigation blocked:', url);
     }
   });
 
-  // Prevent opening new windows
   mainWindow.webContents.setWindowOpenHandler(() => {
     return { action: 'deny' };
   });
 
-  // Initialize auto-updater if available
   if (hasAutoUpdater && AutoUpdater) {
     try {
       updater = new AutoUpdater(mainWindow);
 
-      // Check for updates 5 seconds after launch
       setTimeout(() => {
         if (updater) {
           updater.checkForUpdatesAndNotify();
@@ -178,7 +162,6 @@ function createWindow() {
     }
   }
 
-  // Load the app
   if (process.env.NODE_ENV === 'production') {
     mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
   } else {
@@ -186,7 +169,6 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   }
 
-  // Handle window close
   mainWindow.on('close', (event) => {
     if (process.platform === 'darwin' && !app.isQuitting) {
       event.preventDefault();
@@ -203,7 +185,6 @@ app.whenReady().then(async () => {
       console.log('🚀 Starting Consultancy Desktop App...');
     }
 
-    // Initialize database
     if (process.env.NODE_ENV !== 'production') {
       console.log('📦 Initializing database...');
     }
@@ -212,16 +193,6 @@ app.whenReady().then(async () => {
       console.log('✅ Database initialized');
     }
 
-    // Run migrations
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('🔄 Running migrations...');
-    }
-    await runMigrations();
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('✅ Migrations completed');
-    }
-
-    // Initialize file manager
     if (process.env.NODE_ENV !== 'production') {
       console.log('📁 Initializing file manager...');
     }
@@ -230,7 +201,6 @@ app.whenReady().then(async () => {
       console.log('✅ File manager initialized');
     }
 
-    // Register IPC handlers
     if (process.env.NODE_ENV !== 'production') {
       console.log('🔌 Registering IPC handlers...');
     }
@@ -238,25 +208,22 @@ app.whenReady().then(async () => {
       permissionContext,
       ROLES,
       FEATURES,
-      PermissionEngine
+      PermissionEngine,
     });
     if (process.env.NODE_ENV !== 'production') {
       console.log('✅ IPC handlers registered');
     }
 
-    // Create window
     if (process.env.NODE_ENV !== 'production') {
       console.log('🪟 Creating main window...');
     }
     mainWindow = createWindow();
 
-    // 🔔 Start reminder scheduler (checks DB every 60s and sends reminder-due)
     startReminderScheduler(mainWindow);
 
     if (process.env.NODE_ENV !== 'production') {
       console.log('✅ Application ready!');
     }
-
   } catch (error) {
     console.error('❌ Failed to initialize application:', error);
     console.error('Error stack:', error.stack);
@@ -270,7 +237,6 @@ app.whenReady().then(async () => {
   }
 });
 
-// macOS: Re-create window when dock icon is clicked
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
@@ -279,22 +245,22 @@ app.on('activate', () => {
   }
 });
 
-// Close app when all windows are closed (except macOS)
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    closeDatabase().then(() => {
-      app.quit();
-    }).catch((err) => {
-      console.error('Error closing database:', err);
-      app.quit();
-    });
+    closeDatabase()
+      .then(() => {
+        app.quit();
+      })
+      .catch((err) => {
+        console.error('Error closing database:', err);
+        app.quit();
+      });
   }
 });
 
-// Cleanup before quit
-app.on('before-quit', async (event) => {
+app.on('before-quit', async () => {
   app.isQuitting = true;
-  
+
   try {
     await closeDatabase();
   } catch (err) {
@@ -302,32 +268,53 @@ app.on('before-quit', async (event) => {
   }
 });
 
+// Shared list for ignorable startup DB errors
+const IGNORED_STARTUP_TABLE_ERRORS = [
+  'no such table: main.license_activation',
+  'no such table: main.activation_requests',
+  'no such table: main.passport_tracking',
+  'no such table: main.passport_movement_photos',
+  'no such table: main.passport_movements',
+  'no such table: main.audit_log',
+  'no such table: main.communication_logs',
+  'no such table: main.user_features',
+];
+
 // Global error handlers
 process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error);
-  
-  // Show error dialog in production
+  const message = String(error && error.message);
+
+  if (IGNORED_STARTUP_TABLE_ERRORS.some((p) => message.includes(p))) {
+    return;
+  }
+
+  console.error('❌ Uncaught Exception:', message);
+
   if (process.env.NODE_ENV === 'production' && mainWindow) {
     dialog.showErrorBox(
       'Application Error',
-      `An unexpected error occurred:\n\n${error.message}`
+      `An unexpected error occurred.\n\nDetails: ${message}`
     );
   }
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
-  
-  // Show error dialog in production
+  const message = String(reason && reason.message ? reason.message : reason);
+
+  if (IGNORED_STARTUP_TABLE_ERRORS.some((p) => message.includes(p))) {
+    return;
+  }
+
+  console.error('❌ Unhandled Rejection:', message);
+
   if (process.env.NODE_ENV === 'production' && mainWindow) {
     dialog.showErrorBox(
       'Application Error',
-      `An unexpected error occurred:\n\n${reason}`
+      `An unexpected error occurred.\n\nDetails: ${message}`
     );
   }
 });
 
-// Graceful shutdown on SIGTERM
 process.on('SIGTERM', () => {
   console.log('⚠️ SIGTERM received, closing app gracefully...');
   app.quit();

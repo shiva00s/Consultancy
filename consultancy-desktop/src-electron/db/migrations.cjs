@@ -1,13 +1,20 @@
-const { getDatabase } = require("../database.cjs");
-const path = require("path");
-const fs = require("fs");
+// FILE: src-electron/db/migrations.cjs
 
-async function runMigrations() {
-  const db = getDatabase();
+const path = require('path');
+const fs = require('fs');
+
+/**
+ * Run file-based migrations against the provided db instance.
+ * @param {import('sqlite3').Database} db
+ */
+async function runMigrations(db) {
+  if (!db) {
+    console.error('❌ Cannot run migrations: db is null/undefined.');
+    throw new Error('Database not initialized');
+  }
 
   return new Promise((resolve, reject) => {
     db.serialize(async () => {
-      // Create migrations table if not exists
       db.run(
         `
         CREATE TABLE IF NOT EXISTS migrations (
@@ -18,36 +25,33 @@ async function runMigrations() {
       `,
         async (err) => {
           if (err) {
-            console.error("Failed to create migrations table:", err);
+            console.error('❌ Failed to create migrations table:', err);
             reject(err);
             return;
           }
 
           try {
-            // Get list of applied migrations
             const appliedMigrations = await new Promise((res, rej) => {
-              db.all("SELECT name FROM migrations", [], (err, rows) => {
-                if (err) rej(err);
+              db.all('SELECT name FROM migrations', [], (err2, rows) => {
+                if (err2) rej(err2);
                 else res(rows.map((r) => r.name));
               });
             });
 
-            // Load migration files from schema/migrations directory
-            const migrationsDir = path.join(__dirname, "schema", "migrations");
+            const migrationsDir = path.join(__dirname, 'schema', 'migrations');
             let migrationFiles = [];
 
             if (fs.existsSync(migrationsDir)) {
               migrationFiles = fs
                 .readdirSync(migrationsDir)
-                .filter((f) => f.endsWith(".cjs"))
+                .filter((f) => f.endsWith('.cjs'))
                 .sort();
             }
 
             console.log(`📋 Found ${migrationFiles.length} migration files`);
 
-            // Run pending migrations
             for (const fileName of migrationFiles) {
-              const migrationName = fileName.replace(".cjs", "");
+              const migrationName = fileName.replace('.cjs', '');
 
               if (appliedMigrations.includes(migrationName)) {
                 console.log(`⏭️  Skipping ${migrationName} (already applied)`);
@@ -55,22 +59,20 @@ async function runMigrations() {
               }
 
               console.log(`🔄 Applying migration: ${migrationName}`);
-
               const migrationPath = path.join(migrationsDir, fileName);
 
               try {
                 const migration = require(migrationPath);
 
-                if (typeof migration.applyMigration === "function") {
+                if (typeof migration.applyMigration === 'function') {
                   await migration.applyMigration(db);
 
-                  // Record migration as applied
                   await new Promise((res, rej) => {
                     db.run(
-                      "INSERT INTO migrations (name) VALUES (?)",
+                      'INSERT INTO migrations (name) VALUES (?)',
                       [migrationName],
-                      (err) => {
-                        if (err) rej(err);
+                      (err3) => {
+                        if (err3) rej(err3);
                         else res();
                       }
                     );
@@ -88,10 +90,10 @@ async function runMigrations() {
               }
             }
 
-            console.log("✅ All migrations completed");
-            resolve();
+            console.log('✅ All migrations completed');
+            resolve(db);
           } catch (error) {
-            console.error("Migration process failed:", error);
+            console.error('❌ Migration process failed:', error);
             reject(error);
           }
         }
