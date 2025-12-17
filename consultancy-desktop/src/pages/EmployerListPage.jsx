@@ -13,6 +13,7 @@ function EmployerListPage() {
     companyName: '',
     country: '',
     contactPerson: '',
+    position: '',
     contactEmail: '',
     notes: '',
   };
@@ -85,6 +86,7 @@ function EmployerListPage() {
       companyName: emp.companyName || '',
       country: emp.country || '',
       contactPerson: emp.contactPerson || '',
+      position: emp.position || '',
       contactEmail: emp.contactEmail || '',
       notes: emp.notes || '',
     });
@@ -113,8 +115,7 @@ function EmployerListPage() {
       setViewErrors({});
       setIsEditing(false);
       if (employers.length > 0) {
-        setSelectedIndex(0);
-        syncSelectedToForm(0);
+        syncSelectedToForm(selectedIndex);
       } else {
         setViewForm(initialForm);
       }
@@ -186,13 +187,14 @@ function EmployerListPage() {
     data: viewForm,
   });
   if (res.success) {
-    updateEmployer(res.data); // ✅ Store updated
-    
-    // 🔥 FIX: Immediately sync viewForm with updated data
+    updateEmployer(res.data); // Update the global store
+
+    // SYNC local form immediately with database response
     setViewForm({
       companyName: res.data.companyName || '',
       country: res.data.country || '',
       contactPerson: res.data.contactPerson || '',
+      position: res.data.position || '',
       contactEmail: res.data.contactEmail || '',
       notes: res.data.notes || '',
     });
@@ -337,6 +339,18 @@ function EmployerListPage() {
                   />
                 </div>
 
+                <div className="form-group">
+                  <label>
+                    <span className="emoji-inline">🏷️</span> Position
+                  </label>
+                  <input
+                    name="position"
+                    value={addForm.position}
+                    onChange={onAddChange}
+                    placeholder="Manager / HR"
+                  />
+                </div>
+
                 <div className={`form-group ${addErrors.contactEmail ? 'error' : ''}`}>
                   <label>
                     <span className="emoji-inline">📧</span> Contact Email
@@ -390,30 +404,29 @@ function EmployerListPage() {
       )}
 
       {/* TAB 2: VIEW / MANAGE */}
-{activeTab === 'list' && (
-  <>
-    {employerCount === 0 ? (
-      <p className="empty-text">
-        <span className="emoji-inline">📭</span> No employers available. Create one from the Add New tab.
-      </p>
-    ) : (
-      <section className="job-card-wide job-card-elevated job-card-editing slide-up">
-        <div className="job-card-header">
-          <div className="job-title-block">
-            <div className="job-title">
-              <span className="emoji-inline">🏢</span>{' '}
-              {viewForm.companyName || 'No Employer Selected'}
-            </div>
-            <div className="job-subtitle">
-              {(viewForm.country || viewForm.contactPerson) && (
-                <>
-                  <span className="emoji-inline">🌍</span> {viewForm.country || 'N/A'} •{' '}
-                  <span className="emoji-inline">🧑‍💼</span> {viewForm.contactPerson || 'No contact'}
-                </>
-              )}
-            </div>
-          </div>
-
+      {activeTab === 'list' && (
+        <>
+          {employerCount === 0 ? (
+            <p className="empty-text">
+              <span className="emoji-inline">📭</span> No employers available. Create one from the Add New tab.
+            </p>
+          ) : (
+            <section className="job-card-wide job-card-elevated job-card-editing slide-up">
+              <div className="job-card-header">
+                <div className="job-title-block">
+                  <div className="job-title">
+                    <span className="emoji-inline">🏢</span>{' '}
+                    {viewForm.companyName || 'No Employer Selected'}
+                  </div>
+                  <div className="job-subtitle">
+                    {(viewForm.country || viewForm.contactPerson) && (
+                      <>
+                        <span className="emoji-inline">🌍</span> {viewForm.country || 'N/A'} •{' '}
+                        <span className="emoji-inline">🧑‍💼</span> {viewForm.contactPerson || 'No contact'}
+                      </>
+                    )}
+                  </div>
+                </div>
 
                 <div className="job-header-actions">
                   <span className="job-count-chip">
@@ -536,6 +549,22 @@ function EmployerListPage() {
                         />
                       ) : (
                         <div className="detail-value">{viewForm.contactPerson || 'N/A'}</div>
+                      )}
+                    </div>
+
+                    <div className={isEditing ? 'form-group' : 'detail-item'}>
+                      <label className={isEditing ? '' : 'detail-label'}>
+                        <span className="emoji-inline">🏷️</span> Position
+                      </label>
+                      {isEditing ? (
+                        <input
+                          name="position"
+                          value={viewForm.position}
+                          onChange={onViewChange}
+                          placeholder="Manager / HR"
+                        />
+                      ) : (
+                        <div className="detail-value">{viewForm.position || 'N/A'}</div>
                       )}
                     </div>
 

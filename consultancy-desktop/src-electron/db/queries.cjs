@@ -3186,12 +3186,13 @@ async function addEmployer(user, data) {
       errors: errors,
     };
 
-  const sql = `INSERT INTO employers (companyName, country, contactPerson, contactEmail, notes)
-               VALUES (?, ?, ?, ?, ?)`;
+  const sql = `INSERT INTO employers (companyName, country, contactPerson, position, contactEmail, notes)
+               VALUES (?, ?, ?, ?, ?, ?)`;
   const params = [
     data.companyName,
     data.country,
     data.contactPerson,
+    data.position,
     data.contactEmail,
     data.notes,
   ];
@@ -3218,12 +3219,13 @@ async function updateEmployer(user, id, data) {
     };
 
   const sql = `UPDATE employers SET
-               companyName = ?, country = ?, contactPerson = ?, contactEmail = ?, notes = ?
+               companyName = ?, country = ?, contactPerson = ?, position = ?, contactEmail = ?, notes = ?
     WHERE id = ?`;
   const params = [
     data.companyName,
     data.country,
     data.contactPerson,
+    data.position,
     data.contactEmail,
     data.notes,
     id,

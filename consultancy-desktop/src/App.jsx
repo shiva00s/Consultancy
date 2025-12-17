@@ -23,7 +23,6 @@ import useThemeStore from './store/useThemeStore';
 // === NEW/MISSING COMPONENT IMPORTS ===
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
-import ModuleVisibilityControl from './components/settings/ModuleVisibilityControl';
 // ========================================================
 
 // --- ZUSTAND IMPORTS ---
@@ -196,12 +195,6 @@ function App() {
                     <Route path="/reports" element={<ReportsPage />} />
                     <Route path="/whatsapp-bulk" element={<WhatsAppBulkPage />} />
                     <Route path="/settings" element={<SettingsPage user={user} />} />
-
-                    <Route
-                      path="/system-modules"
-                      element={<ModuleVisibilityControl user={user} />}
-                    />
-
                     <Route path="/recycle-bin" element={<RecycleBinPage user={user} />} />
                     <Route path="/employers" element={<EmployerListPage />} />
                     <Route path="/jobs" element={<JobOrderListPage />} />

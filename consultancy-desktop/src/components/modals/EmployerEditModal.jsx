@@ -37,6 +37,7 @@ function EmployerEditModal({ user, employer, onClose, onSave }) {
     });
 
     if (res.success) {
+      // Pass actual database object back to parent immediately
       onSave(res.data);
       onClose();
     } else {
@@ -101,6 +102,16 @@ function EmployerEditModal({ user, employer, onClose, onSave }) {
                 type="text"
                 name="contactPerson"
                 value={formData.contactPerson || ''}
+                onChange={handleFormChange}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Position</label>
+              <input
+                type="text"
+                name="position"
+                value={formData.position || ''}
                 onChange={handleFormChange}
               />
             </div>

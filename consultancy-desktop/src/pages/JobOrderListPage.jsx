@@ -90,31 +90,33 @@ function JobOrderListPage() {
     return emp ? emp.companyName : "Unknown";
   };
 
-  // 🔥 AUTO-POPULATE COUNTRY FROM EMPLOYER (ADD MODE)
+  // 🔥 AUTO-POPULATE POSITION & COUNTRY FROM EMPLOYER (ADD MODE)
   useEffect(() => {
     if (formData.employerid) {
       const selectedEmployer = employers.find(
         (e) => e.id === parseInt(formData.employerid)
       );
-      if (selectedEmployer && selectedEmployer.country) {
+      if (selectedEmployer) {
         setFormData((prev) => ({
           ...prev,
-          country: selectedEmployer.country,
+          country: selectedEmployer.country || "",
+          positionTitle: selectedEmployer.position || "", // Auto-fetch Position
         }));
       }
     }
   }, [formData.employerid, employers]);
 
-  // 🔥 AUTO-POPULATE COUNTRY FROM EMPLOYER (VIEW/EDIT MODE)
+  // 🔥 AUTO-POPULATE POSITION & COUNTRY FROM EMPLOYER (VIEW/EDIT MODE)
   useEffect(() => {
     if (viewForm.employerid && isEditing) {
       const selectedEmployer = employers.find(
         (e) => e.id === parseInt(viewForm.employerid)
       );
-      if (selectedEmployer && selectedEmployer.country) {
+      if (selectedEmployer) {
         setViewForm((prev) => ({
           ...prev,
-          country: selectedEmployer.country,
+          country: selectedEmployer.country || "",
+          positionTitle: selectedEmployer.position || "", // Auto-fetch Position
         }));
       }
     }
@@ -226,8 +228,8 @@ function JobOrderListPage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // FIX: Force Integer mapping and handle "Other" logic correctly
   const buildPayload = (state) => {
-    // Handle "Other" options for food and accommodation
     let finalFood = state.food || null;
     if (state.food === "Other" && state.foodCustom) {
       finalFood = `Other: ${state.foodCustom}`;
@@ -239,26 +241,26 @@ function JobOrderListPage() {
     }
 
     return {
-      employerid: state.employerid,
-      positionTitle: state.positionTitle,
-      country: state.country,
+      employerid: parseInt(state.employerid, 10), // CRITICAL: Database expects Integer
+      positionTitle: state.positionTitle || "",
+      country: state.country || "",
       openingsCount: parseInt(state.openingsCount || "0", 10),
-      status: state.status,
-      requirements: state.requirements,
+      status: state.status || "Open",
+      requirements: state.requirements || "",
       food: finalFood,
       accommodation: finalAccommodation,
-      dutyHours: state.dutyHours || null,
-      overtime: state.overtime || null,
-      contractPeriod: state.contractPeriod || null,
-      selectionType: state.selectionType,
+      dutyHours: state.dutyHours ? parseInt(state.dutyHours, 10) : null,
+      overtime: state.overtime ? parseInt(state.overtime, 10) : null,
+      contractPeriod: state.contractPeriod ? parseInt(state.contractPeriod, 10) : null,
+      selectionType: state.selectionType || "CV Selection",
     };
   };
 
-  // ADD TAB HANDLERS
+  // ADD TAB HANDLER
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm(formData, setErrors)) {
-      toast.error("Please correct the errors in the form.");
+      toast.error("Please select an employer and enter a position.");
       return;
     }
 
@@ -267,7 +269,7 @@ function JobOrderListPage() {
     const res = await window.electronAPI.addJobOrder({ user, data: payload });
 
     if (res.success) {
-      addJobToStore(res.data);
+      addJobToStore(res.data); // Update global store
       setFormData(initialForm);
       setErrors({});
       toast.success("Job Order added successfully!");
@@ -275,6 +277,70 @@ function JobOrderListPage() {
       toast.error(res.error || "Failed to add job order.");
     }
     setIsSaving(false);
+  };
+
+  // VIEW TAB HANDLER (Fixed for Immediate Refresh)
+  const saveEdit = async (e) => {
+    e.preventDefault();
+    if (!selectedJob) return;
+
+    if (!validateForm(viewForm, setViewErrors)) {
+      toast.error("Fix validation errors before saving.");
+      return;
+    }
+
+    setViewSaving(true);
+    const payload = buildPayload(viewForm);
+    const res = await window.electronAPI.updateJobOrder({
+      user,
+      id: selectedJob.id,
+      data: payload,
+    });
+
+    if (res.success) {
+      // 1. Update global store
+      updateJobInStore(res.data);
+      
+      // 2. IMMEDIATE UI REFRESH: Re-sync local view form with actual DB response
+      const job = res.data;
+      let foodValue = job.food || "";
+      let foodCustomValue = "";
+      if (foodValue.startsWith("Other: ")) {
+        foodCustomValue = foodValue.replace("Other: ", "");
+        foodValue = "Other";
+      }
+
+      let accommodationValue = job.accommodation || "";
+      let accommodationCustomValue = "";
+      if (accommodationValue.startsWith("Other: ")) {
+        accommodationCustomValue = accommodationValue.replace("Other: ", "");
+        accommodationValue = "Other";
+      }
+
+      setViewForm({
+        employerid: job.employerid,
+        positionTitle: job.positionTitle,
+        country: job.country || "",
+        openingsCount: job.openingsCount?.toString() || "1",
+        status: job.status,
+        requirements: job.requirements || "",
+        food: foodValue,
+        foodCustom: foodCustomValue,
+        accommodation: accommodationValue,
+        accommodationCustom: accommodationCustomValue,
+        dutyHours: job.dutyHours || "",
+        overtime: job.overtime || "",
+        contractPeriod: job.contractPeriod || "",
+        selectionType: job.selectionType || "CV Selection",
+      });
+
+      toast.success(`Job updated successfully.`);
+      setIsEditing(false);
+      setViewErrors({});
+    } else {
+      toast.error(res.error || "Update failed");
+    }
+    setViewSaving(false);
   };
 
   // VIEW TAB HANDLERS
@@ -294,34 +360,6 @@ function JobOrderListPage() {
     setIsEditing(false);
     syncSelectedToForm(selectedIndex);
     setViewErrors({});
-  };
-
-  const saveEdit = async (e) => {
-    e.preventDefault();
-    if (!selectedJob) return;
-
-    if (!validateForm(viewForm, setViewErrors)) {
-      toast.error("Fix validation errors before saving.");
-      return;
-    }
-
-    setViewSaving(true);
-    const payload = buildPayload(viewForm);
-    const res = await window.electronAPI.updateJobOrder({
-      user,
-      id: selectedJob.id,
-      data: payload,
-    });
-
-    if (res.success) {
-      updateJobInStore(res.data);
-      toast.success(`Job "${res.data.positionTitle}" updated successfully.`);
-      setIsEditing(false);
-      setViewErrors({});
-    } else {
-      toast.error(res.error || "Update failed");
-    }
-    setViewSaving(false);
   };
 
   // DELETE HANDLERS

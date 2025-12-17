@@ -166,6 +166,7 @@ function setupDatabaseSchema(dbInstance) {
             companyName TEXT NOT NULL,
             country TEXT,
             contactPerson TEXT,
+            position TEXT,
             contactEmail TEXT,
             notes TEXT,
             createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,

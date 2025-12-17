@@ -1,6 +1,5 @@
 const { ipcMain, shell, app, dialog, BrowserWindow } = require('electron');
 const path = require('path');
-const fs = require('fs');
 const os = require('os');
 const pdf = require('pdf-parse');
 const { spawn } = require("child_process"); 
@@ -9,6 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 const archiver = require('archiver');
 const mime = require('mime');
 const { getDatabase } = require('../db/database.cjs');
+const fs = require('fs-extra','fs');
 const { 
   getAdminAssignedFeatures,
   getUserPermissions,
@@ -178,6 +178,43 @@ function startReminderScheduler(mainWindow) {
   }, 60 * 1000); // check every 60s
 }
 
+async function backupDatabaseHandler(event, { user, destinationPath }) {
+  try {
+    const dbPath = path.join(app.getPath('userData'), 'consultancy.db');
+    const docsDir = path.join(app.getPath('userData'), 'candidatefiles');
+    
+    if (!fs.existsSync(dbPath)) {
+      return { success: false, error: 'Database file not found' };
+    }
+    
+    await fs.ensureDir(path.dirname(destinationPath));
+    const output = fs.createWriteStream(destinationPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    
+    return new Promise((resolve) => {
+      output.on('close', () => resolve({ 
+        success: true, 
+        filePath: destinationPath,
+        size: archive.pointer()
+      }));
+      
+      archive.on('error', (err) => resolve({ success: false, error: err.message }));
+      archive.pipe(output);
+      archive.file(dbPath, { name: 'consultancy.db' });
+      if (fs.existsSync(docsDir)) {
+        archive.directory(docsDir, 'candidatefiles');
+      }
+      archive.finalize();
+    });
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function showSaveDialogHandler(event, options) {
+  return await dialog.showSaveDialog(BrowserWindow.getFocusedWindow(), options);
+}
+
 async function getPassportMovementPhotos(db, movementId) {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -213,6 +250,8 @@ function registerIpcHandlers(app) {
   registerDocumentHandlers();
   registerSyncHandlers();
   registerPermissionHandlers();
+  ipcMain.handle('backupDatabase', backupDatabaseHandler);
+ipcMain.handle('showSaveDialog', showSaveDialogHandler);
 
   // 🔔 Notification service init
   ipcMain.on('notification-service-init', (event) => {
@@ -228,62 +267,65 @@ function registerIpcHandlers(app) {
   }
 
   // ====================================================================
-  // 1. SYSTEM UTILITIES (Requires Electron modules like dialog)
-  // ====================================================================
-
-  ipcMain.handle('show-save-dialog', (event, options) => {
-    const win = BrowserWindow.fromWebContents(event.sender);
-    return dialog.showSaveDialog(win, options);
-  });
+// 1. SYSTEM UTILITIES (Requires Electron modules like dialog)
 // ====================================================================
-    ipcMain.handle('show-open-dialog', (event, options) => {
-        const win = BrowserWindow.fromWebContents(event.sender);
-        return dialog.showOpenDialog(win, options);
+
+ipcMain.handle('show-save-dialog', async (event, options) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  return await dialog.showSaveDialog(win, options);
+});
+
+ipcMain.handle('show-open-dialog', async (event, options) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  return await dialog.showOpenDialog(win, options);
+});
+
+ipcMain.handle('backup-database', async (event, { user, destinationPath }) => {
+  // SECURITY: Staff cannot download full database backups
+  if (!user || user.role === 'staff') {
+    return { success: false, error: 'Access Denied: Staff cannot perform database backups.' };
+  }
+
+  const userDataPath = app.getPath('userData');
+  const dbPath = path.join(userDataPath, 'consultancy.db');
+  const filesDir = path.join(userDataPath, 'candidatefiles'); // ✅ FIXED: consistent naming
+
+  if (!fs.existsSync(dbPath)) {
+    return { success: false, error: 'Source database file not found.' };
+  }
+  
+  if (!fs.existsSync(filesDir)) {
+    console.warn('candidatefiles directory not found, creating backup without it.');
+  }
+
+  try {
+    const output = fs.createWriteStream(destinationPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    
+    archive.on('warning', (err) => {
+      if (err.code !== 'ENOENT') console.warn('Archiver warning:', err);
     });
-// ====================================================================
-    ipcMain.handle('backup-database', async (event, { user, destinationPath }) => {
-        // SECURITY: Staff cannot download full database backups
-        if (!user || user.role === 'staff') {
-            return { success: false, error: 'Access Denied: Staff cannot perform database backups.' };
-        }
-
-        const userDataPath = app.getPath('userData');
-        const dbPath = path.join(userDataPath, 'consultancy.db');
-   
-        const filesDir = path.join(userDataPath, 'candidate_files');
-
-        if (!fs.existsSync(dbPath)) {
-            return { success: false, error: 'Source database file not found.' };
-        }
-        if (!fs.existsSync(filesDir)) {
-            console.warn('candidate_files directory not found, creating backup without it.');
-        }
-
-        try {
-     
-            const output = fs.createWriteStream(destinationPath);
-            
-            const archive = archiver('zip', { zlib: { level: 9 } });
-            archive.on('warning', (err) => {
-                if (err.code !== 'ENOENT') console.warn('Archiver warning:', err);
-            });
-            archive.on('error', (err) => {
-                console.error('Archiver error:', err);
-                throw err;
-            });
-            archive.pipe(output);
-            archive.file(dbPath, { name: 'consultancy.db' });
-            if (fs.existsSync(filesDir)) {
-                archive.directory(filesDir, 'candidate_files');
-            }
-            await archive.finalize();
-            logAction(user, 'create_backup', 'system', 1, `Backup created: ${destinationPath}`);
-            return { success: true };
-        } catch (err) {
-            console.error('Database backup failed:', err);
-            return { success: false, error: err.message };
-        }
+    archive.on('error', (err) => {
+      console.error('Archiver error:', err);
+      throw err;
     });
+    
+    archive.pipe(output);
+    archive.file(dbPath, { name: 'consultancy.db' });
+    if (fs.existsSync(filesDir)) {
+      archive.directory(filesDir, 'candidatefiles');
+    }
+    
+    await archive.finalize();
+    logAction(user, 'createbackup', 'system', 1, `Backup created: ${destinationPath}`);
+    
+    return { success: true };
+  } catch (err) {
+    console.error('Database backup failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
 // ====================================================================
     // 2. USER MANAGEMENT & AUTHENTICATION (REFACTORED)
     // ====================================================================
