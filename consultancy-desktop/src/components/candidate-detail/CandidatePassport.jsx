@@ -8,7 +8,6 @@ import PassportSendForm from './PassportSendForm';
 import PassportHistoryTimeline from './PassportHistoryTimeline';
 import PassportPhotoGallery from './PassportPhotoGallery';
 import '../../css/passport-tracking/PassportTracking.css';
-//import '../../css/CandidatePassport.css';
 
 function CandidatePassport({ candidateId, candidateData }) {
   const { user } = useAuthStore(useShallow((state) => ({ user: state.user })));
@@ -16,8 +15,6 @@ function CandidatePassport({ candidateId, candidateData }) {
   const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [staffList, setStaffList] = useState([]);
-  const [viewingPhotos, setViewingPhotos] = useState(null);
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
   // Fetch staff list
   useEffect(() => {
@@ -25,9 +22,17 @@ function CandidatePassport({ candidateId, candidateData }) {
       try {
         if (window.electronAPI?.getUsers) {
           const result = await window.electronAPI.getUsers({ user });
+          
           if (result.success && result.data) {
-            const names = result.data.map(u => u.fullName).filter(Boolean);
+            const names = result.data
+              .map(u => u.fullName || u.full_name || u.name)
+              .filter(Boolean);
+            
             setStaffList(names);
+          } else {
+            if (user?.fullName) {
+              setStaffList([user.fullName]);
+            }
           }
         } else {
           if (user?.fullName) {
@@ -35,70 +40,75 @@ function CandidatePassport({ candidateId, candidateData }) {
           }
         }
       } catch (error) {
-        console.error('Failed to fetch staff:', error);
+        if (user?.fullName) {
+          setStaffList([user.fullName]);
+        }
       }
     };
+    
     fetchStaff();
   }, [user]);
 
-  // Fetch movements
+  // ✅ Fetch movements with better error handling
   const fetchMovements = useCallback(async () => {
     setLoading(true);
-    const res = await window.electronAPI.getPassportMovements({ candidateId, user });
-    if (res.success) {
-      setMovements(res.data || []);
-    } else {
-      toast.error(res.error || 'Failed to fetch movements');
+    try {
+      const res = await window.electronAPI.getPassportMovements({ 
+        candidateId, 
+        user 
+      });
+      
+      if (res.success) {
+        setMovements(res.data || []);
+      } else {
+        console.error('Failed to fetch movements:', res.error);
+        toast.error(res.error || 'Failed to fetch movements');
+        setMovements([]);
+      }
+    } catch (error) {
+      console.error('Error fetching movements:', error);
+      toast.error('Failed to load movements');
+      setMovements([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [candidateId, user]);
 
   useEffect(() => {
     fetchMovements();
   }, [fetchMovements]);
 
-  // Handle successful form submission
+  // ✅ Handle successful form submission
   const handleMovementAdded = (newMovement) => {
-    setMovements(prev => [newMovement, ...prev]);
+    toast.success('Movement recorded successfully');
     setActiveTab('history');
+    
+    // Refresh movements list
+    setTimeout(() => {
+      fetchMovements();
+    }, 300);
   };
 
-  // Handle delete
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this movement record?')) return;
-
-    const res = await window.electronAPI.deletePassportMovement({ id, user });
-    if (res.success) {
-      setMovements(prev => prev.filter(m => m.id !== id));
-      toast.success('Movement deleted');
-    } else {
-      toast.error(res.error || 'Failed to delete');
-    }
+  // ✅ Handle movement deletion (called from timeline)
+  const handleMovementDeleted = () => {
+    // Refresh the movements list after deletion
+    fetchMovements();
   };
 
-  // View photos
-  const handleViewPhotos = async (movementId) => {
-    const res = await window.electronAPI.getPassportMovementPhotos({ movementId, user });
-    if (res.success && res.data && res.data.length > 0) {
-      setViewingPhotos(res.data);
-      setCurrentPhotoIndex(0);
-    } else {
-      toast.error('No photos found');
-    }
-  };
-
-  if (loading) return <p>Loading...</p>;
+  if (loading) {
+    return (
+      <div style={{ 
+        padding: '2rem', 
+        textAlign: 'center', 
+        color: 'rgba(255, 255, 255, 0.7)' 
+      }}>
+        Loading passport movements...
+      </div>
+    );
+  }
 
   return (
     <div className="passport-tracking-content">
-      {/* Photo Gallery Viewer */}
-      <PassportPhotoGallery
-        viewingPhotos={viewingPhotos}
-        currentPhotoIndex={currentPhotoIndex}
-        setCurrentPhotoIndex={setCurrentPhotoIndex}
-        onClose={() => setViewingPhotos(null)}
-      />
-
       {/* Tabs */}
       <div className="passport-tabs">
         <button 
@@ -108,6 +118,7 @@ function CandidatePassport({ candidateId, candidateData }) {
           <FiDownload />
           📥 Receive Passport
         </button>
+        
         <button 
           className={`tab-btn ${activeTab === 'send' ? 'active' : ''}`}
           onClick={() => setActiveTab('send')}
@@ -115,18 +126,22 @@ function CandidatePassport({ candidateId, candidateData }) {
           <FiUpload />
           📤 Send Passport
         </button>
+        
         <button 
           className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
           onClick={() => setActiveTab('history')}
         >
           <FiClock />
           📜 Movement History
-          {movements.length > 0 && <span className="badge">{movements.length}</span>}
+          {movements.length > 0 && (
+            <span className="badge">{movements.length}</span>
+          )}
         </button>
       </div>
 
       {/* Tab Content */}
       <div className="tab-content">
+        {/* Receive Form */}
         {activeTab === 'receive' && (
           <PassportReceiveForm
             candidateId={candidateId}
@@ -136,6 +151,7 @@ function CandidatePassport({ candidateId, candidateData }) {
           />
         )}
 
+        {/* Send Form */}
         {activeTab === 'send' && (
           <PassportSendForm
             candidateId={candidateId}
@@ -145,12 +161,12 @@ function CandidatePassport({ candidateId, candidateData }) {
           />
         )}
 
+        {/* History Timeline */}
         {activeTab === 'history' && (
           <PassportHistoryTimeline
             movements={movements}
-            onDelete={handleDelete}
-            onViewPhotos={handleViewPhotos}
-            onAddNew={() => setActiveTab('receive')}
+            user={user}
+            onMovementDeleted={handleMovementDeleted}
           />
         )}
       </div>

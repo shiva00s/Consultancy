@@ -5,6 +5,7 @@ import {
   FiBriefcase, FiGlobe, FiCreditCard 
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import StaffSelector from './StaffSelector';
 import { useAutoFillCandidateData } from '../../hooks/useAutoFillCandidateData';
 import '../../css/passport-tracking/PassportForms.css';
 
@@ -62,81 +63,84 @@ function PassportSendForm({ candidateId, user, staffList, onSuccess }) {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!formData.date || !formData.sent_by) {
-      toast.error('⚠️ Please fill all required fields');
-      return;
-    }
+  if (!formData.date || !formData.sent_by) {
+    toast.error('⚠️ Please fill all required fields');
+    return;
+  }
 
-    if (formData.method === 'By Courier' && !formData.courier_number) {
-      toast.error('⚠️ Courier number is required');
-      return;
-    }
+  if (formData.method === 'By Courier' && !formData.courier_number) {
+    toast.error('⚠️ Courier number is required');
+    return;
+  }
 
-    setIsSaving(true);
+  setIsSaving(true);
 
-    try {
-      const data = {
-        type: 'SEND',
-        candidate_id: candidateId,
-        send_to: formData.send_to,
-        send_to_name: formData.send_to_name || null,
-        send_to_contact: formData.send_to_contact || null,
-        method: formData.method,
-        courier_number: formData.courier_number || null,
-        date: formData.date,
-        sent_by: formData.sent_by,
-        notes: formData.notes || null,
-      };
+  try {
+    const data = {
+      type: 'SEND',
+      candidate_id: candidateId,
+      send_to: formData.send_to,
+      send_to_name: formData.send_to_name || null,
+      send_to_contact: formData.send_to_contact || null,
+      method: formData.method,
+      courier_number: formData.courier_number || null,
+      date: formData.date,
+      sent_by: formData.sent_by,
+      notes: formData.notes || null,
+      created_at: new Date().toISOString(), // ✅ Add current timestamp
+      created_by: user?.fullName || user?.username || 'Unknown', // ✅ Track who created it
+    };
 
-      const res = await window.electronAPI.addPassportMovement({ data, user });
+    const res = await window.electronAPI.addPassportMovement({ data, user });
 
-      if (res.success) {
-        if (formData.photos.length > 0 && res.data?.id) {
-          for (const photo of formData.photos) {
-            const reader = new FileReader();
-            await new Promise((resolve) => {
-              reader.onloadend = async () => {
-                const photoData = {
-                  movement_id: res.data.id,
-                  file_name: photo.name,
-                  file_type: photo.type,
-                  file_data: reader.result.split(',')[1],
-                };
-                await window.electronAPI.addPassportMovementPhoto({ data: photoData, user });
-                resolve();
+    if (res.success) {
+      if (formData.photos.length > 0 && res.data?.id) {
+        for (const photo of formData.photos) {
+          const reader = new FileReader();
+          await new Promise((resolve) => {
+            reader.onloadend = async () => {
+              const photoData = {
+                movement_id: res.data.id,
+                file_name: photo.name,
+                file_type: photo.type,
+                file_data: reader.result.split(',')[1],
               };
-              reader.readAsDataURL(photo);
-            });
-          }
-          res.data.has_photos = true;
+              await window.electronAPI.addPassportMovementPhoto({ data: photoData, user });
+              resolve();
+            };
+            reader.readAsDataURL(photo);
+          });
         }
-
-        toast.success('✅ Passport sent recorded!');
-        setFormData({
-          send_to: 'Candidate',
-          send_to_name: '',
-          send_to_contact: '',
-          method: 'By Hand',
-          courier_number: '',
-          date: new Date().toISOString().split('T')[0],
-          sent_by: user?.fullName || '',
-          notes: '',
-          photos: [],
-          photoPreviews: [],
-        });
-        onSuccess(res.data);
-      } else {
-        toast.error(res.error || '❌ Failed to save');
+        res.data.has_photos = true;
       }
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('❌ An error occurred');
-    }
 
-    setIsSaving(false);
-  };
+      toast.success('✅ Passport sent recorded!');
+      setFormData({
+        send_to: 'Candidate',
+        send_to_name: '',
+        send_to_contact: '',
+        method: 'By Hand',
+        courier_number: '',
+        date: new Date().toISOString().split('T')[0],
+        sent_by: user?.fullName || '',
+        notes: '',
+        photos: [],
+        photoPreviews: [],
+      });
+      onSuccess(res.data);
+    } else {
+      toast.error(res.error || '❌ Failed to save');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    toast.error('❌ An error occurred');
+  }
+
+  setIsSaving(false);
+};
+
 
   if (autoFillLoading) {
     return (
@@ -149,11 +153,7 @@ function PassportSendForm({ candidateId, user, staffList, onSuccess }) {
 
   return (
     <div className="passport-form-container">
-      <div className="passport-form-header">
-        <FiMapPin className="form-icon" />
-        <h3>📤 Send Passport</h3>
-      </div>
-
+      
       <form onSubmit={handleSubmit} className="passport-form">
         {autoFillData && (
           <div className="candidate-info-section">
@@ -273,52 +273,41 @@ function PassportSendForm({ candidateId, user, staffList, onSuccess }) {
           )}
 
           <div className="form-group">
-            <label>
-              <FiCalendar /> Date *
-            </label>
-            <input
-              type="date"
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              className="form-input"
-              required
-            />
-          </div>
+  <label>
+    <FiCalendar /> Date *
+  </label>
+  <input
+    type="date"
+    value={formData.date}
+    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+    className="form-input"
+    required
+  />
+</div>
 
-          <div className="form-group">
-            <label>
-              <FiUser /> Sent By *
-            </label>
-            <select
-              value={formData.sent_by}
-              onChange={(e) => setFormData({ ...formData, sent_by: e.target.value })}
-              className="form-select"
-              required
-            >
-              <option value={user?.fullName || ''}>
-                {user?.fullName || 'Current User'}
-              </option>
-              {staffList?.filter(s => s.fullName !== user?.fullName).map(staff => (
-                <option key={staff.id} value={staff.fullName}>
-                  {staff.fullName}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+<StaffSelector
+  value={formData.sent_by}
+  onChange={(value) => setFormData({ ...formData, sent_by: value })}
+   staffList={staffList}
+  currentUser={user}
+  required={true}
+  label="SENT BY"
+/>
+</div>
 
-        <div className="form-group full-width">
-          <label>
-            <FiFileText /> Notes
-          </label>
-          <textarea
-            value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            placeholder="Optional notes..."
-            className="form-textarea"
-            rows="3"
-          />
-        </div>
+<div className="form-group full-width">
+  <label>
+    <FiFileText /> Notes
+  </label>
+  <textarea
+    value={formData.notes}
+    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+    placeholder="Optional notes..."
+    className="form-textarea"
+    rows="3"
+  />
+</div>
+
 
         <div className="form-group full-width">
           <label>

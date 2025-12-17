@@ -178,7 +178,31 @@ function startReminderScheduler(mainWindow) {
   }, 60 * 1000); // check every 60s
 }
 
-
+async function getPassportMovementPhotos(db, movementId) {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT 
+        id, 
+        movement_id, 
+        file_name, 
+        file_type, 
+        file_data, 
+        created_at
+      FROM passport_movement_photos
+      WHERE movement_id = ?
+      ORDER BY created_at ASC
+    `;
+    
+    db.all(sql, [movementId], (err, rows) => {
+      if (err) {
+        console.error('Error fetching passport movement photos:', err);
+        reject(err);
+      } else {
+        resolve(rows || []);
+      }
+    });
+  });
+}
 
 // =============================================================
 
@@ -2921,89 +2945,44 @@ ipcMain.handle('reset-activation-status', async () => {
 // ENHANCED PASSPORT TRACKING HANDLERS
 // ====================================================================
 
-ipcMain.handle("get-passport-movements", async (event, { candidateId, user }) => {
+
+
+ipcMain.handle('get-passport-movement-photos', async (event, { movementId, user }) => {
+  const db = getDatabase();
+  
   try {
-    // Auth check
-    if (!user || !user.id) {
-      return { success: false, error: "Authentication required. Please log in." };
+    const movement = await queries.dbGet(
+      db,
+      `SELECT photos FROM passport_tracking WHERE id = ?`,
+      [movementId]
+    );
+    
+    if (!movement || !movement.photos) {
+      return { success: true, data: [] };
     }
     
-    return await queries.getPassportMovements(candidateId);
-  } catch (err) {
-    console.error("❌ get-passport-movements handler error:", err);
-    return { success: false, error: err.message };
+    const photos = JSON.parse(movement.photos);
+    
+    // Map to expected format with id
+    const mappedPhotos = photos.map((photo, index) => ({
+      id: index + 1,
+      movement_id: movementId,
+      file_name: photo.file_name,
+      file_type: photo.file_type,
+      file_data: photo.file_data,
+      uploaded_at: photo.uploaded_at || new Date().toISOString()
+    }));
+    
+    return { success: true, data: mappedPhotos };
+  } catch (error) {
+    console.error('❌ get-passport-movement-photos error:', error);
+    return { success: false, error: error.message };
   }
 });
 
-ipcMain.handle("add-passport-movement", async (event, { data, user }) => {
-  try {
-    // Auth check
-    if (!user || !user.id) {
-      return { success: false, error: "Authentication required. Please log in." };
-    }
-    
-    return await queries.addPassportMovement(data);
-  } catch (err) {
-    console.error("❌ add-passport-movement handler error:", err);
-    return { success: false, error: err.message };
-  }
-});
 
-ipcMain.handle("delete-passport-movement", async (event, { id, user }) => {
-  try {
-    // Auth check
-    if (!user || !user.id) {
-      return { success: false, error: "Authentication required. Please log in." };
-    }
-    
-    return await queries.deletePassportMovement(id);
-  } catch (err) {
-    console.error("❌ delete-passport-movement handler error:", err);
-    return { success: false, error: err.message };
-  }
-});
 
-ipcMain.handle("add-passport-movement-photo", async (event, { data, user }) => {
-  try {
-    // Auth check
-    if (!user || !user.id) {
-      return { success: false, error: "Authentication required. Please log in." };
-    }
-    
-    return await queries.addPassportMovementPhoto(data);
-  } catch (err) {
-    console.error("❌ add-passport-movement-photo handler error:", err);
-    return { success: false, error: err.message };
-  }
-});
 
-ipcMain.handle("get-passport-movement-photos", async (event, { movementId, user }) => {
-  try {
-    // Auth check
-    if (!user || !user.id) {
-      return { success: false, error: "Authentication required. Please log in." };
-    }
-    
-    return await queries.getPassportMovementPhotos(movementId);
-  } catch (err) {
-    console.error("❌ get-passport-movement-photos handler error:", err);
-    return { success: false, error: err.message };
-  }
-});
-
-ipcMain.handle("delete-passport-movement-photo", async (event, { photoId, user }) => {
-  try {
-    // Auth check
-    if (!user || !user.id) {
-      return { success: false, error: "Authentication required. Please log in." };
-    }
-    
-    return await queries.deletePassportMovementPhoto(photoId);
-  } catch (err) {
-    console.error("❌ delete-passport-movement-photo handler error:", err);
-    return { success: false, error: err.message };
-  }
-});
 
 ipcMain.handle("get-all-staff", async (event) => {
   try {
@@ -3035,6 +3014,237 @@ ipcMain.handle("get-users", async (event, { user }) => {
     return { success: false, error: "Failed to fetch users" };
   }
 });
+
+ipcMain.handle('addPassportMovementWithPhotos', async (event, { movement, photos }) => {
+  const db = getDatabase();
+  
+  return new Promise((resolve, reject) => {
+    // Start a transaction
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION', (err) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        // First, insert the movement
+        const movementSql = `
+          INSERT INTO passport_movements (
+            candidate_id, movement_type, date,
+            received_from, received_by, received_date, received_notes,
+            send_to, send_to_name, send_to_contact, sent_by,
+            dispatch_date, dispatch_notes, docket_number,
+            method, courier_number, passport_status,
+            source_type, agent_contact, notes, created_by, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        const movementValues = [
+          movement.candidate_id,
+          movement.movement_type,
+          movement.date,
+          movement.received_from || null,
+          movement.received_by || null,
+          movement.received_date || null,
+          movement.received_notes || null,
+          movement.send_to || null,
+          movement.send_to_name || null,
+          movement.send_to_contact || null,
+          movement.sent_by || null,
+          movement.dispatch_date || null,
+          movement.dispatch_notes || null,
+          movement.docket_number || null,
+          movement.method || null,
+          movement.courier_number || null,
+          movement.passport_status || null,
+          movement.source_type || null,
+          movement.agent_contact || null,
+          movement.notes || null,
+          movement.created_by || null,
+          movement.created_at || new Date().toISOString()
+        ];
+
+        db.run(movementSql, movementValues, function(err) {
+          if (err) {
+            db.run('ROLLBACK');
+            reject(err);
+            return;
+          }
+
+          const movementId = this.lastID;
+          console.log('✅ Inserted movement:', { id: movementId, ...movement });
+
+          // If no photos, commit and return
+          if (!photos || photos.length === 0) {
+            db.run('COMMIT', (commitErr) => {
+              if (commitErr) {
+                reject(commitErr);
+              } else {
+                resolve({ success: true, movementId });
+              }
+            });
+            return;
+          }
+
+          // Insert photos one by one
+          const photoSql = `
+            INSERT INTO passport_movement_photos (movement_id, file_name, file_type, file_data)
+            VALUES (?, ?, ?, ?)
+          `;
+
+          let photosInserted = 0;
+          let photoErrors = [];
+
+          photos.forEach((photo, index) => {
+            db.run(photoSql, [movementId, photo.name, photo.type, photo.data], function(photoErr) {
+              if (photoErr) {
+                console.error(`❌ Photo ${index + 1} error:`, photoErr);
+                photoErrors.push(photoErr);
+              } else {
+                console.log(`✅ Inserted photo ${index + 1}/${photos.length}`);
+              }
+
+              photosInserted++;
+
+              // When all photos are processed
+              if (photosInserted === photos.length) {
+                if (photoErrors.length > 0) {
+                  db.run('ROLLBACK', () => {
+                    reject(new Error(`Failed to insert ${photoErrors.length} photo(s)`));
+                  });
+                } else {
+                  db.run('COMMIT', (commitErr) => {
+                    if (commitErr) {
+                      reject(commitErr);
+                    } else {
+                      resolve({ success: true, movementId, photosCount: photos.length });
+                    }
+                  });
+                }
+              }
+            });
+          });
+        });
+      });
+    });
+  });
+});
+
+// ============================================================================
+// DELETE PASSPORT MOVEMENT
+// ============================================================================
+
+
+
+ipcMain.handle('delete-passport-movement', async (event, { movementId, user }) => {
+  try {
+    const db = getDatabase();
+    
+    // Soft delete the movement
+    await dbRun(
+      db,
+      `UPDATE passport_movements 
+       SET is_deleted = 1, updated_at = datetime('now', 'localtime') 
+       WHERE id = ?`,
+      [movementId]
+    );
+
+    // Log audit trail
+    await dbRun(
+      db,
+      `INSERT INTO audit_log (user_id, username, action, target_type, target_id, timestamp)
+       VALUES (?, ?, 'DELETE', 'passport_movement', ?, datetime('now', 'localtime'))`,
+      [user?.id || null, user?.username || 'Unknown', movementId]
+    );
+
+    return { success: true, message: 'Movement deleted successfully' };
+  } catch (error) {
+    console.error('❌ Error deleting passport movement:', error);
+    return { success: false, message: error.message };
+  }
+});// ====================================================================
+// PASSPORT TRACKING HANDLERS - SINGLE TABLE
+// ====================================================================
+
+/**
+ * ✅ GET passport movements for a candidate
+ */
+ipcMain.handle('get-passport-movements', async (event, { candidateId, user }) => {
+  try {
+    const result = await queries.getPassportMovements(candidateId);
+    return result;
+  } catch (error) {
+    console.error('❌ get-passport-movements error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * ✅ ADD passport movement (RECEIVE or SEND) with photos
+ */
+ipcMain.handle('add-passport-movement', async (event, { data, user }) => {
+  try {
+    // Photos will be added inline - no separate call needed
+    const result = await queries.addPassportMovement(data, []);
+    
+    if (result.success) {
+      logAction(user, 'add-passport-movement', 'passport_tracking', result.data.id, 
+        `Type: ${data.type}, Date: ${data.date}`);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('❌ add-passport-movement error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * ✅ ADD photos to an existing movement (update the movement row)
+ */
+ipcMain.handle('add-passport-movement-photo', async (event, { movementId, photoData, user }) => {
+  const db = getDatabase();
+  
+  try {
+    // Get existing movement
+    const movement = await queries.dbGet(
+      db,
+      `SELECT photos, photo_count FROM passport_tracking WHERE id = ?`,
+      [movementId]
+    );
+    
+    if (!movement) {
+      return { success: false, error: 'Movement not found' };
+    }
+    
+    // Parse existing photos
+    let photos = movement.photos ? JSON.parse(movement.photos) : [];
+    
+    // Add new photo
+    photos.push({
+      file_name: photoData.file_name,
+      file_type: photoData.file_type,
+      file_data: photoData.file_data,
+      uploaded_at: new Date().toISOString()
+    });
+    
+    // Update movement with new photos
+    await queries.dbRun(
+      db,
+      `UPDATE passport_tracking 
+       SET photos = ?, photo_count = ?, updated_at = datetime('now', 'localtime')
+       WHERE id = ?`,
+      [JSON.stringify(photos), photos.length, movementId]
+    );
+    
+    return { success: true };
+  } catch (error) {
+    console.error('❌ add-passport-movement-photo error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+
 
 
 

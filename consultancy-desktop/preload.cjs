@@ -360,6 +360,8 @@ addPassportMovementPhoto: (data) =>   ipcRenderer.invoke("add-passport-movement-
 getPassportMovementPhotos: (data) =>   ipcRenderer.invoke("get-passport-movement-photos", data),
 deletePassportMovementPhoto: (data) =>   ipcRenderer.invoke("delete-passport-movement-photo", data),
 getUsers: (data) => ipcRenderer.invoke('get-users', data),
+deletePassportMovement: ({ movementId, user }) =>    ipcRenderer.invoke('delete-passport-movement', { movementId, user }),
+
 
   // Notifications
 getNotifications: (args) => ipcRenderer.invoke('get-notifications', args),

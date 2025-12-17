@@ -1,4 +1,4 @@
-const { getDatabase } = require("./database.cjs");
+const { getDatabase } = require("../database.cjs");
 const path = require("path");
 const fs = require("fs");
 
