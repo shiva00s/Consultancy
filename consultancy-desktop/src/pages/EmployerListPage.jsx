@@ -92,22 +92,23 @@ function EmployerListPage() {
     });
   };
 
-  // keep viewForm in sync when employers change (e.g. after add/delete)
-  useEffect(() => {
-    if (activeTab === 'list') {
-      if (employers.length === 0) {
-        setSelectedIndex(0);
-        setViewForm(initialForm);
-        setIsEditing(false);
-      } else if (selectedIndex >= employers.length) {
-        setSelectedIndex(0);
-        syncSelectedToForm(0);
-      } else {
-        syncSelectedToForm(selectedIndex);
-      }
+  // Keep viewForm in sync when employers change
+useEffect(() => {
+  if (activeTab === 'list') {
+    if (employers.length === 0) {
+      setSelectedIndex(0);
+      setViewForm(initialForm);
+      setIsEditing(false);
+    } else if (selectedIndex >= employers.length) {
+      setSelectedIndex(0);
+      syncSelectedToForm(0);
+    } else {
+      // ✅ Always sync when employer data changes
+      syncSelectedToForm(selectedIndex);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employers, activeTab]);
+  }
+}, [employers, activeTab, selectedIndex]); // Added selectedIndex
+
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -176,36 +177,47 @@ function EmployerListPage() {
   const saveEdit = async (e) => {
   e.preventDefault();
   if (!selectedEmployer) return;
+  
   if (!validate(viewForm, setViewErrors)) {
     toast.error('Fix errors before saving.');
     return;
   }
+  
   setViewSaving(true);
-  const res = await window.electronAPI.updateEmployer({
-    user,
-    id: selectedEmployer.id,
-    data: viewForm,
-  });
-  if (res.success) {
-    updateEmployer(res.data); // Update the global store
-
-    // SYNC local form immediately with database response
-    setViewForm({
-      companyName: res.data.companyName || '',
-      country: res.data.country || '',
-      contactPerson: res.data.contactPerson || '',
-      position: res.data.position || '',
-      contactEmail: res.data.contactEmail || '',
-      notes: res.data.notes || '',
+  
+  try {
+    const res = await window.electronAPI.updateEmployer({
+      user,
+      id: selectedEmployer.id,
+      data: viewForm,
     });
     
-    toast.success(`Employer "${res.data.companyName}" updated successfully.`);
-    setIsEditing(false);
-    setViewErrors({});
-  } else {
-    toast.error(res.error || 'Update failed.');
+    if (res.success) {
+      // ✅ Update global store with new object
+      updateEmployer({ ...res.data });
+      
+      // ✅ Immediately sync viewForm
+      setViewForm({
+        companyName: res.data.companyName || '',
+        country: res.data.country || '',
+        contactPerson: res.data.contactPerson || '',
+        position: res.data.position || '',
+        contactEmail: res.data.contactEmail || '',
+        notes: res.data.notes || '',
+      });
+      
+      setIsEditing(false);
+      setViewErrors({});
+      toast.success(`Employer "${res.data.companyName}" updated successfully.`);
+    } else {
+      toast.error(res.error || 'Update failed.');
+    }
+  } catch (error) {
+    console.error('Update error:', error);
+    toast.error('An error occurred while updating.');
+  } finally {
+    setViewSaving(false);
   }
-  setViewSaving(false);
 };
 
 

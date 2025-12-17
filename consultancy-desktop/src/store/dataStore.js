@@ -6,20 +6,18 @@ const useDataStore = create((set, get) => ({
   employers: [],
   jobs: [],
   isLoaded: false,
-  isLoading: false, // ✅ Added to prevent double-fetch
+  isLoading: false,
   error: null,
 
   // --- ACTIONS ---
 
   // 1. Fetch all data from the database
   fetchInitialData: async () => {
-    // ✅ Prevent multiple simultaneous fetches
     const state = get();
-    // Use an immediate check against isLoading flag
-    if (state.isLoading || state.isLoaded) { 
+    if (state.isLoading || state.isLoaded) {
       console.log('Data already loaded or loading, skipping fetch.');
       return;
-    }  
+    }
 
     set({ isLoading: true, error: null });
 
@@ -30,15 +28,14 @@ const useDataStore = create((set, get) => ({
       ]);
 
       if (empRes.success && jobRes.success) {
-        // MODIFIED: Use functional update to ensure state consistency
-        set(state => ({
+        set((state) => ({
           ...state,
           employers: empRes.data,
           jobs: jobRes.data,
           isLoaded: true,
           isLoading: false,
         }));
-        console.log("Zustand Store: Initial data loaded successfully.");
+        console.log('Zustand Store: Initial data loaded successfully.');
       } else {
         const errorMsg = empRes.error || jobRes.error || 'Failed to load initial data.';
         set({ error: errorMsg, isLoaded: true, isLoading: false });
@@ -47,65 +44,72 @@ const useDataStore = create((set, get) => ({
     } catch (err) {
       console.error('Error fetching initial data:', err);
       set({ error: err.message, isLoaded: false, isLoading: false });
-      toast.error('Failed to load data');
+      toast.error('Failed to load data.');
     }
   },
 
-  // ✅ Reset function for logout
-  reset: () => set({
-    employers: [],
-    jobs: [],
-    isLoaded: false,
-    isLoading: false,
-    error: null,
-  }),
+  // Reset function for logout
+  reset: () =>
+    set({
+      employers: [],
+      jobs: [],
+      isLoaded: false,
+      isLoading: false,
+      error: null,
+    }),
 
   // 2. Add an employer and update the global list
-  addEmployer: (newEmp) => set((state) => ({
-    employers: [newEmp, ...state.employers],
-  })),
-  
-  // 3. Update an employer in the global list
-  updateEmployer: (updatedEmp) => set((state) => ({
-    employers: state.employers.map(emp => 
-      emp.id === updatedEmp.id ? updatedEmp : emp
-    ),
-  })),
+  addEmployer: (newEmp) =>
+    set((state) => ({
+      employers: [newEmp, ...state.employers],
+    })),
+
+  // ✅ 3. FIXED: Update an employer in the global list
+  updateEmployer: (updatedEmp) =>
+    set((state) => {
+      const updatedEmployers = state.employers.map((emp) =>
+        emp.id === updatedEmp.id ? { ...updatedEmp } : emp
+      );
+      
+      // Force new reference for Zustand + useShallow to detect change
+      return {
+        employers: [...updatedEmployers],
+      };
+    }),
 
   // 4. Delete an employer (remove from list)
-  deleteEmployer: (id) => set((state) => ({
-    employers: state.employers.filter(emp => emp.id !== id),
-    // Also filter out jobs associated with this employer ID
-    jobs: state.jobs.filter(job => job.employer_id !== id),
-  })),
+  deleteEmployer: (id) =>
+    set((state) => ({
+      employers: state.employers.filter((emp) => emp.id !== id),
+      // Also filter out jobs associated with this employer ID
+      jobs: state.jobs.filter((job) => job.employerid !== id),
+    })),
 
   // 5. Add a new job
-  addJob: (newJob) => set((state) => ({
-    jobs: [newJob, ...state.jobs],
-  })),
-  
+  addJob: (newJob) =>
+    set((state) => ({
+      jobs: [newJob, ...state.jobs],
+    })),
+
   // 6. Update a job
-  updateJob: (updatedJob) => set((state) => {
-  if (!updatedJob || !updatedJob.id) {
-    console.error("updateJob failed: updatedJob is invalid", updatedJob);
-    return state;
-  }
-
-  return {
-    jobs: state.jobs
-      .filter(job => job && job.id !== undefined) // remove undefined items
-      .map(job =>
-        job.id === updatedJob.id ? updatedJob : job
-      ),
-  };
-}),
-
+  updateJob: (updatedJob) =>
+    set((state) => {
+      if (!updatedJob || !updatedJob.id) {
+        console.error('updateJob failed: updatedJob is invalid', updatedJob);
+        return state;
+      }
+      return {
+        jobs: state.jobs
+          .filter((job) => job && job.id !== undefined) // remove undefined items
+          .map((job) => (job.id === updatedJob.id ? { ...updatedJob } : job)),
+      };
+    }),
 
   // 7. Delete a job (remove from list)
-  deleteJob: (id) => set((state) => ({
-    jobs: state.jobs.filter(job => job.id !== id),
-  })),
-
+  deleteJob: (id) =>
+    set((state) => ({
+      jobs: state.jobs.filter((job) => job.id !== id),
+    })),
 }));
 
 export default useDataStore;
