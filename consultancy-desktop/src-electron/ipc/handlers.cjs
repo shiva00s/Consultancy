@@ -3102,7 +3102,66 @@ ipcMain.handle('get-candidate-photo', async (event, candidateId) => {
   }
 });
 
-
+// ========================================
+// GET CANDIDATE JOB PLACEMENTS
+// ========================================
+ipcMain.handle('getCandidateJobPlacements', async (event, { candidateId }) => {
+  try {
+    const result = await getCandidateJobPlacements(candidateId);
+    return result;
+  } catch (error) {
+    console.error('getCandidateJobPlacements IPC error:', error);
+    return { success: false, error: mapErrorToFriendly(error) };
+  }
+});
+// ========================================
+// GET JOB ORDER BY ID
+// ========================================
+ipcMain.handle('getJobOrderById', async (event, { jobId }) => {
+  try {
+    const db = getDatabase();
+    const sql = `
+      SELECT 
+        j.*,
+        e.companyName as employerName
+      FROM joborders j
+      LEFT JOIN employers e ON j.employerid = e.id
+      WHERE j.id = ? AND j.isDeleted = 0
+    `;
+    const row = await dbGet(db, sql, [jobId]);
+    
+    if (row) {
+      return { success: true, data: row };
+    } else {
+      return { success: false, error: 'Job order not found' };
+    }
+  } catch (error) {
+    console.error('getJobOrderById IPC error:', error);
+    return { success: false, error: mapErrorToFriendly(error) };
+  }
+});
+// ========================================
+// GET CANDIDATE BY ID
+// ========================================
+ipcMain.handle('getCandidateById', async (event, { candidateId }) => {
+  try {
+    const db = getDatabase();
+    const sql = `
+      SELECT * FROM candidates 
+      WHERE id = ? AND isDeleted = 0
+    `;
+    const row = await dbGet(db, sql, [candidateId]);
+    
+    if (row) {
+      return { success: true, data: row };
+    } else {
+      return { success: false, error: 'Candidate not found' };
+    }
+  } catch (error) {
+    console.error('getCandidateById IPC error:', error);
+    return { success: false, error: mapErrorToFriendly(error) };
+  }
+});
 /**
  * Delete candidate photo
  */

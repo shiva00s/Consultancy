@@ -54,7 +54,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveCandidateMulti: (args) => ipcRenderer.invoke('save-candidate-multi', args),
   updateCandidateText: (args) => ipcRenderer.invoke('update-candidate-text', args),
   deleteCandidate: (args) => ipcRenderer.invoke('delete-candidate', args),
-  getCandidateJobPlacements: (data) => ipcRenderer.invoke('get-candidate-job-placements', data),
+  getCandidateJobPlacements: (args) => ipcRenderer.invoke('getCandidateJobPlacements', args),
 
   // ==========================================================================
 // 📄 DOCUMENT MANAGEMENT

@@ -1264,3 +1264,25 @@ select:focus-visible {
 /* =========================================================
    END OF APP.CSS
    ========================================================= */
+:root {
+  /* Brighter text colors */
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+}
+
+[data-theme="light"] {
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+}
+/* Quick fix - match Image 1 style */
+[data-theme="light"] .form-input,
+[data-theme="light"] .form-select,
+[data-theme="light"] .form-textarea,
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  color: #1e293b !important; /* Dark slate like Image 1 */
+  font-weight: 700 !important;
+}

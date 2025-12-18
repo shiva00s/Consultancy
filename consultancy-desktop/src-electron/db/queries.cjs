@@ -3758,6 +3758,44 @@ async function getCandidateById(id) {
     return { success: false, error: mapErrorToFriendly(err) };
   }
 }
+async function getCandidateJobPlacements(candidateId) {
+  const db = getDatabase();
+  const sql = `
+    SELECT 
+      p.id as placementId,
+      p.status as placementStatus,
+      p.assignedAt as assignedDate,
+      j.id as jobId,
+      j.positionTitle,
+      j.country,
+      j.requirements,
+      j.food,
+      j.accommodation,
+      j.dutyHours,
+      j.overtime,
+      j.contractPeriod,
+      j.selectionType,
+      j.openingsCount,
+      e.id as employerId,
+      e.companyName,
+      e.contactPerson,
+      e.contactEmail
+    FROM placements p
+    LEFT JOIN joborders j ON p.joborderid = j.id
+    LEFT JOIN employers e ON j.employerid = e.id
+    WHERE p.candidateid = ? AND p.isDeleted = 0
+    ORDER BY p.assignedAt DESC
+  `;
+  
+  try {
+    const rows = await dbAll(db, sql, [candidateId]);
+    return { success: true, data: rows };
+  } catch (err) {
+    console.error('getCandidateJobPlacements error:', err);
+    return { success: false, error: mapErrorToFriendly(err) };
+  }
+}
+
 
 
  
@@ -3766,6 +3804,7 @@ module.exports = {
   dbRun,
   dbGet,
   dbAll,
+  getCandidateJobPlacements,
   getCandidateById,
   saveCandidatePhoto,
   getCandidatePhoto,

@@ -1,212 +1,512 @@
-/* ✅ COMPACT & PROFESSIONAL CANDIDATE LIST UI */
+/* ============================================
+   🎨 PREMIUM CANDIDATE LIST - 4 COLUMN GRID
+   ============================================ */
 
-/* Page width */
-.list-page-container {
-  margin: 0 auto;
+:root {
+  --card-gradient: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));
+  --card-gradient-hover: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+  --photo-border: linear-gradient(135deg, #6366f1, #8b5cf6);
 }
 
-/* ✅ Search Section — UNIFIED, COMPACT, EQUAL HEIGHT */
+.list-page-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* ============================================
+   🔍 SEARCH BAR - MODERN COMPACT
+   ============================================ */
+
 .search-bar {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr auto auto;
-  gap: 8px; /* MODIFIED: Smaller gap */
-
-  background: var(--bg-tertiary);
-  padding: 10px; /* MODIFIED: Reduced padding */
-  border-radius: var(--border-radius);
-  border: 1px solid var(--border-color);
-  margin-bottom: 1rem; /* MODIFIED: Reduced margin */
+  grid-template-columns: 1.5fr 1fr 1fr auto auto;
+  gap: 12px;
+  background: var(--bg-card);
+  padding: 16px;
+  border-radius: 16px;
+  border: 2px solid var(--border-color);
+  margin-bottom: 24px;
   align-items: center;
+  box-shadow: var(--shadow-sm);
 }
 
-/* Search field container */
 .search-field {
   display: flex;
   align-items: center;
   background: var(--bg-input);
-  border-radius: var(--border-radius);
-  border: 1px solid var(--border-color);
-  height: 36px; /* MODIFIED: Use global compact height */
-  padding: 0 8px; /* MODIFIED: Reduced padding */
+  border-radius: 12px;
+  border: 2px solid var(--border-input);
+  height: 44px;
+  padding: 0 14px;
+  transition: all 0.3s ease;
 }
 
-/* Search icon */
+.search-field:focus-within {
+  border-color: var(--primary-color);
+  background: var(--bg-input-focus);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
 .search-field svg {
-  width: 16px; 
-  height: 16px; 
-  margin-right: 8px;
+  width: 18px;
+  height: 18px;
+  margin-right: 10px;
   opacity: 0.6;
+  color: var(--text-secondary);
 }
 
-/* Search input */
 .search-field input {
   flex: 1;
   height: 100%;
   border: none;
   background: transparent;
-  font-size: 0.9rem; /* MODIFIED: Smaller font */
-  outline: none;
-  color: var(--text-primary); 
-}
-
-/* Dropdown fields */
-.search-bar select,
-.filter-field select,
-.filter-field input {
-  width: 100%;
-  height: 36px; /* MODIFIED: Use global compact height */
-  padding: 0 10px; /* MODIFIED: Reduced padding */
-  font-size: 0.9rem; /* MODIFIED: Smaller font */
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  outline: none;
-  color: var(--text-primary); 
-  box-sizing: border-box; 
-}
-
-/* Buttons — equal height */
-.search-bar button,
-.search-bar .btn {
-  height: 36px; /* MODIFIED: Use global compact height */
-  padding: 0 18px; /* MODIFIED: Reduced padding */
   font-size: 0.95rem;
-  border-radius: var(--border-radius); 
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ✅ RESULTS SECTION */
-.results-container {
-  background: var(--bg-tertiary);
-  border-radius: var(--border-radius); 
-  border: 1px solid var(--border-color);
-  padding: 0.4rem 0.6rem; /* MODIFIED: Reduced padding */
-}
-
-/* Results title */
-.results-header {
-  padding: 8px 10px; /* MODIFIED: Reduced padding */
-  border-bottom: 1px solid var(--border-color);
-  font-size: 0.95rem;
-  color: var(--text-secondary);
-}
-
-/* List layout */
-.results-list {
-  /* MODIFIED: Changed from 1fr to a 2-column grid pattern */
-  display: grid;
-  grid-template-columns: 1fr 1fr; /* Two equal columns */
-  gap: 10px; /* MODIFIED: Smaller gap */
-  padding: 10px 0; /* MODIFIED: Reduced padding */
-}
-
-/* ✅ Candidate card — compact professional */
-.result-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius); 
-  padding: 12px 16px; /* MODIFIED: Reduced padding */
-  display: flex;
-  justify-content: space-between;
-  align-items: center; /* MODIFIED: Center align all content */
-  gap: 16px; /* MODIFIED: Reduced gap */
-  transition: all 0.2s ease;
-}
-
-.result-card:hover {
-  background: var(--bg-input);
-  transform: translateY(-1px);
-}
-
-/* Icon bubble */
-.result-card-icon {
-  width: 38px; /* MODIFIED: Smaller size */
-  height: 38px; /* MODIFIED: Smaller size */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(var(--primary-rgb), 0.15);
-  color: var(--primary-color);
-  border-radius: 50%;
-  flex-shrink: 0; 
-}
-
-/* Candidate info */
-.result-card-info {
-  flex-grow: 1; 
-  padding-right: 16px; /* MODIFIED: Added right padding for separation */
-}
-.result-card-info h3 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
+  font-weight: 500;
+  outline: none;
   color: var(--text-primary);
 }
-.result-card-info p {
-  margin: 2px 0 0 0; /* MODIFIED: Reduced margin */
-  font-size: 0.85rem;
-  color: var(--text-secondary);
+
+.search-field input::placeholder {
+  color: var(--text-tertiary);
 }
 
-/* Right side: status + View/Edit */
-.result-card-status {
-  display: flex;
-  flex-direction: row; /* MODIFIED: Align horizontally */
-  align-items: center;  /* MODIFIED: Center vertically */
-  gap: 12px;            /* MODIFIED: Add gap between badge and button */
-  flex-shrink: 0; 
+.search-bar select,
+.filter-field select {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  background: var(--bg-input);
+  border: 2px solid var(--border-input);
+  border-radius: 12px;
+  outline: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  /* Remove default arrow */
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 16px !important;
+  padding-right: 40px !important;
 }
 
 .search-bar select:focus,
-.search-field input:focus,
-.filter-field input:focus {
-  outline: none !important;
-  border: 1px solid var(--primary-color) !important;
+.filter-field select:focus {
+  border-color: var(--primary-color);
+  background-color: var(--bg-input-focus);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
-/* --- NEW: Pagination Styles --- */
-.pagination-controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 12px; /* MODIFIED: Reduced padding */
-    margin-top: 1rem;
-    font-size: 0.9rem; /* MODIFIED: Smaller font */
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
+.search-bar button,
+.search-bar .btn {
+  height: 44px;
+  padding: 0 24px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  border: none;
+  cursor: pointer;
 }
 
-.pagination-controls .btn {
-    min-width: 100px; /* MODIFIED: Smaller min-width */
-    padding: 6px 12px; /* MODIFIED: Smaller padding */
-    border-radius: var(--border-radius); 
-    font-size: 0.9rem;
+.btn-primary {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  box-shadow: 0 3px 14px rgba(99, 102, 241, 0.3);
 }
 
-.pagination-info {
-    color: var(--text-secondary);
-    font-weight: 500;
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(99, 102, 241, 0.5);
 }
-/* --- NEW: Responsive Adjustment for Mobile/Smaller Screens --- */
-@media (max-width: 1024px) {
-    /* Switch back to a single column on smaller desktop/tablet views */
-    .results-list {
-        grid-template-columns: 1fr;
-    }
+
+.btn-secondary {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 2px solid var(--border-input);
 }
-/* --- NEW: Candidate Photo Styling --- */
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ============================================
+   📋 RESULTS CONTAINER
+   ============================================ */
+
+.results-container {
+  background: var(--bg-card);
+  border-radius: 16px;
+  border: 2px solid var(--border-color);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.results-header {
+  padding: 12px 16px;
+  border-bottom: 2px solid var(--border-color);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.results-header::before {
+  content: '👥';
+  font-size: 1.3rem;
+}
+
+/* ============================================
+   🎯 4-COLUMN GRID LAYOUT
+   ============================================ */
+
+.results-list {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* 🔥 4 COLUMNS */
+  gap: 20px;
+  padding: 20px 0;
+}
+
+/* ============================================
+   💎 PREMIUM CANDIDATE CARD
+   ============================================ */
+
+.result-card {
+  background: var(--card-gradient);
+  backdrop-filter: blur(10px);
+  border: 2px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.result-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--photo-border);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.result-card:hover {
+  background: var(--card-gradient-hover);
+  border-color: var(--primary-color);
+  transform: translateY(-6px);
+  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.2);
+}
+
+.result-card:hover::before {
+  opacity: 1;
+}
+
+/* ============================================
+   👤 PROFILE PHOTO / ICON
+   ============================================ */
+
+.result-card-icon {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--photo-border);
+  border-radius: 50%;
+  flex-shrink: 0;
+  padding: 3px;
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+  transition: all 0.3s ease;
+}
+
+.result-card:hover .result-card-icon {
+  transform: scale(1.1);
+  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.5);
+}
+
 .candidate-photo {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
+  background: var(--bg-secondary);
+  border: 3px solid var(--bg-card);
 }
-.result-card-icon {
-    /* Ensure the photo container has a neutral background/border for placeholder */
-    background: var(--bg-input); 
-    border: 1px solid var(--border-color);
-    overflow: hidden;
+
+.result-card-icon svg {
+  width: 32px;
+  height: 32px;
+  color: white;
+}
+
+/* ============================================
+   📝 CANDIDATE INFO (CENTERED)
+   ============================================ */
+
+.result-card-info {
+  text-align: center;
+  width: 100%;
+}
+
+.result-card-info h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.candidate-emoji {
+  font-size: 1.2rem;
+}
+
+.result-card-info p {
+  margin: 6px 0 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.result-card-info p strong {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Highlight search terms */
+.result-card-info mark {
+  background: rgba(251, 191, 36, 0.3);
+  color: var(--text-primary);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+/* ============================================
+   🏷️ STATUS BADGE (BOTTOM CENTER)
+   ============================================ */
+
+.result-card-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.badge {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge-cyan {
+  background: rgba(6, 182, 212, 0.15);
+  color: #06b6d4;
+  border: 1.5px solid rgba(6, 182, 212, 0.3);
+}
+
+.badge-yellow {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  border: 1.5px solid rgba(251, 191, 36, 0.3);
+}
+
+.badge-blue {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  border: 1.5px solid rgba(59, 130, 246, 0.3);
+}
+
+.badge-purple {
+  background: rgba(139, 92, 246, 0.15);
+  color: #8b5cf6;
+  border: 1.5px solid rgba(139, 92, 246, 0.3);
+}
+
+.badge-green {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1.5px solid rgba(34, 197, 94, 0.3);
+}
+
+.badge-red {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1.5px solid rgba(239, 68, 68, 0.3);
+}
+
+.badge-grey {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border: 1.5px solid rgba(148, 163, 184, 0.3);
+}
+
+/* ============================================
+   🎯 VIEW/EDIT BUTTON
+   ============================================ */
+
+.result-card-status .btn {
+  padding: 8px 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s ease;
+  width: 100%;
+  justify-content: center;
+}
+
+/* ============================================
+   📄 PAGINATION
+   ============================================ */
+
+.pagination-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  margin-top: 20px;
+  font-size: 0.95rem;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.pagination-controls .btn {
+  min-width: 120px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination-info {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* ============================================
+   ⏳ LOADING SPINNER
+   ============================================ */
+
+.spinner {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ============================================
+   📱 RESPONSIVE BREAKPOINTS
+   ============================================ */
+
+/* 3 columns for medium screens */
+@media (max-width: 1400px) {
+  .results-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* 2 columns for tablets */
+@media (max-width: 1024px) {
+  .results-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .search-bar {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* 1 column for mobile */
+@media (max-width: 640px) {
+  .results-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .search-bar {
+    grid-template-columns: 1fr;
+  }
+  
+  .result-card-icon {
+    width: 64px;
+    height: 64px;
+  }
+}
+
+/* ============================================
+   🌓 LIGHT MODE OVERRIDES
+   ============================================ */
+
+[data-theme="light"] {
+  --card-gradient: linear-gradient(135deg, rgba(99, 102, 241, 0.03), rgba(139, 92, 246, 0.03));
+  --card-gradient-hover: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.08));
+}
+
+[data-theme="light"] .search-bar select,
+[data-theme="light"] .filter-field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
 }

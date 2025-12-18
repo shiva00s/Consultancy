@@ -1,18 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
-  FiUser,
-  FiFileText,
-  FiPackage,
-  FiClipboard,
-  FiDollarSign,
-  FiUsers,
-  FiCalendar,
-  FiSend,
-  FiClock,
-  FiArrowLeft,
-  FiDownload,
-  FiMessageSquare,
+  FiArrowLeft, FiEdit, FiX, FiSave,
+  FiRefreshCw, FiUpload, FiDownload, 
+  FiAlertTriangle, FiUser , 
+  FiCamera, FiTrash2,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import "../css/CandidateDetailPage.css";
@@ -43,7 +35,6 @@ function CandidateDetailPage({ user, flags }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-
   const [loading, setLoading] = useState(true);
   const [details, setDetails] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -52,12 +43,18 @@ function CandidateDetailPage({ user, flags }) {
   const [selectedJobForOffer, setSelectedJobForOffer] = useState(null);
   const [photoUrl, setPhotoUrl] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
-
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [showPhotoActions, setShowPhotoActions] = useState(false);
+  
   // --- GRANULAR PERMISSION STATE ---
   const [granularPermissions, setGranularPermissions] = useState({});
   const [granularPermsLoaded, setGranularPermsLoaded] = useState(false);
-
+  
+  // ✅ ACTIVE TAB STATE
   const initialTab = searchParams.get("tab") || "profile";
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  // ... (keep all your existing functions - fetchDetails, loadCandidatePhoto, etc.)
 
   // 1. Fetch Candidate Details
   const fetchDetails = useCallback(async () => {
@@ -75,9 +72,7 @@ function CandidateDetailPage({ user, flags }) {
   // ✅ Load candidate photo
   const loadCandidatePhoto = useCallback(async () => {
     if (id) {
-      const result = await window.electronAPI.getCandidatePhoto({
-        candidateId: parseInt(id),
-      });
+      const result = await window.electronAPI.getCandidatePhoto({ candidateId: parseInt(id) });
       if (result.success && result.photoUrl) {
         setPhotoUrl(result.photoUrl);
       }
@@ -93,13 +88,13 @@ function CandidateDetailPage({ user, flags }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("Photo size must be less than 5MB");
+      toast.error('Photo size must be less than 5MB');
       return;
     }
 
@@ -114,21 +109,19 @@ function CandidateDetailPage({ user, flags }) {
 
   // 🗑️ Remove photo
   const handleRemovePhoto = async () => {
-    if (!window.confirm("Are you sure you want to remove this photo?")) return;
+    if (!window.confirm('Are you sure you want to remove this photo?')) return;
 
     try {
-      const result = await window.electronAPI.deleteCandidatePhoto({
-        candidateId: parseInt(id),
-      });
+      const result = await window.electronAPI.deleteCandidatePhoto({ candidateId: parseInt(id) });
       if (result.success) {
         setPhotoUrl(null);
         setPhotoFile(null);
-        toast.success("Photo removed successfully");
+        toast.success('Photo removed successfully');
       } else {
-        toast.error("Failed to remove photo: " + result.error);
+        toast.error('Failed to remove photo: ' + result.error);
       }
     } catch (error) {
-      toast.error("Error removing photo");
+      toast.error('Error removing photo');
     }
   };
 
@@ -136,44 +129,48 @@ function CandidateDetailPage({ user, flags }) {
   const uploadPhoto = async () => {
     if (!photoFile) return true;
 
+    setIsUploadingPhoto(true);
     try {
       const reader = new FileReader();
-
       return new Promise((resolve, reject) => {
         reader.onloadend = async () => {
           try {
             const photoResult = await window.electronAPI.uploadCandidatePhoto({
               candidateId: parseInt(id),
               fileBuffer: Array.from(new Uint8Array(reader.result)),
-              fileName: photoFile.name,
+              fileName: photoFile.name
             });
 
             if (photoResult.success) {
-              toast.success("📷 Photo uploaded successfully!");
+              toast.success('📷 Photo uploaded successfully!');
               setPhotoFile(null);
               await loadCandidatePhoto();
               resolve(true);
             } else {
-              toast.error("Failed to upload photo: " + photoResult.error);
+              toast.error('Failed to upload photo: ' + photoResult.error);
               resolve(false);
             }
           } catch (error) {
-            console.error("Photo upload error:", error);
-            toast.error("Failed to upload photo");
+            console.error('Photo upload error:', error);
+            toast.error('Failed to upload photo');
             resolve(false);
+          } finally {
+            setIsUploadingPhoto(false);
           }
         };
 
         reader.onerror = () => {
-          toast.error("Failed to read photo file");
+          toast.error('Failed to read photo file');
+          setIsUploadingPhoto(false);
           resolve(false);
         };
 
         reader.readAsArrayBuffer(photoFile);
       });
     } catch (error) {
-      console.error("Photo upload error:", error);
-      toast.error("Failed to upload photo");
+      console.error('Photo upload error:', error);
+      toast.error('Failed to upload photo');
+      setIsUploadingPhoto(false);
       return false;
     }
   };
@@ -199,9 +196,7 @@ function CandidateDetailPage({ user, flags }) {
         setGranularPermissions(allPerms);
         setGranularPermsLoaded(true);
       } else {
-        const res = await window.electronAPI.getUserGranularPermissions({
-          userId: user.id,
-        });
+        const res = await window.electronAPI.getUserGranularPermissions({ userId: user.id });
         if (res.success) {
           setGranularPermissions(res.data || {});
         }
@@ -213,11 +208,8 @@ function CandidateDetailPage({ user, flags }) {
 
   useEffect(() => {
     fetchDetails();
-
     const fetchPlacements = async () => {
-      const res = await window.electronAPI.getCandidatePlacements({
-        candidateId: id,
-      });
+      const res = await window.electronAPI.getCandidatePlacements({ candidateId: id });
       if (res.success && res.data.length > 0) {
         setPlacements(res.data);
         const latestJob = res.data.reduce((latest, current) =>
@@ -234,7 +226,6 @@ function CandidateDetailPage({ user, flags }) {
 
   useEffect(() => {
     if (!details || !user?.id) return;
-
     window.electronAPI.logAuditEvent({
       action: "view_candidate_details",
       userId: user.id,
@@ -242,23 +233,15 @@ function CandidateDetailPage({ user, flags }) {
     });
   }, [details, user]);
 
-  const handleDocumentsUpdate = (
-    newDocs = [],
-    docIdToDelete = null,
-    isCategoryUpdate = false
-  ) => {
+  const handleDocumentsUpdate = (newDocs = [], docIdToDelete = null, isCategoryUpdate = false) => {
     setDetails((prev) => {
       let updatedDocuments = [...(prev?.documents || [])];
       if (docIdToDelete !== null) {
-        updatedDocuments = updatedDocuments.filter(
-          (doc) => doc.id !== docIdToDelete
-        );
+        updatedDocuments = updatedDocuments.filter((doc) => doc.id !== docIdToDelete);
       } else if (isCategoryUpdate) {
         const updateDoc = newDocs[0];
         updatedDocuments = updatedDocuments.map((doc) =>
-          doc.id === updateDoc.id
-            ? { ...doc, category: updateDoc.category }
-            : doc
+          doc.id === updateDoc.id ? { ...doc, category: updateDoc.category } : doc
         );
       } else if (newDocs.length > 0) {
         updatedDocuments = [...updatedDocuments, ...newDocs];
@@ -270,9 +253,7 @@ function CandidateDetailPage({ user, flags }) {
   const handleJobAssigned = (newJobId) => {
     setSelectedJobForOffer(newJobId);
     const fetchPlacements = async () => {
-      const res = await window.electronAPI.getCandidatePlacements({
-        candidateId: id,
-      });
+      const res = await window.electronAPI.getCandidatePlacements({ candidateId: id });
       if (res.success) setPlacements(res.data);
     };
     fetchPlacements();
@@ -291,22 +272,14 @@ function CandidateDetailPage({ user, flags }) {
         : formData.passportNo,
     };
 
-    // 📤 Upload photo first if selected
     if (photoFile) {
       const photoSuccess = await uploadPhoto();
       if (!photoSuccess) {
-        toast.error(
-          "Failed to upload photo. Other changes will still be saved."
-        );
+        toast.error('Failed to upload photo. Other changes will still be saved.');
       }
     }
 
-    const res = await window.electronAPI.updateCandidateText({
-      user,
-      id,
-      data: cleanedData,
-    });
-
+    const res = await window.electronAPI.updateCandidateText({ user, id, data: cleanedData });
     if (res.success) {
       toast.success("Details saved successfully!");
       setIsEditing(false);
@@ -317,17 +290,11 @@ function CandidateDetailPage({ user, flags }) {
   };
 
   const handleDeleteCandidate = async () => {
-    if (
-      window.confirm(
-        "Are you sure you want to move this candidate to the Recycle Bin?"
-      )
-    ) {
+    if (window.confirm("Are you sure you want to move this candidate to the Recycle Bin?")) {
       const res = await window.electronAPI.deleteCandidate({ user, id });
       if (res.success) {
         navigate("/search");
-        toast.success(
-          `Candidate ${details.candidate.name} moved to Recycle Bin.`
-        );
+        toast.success(`Candidate ${details.candidate.name} moved to Recycle Bin.`);
       } else {
         toast.error(res.error);
       }
@@ -354,244 +321,364 @@ function CandidateDetailPage({ user, flags }) {
       candidateId: id,
       destinationPath: dialogResult.filePath,
     });
-    toast.dismiss("zip-status");
 
+    toast.dismiss("zip-status");
     if (res.success) toast.success(`Documents successfully exported!`);
     else toast.error(res.error || "Failed to create ZIP archive.");
   };
 
   if (loading || !granularPermsLoaded)
-    return <h2>Loading Candidate Details...</h2>;
-  if (!details) return <h2>Candidate not found.</h2>;
+    return (
+      <div className="detail-page-loading">
+        <div className="detail-loading-spinner"></div>
+        <p>Loading candidate details...</p>
+      </div>
+    );
 
-  const { candidate, documents } = details;
+  if (!details || !details.candidate)
+    return (
+      <div className="detail-page-loading">
+        <FiAlertTriangle size={48} />
+        <p>Candidate not found</p>
+      </div>
+    );
 
-  // --- GRANULAR PERMISSION CHECKER ---
-  const canAccessTab = (permissionKey) => {
-    if (permissionKey === "tab_profile") return true;
-    return granularPermissions[permissionKey] === true;
+  const { candidate } = details;
+
+  // 🎯 TABS CONFIGURATION - Only metadata for tabs
+  // 🎯 TABS CONFIGURATION - FIXED WITH EMOJI STRINGS
+const tabsConfig = [
+  {
+    key: "profile",
+    label: "Profile",
+    icon: "👤",  // ✅ EMOJI STRING
+    content: (
+      <CandidateProfile
+        candidate={candidate}
+        statusOptions={statusOptions}
+        isEditing={isEditing}
+        photoUrl={photoUrl}
+        handleTextChange={handleTextChange}
+        handleSave={handleSave}
+        handleDeleteCandidate={handleDeleteCandidate}
+        handleExportDocuments={handleExportDocuments}
+        handlePhotoChange={handlePhotoChange}
+        handleRemovePhoto={handleRemovePhoto}
+        setIsEditing={setIsEditing}
+        setFormData={setFormData}
+        user={user}
+        loadCandidatePhoto={loadCandidatePhoto}
+      />
+    ),
+  },
+  {
+    key: "passport",
+    label: "Passport",
+    icon: "🛂",  // ✅ EMOJI STRING
+    content: <CandidatePassport candidateId={id} user={user} />,
+    permission: "tab_passport",
+  },
+  {
+    key: "documents",
+    label: "Documents",
+    icon: "📄",  // ✅ EMOJI STRING
+    content: (
+      <CandidateDocuments
+        candidate={candidate}
+        documents={details.documents}
+        user={user}
+        onUpdate={handleDocumentsUpdate}
+      />
+    ),
+    permission: "tab_documents",
+  },
+  {
+    key: "jobs",
+    label: "Job Placements",
+    icon: "💼",  // ✅ EMOJI STRING
+    content: (
+      <CandidateJobs
+        candidateId={id}
+        user={user}
+        onJobAssigned={handleJobAssigned}
+      />
+    ),
+    permission: "tab_job_placements",
+  },
+  {
+    key: "visa",
+    label: "Visa Tracking",
+    icon: "✈️",  // ✅ EMOJI STRING
+    content: <CandidateVisa candidateId={id} user={user} />,
+    permission: "tab_visa_tracking",
+  },
+  {
+    key: "finance",
+    label: "Financial",
+    icon: "💰",  // ✅ EMOJI STRING
+    content: <CandidateFinance candidateId={id} user={user} />,
+    permission: "tab_financial",
+  },
+  {
+    key: "medical",
+    label: "Medical",
+    icon: "🏥",  // ✅ EMOJI STRING
+    content: <CandidateMedical candidateId={id} user={user} />,
+    permission: "tab_medical",
+  },
+  {
+    key: "interview",
+    label: "Interview",
+    icon: "📋",  // ✅ EMOJI STRING
+    content: <CandidateInterview candidateId={id} user={user} />,
+    permission: "tab_interview",
+  },
+  {
+    key: "travel",
+    label: "Travel/Tickets",
+    icon: "🧳",  // ✅ EMOJI STRING
+    content: <CandidateTravel candidateId={id} user={user} />,
+    permission: "tab_travel",
+  },
+  {
+    key: "offer",
+    label: "Offer Letter",
+    icon: "📜",  // ✅ EMOJI STRING
+    content: (
+      <OfferLetterGenerator
+        candidateId={id}
+        candidateName={candidate.name}
+        jobOrderId={selectedJobForOffer}
+        placements={placements}
+        user={user}
+      />
+    ),
+    permission: "tab_offer_letter",
+  },
+  {
+    key: "history",
+    label: "History",
+    icon: "🕐",  // ✅ EMOJI STRING (changed from 📜 to avoid duplicate)
+    content: <CandidateHistory candidateId={id} user={user} />,
+    permission: "tab_history",
+  },
+  {
+    key: "comms",
+    label: "Communications Log",
+    icon: "💬",  // ✅ EMOJI STRING
+    content: <CommunicationHistory candidateId={id} user={user} />,
+    permission: "tab_comms_log",
+  },
+];
+
+
+  // Filter tabs based on permissions
+  const visibleTabs = tabsConfig.filter((tab) => {
+    if (!tab.permission) return true;
+    return granularPermissions[tab.permission] === true;
+  });
+
+  // 🎯 RENDER TAB CONTENT
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "profile":
+        return (
+          <CandidateProfile
+            candidate={candidate}
+            statusOptions={statusOptions}
+            isEditing={isEditing}
+            photoUrl={photoUrl}
+            handleTextChange={handleTextChange}
+            handleSave={handleSave}
+            handleDeleteCandidate={handleDeleteCandidate}
+            handleExportDocuments={handleExportDocuments}
+            handlePhotoChange={handlePhotoChange}
+            handleRemovePhoto={handleRemovePhoto}
+            setIsEditing={setIsEditing}
+            setFormData={setFormData}
+            user={user}
+            loadCandidatePhoto={loadCandidatePhoto}
+          />
+        );
+      case "passport":
+        return <CandidatePassport candidateId={id} user={user} />;
+      case "documents":
+        return (
+          <CandidateDocuments
+            candidate={candidate}
+            documents={details.documents}
+            user={user}
+            onUpdate={handleDocumentsUpdate}
+          />
+        );
+      case "jobs":
+        return (
+          <CandidateJobs
+            candidateId={id}
+            user={user}
+            onJobAssigned={handleJobAssigned}
+          />
+        );
+      case "visa":
+        return <CandidateVisa candidateId={id} user={user} />;
+      case "finance":
+        return <CandidateFinance candidateId={id} user={user} />;
+      case "medical":
+        return <CandidateMedical candidateId={id} user={user} />;
+      case "interview":
+        return <CandidateInterview candidateId={id} user={user} />;
+      case "travel":
+        return <CandidateTravel candidateId={id} user={user} />;
+      case "offer":
+        return (
+          <OfferLetterGenerator
+            candidateId={id}
+            candidateName={candidate.name}
+            jobOrderId={selectedJobForOffer}
+            placements={placements}
+            user={user}
+          />
+        );
+      case "history":
+        return <CandidateHistory candidateId={id} user={user} />;
+      case "comms":
+        return <CommunicationHistory candidateId={id} user={user} />;
+      default:
+        return <div>Tab content not found</div>;
+    }
   };
 
-  const DocumentTabContent = (
-    <CandidateDocuments
-      user={user}
-      candidateId={id}
-      documents={documents}
-      onDocumentsUpdate={handleDocumentsUpdate}
-    />
-  );
-
-  const OfferLetterTabContent = (
-    <div>
-      <div
-        className="form-group"
-        style={{ maxWidth: "500px", marginBottom: "1.5rem" }}
-      >
-        <label>Select Job Assignment:</label>
-        <select
-          value={selectedJobForOffer || ""}
-          onChange={(e) =>
-            setSelectedJobForOffer(
-              e.target.value ? parseInt(e.target.value) : null
-            )
-          }
-        >
-          <option value="">-- Select a Job --</option>
-          {placements.length === 0 && (
-            <option disabled>No jobs assigned</option>
-          )}
-          {placements.map((p) => (
-            <option key={p.placementId} value={p.jobId}>
-              {p.companyName} - {p.positionTitle}
-            </option>
-          ))}
-        </select>
-      </div>
-      <OfferLetterGenerator
-        user={user}
-        candidateId={id}
-        jobId={selectedJobForOffer}
-      />
-    </div>
-  );
-
-  const tabConfig = [
-    {
-      key: "profile",
-      title: "Profile",
-      icon: <FiUser />,
-      content: (
-        <CandidateProfile
-          candidate={formData}
-          statusOptions={statusOptions}
-          isEditing={isEditing}
-          photoUrl={photoUrl}
-          handleTextChange={handleTextChange}
-          handleSave={handleSave}
-          handleDeleteCandidate={handleDeleteCandidate}
-          handleExportDocuments={handleExportDocuments}
-          handlePhotoChange={handlePhotoChange}
-          handleRemovePhoto={handleRemovePhoto}
-          setIsEditing={setIsEditing}
-          setFormData={setFormData}
-          user={user}
-          loadCandidatePhoto={loadCandidatePhoto}
-        />
-      ),
-      permKey: "tab_profile",
-    },
-    {
-      key: "passport",
-      title: "Passport Tracking",
-      icon: <FiPackage />,
-      content: <CandidatePassport candidateId={id} documents={documents} />,
-      permKey: "tab_passport",
-    },
-    {
-      key: "documents",
-      title: `Documents (${documents.length})`,
-      icon: <FiFileText />,
-      content: DocumentTabContent,
-      permKey: "tab_documents",
-    },
-    {
-      key: "jobs",
-      title: "Job Placements",
-      icon: <FiClipboard />,
-      content: (
-        <CandidateJobs
-          user={user}
-          candidateId={id}
-          onJobAssigned={handleJobAssigned}
-        />
-      ),
-      permKey: "tab_job_placements",
-    },
-    {
-      key: "visa",
-      title: "Visa Tracking",
-      icon: <FiPackage />,
-      content: <CandidateVisa user={user} candidateId={id} />,
-      permKey: "tab_visa_tracking",
-    },
-    {
-      key: "finance",
-      title: "Financial Tracking",
-      icon: <FiDollarSign />,
-      content: <CandidateFinance user={user} candidateId={id} flags={flags} />,
-      permKey: "tab_financial",
-    },
-    {
-      key: "medical",
-      title: "Medical",
-      icon: <FiUsers />,
-      content: <CandidateMedical user={user} candidateId={id} />,
-      permKey: "tab_medical",
-    },
-    {
-      key: "interview",
-      title: "Interview/Schedule",
-      icon: <FiCalendar />,
-      content: <CandidateInterview user={user} candidateId={id} />,
-      permKey: "tab_interview",
-    },
-    {
-      key: "travel",
-      title: "Travel/Tickets",
-      icon: <FiSend />,
-      content: <CandidateTravel user={user} candidateId={id} />,
-      permKey: "tab_travel",
-    },
-    {
-      key: "offer",
-      title: "Offer Letter",
-      icon: <FiFileText />,
-      content: OfferLetterTabContent,
-      permKey: "tab_offer_letter",
-    },
-    {
-      key: "history",
-      title: "History",
-      icon: <FiClock />,
-      content: <CandidateHistory candidateId={id} />,
-      permKey: "tab_history",
-    },
-    {
-      key: "communications",
-      title: "Comms Log",
-      icon: <FiMessageSquare />,
-      content: <CommunicationHistory candidateId={id} />,
-      permKey: "tab_comms_log",
-    },
-  ].filter((tab) => canAccessTab(tab.permKey));
-
   return (
-    <div className="detail-page-container">
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "20px",
-          paddingBottom: "15px",
-          borderBottom: "1px solid var(--border-color)",
-        }}
-      >
-        <button
-          onClick={() => navigate("/search")}
-          className="btn btn-secondary back-button"
-          style={{
-            marginBottom: 0,
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-          }}
-        >
-          <FiArrowLeft /> Back to Search
-        </button>
+    <div className="candidate-detail-page">
+      {/* HEADER - Keep as is */}
+      <div className="detail-page-header">
+        <div className="detail-header-back" onClick={() => navigate("/search")}>
+          <FiArrowLeft />
+        </div>
 
-        <div style={{ textAlign: "right" }}>
-          <h1
-            style={{
-              margin: "0 0 5px 0",
-              fontSize: "1.8rem",
-              color: "var(--text-primary)",
-            }}
-          >
-            <FiUser style={{ marginRight: "10px", verticalAlign: "middle" }} />
-            {formData?.name || candidate.name}
+        {/* PHOTO */}
+        <div
+          className="detail-header-photo"
+          onMouseEnter={() => setShowPhotoActions(true)}
+          onMouseLeave={() => setShowPhotoActions(false)}
+        >
+          <div className="detail-photo-wrapper">
+            {photoUrl ? (
+              <img src={photoUrl} alt={candidate.name} className="detail-photo-img" />
+            ) : (
+              <div className="detail-photo-placeholder">
+                <FiUser />
+              </div>
+            )}
+            <div className="detail-photo-badge">
+              <FiCamera />
+            </div>
+          </div>
+
+          {/* Photo Actions Dropdown */}
+          {showPhotoActions && (
+            <div className="detail-photo-actions">
+              <label className="photo-action-item upload">
+                <FiUpload /> Upload New
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              <button className="photo-action-item refresh" onClick={loadCandidatePhoto}>
+                <FiRefreshCw /> Refresh
+              </button>
+              {photoUrl && (
+                <button className="photo-action-item delete" onClick={handleRemovePhoto}>
+                  <FiTrash2 /> Remove
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* INFO */}
+        <div className="detail-header-info">
+          <h1 className="detail-candidate-name">
+            <span className="detail-candidate-name-emoji">👤</span>
+            {candidate.name}
           </h1>
-          <div
-            style={{
-              display: "flex",
-              gap: "15px",
-              justifyContent: "flex-end",
-              fontSize: "0.9rem",
-              color: "var(--text-secondary)",
-            }}
-          >
-            <span>
-              <strong>ID:</strong> #{candidate.id}
-            </span>
-            <span>
-              <strong>Passport:</strong>{" "}
-              {formData?.passportNo || candidate.passportNo}
-            </span>
-            <span
-              className="badge neutral"
-              style={{
-                padding: "2px 8px",
-                borderRadius: "4px",
-                background: "var(--bg-secondary)",
-              }}
-            >
-              {formData?.status || candidate.status}
+          <div className="detail-badges">
+            <span className="detail-badge badge-id">🆔 ID #{candidate.id}</span>
+            <span className="detail-badge badge-passport">🛂 {candidate.passportNo}</span>
+            <span className="detail-badge badge-new">
+              {candidate.status === 'New' ? '🆕' : '📌'} {candidate.status}
             </span>
           </div>
+
+          {/* Quick Info Cards */}
+          <div className="detail-quick-cards">
+            <div className="detail-quick-card card-passport">
+              <div className="detail-quick-icon">🛂</div>
+              <div className="detail-quick-content">
+                <div className="detail-quick-label">Passport</div>
+                <div className="detail-quick-value">{candidate.passportNo}</div>
+              </div>
+            </div>
+            <div className="detail-quick-card card-mobile">
+              <div className="detail-quick-icon">📱</div>
+              <div className="detail-quick-content">
+                <div className="detail-quick-label">Mobile</div>
+                <div className="detail-quick-value">{candidate.contact || "N/A"}</div>
+              </div>
+            </div>
+            <div className="detail-quick-card card-aadhar">
+              <div className="detail-quick-icon">🪪</div>
+              <div className="detail-quick-content">
+                <div className="detail-quick-label">Aadhar</div>
+                <div className="detail-quick-value">{candidate.aadhar || "N/A"}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ACTIONS */}
+        <div className="detail-actions">
+          {isEditing ? (
+            <>
+              <button className="detail-action-btn btn-save" onClick={handleSave}>
+                <FiSave /> Save
+              </button>
+              <button className="detail-action-btn btn-cancel" onClick={() => setIsEditing(false)}>
+                <FiX /> Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="detail-action-btn btn-edit" onClick={() => setIsEditing(true)}>
+                <FiEdit /> Edit
+              </button>
+              <button className="detail-action-btn btn-export" onClick={handleExportDocuments}>
+                <FiDownload /> Export Docs
+              </button>
+              <button className="detail-action-btn btn-delete" onClick={handleDeleteCandidate}>
+                <FiTrash2 /> Delete
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      <Tabs tabs={tabConfig} defaultActiveTab={initialTab} />
+      {/* ✅ TABS + CONTENT */}
+      <div className="detail-tabs-section">
+        <Tabs
+          tabs={visibleTabs}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+        
+        {/* Tab Content */}
+        <div className="tab-content-wrapper">
+          {renderTabContent()}
+        </div>
+      </div>
     </div>
   );
 }
