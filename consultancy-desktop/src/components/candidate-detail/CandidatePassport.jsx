@@ -25,7 +25,7 @@ function CandidatePassport({ candidateId, candidateData }) {
           
           if (result.success && result.data) {
             const names = result.data
-              .map(u => u.fullName || u.full_name || u.name)
+              .map(u => u.fullName || u.file_name || u.name)
               .filter(Boolean);
             
             setStaffList(names);

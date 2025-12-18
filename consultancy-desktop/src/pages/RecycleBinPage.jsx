@@ -30,6 +30,7 @@ function RecycleBinPage({ user }) {
   const [deletedMedical, setDeletedMedical] = useState([]);
   const [deletedInterviews, setDeletedInterviews] = useState([]);
   const [deletedTravel, setDeletedTravel] = useState([]);
+  const [deletedPassportMovements, setDeletedPassportMovements] = useState([]);
 
   const [restorePrompt, setRestorePrompt] = useState(null); // {title, description, handler}
   const [loading, setLoading] = useState(true);
@@ -55,6 +56,7 @@ function RecycleBinPage({ user }) {
       medRes,
       intRes,
       travelRes,
+      movementRes,     
     ] = await Promise.all([
       window.electronAPI.getDeletedCandidates(),
       window.electronAPI.getDeletedEmployers(),
@@ -66,6 +68,7 @@ function RecycleBinPage({ user }) {
       window.electronAPI.getDeletedMedical(),
       window.electronAPI.getDeletedInterviews(),
       window.electronAPI.getDeletedTravel(),
+      window.electronAPI.getAllDeletedPassportMovements(user),
     ]);
 
     if (candRes.success) setDeletedCandidates(candRes.data);
@@ -97,6 +100,9 @@ function RecycleBinPage({ user }) {
 
     if (travelRes.success) setDeletedTravel(travelRes.data);
     else toast.error(travelRes.error);
+
+    if (movementRes.success) setDeletedPassportMovements(movementRes.data);
+  else toast.error(movementRes.error);
 
     setLoading(false);
   }, [user]);
@@ -140,6 +146,9 @@ function RecycleBinPage({ user }) {
       case "travel":
         setDeletedTravel(updater);
         break;
+        case "passport_movements":
+  setDeletedPassportMovements(updater);
+  break;
       default:
         break;
     }
@@ -430,30 +439,52 @@ function RecycleBinPage({ user }) {
       ),
     },
     {
-      key: "passports",
-      title: `Passports (${deletedPassports.length})`,
-      icon: <FiMapPin />,
-      content: renderList(
-        deletedPassports,
-        "No deleted passports found.",
-        (passport) => (
-          <div key={passport.id} className="recycle-item">
-            <div className="item-info">
-              <strong>{passport.candidateName}</strong>
-              <span>
-                Passport: {passport.passportNumber || "N/A"} (Exp:{" "}
-                {passport.expiryDate || "N/A"})
-              </span>
-            </div>
-            {renderItemActions(
-              passport,
-              "passports",
-              handleRestorePassport
-            )}
-          </div>
-        )
-      ),
-    },
+  key: "passport_movements",
+  title: `Movements (${deletedPassportMovements.length})`,
+  icon: <FiActivity />,
+  content: renderList(
+    deletedPassportMovements,
+    "No deleted passport movements found.",
+    (movement) => (
+      <div key={movement.id} className="recycle-item">
+        <div className="item-info">
+          <strong>{movement.candidate_name || `Movement #${movement.id}`}</strong>
+          <span>
+            {movement.movement_type} • {movement.method || "N/A"} • {movement.date}
+          </span>
+        </div>
+        {renderItemActions(
+          movement,
+          "passport_movements",
+          (id, name) => {
+            // ✅ Now 'id' parameter is correctly passed from renderItemActions
+            openRestorePrompt(
+              "Restore passport movement?",
+              `Restore movement for: ${name}?`,
+              async () => {
+                const res = await window.electronAPI.restorePassportMovement({
+                  id: id,  // ✅ Use the 'id' parameter, not 'movement.id'
+                  user: user
+                });
+
+                if (res.success) {
+                  setDeletedPassportMovements((prev) =>
+                    prev.filter((m) => m.id !== id)  // ✅ Use 'id' parameter here too
+                  );
+                  toast.success("Passport movement restored.");
+                } else {
+                  toast.error(res.error);
+                }
+              }
+            );
+          }
+        )}
+      </div>
+    )
+  ),
+},
+
+
     {
       key: "visas",
       title: `Visas (${deletedVisas.length})`,

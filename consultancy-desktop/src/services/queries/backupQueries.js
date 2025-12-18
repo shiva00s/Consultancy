@@ -214,7 +214,7 @@ async function logBackupEvent(userId, action, details) {
   const db = getDatabase();
   try {
     await dbRun(db, `
-      INSERT INTO auditlog (userid, action, details, targettype) 
+      INSERT INTO audit_log (userid, action, details, targettype) 
       VALUES (?, ?, ?, 'backup')
     `, [userId, action, details]);
 

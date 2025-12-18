@@ -35,6 +35,7 @@ const { enforcePermissionOrDeny } = require('../utils/rbacHelpers.cjs');
 const sendWhatsAppBulk = require("./sendWhatsAppBulk.cjs");
 const openWhatsAppSingle = require("./openWhatsAppSingle.cjs");
 const { guard, FEATURES } = require('./security/ipcPermissionGuard.cjs');
+const { registerPassportHandlers } = require('./passportHandlers.cjs');
 //const sendTwilioWhatsApp = require("./twilioSendWhatsApp.cjs");
 
 
@@ -215,31 +216,6 @@ async function showSaveDialogHandler(event, options) {
   return await dialog.showSaveDialog(BrowserWindow.getFocusedWindow(), options);
 }
 
-async function getPassportMovementPhotos(db, movementId) {
-  return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT 
-        id, 
-        movement_id, 
-        file_name, 
-        file_type, 
-        file_data, 
-        created_at
-      FROM passport_movement_photos
-      WHERE movement_id = ?
-      ORDER BY created_at ASC
-    `;
-    
-    db.all(sql, [movementId], (err, rows) => {
-      if (err) {
-        console.error('Error fetching passport movement photos:', err);
-        reject(err);
-      } else {
-        resolve(rows || []);
-      }
-    });
-  });
-}
 
 // =============================================================
 
@@ -250,6 +226,8 @@ function registerIpcHandlers(app) {
   registerDocumentHandlers();
   registerSyncHandlers();
   registerPermissionHandlers();
+registerPassportHandlers();
+
   ipcMain.handle('backupDatabase', backupDatabaseHandler);
 ipcMain.handle('showSaveDialog', showSaveDialogHandler);
 
@@ -1537,6 +1515,9 @@ ipcMain.handle('delete-permanently', async (event, { user, id, targetType }) => 
       case 'travel':
       case 'travels':
         tableName = 'travel_tracking'; break;
+      case 'passport_movement':          // 👈 Add this
+      case 'passport_movements':         // 👈 Add this
+        tableName = 'passport_movements'; break;
       default:
         return { success: false, error: `Unknown target type: ${targetType}` };
     }
@@ -1554,6 +1535,7 @@ ipcMain.handle('delete-permanently', async (event, { user, id, targetType }) => 
     return { success: false, error: err.code || err.message };
   }
 });
+
 
 
 // ====================================================================
@@ -2982,34 +2964,7 @@ ipcMain.handle('reset-activation-status', async () => {
   }
 });
 
-// ====================================================================
-// ENHANCED PASSPORT TRACKING HANDLERS
-// ====================================================================
 
-ipcMain.handle('get-passport-movement-photos', async (event, movementId, user) => {
-  try {
-    const db = getDatabase();
-    
-    // Auth check
-    if (!user || !user.role) {
-      return { success: false, error: 'Unauthorized access' };
-    }
-
-    // Fetch photos from database
-    const photos = await getPassportMovementPhotos(db, movementId);
-
-    // ✅ FIX: Convert base64 data to proper data URLs for preview
-    const photosWithDataUrls = photos.map(photo => ({
-      ...photo,
-      filedata: `data:${photo.filetype};base64,${photo.filedata}` // Add prefix back for display
-    }));
-
-    return { success: true, data: photosWithDataUrls };
-  } catch (error) {
-    console.error('Error getting photos:', error);
-    return { success: false, error: error.message };
-  }
-});
 
 
 
@@ -3044,215 +2999,29 @@ ipcMain.handle("get-users", async (event, { user }) => {
   }
 });
 
-ipcMain.handle('addPassportMovementWithPhotos', async (event, { movement, photos }) => {
-  const db = getDatabase();
-  
-  return new Promise((resolve, reject) => {
-    // Start a transaction
-    db.serialize(() => {
-      db.run('BEGIN TRANSACTION', (err) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        // First, insert the movement
-        const movementSql = `
-          INSERT INTO passport_movements (
-            candidate_id, movement_type, date,
-            received_from, received_by, received_date, received_notes,
-            send_to, send_to_name, send_to_contact, sent_by,
-            dispatch_date, dispatch_notes, docket_number,
-            method, courier_number, passport_status,
-            source_type, agent_contact, notes, created_by, createdAt
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-
-        const movementValues = [
-          movement.candidate_id,
-          movement.movement_type,
-          movement.date,
-          movement.received_from || null,
-          movement.received_by || null,
-          movement.received_date || null,
-          movement.received_notes || null,
-          movement.send_to || null,
-          movement.send_to_name || null,
-          movement.send_to_contact || null,
-          movement.sent_by || null,
-          movement.dispatch_date || null,
-          movement.dispatch_notes || null,
-          movement.docket_number || null,
-          movement.method || null,
-          movement.courier_number || null,
-          movement.passport_status || null,
-          movement.source_type || null,
-          movement.agent_contact || null,
-          movement.notes || null,
-          movement.created_by || null,
-          movement.createdAt || new Date().toISOString()
-        ];
-
-        db.run(movementSql, movementValues, function(err) {
-          if (err) {
-            db.run('ROLLBACK');
-            reject(err);
-            return;
-          }
-
-          const movementId = this.lastID;
-          console.log('✅ Inserted movement:', { id: movementId, ...movement });
-
-          // If no photos, commit and return
-          if (!photos || photos.length === 0) {
-            db.run('COMMIT', (commitErr) => {
-              if (commitErr) {
-                reject(commitErr);
-              } else {
-                resolve({ success: true, movementId });
-              }
-            });
-            return;
-          }
-
-          // Insert photos one by one
-          const photoSql = `
-            INSERT INTO passport_movement_photos (movement_id, file_name, file_type, file_data)
-            VALUES (?, ?, ?, ?)
-          `;
-
-          let photosInserted = 0;
-          let photoErrors = [];
-
-          photos.forEach((photo, index) => {
-            db.run(photoSql, [movementId, photo.name, photo.type, photo.data], function(photoErr) {
-              if (photoErr) {
-                console.error(`❌ Photo ${index + 1} error:`, photoErr);
-                photoErrors.push(photoErr);
-              } else {
-                console.log(`✅ Inserted photo ${index + 1}/${photos.length}`);
-              }
-
-              photosInserted++;
-
-              // When all photos are processed
-              if (photosInserted === photos.length) {
-                if (photoErrors.length > 0) {
-                  db.run('ROLLBACK', () => {
-                    reject(new Error(`Failed to insert ${photoErrors.length} photo(s)`));
-                  });
-                } else {
-                  db.run('COMMIT', (commitErr) => {
-                    if (commitErr) {
-                      reject(commitErr);
-                    } else {
-                      resolve({ success: true, movementId, photosCount: photos.length });
-                    }
-                  });
-                }
-              }
-            });
-          });
-        });
-      });
-    });
-  });
-});
-
-// ============================================================================
-// DELETE PASSPORT MOVEMENT
-// ============================================================================
-
-
-
-ipcMain.handle('delete-passport-movement', async (event, { movementId, user }) => {
+ipcMain.handle('permanent-delete-passport-movement', async (event, { user, id }) => {
   try {
-    const db = getDatabase();
-    
-    // Soft delete the movement
-    await dbRun(
-      db,
-      `UPDATE passport_movements 
-       SET is_deleted = 1, updated_at = datetime('now', 'localtime') 
-       WHERE id = ?`,
-      [movementId]
-    );
-
-    // Log audit trail
-    await dbRun(
-      db,
-      `INSERT INTO audit_log (user_id, username, action, target_type, target_id, timestamp)
-       VALUES (?, ?, 'DELETE', 'passport_movement', ?, datetime('now', 'localtime'))`,
-      [user?.id || null, user?.username || 'Unknown', movementId]
-    );
-
-    return { success: true, message: 'Movement deleted successfully' };
-  } catch (error) {
-    console.error('❌ Error deleting passport movement:', error);
-    return { success: false, message: error.message };
-  }
-});// ====================================================================
-// PASSPORT TRACKING HANDLERS - SINGLE TABLE
-// ====================================================================
-
-/**
- * ✅ GET passport movements for a candidate
- */
-ipcMain.handle('get-passport-movements', async (event, { candidateId, user }) => {
-  try {
-    const result = await queries.getPassportMovements(candidateId);
-    return result;
-  } catch (error) {
-    console.error('❌ get-passport-movements error:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-/**
- * ✅ ADD passport movement (RECEIVE or SEND) with photos
- */
-ipcMain.handle('add-passport-movement', async (event, { data, user }) => {
-  try {
-    // Photos will be added inline - no separate call needed
-    const result = await queries.addPassportMovement(data, []);
-    
-    if (result.success) {
-      logAction(user, 'add-passport-movement', 'passport_tracking', result.data.id, 
-        `Type: ${data.type}, Date: ${data.date}`);
-    }
-    
-    return result;
-  } catch (error) {
-    console.error('❌ add-passport-movement error:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle('add-passport-movement-photo', async (event, data, user) => {
-  try {
-    // Auth check
     if (!user || !user.id) {
       return { success: false, error: 'Authentication required. Please log in.' };
     }
 
-    // ✅ FIX: Remove base64 prefix if present
-    let cleanBase64 = data.filedata;
-    if (cleanBase64 && cleanBase64.includes(',')) {
-      cleanBase64 = cleanBase64.split(',')[1]; // Remove "data:image/jpeg;base64," prefix
+    // Only super_admin can permanently delete
+    if (user.role !== 'super_admin') {
+      return { success: false, error: 'Only super admins can permanently delete records.' };
     }
 
-    const photoData = {
-      ...data,
-      filedata: cleanBase64 // Store only the clean base64
-    };
+    const result = await queries.permanentDeletePassportMovement(id);
+    
+    if (result.success) {
+      console.log(`🗑️ Permanently deleted passport movement ID: ${id}`);
+    }
 
-    return await queries.addPassportMovementPhoto(photoData);
-  } catch (err) {
-    console.error('add-passport-movement-photo handler error:', err);
-    return { success: false, error: err.message };
+    return result;
+  } catch (error) {
+    console.error('❌ permanent-delete-passport-movement error:', error);
+    return { success: false, error: error.message };
   }
 });
-
 
 
 

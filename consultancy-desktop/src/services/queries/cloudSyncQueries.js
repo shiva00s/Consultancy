@@ -132,7 +132,7 @@ async function createBackup() {
   try {
     // Log the backup event
     await dbRun(db, `
-      INSERT INTO auditlog (action, details) 
+      INSERT INTO audit_log (action, details) 
       VALUES ('cloud_backup', 'Manual cloud backup created')
     `);
 
@@ -179,7 +179,7 @@ async function restoreBackup(fileId) {
 
     // Log restore event
     await dbRun(db, `
-      INSERT INTO auditlog (action, details) 
+      INSERT INTO audit_log (action, details) 
       VALUES ('cloud_restore', ?)
     `, [`Restored backup: ${backup.name}`]);
 

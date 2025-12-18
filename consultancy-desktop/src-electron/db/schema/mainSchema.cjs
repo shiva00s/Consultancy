@@ -179,29 +179,28 @@ function setupDatabaseSchema(dbInstance) {
         // ========================================================================
         dbInstance.run(`
           CREATE TABLE IF NOT EXISTS job_orders (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  employer_id INTEGER NOT NULL,
-  positionTitle TEXT NOT NULL,
-  country TEXT,
-  openingsCount INTEGER DEFAULT 1,
-  status TEXT DEFAULT 'Open',
-  requirements TEXT,
-  food TEXT,
-  accommodation TEXT,
-  dutyHours TEXT,
-  overtime TEXT,
-  contractPeriod TEXT,
-  selectionType TEXT DEFAULT 'CV Selection',
-  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-  createdBy INTEGER,
-  updatedBy INTEGER,
-  isDeleted INTEGER DEFAULT 0,
-  FOREIGN KEY (employer_id) REFERENCES employers(id) ON DELETE CASCADE,
-  FOREIGN KEY (createdBy) REFERENCES users(id) ON DELETE SET NULL,
-  FOREIGN KEY (updatedBy) REFERENCES users(id) ON DELETE SET NULL
-);
-
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employer_id INTEGER NOT NULL,
+            positionTitle TEXT NOT NULL,
+            country TEXT,
+            openingsCount INTEGER DEFAULT 1,
+            status TEXT DEFAULT 'Open',
+            requirements TEXT,
+            food TEXT,
+            accommodation TEXT,
+            dutyHours TEXT,
+            overtime TEXT,
+            contractPeriod TEXT,
+            selectionType TEXT DEFAULT 'CV Selection',
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            createdBy INTEGER,
+            updatedBy INTEGER,
+            isDeleted INTEGER DEFAULT 0,
+            FOREIGN KEY (employer_id) REFERENCES employers(id) ON DELETE CASCADE,
+            FOREIGN KEY (createdBy) REFERENCES users(id) ON DELETE SET NULL,
+            FOREIGN KEY (updatedBy) REFERENCES users(id) ON DELETE SET NULL
+          );
         `);
 
         // ========================================================================
@@ -305,9 +304,9 @@ function setupDatabaseSchema(dbInstance) {
           );
         `);
 
-        // ====================================================================
-        // 20. PASSPORT TRACKING + MOVEMENTS + PHOTOS
-        // ====================================================================
+        // ========================================================================
+        // 13. PASSPORT TRACKING (OLD - KEPT FOR BACKWARD COMPATIBILITY)
+        // ========================================================================
         dbInstance.run(`
           CREATE TABLE IF NOT EXISTS passport_tracking (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -342,19 +341,18 @@ function setupDatabaseSchema(dbInstance) {
         `);
 
         dbInstance.run(`
-          CREATE TABLE IF NOT EXISTS passport_movement_photos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            movement_id INTEGER NOT NULL,
-            file_name TEXT NOT NULL,
-            file_type TEXT NOT NULL,
-            file_data TEXT NOT NULL,
-            uploaded_at TEXT DEFAULT (datetime('now')),
-            isDeleted INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (movement_id) REFERENCES passport_tracking(id) ON DELETE CASCADE
-          );
+          CREATE INDEX IF NOT EXISTS idx_passport_tracking_candidate
+            ON passport_tracking(candidate_id);
         `);
 
+        dbInstance.run(`
+          CREATE INDEX IF NOT EXISTS idx_passport_tracking_date
+            ON passport_tracking(date DESC);
+        `);
+
+        // ========================================================================
+        // 14. PASSPORT MOVEMENTS (NEW UNIFIED TABLE)
+        // ========================================================================
         dbInstance.run(`
           CREATE TABLE IF NOT EXISTS passport_movements (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -362,6 +360,7 @@ function setupDatabaseSchema(dbInstance) {
             movement_type TEXT NOT NULL CHECK(movement_type IN ('RECEIVE', 'SEND')),
             date TEXT NOT NULL,
             received_from TEXT,
+            file_name TEXT NOT NULL,
             received_by TEXT,
             received_date TEXT,
             received_notes TEXT,
@@ -387,21 +386,6 @@ function setupDatabaseSchema(dbInstance) {
         `);
 
         dbInstance.run(`
-          CREATE INDEX IF NOT EXISTS idx_passport_tracking_candidate
-            ON passport_tracking(candidate_id);
-        `);
-
-        dbInstance.run(`
-          CREATE INDEX IF NOT EXISTS idx_passport_tracking_date
-            ON passport_tracking(date DESC);
-        `);
-
-        dbInstance.run(`
-          CREATE INDEX IF NOT EXISTS idx_passport_movement_photos_movement
-            ON passport_movement_photos(movement_id);
-        `);
-
-        dbInstance.run(`
           CREATE INDEX IF NOT EXISTS idx_passport_movements_candidate
             ON passport_movements(candidate_id);
         `);
@@ -411,262 +395,289 @@ function setupDatabaseSchema(dbInstance) {
             ON passport_movements(date DESC);
         `);
 
+        dbInstance.run(`
+          CREATE INDEX IF NOT EXISTS idx_passport_movements_type
+            ON passport_movements(movement_type);
+        `);
+
         // ========================================================================
-      // 21. VISA TRACKING
-      // ========================================================================
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS visa_tracking (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          candidate_id INTEGER NOT NULL,
-          country TEXT NOT NULL,
-          visa_type TEXT,
-          application_date TEXT,
-          status TEXT DEFAULT 'Pending',
-          notes TEXT,
-          position TEXT,
-          passport_number TEXT,
-          travel_date TEXT,
-          contact_type TEXT DEFAULT 'Direct Candidate',
-          agent_contact TEXT,
-          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-          isDeleted INTEGER DEFAULT 0,
-          FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE
-        );
-      `);
+        // 15. PASSPORT MOVEMENT PHOTOS (FOR NEW TABLE)
+        // ========================================================================
+        dbInstance.run(`
+          CREATE TABLE IF NOT EXISTS passport_movement_photos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            movement_id INTEGER NOT NULL,
+            file_name TEXT NOT NULL,
+            file_type TEXT NOT NULL,
+            file_data TEXT NOT NULL,
+            uploaded_at TEXT DEFAULT (datetime('now', 'localtime')),
+            isDeleted INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now', 'localtime')),
+            FOREIGN KEY (movement_id) REFERENCES passport_movements(id) ON DELETE CASCADE
+          );
+        `);
 
-      // ========================================================================
-      // 22. INTERVIEW TRACKING
-      // ========================================================================
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS interview_tracking (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          candidate_id INTEGER NOT NULL,
-          job_order_id INTEGER,
-          interview_date TEXT NOT NULL,
-          round TEXT,
-          status TEXT DEFAULT 'Scheduled',
-          notes TEXT,
-          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-          isDeleted INTEGER DEFAULT 0,
-          FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE,
-          FOREIGN KEY (job_order_id) REFERENCES job_orders (id) ON DELETE SET NULL
-        );
-      `);
+        dbInstance.run(`
+          CREATE INDEX IF NOT EXISTS idx_passport_movement_photos_movement
+            ON passport_movement_photos(movement_id);
+        `);
 
-      // ========================================================================
-      // 23. MEDICAL TRACKING
-      // ========================================================================
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS medical_tracking (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          candidate_id INTEGER NOT NULL,
-          test_date TEXT,
-          certificate_path TEXT,
-          status TEXT DEFAULT 'Pending',
-          notes TEXT,
-          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-          isDeleted INTEGER DEFAULT 0,
-          FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE
-        );
-      `);
+        // ========================================================================
+        // 16. VISA TRACKING
+        // ========================================================================
+        dbInstance.run(`
+          CREATE TABLE IF NOT EXISTS visa_tracking (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_id INTEGER NOT NULL,
+            country TEXT NOT NULL,
+            visa_type TEXT,
+            application_date TEXT,
+            status TEXT DEFAULT 'Pending',
+            notes TEXT,
+            position TEXT,
+            passport_number TEXT,
+            travel_date TEXT,
+            contact_type TEXT DEFAULT 'Direct Candidate',
+            agent_contact TEXT,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            isDeleted INTEGER DEFAULT 0,
+            FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE
+          );
+        `);
 
-      // ========================================================================
-      // 24. TRAVEL TRACKING
-      // ========================================================================
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS travel_tracking (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          candidate_id INTEGER NOT NULL,
-          pnr TEXT,
-          travel_date TEXT,
-          ticket_file_path TEXT,
-          departure_city TEXT,
-          arrival_city TEXT,
-          notes TEXT,
-          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-          isDeleted INTEGER DEFAULT 0,
-          FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE
-        );
-      `);
+        // ========================================================================
+        // 17. INTERVIEW TRACKING
+        // ========================================================================
+        dbInstance.run(`
+          CREATE TABLE IF NOT EXISTS interview_tracking (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_id INTEGER NOT NULL,
+            job_order_id INTEGER,
+            interview_date TEXT NOT NULL,
+            round TEXT,
+            status TEXT DEFAULT 'Scheduled',
+            notes TEXT,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            isDeleted INTEGER DEFAULT 0,
+            FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE,
+            FOREIGN KEY (job_order_id) REFERENCES job_orders (id) ON DELETE SET NULL
+          );
+        `);
 
-      // ========================================================================
-      // 25. PAYMENTS
-      // ========================================================================
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS payments (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          candidate_id INTEGER NOT NULL,
-          description TEXT NOT NULL,
-          total_amount REAL NOT NULL,
-          amount_paid REAL DEFAULT 0,
-          status TEXT DEFAULT 'Pending',
-          due_date TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          isDeleted INTEGER DEFAULT 0,
-          FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE
-        );
-      `);
+        // ========================================================================
+        // 18. MEDICAL TRACKING
+        // ========================================================================
+        dbInstance.run(`
+          CREATE TABLE IF NOT EXISTS medical_tracking (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_id INTEGER NOT NULL,
+            test_date TEXT,
+            certificate_path TEXT,
+            status TEXT DEFAULT 'Pending',
+            notes TEXT,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            isDeleted INTEGER DEFAULT 0,
+            FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE
+          );
+        `);
 
-      // ========================================================================
-      // 26. AUDIT LOG
-      // ========================================================================
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS audit_log (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          user_id INTEGER,
-          username TEXT,
-          action TEXT NOT NULL,
-          target_type TEXT,
-          target_id INTEGER,
-          candidate_id INTEGER,
-          details TEXT,
-          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
-          FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE SET NULL
-        );
-      `);
+        // ========================================================================
+        // 19. TRAVEL TRACKING
+        // ========================================================================
+        dbInstance.run(`
+          CREATE TABLE IF NOT EXISTS travel_tracking (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_id INTEGER NOT NULL,
+            pnr TEXT,
+            travel_date TEXT,
+            ticket_file_path TEXT,
+            departure_city TEXT,
+            arrival_city TEXT,
+            notes TEXT,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            isDeleted INTEGER DEFAULT 0,
+            FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE
+          );
+        `);
 
-      dbInstance.run(`
-        CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id);
-      `);
-      dbInstance.run(`
-        CREATE INDEX IF NOT EXISTS idx_audit_candidate ON audit_log(candidate_id);
-      `);
-      dbInstance.run(`
-        CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp DESC);
-      `);
+        // ========================================================================
+        // 20. PAYMENTS
+        // ========================================================================
+        dbInstance.run(`
+          CREATE TABLE IF NOT EXISTS payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_id INTEGER NOT NULL,
+            description TEXT NOT NULL,
+            total_amount REAL NOT NULL,
+            amount_paid REAL DEFAULT 0,
+            status TEXT DEFAULT 'Pending',
+            due_date TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            isDeleted INTEGER DEFAULT 0,
+            FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE CASCADE
+          );
+        `);
 
-      // ========================================================================
-      // 27. SYSTEM AUDIT LOG (Additional)
-      // ========================================================================
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS system_audit_log (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          event_type TEXT NOT NULL,
-          user_id INTEGER,
-          details TEXT,
-          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
-        );
-      `);
+        // ========================================================================
+        // 21. AUDIT LOG
+        // ========================================================================
+        dbInstance.run(`
+          CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            username TEXT,
+            action TEXT NOT NULL,
+            target_type TEXT,
+            target_id INTEGER,
+            candidate_id INTEGER,
+            details TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
+            FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE SET NULL
+          );
+        `);
 
-      // ========================================================================
-      // 28. REQUIRED DOCUMENTS
-      // ========================================================================
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS required_documents (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL UNIQUE,
-          isDeleted INTEGER DEFAULT 0,
-          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
+        dbInstance.run(`
+          CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id);
+        `);
+        dbInstance.run(`
+          CREATE INDEX IF NOT EXISTS idx_audit_candidate ON audit_log(candidate_id);
+        `);
+        dbInstance.run(`
+          CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp DESC);
+        `);
 
-      // ========================================================================
-      // 29. COMMUNICATION LOGS
-      // ========================================================================
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS communication_logs (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          candidate_id INTEGER,
-          user_id INTEGER,
-          communication_type TEXT,
-          details TEXT,
-          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE SET NULL,
-          FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
-        );
-      `);
+        // ========================================================================
+        // 22. SYSTEM AUDIT LOG (Additional)
+        // ========================================================================
+        dbInstance.run(`
+          CREATE TABLE IF NOT EXISTS system_audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type TEXT NOT NULL,
+            user_id INTEGER,
+            details TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+          );
+        `);
 
-      dbInstance.run(`
-        CREATE INDEX IF NOT EXISTS idx_comm_logs_candidate ON communication_logs(candidate_id);
-      `);
-      dbInstance.run(`
-        CREATE INDEX IF NOT EXISTS idx_comm_logs_created ON communication_logs(createdAt DESC);
-      `);
+        // ========================================================================
+        // 23. REQUIRED DOCUMENTS
+        // ========================================================================
+        dbInstance.run(`
+          CREATE TABLE IF NOT EXISTS required_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            isDeleted INTEGER DEFAULT 0,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
 
-      // ========================================================================
-      // 30. BUSINESS THEME
-      // ========================================================================
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS business_theme (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          key TEXT NOT NULL UNIQUE,
-          value TEXT NOT NULL
-        );
-      `);
+        // ========================================================================
+        // 24. COMMUNICATION LOGS
+        // ========================================================================
+        dbInstance.run(`
+          CREATE TABLE IF NOT EXISTS communication_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_id INTEGER,
+            user_id INTEGER,
+            communication_type TEXT,
+            details TEXT,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (candidate_id) REFERENCES candidates (id) ON DELETE SET NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+          );
+        `);
 
-      // ========================================================================
-      // 31. FEATURE FLAGS
-      // ========================================================================
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS feature_flags (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          key TEXT NOT NULL UNIQUE,
-          label TEXT NOT NULL,
-          description TEXT,
-          isDeleted INTEGER DEFAULT 0,
-          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
+        dbInstance.run(`
+          CREATE INDEX IF NOT EXISTS idx_comm_logs_candidate ON communication_logs(candidate_id);
+        `);
+        dbInstance.run(`
+          CREATE INDEX IF NOT EXISTS idx_comm_logs_created ON communication_logs(createdAt DESC);
+        `);
 
-      // ========================================================================
-      // 32. USER FEATURES (Junction Table)
-      // ========================================================================
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS user_features (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          user_id INTEGER NOT NULL,
-          feature_id INTEGER NOT NULL,
-          enabled INTEGER DEFAULT 1,
-          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE(user_id, feature_id),
-          FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-          FOREIGN KEY (feature_id) REFERENCES feature_flags (id) ON DELETE CASCADE
-        );
-      `);
+        // ========================================================================
+        // 25. BUSINESS THEME
+        // ========================================================================
+        dbInstance.run(`
+          CREATE TABLE IF NOT EXISTS business_theme (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key TEXT NOT NULL UNIQUE,
+            value TEXT NOT NULL
+          );
+        `);
 
-      dbInstance.run(`
-        CREATE INDEX IF NOT EXISTS idx_user_features_user ON user_features(user_id);
-      `);
+        // ========================================================================
+        // 26. FEATURE FLAGS
+        // ========================================================================
+        dbInstance.run(`
+          CREATE TABLE IF NOT EXISTS feature_flags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key TEXT NOT NULL UNIQUE,
+            label TEXT NOT NULL,
+            description TEXT,
+            isDeleted INTEGER DEFAULT 0,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
 
-      // ========================================================================
-      // 33. REMINDERS
-      // ========================================================================
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS reminders (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          user_id INTEGER NOT NULL,
-          candidate_id INTEGER,
-          module TEXT NOT NULL,
-          title TEXT NOT NULL,
-          message TEXT NOT NULL,
-          remind_at TEXT NOT NULL,
-          delivered INTEGER DEFAULT 0,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-          FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE CASCADE
-        );
-      `);
+        // ========================================================================
+        // 27. USER FEATURES (Junction Table)
+        // ========================================================================
+        dbInstance.run(`
+          CREATE TABLE IF NOT EXISTS user_features (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            feature_id INTEGER NOT NULL,
+            enabled INTEGER DEFAULT 1,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, feature_id),
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+            FOREIGN KEY (feature_id) REFERENCES feature_flags (id) ON DELETE CASCADE
+          );
+        `);
 
-      // ========================================================================
-      // 34. NOTIFICATIONS
-      // ========================================================================
-      dbInstance.run(`
-        CREATE TABLE IF NOT EXISTS notifications (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          title TEXT NOT NULL,
-          message TEXT NOT NULL,
-          type TEXT DEFAULT 'info',
-          priority TEXT DEFAULT 'normal',
-          link TEXT,
-          candidate_id INTEGER,
-          action_required INTEGER DEFAULT 0,
-          read INTEGER DEFAULT 0,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE SET NULL
-        );
-      `);
+        dbInstance.run(`
+          CREATE INDEX IF NOT EXISTS idx_user_features_user ON user_features(user_id);
+        `);
+
+        // ========================================================================
+        // 28. REMINDERS
+        // ========================================================================
+        dbInstance.run(`
+          CREATE TABLE IF NOT EXISTS reminders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            candidate_id INTEGER,
+            module TEXT NOT NULL,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            remind_at TEXT NOT NULL,
+            delivered INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE CASCADE
+          );
+        `);
+
+        // ========================================================================
+        // 29. NOTIFICATIONS
+        // ========================================================================
+        dbInstance.run(`
+          CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            type TEXT DEFAULT 'info',
+            priority TEXT DEFAULT 'normal',
+            link TEXT,
+            candidate_id INTEGER,
+            action_required INTEGER DEFAULT 0,
+            read INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE SET NULL
+          );
+        `);
 
         // Commit transaction
         dbInstance.run('COMMIT', (err) => {

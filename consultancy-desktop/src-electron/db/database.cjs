@@ -4,17 +4,14 @@ const { app } = require('electron');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcrypt');
-
 const saltRounds = 10;
 
-const { setupDatabaseSchema } = require('./schema/mainSchema.cjs');
+const { setupDatabaseSchema } = require('./schema/mainSchema.cjs');  // ✅ CORRECT
 const { runMigrations } = require('./migrations.cjs');
-const { seedFeatureFlags, seedInitialData } = require('./seeders/initialDataSeeder.cjs');
 
 // ============================================================================
-// DEFAULT USER SETUP (Shiva00s admin)
+// DEFAULT USER SETUP
 // ============================================================================
-
 async function ensureInitialUserAndRoles(dbInstance) {
   const superAdminUser = 'Shiva00s';
   const superAdminPass = 'Shiva@74482';
@@ -60,7 +57,6 @@ async function ensureInitialUserAndRoles(dbInstance) {
 // ============================================================================
 // SMTP SETTINGS
 // ============================================================================
-
 async function ensureDefaultSmtpSettings(dbInstance) {
   return new Promise((resolve, reject) => {
     dbInstance.get(
@@ -74,7 +70,6 @@ async function ensureDefaultSmtpSettings(dbInstance) {
 
         if (!row) {
           console.log('📧 Creating default SMTP configuration...');
-
           const defaultSmtpConfig = {
             host: 'smtp.gmail.com',
             port: 587,
@@ -91,9 +86,7 @@ async function ensureDefaultSmtpSettings(dbInstance) {
                 console.error('❌ Error creating default SMTP config:', err2);
                 return reject(err2);
               }
-              console.log(
-                '✅ Default SMTP configuration created (needs user configuration)'
-              );
+              console.log('✅ Default SMTP configuration created');
               resolve(dbInstance);
             }
           );
@@ -107,9 +100,8 @@ async function ensureDefaultSmtpSettings(dbInstance) {
 }
 
 // ============================================================================
-// INITIALIZE DATABASE
+// DATABASE INITIALIZATION
 // ============================================================================
-
 function initializeDatabase() {
   const dbPath = path.join(app.getPath('userData'), 'consultancy.db');
   console.log('📂 Database path:', dbPath);
@@ -123,28 +115,28 @@ function initializeDatabase() {
 
       console.log('✅ Database connection opened');
 
-      dbInstance.run('PRAGMA foreign_keys = ON;', (fkErr) => {
-        if (fkErr) {
-          console.error('❌ Failed to enable foreign keys:', fkErr);
-          return reject(fkErr);
+      dbInstance.run('PRAGMA foreign_keys = ON;', (err) => {
+        if (err) {
+          console.error('❌ Failed to enable foreign keys:', err);
+          return reject(err);
         }
 
+        // ✅ CALL CORRECT FUNCTION NAME
         setupDatabaseSchema(dbInstance)
-          .then((db) => runMigrations(db))
+          .then((db) => {
+            console.log('🔄 Running migrations...');
+            return runMigrations(db);
+          })
           .then((db) => ensureInitialUserAndRoles(db))
           .then((db) => ensureDefaultSmtpSettings(db))
-          .then((db) => seedInitialData(db).then(() => db))
           .then((db) => {
             global.db = db;
-            return seedFeatureFlags(db).then(() => db);
-          })
-          .then((db) => {
             console.log('✅ Database initialized successfully');
             resolve(db);
           })
-          .catch((initErr) => {
-            console.error('❌ Database initialization failed:', initErr);
-            reject(initErr);
+          .catch((err) => {
+            console.error('❌ Database initialization failed:', err);
+            reject(err);
           });
       });
     });
@@ -154,7 +146,6 @@ function initializeDatabase() {
 // ============================================================================
 // HELPERS & EXPORTS
 // ============================================================================
-
 function getDatabase() {
   if (!global.db) {
     console.error('❌ Database has not been initialized.');
@@ -166,7 +157,6 @@ function getDatabase() {
 function closeDatabase() {
   return new Promise((resolve, reject) => {
     const db = global.db;
-
     if (!db) {
       console.log('⚠️ No database connection to close');
       return resolve(true);
@@ -177,7 +167,6 @@ function closeDatabase() {
         console.error('❌ Error closing database:', err);
         return reject(err);
       }
-
       global.db = null;
       console.log('✅ SQLite database closed cleanly');
       resolve(true);
