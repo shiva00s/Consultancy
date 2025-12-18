@@ -33,6 +33,324 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* ========================================
+   📸 PREMIUM PHOTO HEADER SECTION
+   72px Circle | Glassmorphism | Dark/Light Mode
+   ======================================== */
+
+.premium-photo-header {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.15) 0%, 
+    rgba(139, 92, 246, 0.15) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  animation: slideDown 0.5s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.premium-photo-header::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, 
+    rgba(59, 130, 246, 0.1) 0%, 
+    transparent 70%);
+  animation: pulse 4s ease-in-out infinite;
+  z-index: 0;
+}
+
+.photo-section {
+  position: relative;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.photo-container {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--primary-color);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.photo-container:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 24px rgba(59, 130, 246, 0.5);
+}
+
+.photo-container:hover .photo-actions-overlay {
+  opacity: 1;
+}
+
+.profile-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.photo-container:hover .profile-photo {
+  transform: scale(1.1);
+}
+
+.photo-actions-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.photo-action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.photo-action-btn.change-btn {
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+}
+
+.photo-action-btn.change-btn:hover {
+  background: #3b82f6;
+  transform: scale(1.15);
+}
+
+.photo-action-btn.remove-btn {
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+}
+
+.photo-action-btn.remove-btn:hover {
+  background: #ef4444;
+  transform: scale(1.15);
+}
+
+.photo-placeholder {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.1) 0%, 
+    rgba(255, 255, 255, 0.05) 100%);
+  border: 3px dashed var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.photo-placeholder::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.2);
+  transform: translate(-50%, -50%);
+  transition: all 0.4s ease;
+}
+
+.photo-placeholder:hover::before {
+  width: 150%;
+  height: 150%;
+}
+
+.photo-placeholder:hover {
+  border-color: var(--primary-color);
+  border-style: solid;
+  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+}
+
+.placeholder-icon {
+  font-size: 28px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.photo-placeholder:hover .placeholder-icon {
+  color: var(--primary-color);
+  transform: scale(1.1);
+}
+
+.upload-hint {
+  position: absolute;
+  bottom: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  opacity: 0;
+  transition: all 0.3s ease;
+  pointer-events: none;
+  background: var(--bg-secondary);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.photo-placeholder:hover .upload-hint {
+  opacity: 1;
+  bottom: -40px;
+}
+
+.candidate-info-header {
+  flex: 1;
+  z-index: 1;
+}
+
+.candidate-name {
+  margin: 0 0 12px 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.candidate-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.meta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  transition: all 0.2s ease;
+}
+
+.meta-badge:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* ========================================
+   ⚠️ PHOTO PENDING NOTICE
+   Yellow Alert Banner
+   ======================================== */
+
+.photo-pending-notice {
+  background: linear-gradient(135deg, 
+    rgba(245, 158, 11, 0.15) 0%, 
+    rgba(251, 191, 36, 0.15) 100%);
+  border: 2px solid #f59e0b;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  animation: slideDown 0.4s ease, pulse 2s ease-in-out infinite;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.2);
+}
+
+.notice-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.notice-icon {
+  font-size: 24px;
+  color: #f59e0b;
+  animation: bounce 1s ease-in-out infinite;
+}
+
+.notice-content span {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.cancel-photo-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 2px solid #ef4444;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.cancel-photo-btn:hover {
+  background: #ef4444;
+  color: white;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+/* ========================================
+   PROFILE CONTENT WRAPPER
+   ======================================== */
+
+.profile-content-wrapper {
+  animation: fadeIn 0.5s ease;
+}
+
 /* === Custom Tabs Container === */
 .custom-tabs-container {
   background: var(--bg-card);
@@ -369,6 +687,14 @@
   border: 1px solid #9ca3af;
 }
 
+/* Status-specific badges */
+.status-new { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid #3b82f6; }
+.status-documents-collected { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; border: 1px solid #8b5cf6; }
+.status-visa-applied { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid #f59e0b; }
+.status-in-progress { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid #3b82f6; }
+.status-completed { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid #10b981; }
+.status-rejected { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid #ef4444; }
+
 /* === Document Styles === */
 .doc-list-grouped {
   padding: 0;
@@ -518,6 +844,12 @@
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
 }
 
+[data-theme="dark"] .premium-photo-header {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.2) 0%, 
+    rgba(139, 92, 246, 0.2) 100%);
+}
+
 /* === Light Mode Enhancements === */
 [data-theme="light"] .module-list-item,
 [data-theme="light"] .payment-item,
@@ -542,7 +874,22 @@
   background: #ffffff;
 }
 
-/* === Animations === */
+[data-theme="light"] .premium-photo-header {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.1) 0%, 
+    rgba(139, 92, 246, 0.1) 100%);
+}
+
+[data-theme="light"] .photo-placeholder {
+  background: linear-gradient(135deg, 
+    rgba(0, 0, 0, 0.05) 0%, 
+    rgba(0, 0, 0, 0.02) 100%);
+}
+
+/* ========================================
+   ✨ ANIMATIONS
+   ======================================== */
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -551,6 +898,37 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
   }
 }
 
@@ -581,5 +959,34 @@
 
   .add-docs-form .btn {
     grid-column: 1 / -1;
+  }
+
+  .premium-photo-header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .candidate-meta {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .candidate-name {
+    font-size: 1.4rem;
+  }
+
+  .premium-photo-header {
+    padding: 20px;
+  }
+
+  .photo-pending-notice {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cancel-photo-btn {
+    width: 100%;
+    justify-content: center;
   }
 }

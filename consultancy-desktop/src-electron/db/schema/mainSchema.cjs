@@ -350,77 +350,101 @@ function setupDatabaseSchema(dbInstance) {
             ON passport_tracking(date DESC);
         `);
 
-        // ========================================================================
-        // 14. PASSPORT MOVEMENTS (NEW UNIFIED TABLE)
-        // ========================================================================
-        dbInstance.run(`
-          CREATE TABLE IF NOT EXISTS passport_movements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            candidate_id INTEGER NOT NULL,
-            movement_type TEXT NOT NULL CHECK(movement_type IN ('RECEIVE', 'SEND')),
-            date TEXT NOT NULL,
-            received_from TEXT,
-            file_name TEXT NOT NULL,
-            received_by TEXT,
-            received_date TEXT,
-            received_notes TEXT,
-            send_to TEXT,
-            send_to_name TEXT,
-            send_to_contact TEXT,
-            sent_by TEXT,
-            dispatch_date TEXT,
-            dispatch_notes TEXT,
-            docket_number TEXT,
-            method TEXT,
-            courier_number TEXT,
-            passport_status TEXT,
-            source_type TEXT,
-            agent_contact TEXT,
-            notes TEXT,
-            created_by TEXT,
-            created_at TEXT DEFAULT (datetime('now', 'localtime')),
-            updated_at TEXT DEFAULT (datetime('now', 'localtime')),
-            is_deleted INTEGER DEFAULT 0,
-            FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE CASCADE
-          );
-        `);
+       // ====================================================================
+// 14. PASSPORT MOVEMENTS - NEW UNIFIED TABLE
+// ====================================================================
 
-        dbInstance.run(`
-          CREATE INDEX IF NOT EXISTS idx_passport_movements_candidate
-            ON passport_movements(candidate_id);
-        `);
 
-        dbInstance.run(`
-          CREATE INDEX IF NOT EXISTS idx_passport_movements_date
-            ON passport_movements(date DESC);
-        `);
+// Create fresh passport_movements table
+dbInstance.run(`
+  CREATE TABLE IF NOT EXISTS passport_movements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    candidate_id INTEGER NOT NULL,
+    movement_type TEXT NOT NULL CHECK(movement_type IN ('RECEIVE', 'SEND')),
+    date TEXT NOT NULL,
+    
+    -- RECEIVE fields
+    received_from TEXT,
+    received_by TEXT,
+    received_date TEXT,
+    received_notes TEXT,
+    
+    -- SEND fields
+    send_to TEXT,
+    send_to_name TEXT,
+    send_to_contact TEXT,
+    sent_by TEXT,
+    dispatch_date TEXT,
+    dispatch_notes TEXT,
+    docket_number TEXT,
+    
+    -- Shared fields
+    method TEXT,
+    courier_number TEXT,
+    passport_status TEXT,
+    source_type TEXT,
+    agent_contact TEXT,
+    notes TEXT,
+    
+    created_by TEXT,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at TEXT DEFAULT (datetime('now', 'localtime')),
+    is_deleted INTEGER DEFAULT 0,
+    
+    FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE CASCADE
+  )
+`, (err) => {
+  if (err) {
+    console.error('❌ Failed to create passport_movements:', err.message);
+    return reject(new Error('Failed to create passport_movements table'));
+  }
+ 
+});
 
-        dbInstance.run(`
-          CREATE INDEX IF NOT EXISTS idx_passport_movements_type
-            ON passport_movements(movement_type);
-        `);
+// Create indexes
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_passport_movements_candidate 
+  ON passport_movements(candidate_id)
+`);
 
-        // ========================================================================
-        // 15. PASSPORT MOVEMENT PHOTOS (FOR NEW TABLE)
-        // ========================================================================
-        dbInstance.run(`
-          CREATE TABLE IF NOT EXISTS passport_movement_photos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            movement_id INTEGER NOT NULL,
-            file_name TEXT NOT NULL,
-            file_type TEXT NOT NULL,
-            file_data TEXT NOT NULL,
-            uploaded_at TEXT DEFAULT (datetime('now', 'localtime')),
-            isDeleted INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (movement_id) REFERENCES passport_movements(id) ON DELETE CASCADE
-          );
-        `);
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_passport_movements_date 
+  ON passport_movements(date DESC)
+`);
 
-        dbInstance.run(`
-          CREATE INDEX IF NOT EXISTS idx_passport_movement_photos_movement
-            ON passport_movement_photos(movement_id);
-        `);
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_passport_movements_type 
+  ON passport_movements(movement_type)
+`);
+
+// ====================================================================
+// 15. PASSPORT MOVEMENT PHOTOS
+// ====================================================================
+dbInstance.run(`
+  CREATE TABLE IF NOT EXISTS passport_movement_photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    movement_id INTEGER NOT NULL,
+    file_name TEXT NOT NULL,
+    file_type TEXT NOT NULL,
+    file_data TEXT NOT NULL,
+    uploaded_at TEXT DEFAULT (datetime('now', 'localtime')),
+    is_deleted INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    
+    FOREIGN KEY (movement_id) REFERENCES passport_movements(id) ON DELETE CASCADE
+  )
+`, (err) => {
+  if (err) {
+    console.error('❌ Failed to create passport_movement_photos:', err.message);
+    return reject(new Error('Failed to create passport_movement_photos table'));
+  }
+ 
+});
+
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_passport_movement_photos_movement 
+  ON passport_movement_photos(movement_id)
+`);
 
         // ========================================================================
         // 16. VISA TRACKING

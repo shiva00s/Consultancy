@@ -9,6 +9,7 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 import '../../css/passport-tracking/PassportTimeline.css';
 import toast from 'react-hot-toast';
 
+
 function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
   const [expandedMovement, setExpandedMovement] = useState(null);
   const [photoGalleryMovement, setPhotoGalleryMovement] = useState(null);
@@ -24,17 +25,18 @@ function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
   useEffect(() => {
     const fetchPreviews = async () => {
       const previews = {};
-
       for (const movement of movements) {
         try {
-          const res = await window.electronAPI.getPassportMovementPhotos({ 
+          const res = await window.electronAPI.getPassportMovementPhotos({
             movementId: movement.id,
             user: user
           });
-
+          
           if (res.success && res.data && res.data.length > 0) {
+            const firstPhoto = res.data[0];
+            // ✅ FIX: Add data URL prefix with MIME type
             previews[movement.id] = {
-              dataUrl: res.data[0].file_data,
+              dataUrl: `data:${firstPhoto.file_type};base64,${firstPhoto.file_data}`,
               totalCount: res.data.length
             };
           }
@@ -42,7 +44,6 @@ function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
           console.error('Error fetching movement photos:', err);
         }
       }
-
       setMovementPreviews(previews);
     };
 
@@ -87,34 +88,31 @@ function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
   };
 
   // ✅ CONFIRM DELETE
-// ✅ CONFIRM DELETE
-const handleDeleteConfirm = async () => {
-  const movementId = deleteDialog.movementId;
-  setDeleteDialog({ open: false, movementId: null });
-  setDeletingId(movementId);
+  const handleDeleteConfirm = async () => {
+    const movementId = deleteDialog.movementId;
+    setDeleteDialog({ open: false, movementId: null });
+    setDeletingId(movementId);
 
-  try {
-    // ✅ FIX: Pass 'id' instead of 'movementId'
-    const res = await window.electronAPI.deletePassportMovement({ 
-      id: movementId,  // ⬅️ Changed from 'movementId' to 'id'
-      user 
-    });
-    
-    if (res.success) {
-      toast.success('Movement deleted successfully');
-      if (onMovementDeleted) onMovementDeleted();
-    } else {
-      toast.error(res.message || 'Failed to delete movement');
+    try {
+      // ✅ FIX: Pass 'id' instead of 'movementId'
+      const res = await window.electronAPI.deletePassportMovement({ 
+        id: movementId,  // ⬅️ Changed from 'movementId' to 'id'
+        user 
+      });
+      
+      if (res.success) {
+        toast.success('Movement deleted successfully');
+        if (onMovementDeleted) onMovementDeleted();
+      } else {
+        toast.error(res.message || 'Failed to delete movement');
+      }
+    } catch (err) {
+      console.error('Error deleting movement:', err);
+      toast.error('An error occurred while deleting the movement');
+    } finally {
+      setDeletingId(null);
     }
-  } catch (err) {
-    console.error('Error deleting movement:', err);
-    toast.error('An error occurred while deleting the movement');
-  } finally {
-    setDeletingId(null);
-  }
-};
-
-
+  };
 
   // ✅ CANCEL DELETE
   const handleDeleteCancel = () => {
@@ -218,6 +216,19 @@ const handleDeleteConfirm = async () => {
                       src={preview.dataUrl}
                       alt="Passport preview"
                       className="preview-image"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.parentElement.innerHTML = `
+                          <div class="movement-photo-empty">
+                            <svg class="empty-photo-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                              <circle cx="8.5" cy="8.5" r="1.5"/>
+                              <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                            <span>Failed to load image</span>
+                          </div>
+                        `;
+                      }}
                     />
                     <div className="photo-preview-overlay">
                       <FiImage className="overlay-icon" />

@@ -9,7 +9,7 @@ const initialForm = {
   type: 'RECEIVE',
   method: 'By Hand',
   courier_number: '',
-  date: new Date().toISOString().split('T')[0],
+ date: new Date().toLocaleDateString('en-CA'), // 'en-CA' gives YYYY-MM-DD format in local timezone
   notes: '',
   received_from: 'Candidate',
   received_by: '',

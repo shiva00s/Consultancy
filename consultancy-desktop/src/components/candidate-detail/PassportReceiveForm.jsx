@@ -16,7 +16,7 @@ function PassportReceiveForm({ candidateId, user, staffList, onSuccess }) {
     received_from: 'Candidate',
     method: 'By Hand',
     courier_number: '',
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD format
     received_by: user?.fullName || '',
     notes: '',
     photos: [],
@@ -120,7 +120,7 @@ function PassportReceiveForm({ candidateId, user, staffList, onSuccess }) {
           received_from: 'Candidate',
           method: 'By Hand',
           courier_number: '',
-          date: new Date().toISOString().split('T')[0],
+         date: new Date().toLocaleDateString('en-CA'), // 'en-CA' gives YYYY-MM-DD format in local timezone
           received_by: user?.fullName || '',
           notes: '',
           photos: [],

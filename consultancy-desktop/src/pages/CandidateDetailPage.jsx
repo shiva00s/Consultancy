@@ -12,13 +12,12 @@ import {
   FiClock,
   FiArrowLeft,
   FiDownload,
-  FiAlertTriangle,
-  FiMessageSquare, // ✅ Already imported
+  FiMessageSquare,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
-
 import "../css/CandidateDetailPage.css";
 import Tabs from "../components/Tabs";
+import CandidateProfile from "../components/candidate-detail/CandidateProfile";
 import CandidateFinance from "../components/candidate-detail/CandidateFinance";
 import CandidateVisa from "../components/candidate-detail/CandidateVisa";
 import CandidateJobs from "../components/candidate-detail/CandidateJobs";
@@ -51,6 +50,8 @@ function CandidateDetailPage({ user, flags }) {
   const [formData, setFormData] = useState(null);
   const [placements, setPlacements] = useState([]);
   const [selectedJobForOffer, setSelectedJobForOffer] = useState(null);
+  const [photoUrl, setPhotoUrl] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
 
   // --- GRANULAR PERMISSION STATE ---
   const [granularPermissions, setGranularPermissions] = useState({});
@@ -71,11 +72,116 @@ function CandidateDetailPage({ user, flags }) {
     setLoading(false);
   }, [id, user]);
 
+  // ✅ Load candidate photo
+  const loadCandidatePhoto = useCallback(async () => {
+    if (id) {
+      const result = await window.electronAPI.getCandidatePhoto({
+        candidateId: parseInt(id),
+      });
+      if (result.success && result.photoUrl) {
+        setPhotoUrl(result.photoUrl);
+      }
+    }
+  }, [id]);
+
+  useEffect(() => {
+    loadCandidatePhoto();
+  }, [loadCandidatePhoto]);
+
+  // 📸 Handle photo selection
+  const handlePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Photo size must be less than 5MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPhotoUrl(e.target.result);
+      setPhotoFile(file);
+      toast.success('Photo selected. Click "Save Changes" to upload.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // 🗑️ Remove photo
+  const handleRemovePhoto = async () => {
+    if (!window.confirm("Are you sure you want to remove this photo?")) return;
+
+    try {
+      const result = await window.electronAPI.deleteCandidatePhoto({
+        candidateId: parseInt(id),
+      });
+      if (result.success) {
+        setPhotoUrl(null);
+        setPhotoFile(null);
+        toast.success("Photo removed successfully");
+      } else {
+        toast.error("Failed to remove photo: " + result.error);
+      }
+    } catch (error) {
+      toast.error("Error removing photo");
+    }
+  };
+
+  // 📤 Upload photo to backend
+  const uploadPhoto = async () => {
+    if (!photoFile) return true;
+
+    try {
+      const reader = new FileReader();
+
+      return new Promise((resolve, reject) => {
+        reader.onloadend = async () => {
+          try {
+            const photoResult = await window.electronAPI.uploadCandidatePhoto({
+              candidateId: parseInt(id),
+              fileBuffer: Array.from(new Uint8Array(reader.result)),
+              fileName: photoFile.name,
+            });
+
+            if (photoResult.success) {
+              toast.success("📷 Photo uploaded successfully!");
+              setPhotoFile(null);
+              await loadCandidatePhoto();
+              resolve(true);
+            } else {
+              toast.error("Failed to upload photo: " + photoResult.error);
+              resolve(false);
+            }
+          } catch (error) {
+            console.error("Photo upload error:", error);
+            toast.error("Failed to upload photo");
+            resolve(false);
+          }
+        };
+
+        reader.onerror = () => {
+          toast.error("Failed to read photo file");
+          resolve(false);
+        };
+
+        reader.readAsArrayBuffer(photoFile);
+      });
+    } catch (error) {
+      console.error("Photo upload error:", error);
+      toast.error("Failed to upload photo");
+      return false;
+    }
+  };
+
   // 2. Load Granular Permissions
   useEffect(() => {
     const loadGranularPermissions = async () => {
       if (user.role === "super_admin") {
-        // Super Admin has all tab permissions
         const allPerms = {
           tab_profile: true,
           tab_passport: true,
@@ -93,7 +199,6 @@ function CandidateDetailPage({ user, flags }) {
         setGranularPermissions(allPerms);
         setGranularPermsLoaded(true);
       } else {
-        // Admin or Staff - fetch from database
         const res = await window.electronAPI.getUserGranularPermissions({
           userId: user.id,
         });
@@ -116,7 +221,7 @@ function CandidateDetailPage({ user, flags }) {
       if (res.success && res.data.length > 0) {
         setPlacements(res.data);
         const latestJob = res.data.reduce((latest, current) =>
-          current.placementId > latest.placementId ? current : latest,
+          current.placementId > latest.placementId ? current : latest
         );
         setSelectedJobForOffer(latestJob.jobId);
       } else {
@@ -140,20 +245,20 @@ function CandidateDetailPage({ user, flags }) {
   const handleDocumentsUpdate = (
     newDocs = [],
     docIdToDelete = null,
-    isCategoryUpdate = false,
+    isCategoryUpdate = false
   ) => {
     setDetails((prev) => {
       let updatedDocuments = [...(prev?.documents || [])];
       if (docIdToDelete !== null) {
         updatedDocuments = updatedDocuments.filter(
-          (doc) => doc.id !== docIdToDelete,
+          (doc) => doc.id !== docIdToDelete
         );
       } else if (isCategoryUpdate) {
         const updateDoc = newDocs[0];
         updatedDocuments = updatedDocuments.map((doc) =>
           doc.id === updateDoc.id
             ? { ...doc, category: updateDoc.category }
-            : doc,
+            : doc
         );
       } else if (newDocs.length > 0) {
         updatedDocuments = [...updatedDocuments, ...newDocs];
@@ -179,44 +284,49 @@ function CandidateDetailPage({ user, flags }) {
   };
 
   const handleSave = async () => {
-  // Clean passport number
-  const cleanedData = {
-    ...formData,
-    passportNo: formData.passportNo
-      ? formData.passportNo.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
-      : formData.passportNo,
+    const cleanedData = {
+      ...formData,
+      passportNo: formData.passportNo
+        ? formData.passportNo.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
+        : formData.passportNo,
+    };
+
+    // 📤 Upload photo first if selected
+    if (photoFile) {
+      const photoSuccess = await uploadPhoto();
+      if (!photoSuccess) {
+        toast.error(
+          "Failed to upload photo. Other changes will still be saved."
+        );
+      }
+    }
+
+    const res = await window.electronAPI.updateCandidateText({
+      user,
+      id,
+      data: cleanedData,
+    });
+
+    if (res.success) {
+      toast.success("Details saved successfully!");
+      setIsEditing(false);
+      fetchDetails();
+    } else {
+      toast.error(res.error || "Failed to save changes");
+    }
   };
-
-  console.log("Sending to IPC:", { user, id, data: cleanedData });
-
-  const res = await window.electronAPI.updateCandidateText({
-    user,
-    id,
-    data: cleanedData,  // ✅ Make sure this is structured correctly
-  });
-
-  if (res.success) {
-    toast.success("Details saved successfully!");
-    setIsEditing(false);
-    fetchDetails();
-  } else {
-    console.error("Save failed:", res);
-    toast.error(res.error || "Failed to save changes");
-  }
-};
-
 
   const handleDeleteCandidate = async () => {
     if (
       window.confirm(
-        "Are you sure you want to move this candidate to the Recycle Bin?",
+        "Are you sure you want to move this candidate to the Recycle Bin?"
       )
     ) {
       const res = await window.electronAPI.deleteCandidate({ user, id });
       if (res.success) {
         navigate("/search");
         toast.success(
-          `Candidate ${details.candidate.name} moved to Recycle Bin.`,
+          `Candidate ${details.candidate.name} moved to Recycle Bin.`
         );
       } else {
         toast.error(res.error);
@@ -258,239 +368,9 @@ function CandidateDetailPage({ user, flags }) {
 
   // --- GRANULAR PERMISSION CHECKER ---
   const canAccessTab = (permissionKey) => {
-    // Profile tab is always visible
     if (permissionKey === "tab_profile") return true;
-
-    // Check granular permissions
     return granularPermissions[permissionKey] === true;
   };
-
-  const ProfileTabContent = (
-    <div className="profile-tab-content">
-      <div className="detail-card" style={{ border: "none", margin: 0 }}>
-        <div
-          className="detail-header"
-          style={{ borderRadius: "var(--border-radius)" }}
-        >
-          <h2>{isEditing ? "Edit Profile" : "Profile Overview"}</h2>
-          <div className="header-actions">
-            {isEditing ? (
-              <>
-                <button className="btn" onClick={handleSave}>
-                  Save Changes
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setIsEditing(false);
-                    setFormData(candidate);
-                  }}
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  className="btn btn-secondary"
-                  onClick={handleExportDocuments}
-                >
-                  <FiDownload /> Export Documents
-                </button>
-                <button className="btn" onClick={() => setIsEditing(true)}>
-                  Edit Details
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-        <div className="form-grid">
-          <div className="form-group">
-            <label>Name</label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleTextChange}
-              readOnly={!isEditing}
-            />
-          </div>
-          <div className="form-group">
-            <label>Status</label>
-            {isEditing ? (
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleTextChange}
-              >
-                {statusOptions.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input type="text" value={formData.status} readOnly />
-            )}
-          </div>
-          
-          <div className="form-group">
-  <label>Contact Number</label>
-  <div style={{ display: "flex", gap: "5px" }}>
-    <input
-      type="text"
-      name="contact"
-      value={formData.contact || ""}
-      onChange={handleTextChange}
-      readOnly={!isEditing}
-      style={{ flexGrow: 1 }}
-    />
-    {formData.contact && (
-      <button
-        className="btn"
-        style={{
-          backgroundColor: "#25D366",
-          color: "white",
-          padding: "0 12px",
-          minWidth: "auto",
-        }}
-        title="Chat on WhatsApp"
-        type="button"
-        onClick={async (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          
-          const phone = formData.contact.replace(/\D/g, "");
-          console.log("🔵 WhatsApp button clicked!");
-          console.log("🔵 user:", user);
-          console.log("🔵 candidateId:", id);
-          console.log("🔵 phone:", phone);
-          
-          try {
-            // Open WhatsApp
-            window.open(`https://wa.me/${phone}`, "_blank");
-            
-            // Log communication
-            const result = await window.electronAPI.logCommunication({
-              user: user,
-              candidateId: id,
-              communication_type: "WhatsApp",
-              details: `Opened WhatsApp chat with +${phone}`,
-            });
-            
-            console.log("🟢 logCommunication result:", result);
-            
-            if (result.success) {
-              toast.success("WhatsApp opened and logged");
-            } else {
-              toast.error("Failed to log: " + result.error);
-            }
-          } catch (err) {
-            console.error("❌ WhatsApp error:", err);
-            toast.error("Error: " + err.message);
-          }
-        }}
-      >
-        <FiMessageSquare style={{ fontSize: "1.1rem" }} />
-      </button>
-    )}
-  </div>
-</div>
-
-
-          <div className="form-group">
-            <label>Aadhar Number</label>
-            <input
-              type="text"
-              name="aadhar"
-              value={formData.aadhar || ""}
-              onChange={handleTextChange}
-              readOnly={!isEditing}
-            />
-          </div>
-          <div className="form-group">
-            <label>Passport No</label>
-            <input
-              type="text"
-              name="passportNo"
-              value={formData.passportNo}
-              onChange={handleTextChange}
-              readOnly={!isEditing}
-            />
-          </div>
-          <div className="form-group">
-            <label>Passport Expiry</label>
-            <input
-              type="date"
-              name="passportExpiry"
-              value={formData.passportExpiry || ""}
-              onChange={handleTextChange}
-              readOnly={!isEditing}
-            />
-          </div>
-          <div className="form-group">
-            <label>Position Applying For</label>
-            <input
-              type="text"
-              name="Position"
-              value={formData.Position}
-              onChange={handleTextChange}
-              readOnly={!isEditing}
-            />
-          </div>
-          <div className="form-group">
-            <label>Education</label>
-            <input
-              type="text"
-              name="education"
-              value={formData.education || ""}
-              onChange={handleTextChange}
-              readOnly={!isEditing}
-            />
-          </div>
-          <div className="form-group">
-            <label>Experience (years)</label>
-            <input
-              type="number"
-              name="experience"
-              value={formData.experience || ""}
-              onChange={handleTextChange}
-              readOnly={!isEditing}
-            />
-          </div>
-          <div className="form-group">
-            <label>Date of Birth</label>
-            <input
-              type="date"
-              name="dob"
-              value={formData.dob || ""}
-              onChange={handleTextChange}
-              readOnly={!isEditing}
-            />
-          </div>
-          <div className="form-group full-width">
-            <label>Notes</label>
-            <textarea
-              name="notes"
-              value={formData.notes || ""}
-              onChange={handleTextChange}
-              readOnly={!isEditing}
-            ></textarea>
-          </div>
-        </div>
-      </div>
-      <div className="detail-card delete-zone">
-        <h3>Move Candidate to Recycle Bin</h3>
-        <p>
-          Moves candidate and all linked records to Recycle Bin. Restore is
-          possible.
-        </p>
-        <button className="btn btn-danger" onClick={handleDeleteCandidate}>
-          <FiAlertTriangle /> Move to Recycle Bin
-        </button>
-      </div>
-    </div>
-  );
 
   const DocumentTabContent = (
     <CandidateDocuments
@@ -512,7 +392,7 @@ function CandidateDetailPage({ user, flags }) {
           value={selectedJobForOffer || ""}
           onChange={(e) =>
             setSelectedJobForOffer(
-              e.target.value ? parseInt(e.target.value) : null,
+              e.target.value ? parseInt(e.target.value) : null
             )
           }
         >
@@ -535,16 +415,31 @@ function CandidateDetailPage({ user, flags }) {
     </div>
   );
 
-  // --- DYNAMIC TAB FILTERING WITH GRANULAR PERMISSIONS ---
   const tabConfig = [
     {
       key: "profile",
       title: "Profile",
       icon: <FiUser />,
-      content: ProfileTabContent,
+      content: (
+        <CandidateProfile
+          candidate={formData}
+          statusOptions={statusOptions}
+          isEditing={isEditing}
+          photoUrl={photoUrl}
+          handleTextChange={handleTextChange}
+          handleSave={handleSave}
+          handleDeleteCandidate={handleDeleteCandidate}
+          handleExportDocuments={handleExportDocuments}
+          handlePhotoChange={handlePhotoChange}
+          handleRemovePhoto={handleRemovePhoto}
+          setIsEditing={setIsEditing}
+          setFormData={setFormData}
+          user={user}
+          loadCandidatePhoto={loadCandidatePhoto}
+        />
+      ),
       permKey: "tab_profile",
     },
-
     {
       key: "passport",
       title: "Passport Tracking",
@@ -552,7 +447,6 @@ function CandidateDetailPage({ user, flags }) {
       content: <CandidatePassport candidateId={id} documents={documents} />,
       permKey: "tab_passport",
     },
-
     {
       key: "documents",
       title: `Documents (${documents.length})`,
@@ -560,7 +454,6 @@ function CandidateDetailPage({ user, flags }) {
       content: DocumentTabContent,
       permKey: "tab_documents",
     },
-
     {
       key: "jobs",
       title: "Job Placements",
@@ -574,7 +467,6 @@ function CandidateDetailPage({ user, flags }) {
       ),
       permKey: "tab_job_placements",
     },
-
     {
       key: "visa",
       title: "Visa Tracking",
@@ -582,7 +474,6 @@ function CandidateDetailPage({ user, flags }) {
       content: <CandidateVisa user={user} candidateId={id} />,
       permKey: "tab_visa_tracking",
     },
-
     {
       key: "finance",
       title: "Financial Tracking",
@@ -590,7 +481,6 @@ function CandidateDetailPage({ user, flags }) {
       content: <CandidateFinance user={user} candidateId={id} flags={flags} />,
       permKey: "tab_financial",
     },
-
     {
       key: "medical",
       title: "Medical",
@@ -598,7 +488,6 @@ function CandidateDetailPage({ user, flags }) {
       content: <CandidateMedical user={user} candidateId={id} />,
       permKey: "tab_medical",
     },
-
     {
       key: "interview",
       title: "Interview/Schedule",
@@ -606,7 +495,6 @@ function CandidateDetailPage({ user, flags }) {
       content: <CandidateInterview user={user} candidateId={id} />,
       permKey: "tab_interview",
     },
-
     {
       key: "travel",
       title: "Travel/Tickets",
@@ -614,7 +502,6 @@ function CandidateDetailPage({ user, flags }) {
       content: <CandidateTravel user={user} candidateId={id} />,
       permKey: "tab_travel",
     },
-
     {
       key: "offer",
       title: "Offer Letter",
@@ -622,7 +509,6 @@ function CandidateDetailPage({ user, flags }) {
       content: OfferLetterTabContent,
       permKey: "tab_offer_letter",
     },
-
     {
       key: "history",
       title: "History",
@@ -630,7 +516,6 @@ function CandidateDetailPage({ user, flags }) {
       content: <CandidateHistory candidateId={id} />,
       permKey: "tab_history",
     },
-
     {
       key: "communications",
       title: "Comms Log",

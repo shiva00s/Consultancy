@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-
+import '../css/Tabs.css';
 // This is a simple generic Tabs component that handles the tab switching logic.
 function Tabs({ defaultActiveTab, tabs }) {
   const [activeTab, setActiveTab] = useState(defaultActiveTab || tabs[0].key);

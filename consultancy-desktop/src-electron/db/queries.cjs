@@ -11,6 +11,7 @@ const {
   deletePassportMovementPhoto,getAllDeletedPassportMovements,permanentDeletePassportMovement,
 getPassportMovementStatus
 } = require('./passportQueries.cjs');
+const {mapErrorToFriendly} = require('../utils/errorMapper.cjs');
 
 const saltRounds = 10;
 
@@ -68,68 +69,6 @@ const dbAll = (db, sql, params) => {
   });
 };
 
-// ====================================================================
-// LOCAL FRIENDLY ERROR MAPPER (for toast messages)
-// ====================================================================
-function mapErrorToFriendly(err) {
-  if (!err) return "Unexpected error occurred.";
-
-  const msg = typeof err === "string" ? err : (err.message || err.toString());
-
-  // UNIQUE / CONSTRAINT
-  if (msg.includes("SQLITE_CONSTRAINT") || msg.includes("UNIQUE constraint")) {
-    if (
-      msg.includes("placements.candidate_id") ||
-      msg.includes("candidate_id, job_order_id")
-    ) {
-      return "This candidate is already assigned to that job.";
-    }
-    if (msg.toLowerCase().includes("passport")) {
-      return "Duplicate passport number found.";
-    }
-    if (msg.toLowerCase().includes("aadhar")) {
-      return "Duplicate Aadhar number found.";
-    }
-    if (msg.toLowerCase().includes("contact")) {
-      return "Duplicate contact number found.";
-    }
-    if (
-  msg.toLowerCase().includes("username") ||
-  msg.toLowerCase().includes("users.username")
-) {
-  return "Username already exists.";
-}
-
-    return "Duplicate entry found. Please check your details.";
-  }
-
-  // Validation
-  if (msg.toLowerCase().includes("validation failed")) {
-    return "Some fields need correction. Please review your input.";
-  }
-
-  // Not found
-  if (msg.toLowerCase().includes("not found")) {
-    return "Record not found.";
-  }
-
-  // Database generic
-  if (msg.includes("SQLITE_ERROR") || msg.toLowerCase().includes("database")) {
-    return "Database error. Please try again.";
-  }
-
-  // Typical undefined access
-  if (msg.includes("Cannot read properties of undefined")) {
-    return "Data loading error. Please refresh the page.";
-  }
-
-  // Too long messages
-  if (msg.length > 150) {
-    return "An error occurred. Please try again.";
-  }
-
-  return msg.replace(/^Error:\s*/i, "").trim();
-}
 
 // ====================================================================
 // 2. USER MANAGEMENT & AUTHENTICATION
@@ -3744,6 +3683,81 @@ async function clearAllNotifications() {
 }
 
 
+async function saveCandidatePhoto(candidateId, photoPath) {
+  const db = getDatabase();
+  try {
+    await dbRun(
+      db,
+      `UPDATE candidates 
+       SET photoPath = ?, 
+           updatedAt = datetime('now', 'localtime') 
+       WHERE id = ?`,
+      [photoPath, candidateId]
+    );
+    return { success: true, photoPath };
+  } catch (error) {
+    console.error('Error saving candidate photo:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get candidate photo path
+ */
+async function getCandidatePhoto(candidateId) {
+  const db = getDatabase();
+  try {
+    const result = await dbGet(
+      db,
+      `SELECT photo_Path FROM candidates WHERE id = ?`,
+      [candidateId]
+    );
+    return { success: true, photoPath: result?.photoPath || null };
+  } catch (error) {
+    console.error('Error getting candidate photo:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Delete candidate photo reference
+ */
+async function deleteCandidatePhoto(candidateId) {
+  const db = getDatabase();
+  try {
+    await dbRun(
+      db,
+      `UPDATE candidates 
+       SET photoPath = NULL, 
+           updatedAt = datetime('now', 'localtime') 
+       WHERE id = ?`,
+      [candidateId]
+    );
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting candidate photo:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function getCandidateById(id) {
+  const db = getDatabase();
+  try {
+    const candidate = await dbGet(
+      db,
+      `SELECT * FROM candidates WHERE id = ? AND isDeleted = 0`,
+      [id]
+    );
+    
+    if (!candidate) {
+      return { success: false, error: mapErrorToFriendly('Candidate not found.') };
+    }
+    
+    return { success: true, data: candidate };
+  } catch (err) {
+    return { success: false, error: mapErrorToFriendly(err) };
+  }
+}
 
 
  
@@ -3752,7 +3766,10 @@ module.exports = {
   dbRun,
   dbGet,
   dbAll,
-
+  getCandidateById,
+  saveCandidatePhoto,
+  getCandidatePhoto,
+  deleteCandidatePhoto,
   createNotification,
   getNotifications,
   markNotificationAsRead,

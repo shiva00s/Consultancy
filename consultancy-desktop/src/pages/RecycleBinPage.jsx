@@ -445,45 +445,69 @@ function RecycleBinPage({ user }) {
   content: renderList(
     deletedPassportMovements,
     "No deleted passport movements found.",
-    (movement) => (
-      <div key={movement.id} className="recycle-item">
-        <div className="item-info">
-          <strong>{movement.candidate_name || `Movement #${movement.id}`}</strong>
-          <span>
-            {movement.movement_type} • {movement.method || "N/A"} • {movement.date}
-          </span>
-        </div>
-        {renderItemActions(
-          movement,
-          "passport_movements",
-          (id, name) => {
-            // ✅ Now 'id' parameter is correctly passed from renderItemActions
-            openRestorePrompt(
-              "Restore passport movement?",
-              `Restore movement for: ${name}?`,
-              async () => {
-                const res = await window.electronAPI.restorePassportMovement({
-                  id: id,  // ✅ Use the 'id' parameter, not 'movement.id'
-                  user: user
-                });
+    (movement) => {
+      // ✅ Create a descriptive name for the modal
+      const movementName = `${movement.movement_type === 'RECEIVE' ? '📥 Received' : '📤 Sent'} - ${movement.date || 'Unknown Date'}${
+        movement.candidate_name ? ` (${movement.candidate_name})` : ''
+      }`;
 
-                if (res.success) {
-                  setDeletedPassportMovements((prev) =>
-                    prev.filter((m) => m.id !== id)  // ✅ Use 'id' parameter here too
-                  );
-                  toast.success("Passport movement restored.");
-                } else {
-                  toast.error(res.error);
-                }
-              }
-            );
-          }
-        )}
-      </div>
-    )
+      return (
+        <div key={movement.id} className="recycle-item">
+          <div className="item-info">
+            <strong>{movement.candidate_name || `Movement #${movement.id}`}</strong>
+            <span>
+              {movement.movement_type} • {movement.method || "N/A"} • {movement.date}
+            </span>
+          </div>
+          <div className="item-actions">
+            {canDeletePermanently && (
+              <button
+                className="doc-btn delete"
+                title="Permanently delete passport movement"
+                onClick={() => setDeleteModalItem({ 
+                  item: {
+                    ...movement,
+                    name: movementName  // ✅ Add the descriptive name
+                  }, 
+                  type: "passport_movements" 
+                })}
+              >
+                <FiTrash2 />
+              </button>
+            )}
+            <button
+              className="doc-btn view"
+              onClick={() => {
+                openRestorePrompt(
+                  "Restore passport movement?",
+                  `Restore movement: ${movementName}?`,
+                  async () => {
+                    const res = await window.electronAPI.restorePassportMovement({
+                      id: movement.id,
+                      user: user
+                    });
+
+                    if (res.success) {
+                      setDeletedPassportMovements((prev) =>
+                        prev.filter((m) => m.id !== movement.id)
+                      );
+                      toast.success("Passport movement restored.");
+                    } else {
+                      toast.error(res.error);
+                    }
+                  }
+                );
+              }}
+              title="Restore passport movement"
+            >
+              <FiRotateCcw />
+            </button>
+          </div>
+        </div>
+      );
+    }
   ),
 },
-
 
     {
       key: "visas",

@@ -790,55 +790,95 @@ ipcMain.handle('get-system-audit-log', async (event, args) => {
         return queries.getAuditLogForCandidate(candidateId);
     });
 // ====================================================================
-    ipcMain.handle('save-candidate-multi', async (event, { user, textData, files }) => {
-        // 1. Create candidate (this now includes duplicate checks)
-        const createResult = await queries.createCandidate(textData);
-        if (!createResult.success) {
-            return createResult; // Return the error (e.g., "Passport exists")
-        }
-        
-        const candidateId = createResult.id;
- 
-        logAction(user, 'create_candidate', 'candidates', candidateId, `Name: ${textData.name}`);
+   ipcMain.handle('save-candidate-multi', async (event, { user, textData, files, photo }) => {
+    // 1. Create candidate (this now includes duplicate checks)
+    const createResult = await queries.createCandidate(textData);
+    if (!createResult.success) {
+        return createResult; // Return the error (e.g., "Passport exists")
+    }
+    
+    const candidateId = createResult.id;
 
-        // 2. Handle file uploads (this part stays in handlers.cjs)
+    logAction(user, 'create_candidate', 'candidates', candidateId, `Name: ${textData.name}`);
+
+    // 2. ✅ Handle PHOTO upload (if provided)
+    if (photo && photo.data) {
         try {
-            const filesDir = path.join(app.getPath('userData'), 'candidate_files');
-            if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true });
+            // Extract base64 data
+            const base64Data = photo.data.replace(/^data:image\/\w+;base64,/, '');
+            const buffer = Buffer.from(base64Data, 'base64');
 
-            if (files && files.length > 0) {
-          
-            const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
-            const fileOperations = files.map((file) => {
-                    const uniqueName = `${uuidv4()}${path.extname(file.name)}`;
-                    const newFilePath = path.join(filesDir, uniqueName);
-                    fs.writeFileSync(newFilePath, Buffer.from(file.buffer));
-                    
-       
-                    return new Promise((resolve, reject) => {
-                        db.run(
-                            sqlDoc,
-                            [candidateId, file.type, file.name, newFilePath, 'Uncategorized'],
-                            function (err) {
-                                if (err) reject(err);
-                                else {
- 
-                                    logAction(user, 'add_document', 'candidates', candidateId, `File: ${file.name}`);
-                                    resolve();
-                        
-                                }
-                            }
-                        );
-                    });
-                });
-            await Promise.all(fileOperations);
+            // Create photos directory if it doesn't exist
+            const photosDir = path.join(app.getPath('userData'), 'photos');
+            if (!fs.existsSync(photosDir)) {
+                fs.mkdirSync(photosDir, { recursive: true });
             }
-            return { success: true, id: candidateId };
-        } catch (error) {
-            console.error('Failed to save candidate files:', error);
-            return { success: false, error: error.message };
+
+            // Generate unique filename
+            const timestamp = Date.now();
+            const extension = photo.name?.split('.').pop() || 'jpg';
+            const photoFileName = `candidate_${candidateId}_${timestamp}.${extension}`;
+            const photoPath = path.join(photosDir, photoFileName);
+
+            // Save photo file
+            fs.writeFileSync(photoPath, buffer);
+
+            // Update candidate record with photo path
+            const photoResult = await queries.saveCandidatePhoto(candidateId, photoFileName);
+            
+            if (photoResult.success) {
+                console.log('✅ Photo saved:', photoFileName);
+                logAction(user, 'add_photo', 'candidates', candidateId, `Photo: ${photoFileName}`);
+            } else {
+                console.warn('⚠️ Photo file saved but database update failed:', photoResult.error);
+                // Don't fail the entire operation
+            }
+        } catch (photoError) {
+            console.error('⚠️ Photo upload failed, but candidate saved:', photoError);
+            // Don't fail the entire operation if photo fails
         }
-    });
+    }
+
+    // 3. Handle document file uploads (this part stays the same)
+    try {
+        const filesDir = path.join(app.getPath('userData'), 'candidate_files');
+        if (!fs.existsSync(filesDir)) {
+            fs.mkdirSync(filesDir, { recursive: true });
+        }
+
+        if (files && files.length > 0) {
+            const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
+            
+            const fileOperations = files.map((file) => {
+                const uniqueName = `${uuidv4()}${path.extname(file.name)}`;
+                const newFilePath = path.join(filesDir, uniqueName);
+                fs.writeFileSync(newFilePath, Buffer.from(file.buffer));
+                
+                return new Promise((resolve, reject) => {
+                    db.run(
+                        sqlDoc,
+                        [candidateId, file.type, file.name, newFilePath, 'Uncategorized'],
+                        function (err) {
+                            if (err) reject(err);
+                            else {
+                                logAction(user, 'add_document', 'candidates', candidateId, `File: ${file.name}`);
+                                resolve();
+                            }
+                        }
+                    );
+                });
+            });
+            
+            await Promise.all(fileOperations);
+        }
+
+        return { success: true, id: candidateId };
+    } catch (error) {
+        console.error('Failed to save candidate files:', error);
+        return { success: false, error: error.message };
+    }
+});
+
 // ====================================================================
     // --- Candidate Search and Listing (Local SQLite Version) ---
     ipcMain.handle('search-candidates', (event, args) => {
@@ -2557,24 +2597,14 @@ ipcMain.handle("send-whatsapp-bulk", (event, payload) =>
 // VISA TRACKING AUTO-FILL HANDLERS
 // ====================================================================
 
-// Handler 1: Get Candidate By ID with Position and Passport
-ipcMain.handle('get-candidate-by-id', async (event, { candidateId }) => {
+
+ipcMain.handle('get-candidate-by-id', async (event, candidateId) => {
   const db = getDatabase();
-  
   return new Promise((resolve) => {
     db.get(
-      `SELECT 
-        id,
-        name,
-        passportNo as passport_number,
-        Position as position_applying_for,
-        education,
-        contact,
-        status,
-        isDeleted
-       FROM candidates 
-       WHERE id = ? 
-       AND isDeleted = 0`,
+      `SELECT *
+    FROM candidates 
+    WHERE id = ? AND isDeleted = 0`,
       [candidateId],
       (err, row) => {
         if (err) {
@@ -2589,6 +2619,7 @@ ipcMain.handle('get-candidate-by-id', async (event, { candidateId }) => {
     );
   });
 });
+
 
 // Handler 2: Get Candidate Job Placements (for country and job position)
 ipcMain.handle('get-candidate-job-placements', async (event, { candidateId }) => {
@@ -3025,6 +3056,86 @@ ipcMain.handle('permanent-delete-passport-movement', async (event, { user, id })
 
 
 
+// Add/Update this handler for candidate photo upload
+ipcMain.handle('upload-candidate-photo', async (event, { candidateId, fileBuffer, fileName }) => {
+  const db = getDatabase();
+  try {
+    // Convert buffer to base64
+    const base64Data = Buffer.from(fileBuffer).toString('base64');
+    const fileType = fileName.match(/\.(jpg|jpeg|png|gif)$/i)?.[1] || 'jpg';
+    
+    // Update candidate photopath in database
+    await dbRun(
+      db,
+      `UPDATE candidates SET photopath = ? WHERE id = ?`,
+      [`data:image/${fileType};base64,${base64Data}`, candidateId]
+    );
+    
+    return { 
+      success: true, 
+      photoPath: `data:image/${fileType};base64,${base64Data}` 
+    };
+  } catch (error) {
+    console.error('Failed to upload candidate photo:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Add handler to get candidate photo
+ipcMain.handle('get-candidate-photo', async (event, candidateId) => {
+  const db = getDatabase();
+  try {
+    const row = await dbGet(
+      db,
+      `SELECT photo_path FROM candidates WHERE id = ?`,
+      [candidateId]
+    );
+    
+    if (!row || !row.photopath) {
+      return { success: false, error: 'No photo found' };
+    }
+    
+    return { success: true, photoPath: row.photopath };
+  } catch (error) {
+    console.error('Error fetching candidate photo:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+
+/**
+ * Delete candidate photo
+ */
+ipcMain.handle('delete-candidate-photo', async (event, candidateId) => {
+  try {
+    if (!candidateId) {
+      return { success: false, error: 'Candidate ID is required' };
+    }
+
+    // Get current photo path
+    const photoResult = await queries.getCandidatePhoto(candidateId);
+    
+    if (photoResult.success && photoResult.photoPath) {
+      // Delete physical file
+      const photosDir = path.join(app.getPath('userData'), 'photos');
+      const photoPath = path.join(photosDir, photoResult.photoPath);
+      
+      try {
+        await fs.unlink(photoPath);
+        console.log('✅ Photo file deleted:', photoResult.photoPath);
+      } catch (fileError) {
+        console.warn('Photo file not found, continuing:', fileError.message);
+      }
+    }
+
+    // Remove reference from database
+    const result = await queries.deleteCandidatePhoto(candidateId);
+    return result;
+  } catch (error) {
+    console.error('❌ Delete candidate photo error:', error);
+    return { success: false, error: error.message };
+  }
+});
 
 
     module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase,startReminderScheduler  };
