@@ -52,52 +52,62 @@ export function useAutoFillCandidateData(candidateId) {
           
           if (jobOrderRes.success && jobOrderRes.data) {
             jobData = jobOrderRes.data;
-            positionFromJob = jobData.position;
+            positionFromJob = jobData.positionTitle || jobData.position;
           }
         }
       }
 
       // 3. Build auto-fill data with comprehensive fallbacks
       setAutoFillData({
-        name: candidateData.fullName || 
+        // Name fallbacks
+        name: candidateData.name || 
+              candidateData.fullName || 
               candidateData.full_name || 
-              candidateData.name || 
               candidateData.candidateName ||
               candidateData.candidate_name ||
               'N/A',
         
-        phone: candidateData.mobile || 
+        // Phone fallbacks
+        phone: candidateData.contact ||
+               candidateData.mobile || 
                candidateData.mobile_number || 
                candidateData.mobileNumber ||
                candidateData.phone || 
                candidateData.phone_number || 
                candidateData.phoneNumber ||
-               candidateData.contact ||
                candidateData.contact_number ||
                candidateData.contactNumber ||
                candidateData.whatsapp ||
                candidateData.whatsapp_number ||
                'N/A',
         
-        passport: candidateData.passport_number || 
+        // Passport fallbacks
+        passport: candidateData.passportNo ||  // <-- This is your DB column
+                  candidateData.passport_number || 
                   candidateData.passportNumber || 
+                  candidateData.passport_no ||
                   candidateData.passport || 
                   'N/A',
         
-        position: candidateData.position_applying_for || 
-                  candidateData.positionApplyingFor ||
+        // ✅ FIX: Position fallbacks - Capital 'Position' FIRST!
+        position: candidateData.Position ||  // <-- THIS IS YOUR DB COLUMN!
                   positionFromJob || 
+                  candidateData.position_applying_for || 
+                  candidateData.positionApplyingFor ||
                   candidateData.position || 
                   candidateData.designation ||
                   'N/A',
         
+        // Country from job
         country: jobData?.country || 'N/A',
         
-        employer: jobData?.employerName || null,
+        // Employer info
+        employer: jobData?.employerName || jobData?.companyName || null,
         candidateId: candidateId,
       });
 
     } catch (error) {
+      console.error('❌ Auto-fill data fetch error:', error);
       setError(error.message);
       
       setAutoFillData({

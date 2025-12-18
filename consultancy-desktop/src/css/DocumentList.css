@@ -1,8 +1,18 @@
+/* ============================================
+   📋 DOCUMENT LIST - MAIN CONTAINER
+   ============================================ */
+
 .doclist-card {
   padding: 1.1rem 1.2rem 1.2rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
 }
 
-/* Header */
+/* ============================================
+   🎯 HEADER SECTION
+   ============================================ */
+
 .doclist-header {
   padding-bottom: 0.8rem;
   margin-bottom: 0.8rem;
@@ -30,26 +40,46 @@
   color: var(--text-secondary);
 }
 
-/* Empty state */
+/* ============================================
+   🔲 EMPTY STATE
+   ============================================ */
+
 .doclist-empty {
   padding: 1.5rem;
   text-align: center;
   color: var(--text-secondary);
 }
 
-/* 2-column grid of category cards */
+/* ============================================
+   📊 GRID LAYOUT - 2 COLUMNS
+   ============================================ */
+
 .doclist-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px 20px;
 }
 
-/* Category card */
+@media (max-width: 1100px) {
+  .doclist-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================
+   📁 CATEGORY SECTION
+   ============================================ */
+
 .doclist-category {
   background: var(--bg-secondary);
   border-radius: var(--border-radius);
   border: 1px solid var(--border-color);
   padding: 10px 12px;
+  transition: all 0.2s ease;
+}
+
+.doclist-category:hover {
+  border-color: rgba(59, 130, 246, 0.4);
 }
 
 .doclist-category-header {
@@ -75,7 +105,10 @@
   color: var(--text-secondary);
 }
 
-/* Items */
+/* ============================================
+   📄 DOCUMENT ITEMS
+   ============================================ */
+
 .doclist-items {
   display: flex;
   flex-direction: column;
@@ -83,6 +116,7 @@
 }
 
 .doclist-item {
+  position: relative;
   background: var(--bg-primary);
   border-radius: 8px;
   border: 1px solid rgba(148, 163, 184, 0.45);
@@ -104,13 +138,22 @@
   gap: 8px;
 }
 
+/* ============================================
+   🖼️ FILE ICON
+   ============================================ */
+
 .doclist-icon {
   width: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1rem;
+  color: var(--text-secondary);
 }
+
+/* ============================================
+   📝 FILE TEXT INFO
+   ============================================ */
 
 .doclist-text {
   flex: 1;
@@ -131,7 +174,10 @@
   color: var(--text-secondary);
 }
 
-/* Controls row */
+/* ============================================
+   🎛️ CONTROLS (SELECT + ACTIONS)
+   ============================================ */
+
 .doclist-controls {
   display: flex;
   align-items: center;
@@ -142,7 +188,39 @@
 .doclist-select {
   flex: 1;
   min-width: 120px;
+  padding: 4px 24px 4px 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba(148,163,184,0.6)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 14px;
 }
+
+.doclist-select:hover {
+  border-color: rgba(59, 130, 246, 0.6);
+}
+
+.doclist-select:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.8);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.doclist-select option {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* ============================================
+   🔘 ACTION BUTTONS
+   ============================================ */
 
 .doclist-actions {
   display: flex;
@@ -162,8 +240,7 @@
   color: var(--text-secondary);
   cursor: pointer;
   font-size: 0.9rem;
-  transition: background 0.12s ease, border-color 0.12s ease,
-    color 0.12s ease, transform 0.12s ease;
+  transition: all 0.12s ease;
 }
 
 .doclist-btn:hover {
@@ -188,7 +265,217 @@
   background: rgba(239, 68, 68, 0.18);
 }
 
-/* Light mode tweaks */
+/* ============================================
+   🖼️ UNIVERSAL FILE PREVIEW TOOLTIP - LEFT SIDE
+   ============================================ */
+
+.doclist-item {
+  position: relative;
+}
+
+.doclist-preview-tooltip {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 12px);  /* 👈 CHANGED: Now shows on LEFT */
+  transform: translateY(-50%) scale(0.95);
+  min-width: 220px;
+  max-width: 280px;
+  min-height: 180px;
+  max-height: 320px;
+  background: #1e293b;
+  border: 2px solid #3b82f6;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Show tooltip when hovering */
+.doclist-item:hover .doclist-preview-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) scale(1);
+}
+
+/* Arrow pointing RIGHT (towards the item) */
+.doclist-preview-tooltip::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -7px;  /* 👈 CHANGED: Arrow on right side */
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-left: 7px solid #3b82f6;  /* 👈 CHANGED: Arrow points right */
+}
+
+/* ============================================
+   📷 IMAGE PREVIEW
+   ============================================ */
+
+.preview-image {
+  width: 100%;
+  height: 260px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 8px;
+}
+
+/* ============================================
+   📄 PDF PREVIEW
+   ============================================ */
+
+.preview-pdf {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.preview-pdf .preview-icon {
+  font-size: 56px;
+}
+
+.preview-pdf .preview-info strong {
+  color: #f1f5f9;
+  font-size: 14px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.preview-pdf .preview-info p {
+  color: #94a3b8;
+  font-size: 12px;
+  margin: 3px 0;
+  word-break: break-word;
+}
+
+.preview-pdf .preview-info small {
+  color: #64748b;
+  font-size: 10px;
+}
+
+/* ============================================
+   📝 TEXT FILE PREVIEW
+   ============================================ */
+
+.preview-text {
+  padding: 14px;
+  max-height: 280px;
+  overflow: hidden;
+}
+
+.preview-text .preview-icon {
+  font-size: 28px;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.preview-text pre {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: #cbd5e1;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px;
+  border-radius: 5px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.35;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.preview-text pre::-webkit-scrollbar {
+  width: 5px;
+}
+
+.preview-text pre::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.4);
+  border-radius: 3px;
+}
+
+/* ============================================
+   📎 GENERIC FILE PREVIEW
+   ============================================ */
+
+.preview-file {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.preview-file .preview-icon {
+  font-size: 56px;
+}
+
+.preview-file .preview-info strong {
+  color: #f1f5f9;
+  font-size: 13px;
+  display: block;
+  margin-bottom: 6px;
+  word-break: break-word;
+}
+
+.preview-file .preview-info p {
+  color: #94a3b8;
+  font-size: 11px;
+  margin: 3px 0;
+}
+
+.preview-file .preview-info small {
+  color: #64748b;
+  font-size: 10px;
+}
+
+/* ============================================
+   📱 RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 1200px) {
+  /* Switch to right side on smaller screens if needed */
+  .doclist-preview-tooltip {
+    right: auto;
+    left: calc(100% + 12px);
+  }
+
+  .doclist-preview-tooltip::before {
+    right: auto;
+    left: -7px;
+    border-left: none;
+    border-right: 7px solid #3b82f6;
+  }
+}
+
+@media (max-width: 768px) {
+  .doclist-preview-tooltip {
+    min-width: 180px;
+    max-width: 220px;
+    min-height: 160px;
+    max-height: 260px;
+  }
+
+  .preview-image {
+    height: 180px;
+  }
+}
+
+
+/* ============================================
+   🌈 LIGHT MODE SUPPORT
+   ============================================ */
+
 [data-theme="light"] .doclist-category {
   background: #ffffff;
   border-color: #e5e7eb;
@@ -212,9 +499,25 @@
   color: #b91c1c;
 }
 
-/* Responsive */
-@media (max-width: 1100px) {
-  .doclist-grid {
-    grid-template-columns: 1fr;
-  }
+[data-theme="light"] .doclist-preview-tooltip {
+  background: #ffffff;
+  border-color: #3b82f6;
+}
+
+[data-theme="light"] .preview-pdf .preview-info strong,
+[data-theme="light"] .preview-file .preview-info strong {
+  color: #1e293b;
+}
+
+[data-theme="light"] .preview-pdf .preview-info p,
+[data-theme="light"] .preview-file .preview-info p {
+  color: #64748b;
+}
+
+[data-theme="light"] .preview-text pre {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+[data-theme="light"] .preview-text pre::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.6);
 }

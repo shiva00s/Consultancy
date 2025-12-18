@@ -510,3 +510,405 @@
 [data-theme="light"] .filter-field select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
 }
+/* ============================================
+   🎨 DROPDOWN DARK MODE - CANDIDATE LIST PAGE
+   ============================================ */
+
+/* Dropdown Button Container */
+.filter-dropdown,
+.status-dropdown,
+.position-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+/* Dropdown Button (Closed State) */
+.filter-dropdown button,
+.status-dropdown button,
+.position-dropdown button {
+  padding: 12px 20px;
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.3s ease;
+  min-width: 180px;
+  justify-content: space-between;
+}
+
+/* Dark Mode Button */
+[data-theme="dark"] .filter-dropdown button,
+[data-theme="dark"] .status-dropdown button,
+[data-theme="dark"] .position-dropdown button {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+}
+
+/* Light Mode Button */
+[data-theme="light"] .filter-dropdown button,
+[data-theme="light"] .status-dropdown button,
+[data-theme="light"] .position-dropdown button {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #1e293b;
+}
+
+/* Hover State */
+.filter-dropdown button:hover,
+.status-dropdown button:hover,
+.position-dropdown button:hover {
+  border-color: var(--primary-color);
+  background: rgba(var(--primary-rgb), 0.08);
+}
+
+/* Icon in Button */
+.filter-dropdown button svg,
+.status-dropdown button svg,
+.position-dropdown button svg {
+  width: 18px;
+  height: 18px;
+  opacity: 0.7;
+}
+
+/* Dropdown Arrow */
+.filter-dropdown button::after,
+.status-dropdown button::after,
+.position-dropdown button::after {
+  content: '▼';
+  font-size: 10px;
+  margin-left: auto;
+  opacity: 0.6;
+  transition: transform 0.3s ease;
+}
+
+/* Arrow when open */
+.filter-dropdown.open button::after,
+.status-dropdown.open button::after,
+.position-dropdown.open button::after {
+  transform: rotate(180deg);
+}
+
+/* ============================================
+   📋 DROPDOWN MENU (LIST)
+   ============================================ */
+
+.filter-dropdown-menu,
+.status-dropdown-menu,
+.position-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 100%;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+}
+
+/* Dark Mode Dropdown Menu */
+[data-theme="dark"] .filter-dropdown-menu,
+[data-theme="dark"] .status-dropdown-menu,
+[data-theme="dark"] .position-dropdown-menu {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Light Mode Dropdown Menu */
+[data-theme="light"] .filter-dropdown-menu,
+[data-theme="light"] .status-dropdown-menu,
+[data-theme="light"] .position-dropdown-menu {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Show dropdown when open */
+.filter-dropdown.open .filter-dropdown-menu,
+.status-dropdown.open .status-dropdown-menu,
+.position-dropdown.open .position-dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* ============================================
+   📌 DROPDOWN ITEMS
+   ============================================ */
+
+.filter-dropdown-menu ul,
+.status-dropdown-menu ul,
+.position-dropdown-menu ul {
+  list-style: none;
+  padding: 8px;
+  margin: 0;
+}
+
+.filter-dropdown-menu li,
+.status-dropdown-menu li,
+.position-dropdown-menu li {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  color: var(--text-primary);
+}
+
+/* Dark Mode Items */
+[data-theme="dark"] .filter-dropdown-menu li,
+[data-theme="dark"] .status-dropdown-menu li,
+[data-theme="dark"] .position-dropdown-menu li {
+  color: #cbd5e1;
+}
+
+/* Light Mode Items */
+[data-theme="light"] .filter-dropdown-menu li,
+[data-theme="light"] .status-dropdown-menu li,
+[data-theme="light"] .position-dropdown-menu li {
+  color: #475569;
+}
+
+/* Hover State */
+.filter-dropdown-menu li:hover,
+.status-dropdown-menu li:hover,
+.position-dropdown-menu li:hover {
+  background: rgba(var(--primary-rgb), 0.1);
+  color: var(--primary-color);
+}
+
+/* Active/Selected Item - BLUE BACKGROUND */
+.filter-dropdown-menu li.active,
+.status-dropdown-menu li.active,
+.position-dropdown-menu li.active {
+  background: var(--primary-color) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+}
+
+/* Icon in dropdown items */
+.filter-dropdown-menu li svg,
+.status-dropdown-menu li svg,
+.position-dropdown-menu li svg {
+  width: 16px;
+  height: 16px;
+  opacity: 0.8;
+}
+
+/* Active item icon */
+.filter-dropdown-menu li.active svg,
+.status-dropdown-menu li.active svg,
+.position-dropdown-menu li.active svg {
+  opacity: 1;
+}
+
+/* ============================================
+   📜 SCROLLBAR STYLING
+   ============================================ */
+
+.filter-dropdown-menu::-webkit-scrollbar,
+.status-dropdown-menu::-webkit-scrollbar,
+.position-dropdown-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.filter-dropdown-menu::-webkit-scrollbar-track,
+.status-dropdown-menu::-webkit-scrollbar-track,
+.position-dropdown-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.filter-dropdown-menu::-webkit-scrollbar-thumb,
+.status-dropdown-menu::-webkit-scrollbar-thumb,
+.position-dropdown-menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+[data-theme="light"] .filter-dropdown-menu::-webkit-scrollbar-thumb,
+[data-theme="light"] .status-dropdown-menu::-webkit-scrollbar-thumb,
+[data-theme="light"] .position-dropdown-menu::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================
+   📱 RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+  .filter-dropdown button,
+  .status-dropdown button,
+  .position-dropdown button {
+    min-width: 140px;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  .filter-dropdown-menu,
+  .status-dropdown-menu,
+  .position-dropdown-menu {
+    max-height: 250px;
+  }
+
+  .filter-dropdown-menu li,
+  .status-dropdown-menu li,
+  .position-dropdown-menu li {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+}
+/* ============================================
+   🎨 DARK MODE SELECT DROPDOWN STYLING
+   ============================================ */
+
+/* Select Container Styling */
+.search-bar select {
+  padding: 12px 40px 12px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #f1f5f9;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 180px;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba(241,245,249,0.6)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+
+/* Hover Effect */
+.search-bar select:hover {
+  border-color: var(--primary-color, #3b82f6);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+/* Focus State */
+.search-bar select:focus {
+  outline: none;
+  border-color: var(--primary-color, #3b82f6);
+  background: rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* ============================================
+   📋 DROPDOWN OPTIONS (DARK MODE)
+   ============================================ */
+
+.search-bar select option {
+  background: #1e293b;
+  color: #cbd5e1;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+}
+
+/* Selected/Active Option */
+.search-bar select option:checked {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* Hover on options (Firefox & some browsers) */
+.search-bar select option:hover {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+/* ============================================
+   🌈 CUSTOM SCROLLBAR (for dropdown list)
+   ============================================ */
+
+.search-bar select::-webkit-scrollbar {
+  width: 8px;
+}
+
+.search-bar select::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.search-bar select::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+.search-bar select::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ============================================
+   🎯 DISABLED STATE
+   ============================================ */
+
+.search-bar select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+/* ============================================
+   📱 RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+@media (max-width: 768px) {
+  .search-bar select {
+    min-width: 140px;
+    padding: 10px 36px 10px 16px;
+    font-size: 13px;
+  }
+  
+  .search-bar select option {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+}
+
+/* ============================================
+   💡 LIGHT MODE ALTERNATIVE (Optional)
+   ============================================ */
+
+[data-theme="light"] .search-bar select {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #1e293b;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba(30,41,59,0.6)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+[data-theme="light"] .search-bar select:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: var(--primary-color, #3b82f6);
+}
+
+[data-theme="light"] .search-bar select option {
+  background: #ffffff;
+  color: #475569;
+}
+
+[data-theme="light"] .search-bar select option:checked {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #ffffff;
+}

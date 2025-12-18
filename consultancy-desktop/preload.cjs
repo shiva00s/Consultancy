@@ -94,6 +94,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteRequiredDocument: (args) => ipcRenderer.invoke('delete-required-document', args),
   getDeletedRequiredDocuments: () => ipcRenderer.invoke('get-deleted-required-documents'),
   restoreRequiredDocument: (args) => ipcRenderer.invoke('restore-required-document', args),
+   readTextFile: (args) => ipcRenderer.invoke('readTextFile', args),
 
   // ==========================================================================
   // 🏢 EMPLOYER & JOB ORDER MANAGEMENT

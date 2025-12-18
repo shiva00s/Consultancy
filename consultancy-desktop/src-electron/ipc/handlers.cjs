@@ -3023,7 +3023,23 @@ ipcMain.handle('permanent-delete-passport-movement', async (event, { user, id })
   }
 });
 
-
+ipcMain.handle('readTextFile', async (event, { filePath, maxLength = 500 }) => {
+  try {
+    const fs = require('fs');
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const preview = content.substring(0, maxLength);
+    
+    return {
+      success: true,
+      data: preview + (content.length > maxLength ? '...' : ''),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+});
 
 
 

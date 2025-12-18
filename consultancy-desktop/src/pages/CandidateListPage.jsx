@@ -1,16 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiSearch, FiEdit, FiUser, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import '../css/CandidateListPage.css';
+import { useJobOrderPositions } from '../hooks/useJobOrderPositions';
 
 const statusOptions = [
-  'New',
-  'Documents Collected',
+  'Pending/New',
+  'Documents Submitted',
+  'Biometrics Done',
   'Visa Applied',
   'In Progress',
-  'Completed',
+  'Approved',
   'Rejected',
+  'Cancelled',
 ];
 
 const ITEMS_PER_PAGE = 20;
@@ -56,6 +59,9 @@ function CandidateListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  // Use custom hook for positions
+  const { positions: positionOptions, loading: loadingPositions, error: positionsError } = useJobOrderPositions();
+
   // Local State
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -92,7 +98,7 @@ function CandidateListPage() {
   };
 
   // Search Function
-  const runSearch = async (page, term, status) => {
+  const runSearch = async (page, term, status, position) => {
     setLoading(true);
     setCurrentPage(page);
     const limit = ITEMS_PER_PAGE;
@@ -102,7 +108,7 @@ function CandidateListPage() {
       const res = await window.electronAPI.searchCandidates({
         searchTerm: term,
         status: status,
-        position: positionFilter,
+        position: position,
         limit: limit,
         offset: offset,
       });
@@ -116,6 +122,7 @@ function CandidateListPage() {
       }
     } catch (err) {
       console.error(err);
+      toast.error('Search failed');
     } finally {
       setLoading(false);
     }
@@ -125,16 +132,31 @@ function CandidateListPage() {
   useEffect(() => {
     const queryTerm = searchParams.get('q') || '';
     const queryStatus = searchParams.get('status') || '';
+    const queryPosition = searchParams.get('position') || '';
+    
     setSearchTerm(queryTerm);
     setStatusFilter(queryStatus);
-    runSearch(1, queryTerm, queryStatus);
+    setPositionFilter(queryPosition);
+    
+    runSearch(1, queryTerm, queryStatus, queryPosition);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  // Show error toast if positions failed to load
+  useEffect(() => {
+    if (positionsError) {
+      toast.error('Failed to load positions, using defaults');
+    }
+  }, [positionsError]);
 
   // Handlers
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    setSearchParams({ q: searchTerm, status: statusFilter });
+    const params = {};
+    if (searchTerm) params.q = searchTerm;
+    if (statusFilter) params.status = statusFilter;
+    if (positionFilter) params.position = positionFilter;
+    setSearchParams(params);
   };
 
   const clearFilters = () => {
@@ -146,7 +168,7 @@ function CandidateListPage() {
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
-      runSearch(newPage, searchTerm, statusFilter);
+      runSearch(newPage, searchTerm, statusFilter, positionFilter);
     }
   };
 
@@ -179,11 +201,20 @@ function CandidateListPage() {
         <select
           value={positionFilter}
           onChange={(e) => setPositionFilter(e.target.value)}
+          disabled={loadingPositions}
         >
           <option value="">💼 All Positions</option>
-          <option value="Welder">Welder</option>
-          <option value="Electrician">Electrician</option>
-          <option value="Plumber">Plumber</option>
+          {loadingPositions ? (
+            <option disabled>Loading positions...</option>
+          ) : positionOptions.length === 0 ? (
+            <option disabled>No positions available</option>
+          ) : (
+            positionOptions.map((position) => (
+              <option key={position} value={position}>
+                {position}
+              </option>
+            ))
+          )}
         </select>
 
         <button type="submit" className="btn btn-primary">

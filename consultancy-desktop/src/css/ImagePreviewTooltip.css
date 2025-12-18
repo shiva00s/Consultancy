@@ -1,0 +1,86 @@
+/* ImagePreviewTooltip.css */
+
+.preview-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.image-preview-tooltip {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 20px);
+  transform: translateY(-50%);
+  width: 300px;
+  height: 300px;
+  background: #1e293b;
+  border: 3px solid var(--primary-color);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  z-index: 9999;
+  overflow: hidden;
+  animation: tooltipFadeIn 0.2s ease;
+  pointer-events: none;
+}
+
+.image-preview-tooltip::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -10px;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-right: 10px solid var(--primary-color);
+}
+
+.image-preview-tooltip img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+/* Responsive positioning */
+@media (max-width: 1024px) {
+  .image-preview-tooltip {
+    left: auto;
+    right: calc(100% + 20px);
+  }
+  
+  .image-preview-tooltip::before {
+    left: auto;
+    right: -10px;
+    border-right: none;
+    border-left: 10px solid var(--primary-color);
+  }
+}
+
+/* Small preview size option */
+.image-preview-tooltip.small {
+  width: 200px;
+  height: 200px;
+}
+
+/* Medium preview size option */
+.image-preview-tooltip.medium {
+  width: 250px;
+  height: 250px;
+}
+
+/* Large preview size option */
+.image-preview-tooltip.large {
+  width: 350px;
+  height: 350px;
+}
