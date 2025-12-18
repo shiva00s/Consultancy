@@ -120,26 +120,7 @@ function registerPassportHandlers() {
   // ADD NEW PASSPORT MOVEMENT (RECEIVE OR SEND) + PHOTOS
   // ==========================================================================
   ipcMain.handle('add-passport-movement', async (event, { data, user }) => {
-
-    try {
-    // 🔍 DEBUG: Log raw incoming data
-    console.log('🔍 RAW INCOMING DATA:', {
-      hasData: !!data,
-      hasPhotos: !!data?.photos,
-      photoCount: data?.photos?.length || 0,
-      dataKeys: data ? Object.keys(data) : []
-    });
-    
-    if (data?.photos && data.photos.length > 0) {
-      console.log('🔍 PHOTO SAMPLE:', {
-        fileName: data.photos[0].file_name,
-        fileType: data.photos[0].file_type,
-        fileDataLength: data.photos[0].file_data?.length || 0,
-        firstChars: data.photos[0].file_data?.substring(0, 50) || 'empty'
-      });
-    
-
-    }
+  try {
     if (!user || !user.id) {
       return { success: false, error: 'Authentication required. Please log in.' };
     }

@@ -10,14 +10,16 @@ function mapErrorToFriendly(err) {
 
   // Convert error to string for pattern matching
   const msg = typeof err === 'string' ? err : (err.message || err.toString());
-  const errCode = err.code || '';
 
   if (process.env.NODE_ENV === 'development') {
-    return err.message || msg;
+    return err.message;
   }
   
   // Production-friendly messages
-  
+  if (err.message?.includes('SQLITE_ERROR')) {
+    return 'Database error. Please check your data.';
+  }
+
   // ✅ VALIDATION ERRORS - FIRST PRIORITY (before database errors)
   if (msg.includes("Validation failed")) {
     return "Some fields need correction. Please review your input.";
@@ -26,25 +28,8 @@ function mapErrorToFriendly(err) {
     return "Some fields need correction. Please review your input.";
   }
 
-  // ✅ FOREIGN KEY CONSTRAINT (referenced record doesn't exist)
-  if (msg.includes("FOREIGN KEY constraint") || errCode === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
-    if (msg.toLowerCase().includes("candidate") || msg.includes("candidates")) {
-      return "Candidate not found or has been deleted. Please refresh and try again.";
-    }
-    if (msg.toLowerCase().includes("movement") || msg.includes("passport_movement")) {
-      return "Movement record issue. Please try again.";
-    }
-    if (msg.toLowerCase().includes("job_order")) {
-      return "Job order not found or has been deleted.";
-    }
-    if (msg.toLowerCase().includes("employer")) {
-      return "Employer not found or has been deleted.";
-    }
-    return "Related record not found. Please refresh and try again.";
-  }
-
-  // ✅ UNIQUE CONSTRAINT (duplicate entry)
-  if (msg.includes("UNIQUE constraint") || errCode === 'SQLITE_CONSTRAINT_UNIQUE') {
+  // Database constraint errors
+  if (msg.includes("SQLITE_CONSTRAINT") || msg.includes("UNIQUE constraint")) {
     if (msg.includes("placements.candidate_id") || msg.includes("candidate_id, job_order_id") || msg.includes("already assigned")) {
       return "This candidate is already assigned to that job.";
     }
@@ -69,19 +54,7 @@ function mapErrorToFriendly(err) {
     if (msg.includes("employers")) {
       return "Duplicate employer entry.";
     }
-    if (msg.toLowerCase().includes("passport_movement")) {
-      return "A passport movement with these details already exists for this date.";
-    }
-    if (msg.toLowerCase().includes("file_name")) {
-      return "A photo with this filename already exists. Please try again.";
-    }
     return "Duplicate entry found. Please check your details.";
-  }
-
-  // ✅ GENERIC CONSTRAINT (catch-all for other constraint failures)
-  if (msg.includes("SQLITE_CONSTRAINT") || errCode.includes('SQLITE_CONSTRAINT')) {
-    // This is a fallback - should be rare after specific checks above
-    return "Database constraint violation. Please check your data and try again.";
   }
 
   // File-related errors

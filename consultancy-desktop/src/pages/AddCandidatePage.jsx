@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { readFileAsBuffer } from '../utils/file';
-import { FiPlus, FiTrash2, FiUser, FiRefreshCw, FiCamera, FiCreditCard, FiBook } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiUser, FiRefreshCw } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import useAuthStore from '../store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -38,12 +38,9 @@ function AddCandidatePage() {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState(null);
   const [jobPositions, setJobPositions] = useState([]);
-  const [photoPreview, setPhotoPreview] = useState(null);
-  const [photoFile, setPhotoFile] = useState(null);
-
   const { user } = useAuthStore(useShallow((state) => ({ user: state.user })));
 
-  // FETCH JOB POSITIONS ON LOAD
+  // ✅ FETCH JOB POSITIONS ON LOAD
   useEffect(() => {
     const fetchJobPositions = async () => {
       try {
@@ -64,11 +61,9 @@ function AddCandidatePage() {
   const handleReset = () => {
     setTextData(initialTextData);
     setFiles([]);
-    setPhotoPreview(null);
-    setPhotoFile(null);
     setErrors({});
     setResetKey(prev => prev + 1);
-    toast('✨ Form fully reset');
+    toast('Form fully reset ✨');
   };
 
   const openScanner = (type) => {
@@ -83,6 +78,7 @@ function AddCandidatePage() {
 
   const handleQRData = useCallback((data, fileObject) => {
     if (!data || !data.uid) return;
+    
     requestAnimationFrame(() => {
       setTextData((prev) => ({
         ...prev,
@@ -91,44 +87,17 @@ function AddCandidatePage() {
         dob: !prev.dob && data.yob ? `${data.yob}-01-01` : data.dob || prev.dob,
         notes: prev.notes + (prev.notes ? '\n' : '') + `[Verified Address]: ${data.co}, ${data.vtc}, ${data.pc}`,
       }));
+      
       setErrors((prev) => ({ ...prev, aadhar: null }));
+      
       if (fileObject) {
         setFiles((prev) => [...prev, fileObject]);
-        toast.success('✅ Aadhaar image attached 📎');
+        toast.success('Aadhaar image attached 📎');
       }
+      
       closeModal();
     });
   }, []);
-
-  // PHOTO UPLOAD HANDLER
-  const handlePhotoChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      toast.error('❌ Please select an image file');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('❌ Photo size must be less than 5MB');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setPhotoPreview(e.target.result);
-      setPhotoFile(file);
-      toast.success('✅ Photo selected 📸');
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const removePhoto = () => {
-    setPhotoPreview(null);
-    setPhotoFile(null);
-    toast('🗑️ Photo removed');
-  };
 
   const handlePassportData = (data) => {
     if (!data || !data.passport || !data.passport.passportNo) return;
@@ -138,9 +107,10 @@ function AddCandidatePage() {
       passportExpiry: sanitizeDate(data.passport.expiry) || prev.passportExpiry,
       dob: sanitizeDate(data.passport.dob) || prev.dob,
     }));
+
     if (data.fileObject) {
       setFiles((prev) => [...prev, data.fileObject]);
-      toast.success('✅ Passport image attached 🛄');
+      toast.success('Passport image attached 🛄');
     } else if (data.filePath) {
       const mockFile = {
         name: data.filePath.split(/[/\\]/).pop(),
@@ -148,7 +118,7 @@ function AddCandidatePage() {
         type: 'image/jpeg',
       };
       setFiles((prev) => [...prev, mockFile]);
-      toast.success('✅ Passport image attached 🛄');
+      toast.success('Passport image attached 🛄');
     }
     closeModal();
   };
@@ -182,7 +152,9 @@ function AddCandidatePage() {
         let fileType = file.type;
 
         if (file.path) {
-          const readRes = await window.electronAPI.readAbsoluteFileBuffer({ filePath: file.path });
+          const readRes = await window.electronAPI.readAbsoluteFileBuffer({
+            filePath: file.path,
+          });
           if (!readRes.success) {
             throw new Error(`Failed to read scanned file: ${readRes.error}`);
           }
@@ -192,7 +164,11 @@ function AddCandidatePage() {
           buffer = await readFileAsBuffer(file);
         }
 
-        return { name: file.name, type: fileType, buffer };
+        return {
+          name: file.name,
+          type: fileType,
+          buffer,
+        };
       });
 
       const fileData = await Promise.all(fileDataPromises);
@@ -204,40 +180,16 @@ function AddCandidatePage() {
       });
 
       if (result.success) {
-        toast.success(`✅ Candidate saved! ID: ${result.id}`);
-
-        // UPLOAD CANDIDATE PHOTO AFTER SUCCESSFUL SAVE
-        if (photoFile && result.data?.candidateId) {
-          try {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-              const photoResult = await window.electronAPI.uploadCandidatePhoto({
-                candidateId: result.data.candidateId,
-                fileBuffer: Array.from(new Uint8Array(reader.result)),
-                fileName: photoFile.name
-              });
-              if (photoResult.success) {
-                toast.success('📷 Photo uploaded successfully!');
-              } else {
-                toast.error('❌ Failed to upload photo: ' + photoResult.error);
-              }
-            };
-            reader.readAsArrayBuffer(photoFile);
-          } catch (error) {
-            console.error('Photo upload error:', error);
-            toast.error('❌ Failed to upload photo');
-          }
-        }
-
+        toast.success(`Candidate saved ✅ ID: ${result.id}`);
         handleReset();
       } else if (result.errors) {
         setErrors(result.errors);
-        toast.error('⚠️ Please fix the highlighted fields');
+        toast.error('Please fix the highlighted fields ⚠️');
       } else {
-        toast.error(`❌ Error: ${result.error}`);
+        toast.error(`Error: ${result.error}`);
       }
     } catch (err) {
-      toast.error(`❌ Unexpected error: ${err.message}`);
+      toast.error(`Unexpected error: ${err.message}`);
     }
 
     setIsSaving(false);
@@ -245,269 +197,236 @@ function AddCandidatePage() {
 
   return (
     <div className="add-candidate-container fade-in">
-      {/* ========== HEADER WITH PROFILE PHOTO PREVIEW ========== */}
-      <header className="add-candidate-header slide-up">
+      <header className="add-candidate-header">
         <div className="header-left">
-          {/* 🔥 CIRCULAR PHOTO PREVIEW - Replaces Avatar Icon */}
-          {photoPreview ? (
-            <div className="avatar-circle" style={{ 
-              backgroundImage: `url(${photoPreview})`, 
-              backgroundSize: 'cover', 
-              backgroundPosition: 'center' 
-            }}></div>
-          ) : (
-            <div className="avatar-circle">
-              <FiUser size={28} />
-            </div>
-          )}
-          
+          <div className="avatar-circle">
+            <FiUser size={20} />
+          </div>
           <div>
-            <h1>✨ Add Candidate</h1>
-            <p className="header-subtitle">Fill the details below to register a new candidate</p>
+            <h1>New Candidate 🚀</h1>
+            <p className="header-subtitle">
+              Scan documents or manually fill the form. All data auto-saved below.
+            </p>
           </div>
         </div>
 
-        {/* ========== ACTION BUTTONS ========== */}
         <div className="header-actions">
-          {/* 📸 PHOTO UPLOAD BUTTON */}
-          <label className="scanner-btn photo-btn">
-            <FiCamera size={16} />
-            <span>📸 Add Photo</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handlePhotoChange}
-              style={{ display: 'none' }}
-            />
-          </label>
-
-          {/* 🆔 SCAN AADHAAR QR BUTTON */}
           <button
             type="button"
             className="scanner-btn aadhaar-btn"
             onClick={() => openScanner('aadhaar')}
           >
-            <FiCreditCard size={16} />
-            <span>🆔 Scan Aadhaar QR</span>
+            🔐 Scan Aadhaar
           </button>
-
-          {/* 🛂 SCAN PASSPORT MRZ BUTTON */}
           <button
             type="button"
             className="scanner-btn passport-btn"
             onClick={() => openScanner('passport')}
           >
-            <FiBook size={16} />
-            <span>🛂 Scan Passport MRZ</span>
+            🛄 Scan Passport
           </button>
-
-          {/* 🔄 RESET BUTTON */}
-          <button type="button" className="header-reset-btn" onClick={handleReset}>
+          <button
+            type="button"
+            className="header-reset-btn"
+            onClick={handleReset}
+          >
             <FiRefreshCw size={16} />
-            <span>🔄 Reset</span>
+            Reset
           </button>
         </div>
       </header>
 
-      {/* ========== FORM CARD ========== */}
-      <form className="candidate-form-card slide-up-delay card-elevated" onSubmit={handleSubmit}>
+      <form className="candidate-form-card card-elevated slide-up" onSubmit={handleSubmit}>
         <div className="form-grid-5">
-          {/* 👤 NAME */}
           <div className={`form-group ${errors.name ? 'error' : ''}`}>
-            <label>👤 Name *</label>
+            <label>👤 Name</label>
             <input
               type="text"
               name="name"
               value={textData.name}
               onChange={handleTextChange}
-              placeholder="Enter full name"
+              placeholder="Full name"
             />
-            {errors.name && <span className="error-text">{errors.name}</span>}
+            {errors.name && <p className="error-text">{errors.name}</p>}
           </div>
 
-          {/* 📞 CONTACT */}
-          <div className={`form-group ${errors.contact ? 'error' : ''}`}>
-            <label>📞 Contact *</label>
+          <div className={`form-group ${errors.passportNo ? 'error' : ''}`}>
+            <label>🛂 Passport No</label>
             <input
               type="text"
-              name="contact"
-              value={textData.contact}
+              name="passportNo"
+              value={textData.passportNo}
               onChange={handleTextChange}
-              placeholder="Enter contact number"
+              placeholder="e.g., M1234567"
             />
-            {errors.contact && <span className="error-text">{errors.contact}</span>}
+            {errors.passportNo && <p className="error-text">{errors.passportNo}</p>}
           </div>
 
-          {/* 🎂 DATE OF BIRTH */}
-          <div className={`form-group ${errors.dob ? 'error' : ''}`}>
-            <label>🎂 Date of Birth</label>
+          <div className="form-group">
+            <label>📅 Passport Expiry</label>
             <input
               type="date"
-              name="dob"
-              value={textData.dob}
+              name="passportExpiry"
+              value={sanitizeDate(textData.passportExpiry)}
               onChange={handleTextChange}
             />
-            {errors.dob && <span className="error-text">{errors.dob}</span>}
           </div>
 
-          {/* 🆔 AADHAAR NUMBER */}
-          <div className={`form-group ${errors.aadhar ? 'error' : ''}`}>
-            <label>🆔 Aadhaar Number</label>
-            <input
-              type="text"
-              name="aadhar"
-              value={textData.aadhar}
-              onChange={handleTextChange}
-              placeholder="Enter 12-digit Aadhaar"
-            />
-            {errors.aadhar && <span className="error-text">{errors.aadhar}</span>}
-          </div>
-
-          {/* 📋 STATUS */}
-          <div className={`form-group ${errors.status ? 'error' : ''}`}>
-            <label>📋 Status *</label>
-            <select name="status" value={textData.status} onChange={handleTextChange}>
-              <option value="New">New</option>
-              <option value="Contacted">Contacted</option>
-              <option value="Shortlisted">Shortlisted</option>
-              <option value="Selected">Selected</option>
-              <option value="Deployed">Deployed</option>
-            </select>
-            {errors.status && <span className="error-text">{errors.status}</span>}
-          </div>
-
-          {/* 🎓 EDUCATION */}
-          <div className={`form-group ${errors.education ? 'error' : ''}`}>
+          <div className="form-group">
             <label>🎓 Education</label>
             <input
               type="text"
               name="education"
               value={textData.education}
               onChange={handleTextChange}
-              placeholder="Enter education details"
+              placeholder="e.g., B.Tech"
             />
-            {errors.education && <span className="error-text">{errors.education}</span>}
           </div>
 
-          {/* 💼 EXPERIENCE */}
-          <div className={`form-group ${errors.experience ? 'error' : ''}`}>
-            <label>💼 Experience (Years)</label>
+          <div className="form-group">
+            <label>💼 Experience</label>
             <input
-              type="number"
+              type="text"
               name="experience"
               value={textData.experience}
               onChange={handleTextChange}
-              placeholder="Years of experience"
+              placeholder="Years"
             />
-            {errors.experience && <span className="error-text">{errors.experience}</span>}
           </div>
 
-          {/* 🛂 PASSPORT NUMBER */}
-          <div className={`form-group ${errors.passportNo ? 'error' : ''}`}>
-            <label>🛂 Passport Number</label>
+          <div className={`form-group ${errors.contact ? 'error' : ''}`}>
+            <label>📞 Contact</label>
             <input
               type="text"
-              name="passportNo"
-              value={textData.passportNo}
+              name="contact"
+              value={textData.contact}
               onChange={handleTextChange}
-              placeholder="Enter passport number"
+              placeholder="Phone"
             />
-            {errors.passportNo && <span className="error-text">{errors.passportNo}</span>}
+            {errors.contact && <p className="error-text">{errors.contact}</p>}
           </div>
 
-          {/* 📅 PASSPORT EXPIRY */}
-          <div className={`form-group ${errors.passportExpiry ? 'error' : ''}`}>
-            <label>📅 Passport Expiry</label>
+          <div className={`form-group ${errors.aadhar ? 'error' : ''}`}>
+            <label>🪪 Aadhaar</label>
+            <input
+              type="text"
+              name="aadhar"
+              value={textData.aadhar}
+              onChange={handleTextChange}
+              placeholder="12 digits"
+            />
+            {errors.aadhar && <p className="error-text">{errors.aadhar}</p>}
+          </div>
+
+          <div className={`form-group ${errors.Position ? 'error' : ''}`}>
+  <label>🎯 Position</label>
+  <CustomDropdown
+    name="Position"
+    value={textData.Position}
+    onChange={handleTextChange}
+    options={jobPositions}
+    placeholder="Select or type position"
+    allowCustom={true}
+  />
+  {errors.Position && <p className="error-text">{errors.Position}</p>}
+</div>
+
+
+          <div className={`form-group ${errors.dob ? 'error' : ''}`}>
+            <label>🎂 DOB</label>
             <input
               type="date"
-              name="passportExpiry"
-              value={textData.passportExpiry}
+              name="dob"
+              value={sanitizeDate(textData.dob)}
               onChange={handleTextChange}
             />
-            {errors.passportExpiry && <span className="error-text">{errors.passportExpiry}</span>}
+            {errors.dob && <p className="error-text">{errors.dob}</p>}
           </div>
 
-          {/* 💼 POSITION */}
-          <div className={`form-group ${errors.Position ? 'error' : ''}`}>
-            <label>💼 Position</label>
-            <CustomDropdown
-              key={resetKey}
-              name="Position"
-              value={textData.Position}
-              onChange={handleTextChange}
-              options={jobPositions}
-              placeholder="Select or type position"
-            />
-            {errors.Position && <span className="error-text">{errors.Position}</span>}
+          <div className="form-group">
+            <label>📊 Status</label>
+            <select name="status" value={textData.status} onChange={handleTextChange}>
+              <option value="New">New</option>
+              <option value="Documents Collected">Documents Collected</option>
+              <option value="Visa Applied">Visa Applied</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+              <option value="Rejected">Rejected</option>
+            </select>
           </div>
 
-          {/* 📝 NOTES */}
           <div className="form-group full-width">
             <label>📝 Notes</label>
             <textarea
               name="notes"
               value={textData.notes}
               onChange={handleTextChange}
-              placeholder="Additional notes or comments"
+              placeholder="Additional information..."
+              rows={3}
             />
           </div>
         </div>
 
-        {/* ========== DOCUMENTS SECTION ========== */}
-        <div className="documents-section">
-          <h2>📎 Attach Documents</h2>
-          
-          <div className="custom-file-input">
-            <label className="file-input-label">
-              <FiPlus size={18} />
-              <span>Add Files</span>
-            </label>
-            <input type="file" multiple onChange={handleFileChange} />
-          </div>
-
-          {files.length === 0 ? (
-            <p className="file-empty-hint">💡 No documents attached yet</p>
-          ) : (
-            <div className="file-grid">
-              {files.map((file, index) => (
-                <div key={index} className="file-chip">
-                  <span className="file-name">{file.name}</span>
-                  <span className="file-size">{(file.size / 1024).toFixed(1)} KB</span>
-                  <button
-                    type="button"
-                    className="remove-file-btn"
-                    onClick={() => removeFile(index)}
-                  >
-                    <FiTrash2 size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ========== SUBMIT BUTTON ========== */}
         <button type="submit" className="primary-btn full-width-btn" disabled={isSaving}>
           {isSaving ? (
             <>
-              <FiRefreshCw className="spin-icon" size={20} />
-              <span>Saving...</span>
+              <FiRefreshCw className="spin-icon" size={18} />
+              Saving...
             </>
           ) : (
-            <>
-              <FiPlus size={20} />
-              <span>💾 Save Candidate</span>
-            </>
+            '💾 Save Candidate'
           )}
         </button>
       </form>
 
-      {/* ========== SCANNER MODAL ========== */}
+      <section className="documents-section card-elevated slide-up-delay">
+        <h2>📎 Attached Documents</h2>
+
+        <div className="custom-file-input">
+          <input
+            type="file"
+            id="add-candidate-files"
+            multiple
+            onChange={handleFileChange}
+          />
+          <label htmlFor="add-candidate-files" className="file-input-label">
+            <FiPlus size={16} />
+            Upload Files
+          </label>
+        </div>
+
+        {files.length > 0 ? (
+          <div className="file-grid">
+            {files.map((file, index) => (
+              <div className="file-chip" key={index}>
+                <span className="file-name">
+                  {file.name}
+                  {typeof file.size === 'number' && (
+                    <span className="file-size"> ({(file.size / 1024).toFixed(1)} KB)</span>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  className="remove-file-btn"
+                  onClick={() => removeFile(index)}
+                  title="Remove"
+                >
+                  <FiTrash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="file-empty-hint">📭 No documents yet</p>
+        )}
+      </section>
+
       {showModal && (
         <ScannerModal
           type={modalType}
+          resetKey={resetKey}
           onClose={closeModal}
-          onAadhaarData={handleQRData}
+          onQRData={handleQRData}
           onPassportData={handlePassportData}
         />
       )}

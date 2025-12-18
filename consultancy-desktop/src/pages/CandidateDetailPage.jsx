@@ -1,15 +1,24 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
-  FiArrowLeft, FiEdit, FiX, FiSave,
-  FiRefreshCw, FiUpload, FiDownload, 
-  FiAlertTriangle, FiUser , 
-  FiCamera, FiTrash2,
+  FiUser,
+  FiFileText,
+  FiPackage,
+  FiClipboard,
+  FiDollarSign,
+  FiUsers,
+  FiCalendar,
+  FiSend,
+  FiClock,
+  FiArrowLeft,
+  FiDownload,
+  FiAlertTriangle,
+  FiMessageSquare, // ✅ Already imported
 } from "react-icons/fi";
 import toast from "react-hot-toast";
+
 import "../css/CandidateDetailPage.css";
 import Tabs from "../components/Tabs";
-import CandidateProfile from "../components/candidate-detail/CandidateProfile";
 import CandidateFinance from "../components/candidate-detail/CandidateFinance";
 import CandidateVisa from "../components/candidate-detail/CandidateVisa";
 import CandidateJobs from "../components/candidate-detail/CandidateJobs";
@@ -35,26 +44,19 @@ function CandidateDetailPage({ user, flags }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
   const [loading, setLoading] = useState(true);
   const [details, setDetails] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(null);
   const [placements, setPlacements] = useState([]);
   const [selectedJobForOffer, setSelectedJobForOffer] = useState(null);
-  const [photoUrl, setPhotoUrl] = useState(null);
-  const [photoFile, setPhotoFile] = useState(null);
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const [showPhotoActions, setShowPhotoActions] = useState(false);
-  
+
   // --- GRANULAR PERMISSION STATE ---
   const [granularPermissions, setGranularPermissions] = useState({});
   const [granularPermsLoaded, setGranularPermsLoaded] = useState(false);
-  
-  // ✅ ACTIVE TAB STATE
-  const initialTab = searchParams.get("tab") || "profile";
-  const [activeTab, setActiveTab] = useState(initialTab);
 
-  // ... (keep all your existing functions - fetchDetails, loadCandidatePhoto, etc.)
+  const initialTab = searchParams.get("tab") || "profile";
 
   // 1. Fetch Candidate Details
   const fetchDetails = useCallback(async () => {
@@ -69,116 +71,11 @@ function CandidateDetailPage({ user, flags }) {
     setLoading(false);
   }, [id, user]);
 
-  // ✅ Load candidate photo
-  const loadCandidatePhoto = useCallback(async () => {
-    if (id) {
-      const result = await window.electronAPI.getCandidatePhoto({ candidateId: parseInt(id) });
-      if (result.success && result.photoUrl) {
-        setPhotoUrl(result.photoUrl);
-      }
-    }
-  }, [id]);
-
-  useEffect(() => {
-    loadCandidatePhoto();
-  }, [loadCandidatePhoto]);
-
-  // 📸 Handle photo selection
-  const handlePhotoChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Photo size must be less than 5MB');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setPhotoUrl(e.target.result);
-      setPhotoFile(file);
-      toast.success('Photo selected. Click "Save Changes" to upload.');
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // 🗑️ Remove photo
-  const handleRemovePhoto = async () => {
-    if (!window.confirm('Are you sure you want to remove this photo?')) return;
-
-    try {
-      const result = await window.electronAPI.deleteCandidatePhoto({ candidateId: parseInt(id) });
-      if (result.success) {
-        setPhotoUrl(null);
-        setPhotoFile(null);
-        toast.success('Photo removed successfully');
-      } else {
-        toast.error('Failed to remove photo: ' + result.error);
-      }
-    } catch (error) {
-      toast.error('Error removing photo');
-    }
-  };
-
-  // 📤 Upload photo to backend
-  const uploadPhoto = async () => {
-    if (!photoFile) return true;
-
-    setIsUploadingPhoto(true);
-    try {
-      const reader = new FileReader();
-      return new Promise((resolve, reject) => {
-        reader.onloadend = async () => {
-          try {
-            const photoResult = await window.electronAPI.uploadCandidatePhoto({
-              candidateId: parseInt(id),
-              fileBuffer: Array.from(new Uint8Array(reader.result)),
-              fileName: photoFile.name
-            });
-
-            if (photoResult.success) {
-              toast.success('📷 Photo uploaded successfully!');
-              setPhotoFile(null);
-              await loadCandidatePhoto();
-              resolve(true);
-            } else {
-              toast.error('Failed to upload photo: ' + photoResult.error);
-              resolve(false);
-            }
-          } catch (error) {
-            console.error('Photo upload error:', error);
-            toast.error('Failed to upload photo');
-            resolve(false);
-          } finally {
-            setIsUploadingPhoto(false);
-          }
-        };
-
-        reader.onerror = () => {
-          toast.error('Failed to read photo file');
-          setIsUploadingPhoto(false);
-          resolve(false);
-        };
-
-        reader.readAsArrayBuffer(photoFile);
-      });
-    } catch (error) {
-      console.error('Photo upload error:', error);
-      toast.error('Failed to upload photo');
-      setIsUploadingPhoto(false);
-      return false;
-    }
-  };
-
   // 2. Load Granular Permissions
   useEffect(() => {
     const loadGranularPermissions = async () => {
       if (user.role === "super_admin") {
+        // Super Admin has all tab permissions
         const allPerms = {
           tab_profile: true,
           tab_passport: true,
@@ -196,7 +93,10 @@ function CandidateDetailPage({ user, flags }) {
         setGranularPermissions(allPerms);
         setGranularPermsLoaded(true);
       } else {
-        const res = await window.electronAPI.getUserGranularPermissions({ userId: user.id });
+        // Admin or Staff - fetch from database
+        const res = await window.electronAPI.getUserGranularPermissions({
+          userId: user.id,
+        });
         if (res.success) {
           setGranularPermissions(res.data || {});
         }
@@ -208,12 +108,15 @@ function CandidateDetailPage({ user, flags }) {
 
   useEffect(() => {
     fetchDetails();
+
     const fetchPlacements = async () => {
-      const res = await window.electronAPI.getCandidatePlacements({ candidateId: id });
+      const res = await window.electronAPI.getCandidatePlacements({
+        candidateId: id,
+      });
       if (res.success && res.data.length > 0) {
         setPlacements(res.data);
         const latestJob = res.data.reduce((latest, current) =>
-          current.placementId > latest.placementId ? current : latest
+          current.placementId > latest.placementId ? current : latest,
         );
         setSelectedJobForOffer(latestJob.jobId);
       } else {
@@ -226,6 +129,7 @@ function CandidateDetailPage({ user, flags }) {
 
   useEffect(() => {
     if (!details || !user?.id) return;
+
     window.electronAPI.logAuditEvent({
       action: "view_candidate_details",
       userId: user.id,
@@ -233,15 +137,23 @@ function CandidateDetailPage({ user, flags }) {
     });
   }, [details, user]);
 
-  const handleDocumentsUpdate = (newDocs = [], docIdToDelete = null, isCategoryUpdate = false) => {
+  const handleDocumentsUpdate = (
+    newDocs = [],
+    docIdToDelete = null,
+    isCategoryUpdate = false,
+  ) => {
     setDetails((prev) => {
       let updatedDocuments = [...(prev?.documents || [])];
       if (docIdToDelete !== null) {
-        updatedDocuments = updatedDocuments.filter((doc) => doc.id !== docIdToDelete);
+        updatedDocuments = updatedDocuments.filter(
+          (doc) => doc.id !== docIdToDelete,
+        );
       } else if (isCategoryUpdate) {
         const updateDoc = newDocs[0];
         updatedDocuments = updatedDocuments.map((doc) =>
-          doc.id === updateDoc.id ? { ...doc, category: updateDoc.category } : doc
+          doc.id === updateDoc.id
+            ? { ...doc, category: updateDoc.category }
+            : doc,
         );
       } else if (newDocs.length > 0) {
         updatedDocuments = [...updatedDocuments, ...newDocs];
@@ -253,7 +165,9 @@ function CandidateDetailPage({ user, flags }) {
   const handleJobAssigned = (newJobId) => {
     setSelectedJobForOffer(newJobId);
     const fetchPlacements = async () => {
-      const res = await window.electronAPI.getCandidatePlacements({ candidateId: id });
+      const res = await window.electronAPI.getCandidatePlacements({
+        candidateId: id,
+      });
       if (res.success) setPlacements(res.data);
     };
     fetchPlacements();
@@ -265,36 +179,45 @@ function CandidateDetailPage({ user, flags }) {
   };
 
   const handleSave = async () => {
-    const cleanedData = {
-      ...formData,
-      passportNo: formData.passportNo
-        ? formData.passportNo.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
-        : formData.passportNo,
-    };
-
-    if (photoFile) {
-      const photoSuccess = await uploadPhoto();
-      if (!photoSuccess) {
-        toast.error('Failed to upload photo. Other changes will still be saved.');
-      }
-    }
-
-    const res = await window.electronAPI.updateCandidateText({ user, id, data: cleanedData });
-    if (res.success) {
-      toast.success("Details saved successfully!");
-      setIsEditing(false);
-      fetchDetails();
-    } else {
-      toast.error(res.error || "Failed to save changes");
-    }
+  // Clean passport number
+  const cleanedData = {
+    ...formData,
+    passportNo: formData.passportNo
+      ? formData.passportNo.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
+      : formData.passportNo,
   };
 
+  console.log("Sending to IPC:", { user, id, data: cleanedData });
+
+  const res = await window.electronAPI.updateCandidateText({
+    user,
+    id,
+    data: cleanedData,  // ✅ Make sure this is structured correctly
+  });
+
+  if (res.success) {
+    toast.success("Details saved successfully!");
+    setIsEditing(false);
+    fetchDetails();
+  } else {
+    console.error("Save failed:", res);
+    toast.error(res.error || "Failed to save changes");
+  }
+};
+
+
   const handleDeleteCandidate = async () => {
-    if (window.confirm("Are you sure you want to move this candidate to the Recycle Bin?")) {
+    if (
+      window.confirm(
+        "Are you sure you want to move this candidate to the Recycle Bin?",
+      )
+    ) {
       const res = await window.electronAPI.deleteCandidate({ user, id });
       if (res.success) {
         navigate("/search");
-        toast.success(`Candidate ${details.candidate.name} moved to Recycle Bin.`);
+        toast.success(
+          `Candidate ${details.candidate.name} moved to Recycle Bin.`,
+        );
       } else {
         toast.error(res.error);
       }
@@ -321,364 +244,469 @@ function CandidateDetailPage({ user, flags }) {
       candidateId: id,
       destinationPath: dialogResult.filePath,
     });
-
     toast.dismiss("zip-status");
+
     if (res.success) toast.success(`Documents successfully exported!`);
     else toast.error(res.error || "Failed to create ZIP archive.");
   };
 
   if (loading || !granularPermsLoaded)
-    return (
-      <div className="detail-page-loading">
-        <div className="detail-loading-spinner"></div>
-        <p>Loading candidate details...</p>
-      </div>
-    );
+    return <h2>Loading Candidate Details...</h2>;
+  if (!details) return <h2>Candidate not found.</h2>;
 
-  if (!details || !details.candidate)
-    return (
-      <div className="detail-page-loading">
-        <FiAlertTriangle size={48} />
-        <p>Candidate not found</p>
-      </div>
-    );
+  const { candidate, documents } = details;
 
-  const { candidate } = details;
+  // --- GRANULAR PERMISSION CHECKER ---
+  const canAccessTab = (permissionKey) => {
+    // Profile tab is always visible
+    if (permissionKey === "tab_profile") return true;
 
-  // 🎯 TABS CONFIGURATION - Only metadata for tabs
-  // 🎯 TABS CONFIGURATION - FIXED WITH EMOJI STRINGS
-const tabsConfig = [
-  {
-    key: "profile",
-    label: "Profile",
-    icon: "👤",  // ✅ EMOJI STRING
-    content: (
-      <CandidateProfile
-        candidate={candidate}
-        statusOptions={statusOptions}
-        isEditing={isEditing}
-        photoUrl={photoUrl}
-        handleTextChange={handleTextChange}
-        handleSave={handleSave}
-        handleDeleteCandidate={handleDeleteCandidate}
-        handleExportDocuments={handleExportDocuments}
-        handlePhotoChange={handlePhotoChange}
-        handleRemovePhoto={handleRemovePhoto}
-        setIsEditing={setIsEditing}
-        setFormData={setFormData}
-        user={user}
-        loadCandidatePhoto={loadCandidatePhoto}
-      />
-    ),
-  },
-  {
-    key: "passport",
-    label: "Passport",
-    icon: "🛂",  // ✅ EMOJI STRING
-    content: <CandidatePassport candidateId={id} user={user} />,
-    permission: "tab_passport",
-  },
-  {
-    key: "documents",
-    label: "Documents",
-    icon: "📄",  // ✅ EMOJI STRING
-    content: (
-      <CandidateDocuments
-        candidate={candidate}
-        documents={details.documents}
-        user={user}
-        onUpdate={handleDocumentsUpdate}
-      />
-    ),
-    permission: "tab_documents",
-  },
-  {
-    key: "jobs",
-    label: "Job Placements",
-    icon: "💼",  // ✅ EMOJI STRING
-    content: (
-      <CandidateJobs
-        candidateId={id}
-        user={user}
-        onJobAssigned={handleJobAssigned}
-      />
-    ),
-    permission: "tab_job_placements",
-  },
-  {
-    key: "visa",
-    label: "Visa Tracking",
-    icon: "✈️",  // ✅ EMOJI STRING
-    content: <CandidateVisa candidateId={id} user={user} />,
-    permission: "tab_visa_tracking",
-  },
-  {
-    key: "finance",
-    label: "Financial",
-    icon: "💰",  // ✅ EMOJI STRING
-    content: <CandidateFinance candidateId={id} user={user} />,
-    permission: "tab_financial",
-  },
-  {
-    key: "medical",
-    label: "Medical",
-    icon: "🏥",  // ✅ EMOJI STRING
-    content: <CandidateMedical candidateId={id} user={user} />,
-    permission: "tab_medical",
-  },
-  {
-    key: "interview",
-    label: "Interview",
-    icon: "📋",  // ✅ EMOJI STRING
-    content: <CandidateInterview candidateId={id} user={user} />,
-    permission: "tab_interview",
-  },
-  {
-    key: "travel",
-    label: "Travel/Tickets",
-    icon: "🧳",  // ✅ EMOJI STRING
-    content: <CandidateTravel candidateId={id} user={user} />,
-    permission: "tab_travel",
-  },
-  {
-    key: "offer",
-    label: "Offer Letter",
-    icon: "📜",  // ✅ EMOJI STRING
-    content: (
-      <OfferLetterGenerator
-        candidateId={id}
-        candidateName={candidate.name}
-        jobOrderId={selectedJobForOffer}
-        placements={placements}
-        user={user}
-      />
-    ),
-    permission: "tab_offer_letter",
-  },
-  {
-    key: "history",
-    label: "History",
-    icon: "🕐",  // ✅ EMOJI STRING (changed from 📜 to avoid duplicate)
-    content: <CandidateHistory candidateId={id} user={user} />,
-    permission: "tab_history",
-  },
-  {
-    key: "comms",
-    label: "Communications Log",
-    icon: "💬",  // ✅ EMOJI STRING
-    content: <CommunicationHistory candidateId={id} user={user} />,
-    permission: "tab_comms_log",
-  },
-];
-
-
-  // Filter tabs based on permissions
-  const visibleTabs = tabsConfig.filter((tab) => {
-    if (!tab.permission) return true;
-    return granularPermissions[tab.permission] === true;
-  });
-
-  // 🎯 RENDER TAB CONTENT
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case "profile":
-        return (
-          <CandidateProfile
-            candidate={candidate}
-            statusOptions={statusOptions}
-            isEditing={isEditing}
-            photoUrl={photoUrl}
-            handleTextChange={handleTextChange}
-            handleSave={handleSave}
-            handleDeleteCandidate={handleDeleteCandidate}
-            handleExportDocuments={handleExportDocuments}
-            handlePhotoChange={handlePhotoChange}
-            handleRemovePhoto={handleRemovePhoto}
-            setIsEditing={setIsEditing}
-            setFormData={setFormData}
-            user={user}
-            loadCandidatePhoto={loadCandidatePhoto}
-          />
-        );
-      case "passport":
-        return <CandidatePassport candidateId={id} user={user} />;
-      case "documents":
-        return (
-          <CandidateDocuments
-            candidate={candidate}
-            documents={details.documents}
-            user={user}
-            onUpdate={handleDocumentsUpdate}
-          />
-        );
-      case "jobs":
-        return (
-          <CandidateJobs
-            candidateId={id}
-            user={user}
-            onJobAssigned={handleJobAssigned}
-          />
-        );
-      case "visa":
-        return <CandidateVisa candidateId={id} user={user} />;
-      case "finance":
-        return <CandidateFinance candidateId={id} user={user} />;
-      case "medical":
-        return <CandidateMedical candidateId={id} user={user} />;
-      case "interview":
-        return <CandidateInterview candidateId={id} user={user} />;
-      case "travel":
-        return <CandidateTravel candidateId={id} user={user} />;
-      case "offer":
-        return (
-          <OfferLetterGenerator
-            candidateId={id}
-            candidateName={candidate.name}
-            jobOrderId={selectedJobForOffer}
-            placements={placements}
-            user={user}
-          />
-        );
-      case "history":
-        return <CandidateHistory candidateId={id} user={user} />;
-      case "comms":
-        return <CommunicationHistory candidateId={id} user={user} />;
-      default:
-        return <div>Tab content not found</div>;
-    }
+    // Check granular permissions
+    return granularPermissions[permissionKey] === true;
   };
 
-  return (
-    <div className="candidate-detail-page">
-      {/* HEADER - Keep as is */}
-      <div className="detail-page-header">
-        <div className="detail-header-back" onClick={() => navigate("/search")}>
-          <FiArrowLeft />
-        </div>
-
-        {/* PHOTO */}
+  const ProfileTabContent = (
+    <div className="profile-tab-content">
+      <div className="detail-card" style={{ border: "none", margin: 0 }}>
         <div
-          className="detail-header-photo"
-          onMouseEnter={() => setShowPhotoActions(true)}
-          onMouseLeave={() => setShowPhotoActions(false)}
+          className="detail-header"
+          style={{ borderRadius: "var(--border-radius)" }}
         >
-          <div className="detail-photo-wrapper">
-            {photoUrl ? (
-              <img src={photoUrl} alt={candidate.name} className="detail-photo-img" />
-            ) : (
-              <div className="detail-photo-placeholder">
-                <FiUser />
-              </div>
-            )}
-            <div className="detail-photo-badge">
-              <FiCamera />
-            </div>
-          </div>
-
-          {/* Photo Actions Dropdown */}
-          {showPhotoActions && (
-            <div className="detail-photo-actions">
-              <label className="photo-action-item upload">
-                <FiUpload /> Upload New
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoChange}
-                  style={{ display: 'none' }}
-                />
-              </label>
-              <button className="photo-action-item refresh" onClick={loadCandidatePhoto}>
-                <FiRefreshCw /> Refresh
-              </button>
-              {photoUrl && (
-                <button className="photo-action-item delete" onClick={handleRemovePhoto}>
-                  <FiTrash2 /> Remove
+          <h2>{isEditing ? "Edit Profile" : "Profile Overview"}</h2>
+          <div className="header-actions">
+            {isEditing ? (
+              <>
+                <button className="btn" onClick={handleSave}>
+                  Save Changes
                 </button>
-              )}
-            </div>
-          )}
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setFormData(candidate);
+                  }}
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleExportDocuments}
+                >
+                  <FiDownload /> Export Documents
+                </button>
+                <button className="btn" onClick={() => setIsEditing(true)}>
+                  Edit Details
+                </button>
+              </>
+            )}
+          </div>
         </div>
+        <div className="form-grid">
+          <div className="form-group">
+            <label>Name</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleTextChange}
+              readOnly={!isEditing}
+            />
+          </div>
+          <div className="form-group">
+            <label>Status</label>
+            {isEditing ? (
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleTextChange}
+              >
+                {statusOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input type="text" value={formData.status} readOnly />
+            )}
+          </div>
+          
+          <div className="form-group">
+  <label>Contact Number</label>
+  <div style={{ display: "flex", gap: "5px" }}>
+    <input
+      type="text"
+      name="contact"
+      value={formData.contact || ""}
+      onChange={handleTextChange}
+      readOnly={!isEditing}
+      style={{ flexGrow: 1 }}
+    />
+    {formData.contact && (
+      <button
+        className="btn"
+        style={{
+          backgroundColor: "#25D366",
+          color: "white",
+          padding: "0 12px",
+          minWidth: "auto",
+        }}
+        title="Chat on WhatsApp"
+        type="button"
+        onClick={async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          const phone = formData.contact.replace(/\D/g, "");
+          console.log("🔵 WhatsApp button clicked!");
+          console.log("🔵 user:", user);
+          console.log("🔵 candidateId:", id);
+          console.log("🔵 phone:", phone);
+          
+          try {
+            // Open WhatsApp
+            window.open(`https://wa.me/${phone}`, "_blank");
+            
+            // Log communication
+            const result = await window.electronAPI.logCommunication({
+              user: user,
+              candidateId: id,
+              communication_type: "WhatsApp",
+              details: `Opened WhatsApp chat with +${phone}`,
+            });
+            
+            console.log("🟢 logCommunication result:", result);
+            
+            if (result.success) {
+              toast.success("WhatsApp opened and logged");
+            } else {
+              toast.error("Failed to log: " + result.error);
+            }
+          } catch (err) {
+            console.error("❌ WhatsApp error:", err);
+            toast.error("Error: " + err.message);
+          }
+        }}
+      >
+        <FiMessageSquare style={{ fontSize: "1.1rem" }} />
+      </button>
+    )}
+  </div>
+</div>
 
-        {/* INFO */}
-        <div className="detail-header-info">
-          <h1 className="detail-candidate-name">
-            <span className="detail-candidate-name-emoji">👤</span>
-            {candidate.name}
+
+          <div className="form-group">
+            <label>Aadhar Number</label>
+            <input
+              type="text"
+              name="aadhar"
+              value={formData.aadhar || ""}
+              onChange={handleTextChange}
+              readOnly={!isEditing}
+            />
+          </div>
+          <div className="form-group">
+            <label>Passport No</label>
+            <input
+              type="text"
+              name="passportNo"
+              value={formData.passportNo}
+              onChange={handleTextChange}
+              readOnly={!isEditing}
+            />
+          </div>
+          <div className="form-group">
+            <label>Passport Expiry</label>
+            <input
+              type="date"
+              name="passportExpiry"
+              value={formData.passportExpiry || ""}
+              onChange={handleTextChange}
+              readOnly={!isEditing}
+            />
+          </div>
+          <div className="form-group">
+            <label>Position Applying For</label>
+            <input
+              type="text"
+              name="Position"
+              value={formData.Position}
+              onChange={handleTextChange}
+              readOnly={!isEditing}
+            />
+          </div>
+          <div className="form-group">
+            <label>Education</label>
+            <input
+              type="text"
+              name="education"
+              value={formData.education || ""}
+              onChange={handleTextChange}
+              readOnly={!isEditing}
+            />
+          </div>
+          <div className="form-group">
+            <label>Experience (years)</label>
+            <input
+              type="number"
+              name="experience"
+              value={formData.experience || ""}
+              onChange={handleTextChange}
+              readOnly={!isEditing}
+            />
+          </div>
+          <div className="form-group">
+            <label>Date of Birth</label>
+            <input
+              type="date"
+              name="dob"
+              value={formData.dob || ""}
+              onChange={handleTextChange}
+              readOnly={!isEditing}
+            />
+          </div>
+          <div className="form-group full-width">
+            <label>Notes</label>
+            <textarea
+              name="notes"
+              value={formData.notes || ""}
+              onChange={handleTextChange}
+              readOnly={!isEditing}
+            ></textarea>
+          </div>
+        </div>
+      </div>
+      <div className="detail-card delete-zone">
+        <h3>Move Candidate to Recycle Bin</h3>
+        <p>
+          Moves candidate and all linked records to Recycle Bin. Restore is
+          possible.
+        </p>
+        <button className="btn btn-danger" onClick={handleDeleteCandidate}>
+          <FiAlertTriangle /> Move to Recycle Bin
+        </button>
+      </div>
+    </div>
+  );
+
+  const DocumentTabContent = (
+    <CandidateDocuments
+      user={user}
+      candidateId={id}
+      documents={documents}
+      onDocumentsUpdate={handleDocumentsUpdate}
+    />
+  );
+
+  const OfferLetterTabContent = (
+    <div>
+      <div
+        className="form-group"
+        style={{ maxWidth: "500px", marginBottom: "1.5rem" }}
+      >
+        <label>Select Job Assignment:</label>
+        <select
+          value={selectedJobForOffer || ""}
+          onChange={(e) =>
+            setSelectedJobForOffer(
+              e.target.value ? parseInt(e.target.value) : null,
+            )
+          }
+        >
+          <option value="">-- Select a Job --</option>
+          {placements.length === 0 && (
+            <option disabled>No jobs assigned</option>
+          )}
+          {placements.map((p) => (
+            <option key={p.placementId} value={p.jobId}>
+              {p.companyName} - {p.positionTitle}
+            </option>
+          ))}
+        </select>
+      </div>
+      <OfferLetterGenerator
+        user={user}
+        candidateId={id}
+        jobId={selectedJobForOffer}
+      />
+    </div>
+  );
+
+  // --- DYNAMIC TAB FILTERING WITH GRANULAR PERMISSIONS ---
+  const tabConfig = [
+    {
+      key: "profile",
+      title: "Profile",
+      icon: <FiUser />,
+      content: ProfileTabContent,
+      permKey: "tab_profile",
+    },
+
+    {
+      key: "passport",
+      title: "Passport Tracking",
+      icon: <FiPackage />,
+      content: <CandidatePassport candidateId={id} documents={documents} />,
+      permKey: "tab_passport",
+    },
+
+    {
+      key: "documents",
+      title: `Documents (${documents.length})`,
+      icon: <FiFileText />,
+      content: DocumentTabContent,
+      permKey: "tab_documents",
+    },
+
+    {
+      key: "jobs",
+      title: "Job Placements",
+      icon: <FiClipboard />,
+      content: (
+        <CandidateJobs
+          user={user}
+          candidateId={id}
+          onJobAssigned={handleJobAssigned}
+        />
+      ),
+      permKey: "tab_job_placements",
+    },
+
+    {
+      key: "visa",
+      title: "Visa Tracking",
+      icon: <FiPackage />,
+      content: <CandidateVisa user={user} candidateId={id} />,
+      permKey: "tab_visa_tracking",
+    },
+
+    {
+      key: "finance",
+      title: "Financial Tracking",
+      icon: <FiDollarSign />,
+      content: <CandidateFinance user={user} candidateId={id} flags={flags} />,
+      permKey: "tab_financial",
+    },
+
+    {
+      key: "medical",
+      title: "Medical",
+      icon: <FiUsers />,
+      content: <CandidateMedical user={user} candidateId={id} />,
+      permKey: "tab_medical",
+    },
+
+    {
+      key: "interview",
+      title: "Interview/Schedule",
+      icon: <FiCalendar />,
+      content: <CandidateInterview user={user} candidateId={id} />,
+      permKey: "tab_interview",
+    },
+
+    {
+      key: "travel",
+      title: "Travel/Tickets",
+      icon: <FiSend />,
+      content: <CandidateTravel user={user} candidateId={id} />,
+      permKey: "tab_travel",
+    },
+
+    {
+      key: "offer",
+      title: "Offer Letter",
+      icon: <FiFileText />,
+      content: OfferLetterTabContent,
+      permKey: "tab_offer_letter",
+    },
+
+    {
+      key: "history",
+      title: "History",
+      icon: <FiClock />,
+      content: <CandidateHistory candidateId={id} />,
+      permKey: "tab_history",
+    },
+
+    {
+      key: "communications",
+      title: "Comms Log",
+      icon: <FiMessageSquare />,
+      content: <CommunicationHistory candidateId={id} />,
+      permKey: "tab_comms_log",
+    },
+  ].filter((tab) => canAccessTab(tab.permKey));
+
+  return (
+    <div className="detail-page-container">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "20px",
+          paddingBottom: "15px",
+          borderBottom: "1px solid var(--border-color)",
+        }}
+      >
+        <button
+          onClick={() => navigate("/search")}
+          className="btn btn-secondary back-button"
+          style={{
+            marginBottom: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <FiArrowLeft /> Back to Search
+        </button>
+
+        <div style={{ textAlign: "right" }}>
+          <h1
+            style={{
+              margin: "0 0 5px 0",
+              fontSize: "1.8rem",
+              color: "var(--text-primary)",
+            }}
+          >
+            <FiUser style={{ marginRight: "10px", verticalAlign: "middle" }} />
+            {formData?.name || candidate.name}
           </h1>
-          <div className="detail-badges">
-            <span className="detail-badge badge-id">🆔 ID #{candidate.id}</span>
-            <span className="detail-badge badge-passport">🛂 {candidate.passportNo}</span>
-            <span className="detail-badge badge-new">
-              {candidate.status === 'New' ? '🆕' : '📌'} {candidate.status}
+          <div
+            style={{
+              display: "flex",
+              gap: "15px",
+              justifyContent: "flex-end",
+              fontSize: "0.9rem",
+              color: "var(--text-secondary)",
+            }}
+          >
+            <span>
+              <strong>ID:</strong> #{candidate.id}
+            </span>
+            <span>
+              <strong>Passport:</strong>{" "}
+              {formData?.passportNo || candidate.passportNo}
+            </span>
+            <span
+              className="badge neutral"
+              style={{
+                padding: "2px 8px",
+                borderRadius: "4px",
+                background: "var(--bg-secondary)",
+              }}
+            >
+              {formData?.status || candidate.status}
             </span>
           </div>
-
-          {/* Quick Info Cards */}
-          <div className="detail-quick-cards">
-            <div className="detail-quick-card card-passport">
-              <div className="detail-quick-icon">🛂</div>
-              <div className="detail-quick-content">
-                <div className="detail-quick-label">Passport</div>
-                <div className="detail-quick-value">{candidate.passportNo}</div>
-              </div>
-            </div>
-            <div className="detail-quick-card card-mobile">
-              <div className="detail-quick-icon">📱</div>
-              <div className="detail-quick-content">
-                <div className="detail-quick-label">Mobile</div>
-                <div className="detail-quick-value">{candidate.contact || "N/A"}</div>
-              </div>
-            </div>
-            <div className="detail-quick-card card-aadhar">
-              <div className="detail-quick-icon">🪪</div>
-              <div className="detail-quick-content">
-                <div className="detail-quick-label">Aadhar</div>
-                <div className="detail-quick-value">{candidate.aadhar || "N/A"}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ACTIONS */}
-        <div className="detail-actions">
-          {isEditing ? (
-            <>
-              <button className="detail-action-btn btn-save" onClick={handleSave}>
-                <FiSave /> Save
-              </button>
-              <button className="detail-action-btn btn-cancel" onClick={() => setIsEditing(false)}>
-                <FiX /> Cancel
-              </button>
-            </>
-          ) : (
-            <>
-              <button className="detail-action-btn btn-edit" onClick={() => setIsEditing(true)}>
-                <FiEdit /> Edit
-              </button>
-              <button className="detail-action-btn btn-export" onClick={handleExportDocuments}>
-                <FiDownload /> Export Docs
-              </button>
-              <button className="detail-action-btn btn-delete" onClick={handleDeleteCandidate}>
-                <FiTrash2 /> Delete
-              </button>
-            </>
-          )}
         </div>
       </div>
 
-      {/* ✅ TABS + CONTENT */}
-      <div className="detail-tabs-section">
-        <Tabs
-          tabs={visibleTabs}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-        />
-        
-        {/* Tab Content */}
-        <div className="tab-content-wrapper">
-          {renderTabContent()}
-        </div>
-      </div>
+      <Tabs tabs={tabConfig} defaultActiveTab={initialTab} />
     </div>
   );
 }

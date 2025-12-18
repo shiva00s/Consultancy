@@ -1,13 +1,20 @@
-const { ipcMain, dialog, app } = require('electron');  // Added 'app' here
+const { ipcMain, dialog } = require('electron');
 const { getDb } = require('../db/database.cjs');
 const { fileManager } = require('../utils/fileManager.cjs');
 const fs = require('fs').promises;
 const path = require('path');
-const CANDIDATE_FILES_DIR = path.join(app.getPath('userData'), 'candidate_files');
 
 
 function registerDocumentHandlers() {
+  /**
+   * Upload document
+   */
+  
 
+ 
+  /**
+   * Delete document
+   */
   ipcMain.handle('delete-document', async (event, { user, docId }) => {
   const db = getDb();
 
@@ -34,8 +41,6 @@ function registerDocumentHandlers() {
     return { success: false, error: error.message };
   }
 });
-
-
 
   /**
    * Open file picker dialog

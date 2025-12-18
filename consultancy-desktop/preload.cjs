@@ -54,52 +54,46 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveCandidateMulti: (args) => ipcRenderer.invoke('save-candidate-multi', args),
   updateCandidateText: (args) => ipcRenderer.invoke('update-candidate-text', args),
   deleteCandidate: (args) => ipcRenderer.invoke('delete-candidate', args),
-  getCandidateJobPlacements: (args) => ipcRenderer.invoke('getCandidateJobPlacements', args),
+  getCandidateJobPlacements: (data) => ipcRenderer.invoke('get-candidate-job-placements', data),
 
   // ==========================================================================
-// 📄 DOCUMENT MANAGEMENT
-// ==========================================================================
-
-// Document Operations
-addDocuments: (args) => ipcRenderer.invoke('add-documents', args),
-deleteDocument: (id) => ipcRenderer.invoke('delete-document', id),
-getDocumentBase64: (args) => ipcRenderer.invoke('get-document-base64', args),
-openFileExternally: (args) => ipcRenderer.invoke('open-file-externally', args),
-uploadDocument: (data) => ipcRenderer.invoke('upload-document', data),
-getCandidateDocuments: (candidateId) => ipcRenderer.invoke('get-candidate-documents', candidateId),
-downloadDocument: (documentId) => ipcRenderer.invoke('download-document', documentId),
-uploadResume: (data) => ipcRenderer.invoke('upload-resume', data),
-uploadPhoto: (data) => ipcRenderer.invoke('upload-photo', data),
-updateDocumentCategory: (args) => ipcRenderer.invoke('update-document-category', args),
-
-// ✅ Candidate Photo Management
-uploadCandidatePhoto: (data) => ipcRenderer.invoke('upload-candidate-photo', data),
-getCandidatePhoto: (candidateId) => ipcRenderer.invoke('get-candidate-photo', candidateId),
-deleteCandidatePhoto: (candidateId) => ipcRenderer.invoke('delete-candidate-photo', candidateId),
-
-// Bulk Import
-bulkImportDocuments: (args) => ipcRenderer.invoke('bulk-import-documents', args),
-getExcelSheets: (args) => ipcRenderer.invoke('get-excel-sheets', args),
-getExcelHeaders: (args) => ipcRenderer.invoke('get-excel-headers', args),
-getCsvHeaders: (args) => ipcRenderer.invoke('get-csv-headers', args),
-importCandidatesFromExcel: (args) => ipcRenderer.invoke('import-candidates-from-excel', args),
-importCandidatesFromFile: (args) => ipcRenderer.invoke('import-candidates-from-file', args),
-downloadExcelTemplate: () => ipcRenderer.invoke('download-excel-template'),
-downloadImportErrors: (args) => ipcRenderer.invoke('download-import-errors', args),
-
-// File Utilities
-readAbsoluteFileBuffer: (params) => ipcRenderer.invoke('read-absolute-file-buffer', params),
-getImageBase64: (params) => ipcRenderer.invoke('getImageBase64', params),
-openFileDialog: (options) => ipcRenderer.invoke('open-file-dialog', options),
-zipCandidateDocuments: (args) => ipcRenderer.invoke('zip-candidate-documents', args),
-
-// Required Documents Master
-getRequiredDocuments: () => ipcRenderer.invoke('get-required-documents'),
-addRequiredDocument: (args) => ipcRenderer.invoke('add-required-document', args),
-deleteRequiredDocument: (args) => ipcRenderer.invoke('delete-required-document', args),
-getDeletedRequiredDocuments: () => ipcRenderer.invoke('get-deleted-required-documents'),
-restoreRequiredDocument: (args) => ipcRenderer.invoke('restore-required-document', args),
-
+  // 📄 DOCUMENT MANAGEMENT
+  // ==========================================================================
+  
+  // Document Operations
+  addDocuments: (args) => ipcRenderer.invoke('add-documents', args),
+  deleteDocument: (id) => ipcRenderer.invoke('delete-document', id),
+  getDocumentBase64: (args) => ipcRenderer.invoke('get-document-base64', args),
+  openFileExternally: (args) => ipcRenderer.invoke('open-file-externally', args),
+  uploadDocument: (data) => ipcRenderer.invoke('upload-document', data),
+  getCandidateDocuments: (candidateId) => ipcRenderer.invoke('get-candidate-documents', candidateId),
+  downloadDocument: (documentId) => ipcRenderer.invoke('download-document', documentId),
+  uploadResume: (data) => ipcRenderer.invoke('upload-resume', data),
+  uploadPhoto: (data) => ipcRenderer.invoke('upload-photo', data),
+  updateDocumentCategory: (args) => ipcRenderer.invoke('update-document-category', args),
+  
+  // Bulk Import
+  bulkImportDocuments: (args) => ipcRenderer.invoke('bulk-import-documents', args),
+  getExcelSheets: (args) => ipcRenderer.invoke('get-excel-sheets', args),
+  getExcelHeaders: (args) => ipcRenderer.invoke('get-excel-headers', args),
+  getCsvHeaders: (args) => ipcRenderer.invoke('get-csv-headers', args),
+  importCandidatesFromExcel: (args) => ipcRenderer.invoke('import-candidates-from-excel', args),
+  importCandidatesFromFile: (args) => ipcRenderer.invoke('import-candidates-from-file', args),
+  downloadExcelTemplate: () => ipcRenderer.invoke('download-excel-template'),
+  downloadImportErrors: (args) => ipcRenderer.invoke('download-import-errors', args),
+  
+  // File Utilities
+  readAbsoluteFileBuffer: (params) => ipcRenderer.invoke('read-absolute-file-buffer', params),
+  getImageBase64: (params) => ipcRenderer.invoke('getImageBase64', params),
+  openFileDialog: (options) => ipcRenderer.invoke('open-file-dialog', options),
+  zipCandidateDocuments: (args) => ipcRenderer.invoke('zip-candidate-documents', args),
+  
+  // Required Documents Master
+  getRequiredDocuments: () => ipcRenderer.invoke('get-required-documents'),
+  addRequiredDocument: (args) => ipcRenderer.invoke('add-required-document', args),
+  deleteRequiredDocument: (args) => ipcRenderer.invoke('delete-required-document', args),
+  getDeletedRequiredDocuments: () => ipcRenderer.invoke('get-deleted-required-documents'),
+  restoreRequiredDocument: (args) => ipcRenderer.invoke('restore-required-document', args),
 
   // ==========================================================================
   // 🏢 EMPLOYER & JOB ORDER MANAGEMENT
@@ -369,8 +363,6 @@ restoreRequiredDocument: (args) => ipcRenderer.invoke('restore-required-document
   getLicenseStatus: () => ipcRenderer.invoke('license:get-status'),
   activateLicense: (args) => ipcRenderer.invoke('license:activate', args),
   requestActivationCode: () => ipcRenderer.invoke('request-activation-code'),
-
- 
 
 });
 
