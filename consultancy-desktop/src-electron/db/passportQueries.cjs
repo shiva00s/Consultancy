@@ -147,7 +147,7 @@ async function addPassportMovement(data) {
     // ✅ CRITICAL FIX: Verify candidate exists and is not deleted
     const candidate = await dbGet(
       db,
-      'SELECT id FROM candidates WHERE id = ? AND is_deleted = 0',
+      'SELECT id FROM candidates WHERE id = ? AND isDeleted = 0',
       [candidateId]
     );
 
@@ -473,6 +473,39 @@ async function restorePassportMovement(movementId) {
   const db = getDatabase();
 
   try {
+    // ✅ STEP 1: Get the movement and check if candidate still exists
+    const movement = await dbGet(
+      db,
+      'SELECT candidate_id FROM passport_movements WHERE id = ? AND is_deleted = 1',
+      [movementId]
+    );
+
+    if (!movement) {
+      return { success: false, error: 'Movement not found in recycle bin' };
+    }
+
+    // ✅ STEP 2: Check if the candidate exists and is not deleted
+    const candidate = await dbGet(
+      db,
+      'SELECT id, isDeleted FROM candidates WHERE id = ?',
+      [movement.candidate_id]
+    );
+
+    if (!candidate) {
+      return { 
+        success: false, 
+        error: `Cannot restore: Candidate (ID ${movement.candidate_id}) no longer exists in the system.` 
+      };
+    }
+
+    if (candidate.is_deleted === 1) {
+      return { 
+        success: false, 
+        error: `Cannot restore: Candidate (ID ${movement.candidate_id}) is currently in the recycle bin. Please restore the candidate first.` 
+      };
+    }
+
+    // ✅ STEP 3: Now safe to restore the movement
     const result = await dbRun(
       db,
       `UPDATE passport_movements 
@@ -482,7 +515,7 @@ async function restorePassportMovement(movementId) {
     );
 
     if (result.changes === 0) {
-      return { success: false, error: 'Movement not found' };
+      return { success: false, error: 'Failed to restore movement' };
     }
 
     return { success: true, message: 'Movement restored successfully' };
@@ -491,6 +524,7 @@ async function restorePassportMovement(movementId) {
     return { success: false, error: mapErrorToFriendly(error) };
   }
 }
+
 
 // ============================================================================
 // PERMANENT DELETE PASSPORT MOVEMENT
@@ -517,6 +551,37 @@ async function permanentDeletePassportMovement(movementId) {
   }
 }
 
+async function getPassportMovementStatus(candidateId) {
+  const db = getDatabase();
+  
+  try {
+    const sql = `
+      SELECT 
+        SUM(CASE WHEN movement_type = 'RECEIVE' THEN 1 ELSE 0 END) as has_receive,
+        SUM(CASE WHEN movement_type = 'SEND' THEN 1 ELSE 0 END) as has_send
+      FROM passport_tracking 
+      WHERE candidate_id = ?
+    `;
+    
+    const result = await dbGet(db, sql, [candidateId]);
+    
+    return {
+      success: true,
+      data: {
+        hasReceive: (result?.has_receive || 0) > 0,
+        hasSend: (result?.has_send || 0) > 0,
+        canAddReceive: (result?.has_receive || 0) === 0,
+        canAddSend: (result?.has_send || 0) === 0
+      }
+    };
+  } catch (err) {
+    console.error('❌ getPassportMovementStatus error:', err);
+    return { success: false, error: mapErrorToFriendly(err) };
+  }
+}
+
+
+
 // ============================================================================
 // EXPORTS
 // ============================================================================
@@ -531,5 +596,6 @@ module.exports = {
   getDeletedPassportMovements,
   restorePassportMovement,
   permanentDeletePassportMovement,
-  getAllDeletedPassportMovements
+  getAllDeletedPassportMovements,
+  getPassportMovementStatus,
 };

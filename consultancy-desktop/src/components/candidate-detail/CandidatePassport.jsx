@@ -6,8 +6,8 @@ import { useShallow } from 'zustand/react/shallow';
 import PassportReceiveForm from './PassportReceiveForm';
 import PassportSendForm from './PassportSendForm';
 import PassportHistoryTimeline from './PassportHistoryTimeline';
-import PassportPhotoGallery from './PassportPhotoGallery';
 import '../../css/passport-tracking/PassportTracking.css';
+
 
 function CandidatePassport({ candidateId, candidateData }) {
   const { user } = useAuthStore(useShallow((state) => ({ user: state.user })));
@@ -15,6 +15,13 @@ function CandidatePassport({ candidateId, candidateData }) {
   const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [staffList, setStaffList] = useState([]);
+  
+  // ✅ Track which movements exist
+  const [existingMovements, setExistingMovements] = useState({
+    receive: false,
+    send: false,
+  });
+
 
   // Fetch staff list
   useEffect(() => {
@@ -49,7 +56,8 @@ function CandidatePassport({ candidateId, candidateData }) {
     fetchStaff();
   }, [user]);
 
-  // ✅ Fetch movements with better error handling
+
+  // ✅ Fetch movements with movement type check
   const fetchMovements = useCallback(async () => {
     setLoading(true);
     try {
@@ -59,7 +67,26 @@ function CandidatePassport({ candidateId, candidateData }) {
       });
       
       if (res.success) {
-        setMovements(res.data || []);
+        const data = res.data || [];
+        setMovements(data);
+
+
+        // ✅ Check which movements exist based on type
+        const hasReceive = data.some((m) => m.type === 'RECEIVE');
+        const hasSend = data.some((m) => m.type === 'SEND');
+
+
+        setExistingMovements({ receive: hasReceive, send: hasSend });
+
+
+        // Auto-select available tab
+        if (hasReceive && !hasSend) {
+          setActiveTab('send');
+        } else if (!hasReceive && hasSend) {
+          setActiveTab('receive');
+        } else if (hasReceive && hasSend) {
+          setActiveTab('history');
+        }
       } else {
         console.error('Failed to fetch movements:', res.error);
         toast.error(res.error || 'Failed to fetch movements');
@@ -74,14 +101,33 @@ function CandidatePassport({ candidateId, candidateData }) {
     }
   }, [candidateId, user]);
 
+
   useEffect(() => {
     fetchMovements();
   }, [fetchMovements]);
 
+
+  // ✅ Handle tab click with disabled check
+  const handleTabClick = (tab) => {
+    // History is always clickable
+    if (tab === 'history') {
+      setActiveTab(tab);
+      return;
+    }
+
+
+    // Don't allow clicking disabled tabs
+    if (tab === 'receive' && existingMovements.receive) return;
+    if (tab === 'send' && existingMovements.send) return;
+
+
+    setActiveTab(tab);
+  };
+
+
   // ✅ Handle successful form submission
   const handleMovementAdded = (newMovement) => {
     toast.success('Movement recorded successfully');
-    setActiveTab('history');
     
     // Refresh movements list
     setTimeout(() => {
@@ -89,11 +135,13 @@ function CandidatePassport({ candidateId, candidateData }) {
     }, 300);
   };
 
+
   // ✅ Handle movement deletion (called from timeline)
   const handleMovementDeleted = () => {
     // Refresh the movements list after deletion
     fetchMovements();
   };
+
 
   if (loading) {
     return (
@@ -107,42 +155,48 @@ function CandidatePassport({ candidateId, candidateData }) {
     );
   }
 
+
   return (
     <div className="passport-tracking-content">
       {/* Tabs */}
       <div className="passport-tabs">
         <button 
           className={`tab-btn ${activeTab === 'receive' ? 'active' : ''}`}
-          onClick={() => setActiveTab('receive')}
+          onClick={() => handleTabClick('receive')}
+          disabled={existingMovements.receive}
         >
           <FiDownload />
-          📥 Receive Passport
+          Receive
+          {existingMovements.receive && <span className="badge-completed">✓</span>}
         </button>
         
         <button 
           className={`tab-btn ${activeTab === 'send' ? 'active' : ''}`}
-          onClick={() => setActiveTab('send')}
+          onClick={() => handleTabClick('send')}
+          disabled={existingMovements.send}
         >
           <FiUpload />
-          📤 Send Passport
+          Send
+          {existingMovements.send && <span className="badge-completed">✓</span>}
         </button>
         
         <button 
           className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveTab('history')}
+          onClick={() => handleTabClick('history')}
         >
           <FiClock />
-          📜 Movement History
+          History
           {movements.length > 0 && (
             <span className="badge">{movements.length}</span>
           )}
         </button>
       </div>
 
+
       {/* Tab Content */}
       <div className="tab-content">
         {/* Receive Form */}
-        {activeTab === 'receive' && (
+        {activeTab === 'receive' && !existingMovements.receive && (
           <PassportReceiveForm
             candidateId={candidateId}
             user={user}
@@ -151,8 +205,9 @@ function CandidatePassport({ candidateId, candidateData }) {
           />
         )}
 
+
         {/* Send Form */}
-        {activeTab === 'send' && (
+        {activeTab === 'send' && !existingMovements.send && (
           <PassportSendForm
             candidateId={candidateId}
             user={user}
@@ -160,6 +215,7 @@ function CandidatePassport({ candidateId, candidateData }) {
             onSuccess={handleMovementAdded}
           />
         )}
+
 
         {/* History Timeline */}
         {activeTab === 'history' && (
@@ -169,9 +225,22 @@ function CandidatePassport({ candidateId, candidateData }) {
             onMovementDeleted={handleMovementDeleted}
           />
         )}
+
+
+        {/* Show message if tab is already completed */}
+        {((activeTab === 'receive' && existingMovements.receive) ||
+          (activeTab === 'send' && existingMovements.send)) && (
+          <div className="message-already-exists">
+            <p className="text-lg">✓ Entry Already Recorded</p>
+            <p className="text-sm">
+              This passport {activeTab} entry has been completed.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
 
 export default CandidatePassport;

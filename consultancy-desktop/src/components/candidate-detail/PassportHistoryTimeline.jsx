@@ -87,30 +87,34 @@ function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
   };
 
   // ✅ CONFIRM DELETE
-  const handleDeleteConfirm = async () => {
-    const movementId = deleteDialog.movementId;
-    setDeleteDialog({ open: false, movementId: null });
-    setDeletingId(movementId);
+// ✅ CONFIRM DELETE
+const handleDeleteConfirm = async () => {
+  const movementId = deleteDialog.movementId;
+  setDeleteDialog({ open: false, movementId: null });
+  setDeletingId(movementId);
 
-    try {
-      const res = await window.electronAPI.deletePassportMovement({
-        movementId,
-        user
-      });
-
-      if (res.success) {
-  toast.success('Movement deleted successfully'); // ✅ Better UX
-  if (onMovementDeleted) onMovementDeleted();
-} else {
-  toast.error(res.message || 'Failed to delete movement'); // ✅ Better UX
-}
-    } catch (err) {
-      console.error('Error deleting movement:', err);
-      alert('❌ An error occurred while deleting the movement');
-    } finally {
-      setDeletingId(null);
+  try {
+    // ✅ FIX: Pass 'id' instead of 'movementId'
+    const res = await window.electronAPI.deletePassportMovement({ 
+      id: movementId,  // ⬅️ Changed from 'movementId' to 'id'
+      user 
+    });
+    
+    if (res.success) {
+      toast.success('Movement deleted successfully');
+      if (onMovementDeleted) onMovementDeleted();
+    } else {
+      toast.error(res.message || 'Failed to delete movement');
     }
-  };
+  } catch (err) {
+    console.error('Error deleting movement:', err);
+    toast.error('An error occurred while deleting the movement');
+  } finally {
+    setDeletingId(null);
+  }
+};
+
+
 
   // ✅ CANCEL DELETE
   const handleDeleteCancel = () => {

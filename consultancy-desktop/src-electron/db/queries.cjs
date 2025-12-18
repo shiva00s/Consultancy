@@ -8,7 +8,8 @@ const {
   restorePassportMovement,
   getPassportMovementPhotos,
   addPassportMovementPhotos,
-  deletePassportMovementPhoto,getAllDeletedPassportMovements,permanentDeletePassportMovement
+  deletePassportMovementPhoto,getAllDeletedPassportMovements,permanentDeletePassportMovement,
+getPassportMovementStatus
 } = require('./passportQueries.cjs');
 
 const saltRounds = 10;
@@ -3911,4 +3912,5 @@ getAdminEffectiveFlags,
   getPassportMovementPhotos,
   addPassportMovementPhotos,
   deletePassportMovementPhoto,
+  getPassportMovementStatus,
 };

@@ -137,10 +137,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   permanentDeletePassportMovement: (user, id) =>    ipcRenderer.invoke('permanent-delete-passport-movement', { user, id }),
   // Delete Movement
   deletePassportMovement: (data) => ipcRenderer.invoke('delete-passport-movement', data),
-  
+  getPassportMovementPhotos: (movementId) =>     ipcRenderer.invoke('get-passport-movement-photos', movementId),
   // Recycle Bin
   getDeletedPassportMovements: (data) => ipcRenderer.invoke('get-deleted-passport-movements', data),
-  restorePassportMovement: (params) =>    ipcRenderer.invoke('restore-passport-movement', params),
+  restorePassportMovement: (params) => ipcRenderer.invoke('restore-passport-movement', params),
 
   // ==========================================================================
   // 🌍 VISA TRACKING

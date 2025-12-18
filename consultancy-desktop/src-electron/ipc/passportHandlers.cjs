@@ -11,7 +11,6 @@ const { getDatabase } = require('../db/database.cjs');
  */
 function logAction(user, action, targetType, targetId, details = null) {
   try {
-    // ✅ Validate inputs before inserting
     if (!user || !user.id) {
       console.warn('⚠️ Audit log skipped: No user provided');
       return;
@@ -44,7 +43,7 @@ function logAction(user, action, targetType, targetId, details = null) {
       [
         user.id, 
         user.username || user.fullName || 'Unknown', 
-        action.toUpperCase(), // ✅ Normalize action to uppercase
+        action.toUpperCase(),
         targetType, 
         targetId, 
         details || null
@@ -85,13 +84,12 @@ function registerPassportHandlers() {
       if (result.success) {
         console.log(`✅ Found ${result.data.length} movements`);
         
-        // ✅ FIX: Only log if movements were actually fetched
         if (user && user.id && result.data.length > 0) {
           logAction(
             user, 
             'VIEW', 
             'passport_movements', 
-            candidateId, // ✅ Use candidateId as target
+            candidateId,
             `Viewed ${result.data.length} movements`
           );
         }
@@ -105,87 +103,165 @@ function registerPassportHandlers() {
   });
 
   // ==========================================================================
-  // ADD NEW PASSPORT MOVEMENT (RECEIVE OR SEND) + PHOTOS
+  // GET PASSPORT MOVEMENT PHOTOS
   // ==========================================================================
-  ipcMain.handle('add-passport-movement', async (event, { data, user }) => {
+  ipcMain.handle('get-passport-movement-photos', async (event, movementId) => {
     try {
-      // Auth check
-      if (!user || !user.id) {
-        return { success: false, error: 'Authentication required. Please log in.' };
-      }
-
-      console.log('📥 Received passport movement data:', {
-        candidateId: data.candidate_id || data.candidateId,
-        type: data.type || data.movement_type,
-        method: data.method,
-        date: data.date,
-        hasPhotos: data.photos?.length || 0
-      });
-
-      // Normalize field names
-      const normalizedData = {
-        candidate_id: parseInt(data.candidate_id || data.candidateId || data.candidateid),
-        type: data.type || data.movement_type || data.movementType,
-        method: data.method,
-        courier_number: data.courier_number || data.couriernumber || data.courierNumber,
-        date: data.date,
-        // RECEIVE fields
-        received_from: data.received_from || data.receivedfrom || data.receivedFrom,
-        received_by: data.received_by || data.receivedby || data.receivedBy,
-        // SEND fields
-        send_to: data.send_to || data.sendto || data.sendTo,
-        send_to_name: data.send_to_name || data.sendtoname || data.sendToName,
-        send_to_contact: data.send_to_contact || data.sendtocontact || data.sendToContact,
-        sent_by: data.sent_by || data.sentby || data.sentBy,
-        // Shared
-        notes: data.notes,
-        photos: data.photos || [],
-        created_by: user.username || user.fullName || user.id
-      };
-
-      // ✅ Validate candidate exists
-      if (!normalizedData.candidate_id || isNaN(normalizedData.candidate_id)) {
-        return { 
-          success: false, 
-          error: 'Invalid candidate ID provided' 
-        };
-      }
-
-      const result = await queries.addPassportMovement(normalizedData);
-      
-      if (!result.success) {
-        console.error('❌ Movement insert failed:', result.error);
-        return result;
-      }
-
-      const movementId = result.data.id;
-      console.log(`✅ Movement inserted with ID: ${movementId}, Photos: ${result.data.photo_count}`);
-      
-      // ✅ FIX: Log audit correctly
-      logAction(
-        user, 
-        'CREATE', 
-        'passport_movements', 
-        movementId, // ✅ Use movement ID as target
-        `Type: ${normalizedData.type}, Candidate: ${normalizedData.candidate_id}, Date: ${normalizedData.date}, Photos: ${result.data.photo_count}`
-      );
-      
-      return { 
-        success: true, 
-        data: { 
-          id: movementId,
-          photo_count: result.data.photo_count
-        },
-        message: 'Passport movement recorded successfully' 
-      };
-      
+      console.log(`📸 Fetching photos for movement ID: ${movementId}`);
+      const result = await queries.getPassportMovementPhotos(movementId);
+      return result;
     } catch (error) {
-      console.error('❌ add-passport-movement error:', error);
+      console.error('❌ get-passport-movement-photos error:', error);
       return { success: false, error: error.message };
     }
   });
 
-  // ... (rest of handlers remain the same)
+  // ==========================================================================
+  // ADD NEW PASSPORT MOVEMENT (RECEIVE OR SEND) + PHOTOS
+  // ==========================================================================
+  ipcMain.handle('add-passport-movement', async (event, { data, user }) => {
+  try {
+    if (!user || !user.id) {
+      return { success: false, error: 'Authentication required. Please log in.' };
+    }
+
+    console.log('📥 Received passport movement data:', {
+      candidateId: data.candidate_id || data.candidateId,
+      type: data.type || data.movement_type,
+      method: data.method,
+      date: data.date,
+      hasPhotos: data.photos?.length || 0
+    });
+
+    const normalizedData = {
+      candidate_id: parseInt(data.candidate_id || data.candidateId || data.candidateid),
+      type: data.type || data.movement_type || data.movementType,
+      method: data.method,
+      courier_number: data.courier_number || data.couriernumber || data.courierNumber,
+      date: data.date,
+      received_from: data.received_from || data.receivedfrom || data.receivedFrom,
+      received_by: data.received_by || data.receivedby || data.receivedBy,
+      send_to: data.send_to || data.sendto || data.sendTo,
+      send_to_name: data.send_to_name || data.sendtoname || data.sendToName,
+      send_to_contact: data.send_to_contact || data.sendtocontact || data.sendToContact,
+      sent_by: data.sent_by || data.sentby || data.sentBy,
+      notes: data.notes,
+      photos: data.photos || [],
+      created_by: user.username || user.fullName || user.id
+    };
+
+    if (!normalizedData.candidate_id || isNaN(normalizedData.candidate_id)) {
+      return { 
+        success: false, 
+        error: 'Invalid candidate ID provided' 
+      };
+    }
+
+    // ✅ ADD THIS: Check if candidate exists
+    const db = getDatabase();
+    const candidateExists = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT id FROM candidates WHERE id = ? AND (isDeleted IS NULL OR isDeleted = 0)',
+        [normalizedData.candidate_id],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(!!row);
+        }
+      );
+    });
+
+    if (!candidateExists) {
+      console.error(`❌ Candidate ID ${normalizedData.candidate_id} not found`);
+      return { 
+        success: false, 
+        error: `Candidate with ID ${normalizedData.candidate_id} not found or has been deleted.` 
+      };
+    }
+
+    const result = await queries.addPassportMovement(normalizedData);
+    
+    if (!result.success) {
+      console.error('❌ Movement insert failed:', result.error);
+      return result;
+    }
+
+    const movementId = result.data.id;
+    console.log(`✅ Movement inserted with ID: ${movementId}, Photos: ${result.data.photo_count}`);
+    
+    logAction(
+      user, 
+      'CREATE', 
+      'passport_movements', 
+      movementId,
+      `Type: ${normalizedData.type}, Candidate: ${normalizedData.candidate_id}, Date: ${normalizedData.date}, Photos: ${result.data.photo_count}`
+    );
+    
+    return { 
+      success: true, 
+      data: { 
+        id: movementId,
+        photo_count: result.data.photo_count
+      },
+      message: 'Passport movement recorded successfully' 
+    };
+    
+  } catch (error) {
+    console.error('❌ add-passport-movement error:', error);
+    
+    // Better error handling
+    if (error.message && error.message.includes('FOREIGN KEY constraint failed')) {
+      return { 
+        success: false, 
+        error: 'The candidate does not exist. Please refresh and try again.' 
+      };
+    }
+    
+    return { success: false, error: error.message };
+  }
+});
+
+
+  // ==========================================================================
+  // DELETE PASSPORT MOVEMENT (SOFT DELETE) ✅ ADDED
+  // ==========================================================================
+  ipcMain.handle('delete-passport-movement', async (event, { movementId, id, user }) => {
+  try {
+    if (!user || !user.id) {
+      return { success: false, error: 'Authentication required. Please log in.' };
+    }
+
+    // Accept both 'id' and 'movementId' for flexibility
+    const actualId = id || movementId;
+
+    if (!actualId) {
+      return { success: false, error: 'Movement ID is required' };
+    }
+
+    console.log(`🗑️ Soft deleting passport movement ID: ${actualId}...`);
+
+    const db = getDatabase();
+    
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE passport_movements SET is_deleted = 1, updated_at = datetime('now','localtime') WHERE id = ?`,
+        [actualId],
+        (err) => {
+          if (err) return reject(err);
+          resolve();
+        }
+      );
+    });
+
+    logAction(user, 'DELETE', 'passport_movements', actualId, 'Movement moved to recycle bin');
+    console.log(`✅ Soft deleted passport movement ID: ${actualId}`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('❌ delete-passport-movement error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 
   // ==========================================================================
   // RESTORE DELETED MOVEMENT
@@ -215,7 +291,6 @@ function registerPassportHandlers() {
         );
       });
 
-      // ✅ FIX: Correct audit logging
       logAction(user, 'RESTORE', 'passport_movements', id, 'Movement restored from recycle bin');
       console.log(`✅ Restored passport movement ID: ${id}`);
       
@@ -226,30 +301,41 @@ function registerPassportHandlers() {
     }
   });
 
-  console.log('✅ Passport Movement handlers registered successfully');
-}
-
-// ==========================================================================
-// GET ALL DELETED MOVEMENTS (GLOBAL RECYCLE BIN)
-// ==========================================================================
-ipcMain.handle('get-all-deleted-passport-movements', async (event, { user }) => {
+  // Check passport movement status
+ipcMain.handle('get-passport-movement-status', async (event, candidateId) => {
   try {
-    if (!user || !user.id) {
-      return { success: false, error: 'Authentication required. Please log in.' };
-    }
-
-    const result = await queries.getAllDeletedPassportMovements();
-
-    if (result.success) {
-      console.log(`📋 Found ${result.data.length} deleted passport movements`);
-    }
-
-    return result;
+    return await queries.getPassportMovementStatus(candidateId);
   } catch (error) {
-    console.error('❌ get-all-deleted-passport-movements error:', error);
+    console.error('❌ get-passport-movement-status error:', error);
     return { success: false, error: error.message };
   }
 });
+
+
+  // ==========================================================================
+  // GET ALL DELETED MOVEMENTS (GLOBAL RECYCLE BIN)
+  // ==========================================================================
+  ipcMain.handle('get-all-deleted-passport-movements', async (event, { user }) => {
+    try {
+      if (!user || !user.id) {
+        return { success: false, error: 'Authentication required. Please log in.' };
+      }
+
+      const result = await queries.getAllDeletedPassportMovements();
+
+      if (result.success) {
+        console.log(`📋 Found ${result.data.length} deleted passport movements`);
+      }
+
+      return result;
+    } catch (error) {
+      console.error('❌ get-all-deleted-passport-movements error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  console.log('✅ Passport Movement handlers registered successfully');
+}
 
 // ============================================================================
 // EXPORTS
