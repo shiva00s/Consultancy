@@ -9,13 +9,14 @@ import {
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import useDataStore from "../store/dataStore";
+import { useShallow } from "zustand/react/shallow";
 import useAuthStore from "../store/useAuthStore";
 import "../css/JobOrderListPage.css";
 import ConfirmDialog from "../components/ConfirmDialog";
 
 function JobOrderListPage() {
   const initialForm = {
-    employerid: "",
+    employer_id: "",
     positionTitle: "",
     country: "",
     openingsCount: "1",
@@ -31,32 +32,60 @@ function JobOrderListPage() {
     selectionType: "CV Selection",
   };
 
-  const jobs = useDataStore((state) => state.jobs);
-  const employers = useDataStore((state) => state.employers);
-  const isLoaded = useDataStore((state) => state.isLoaded);
-  const addJobToStore = useDataStore((state) => state.addJob);
-  const updateJobInStore = useDataStore((state) => state.updateJob);
-  const deleteJobToStore = useDataStore((state) => state.deleteJob);
-  const user = useAuthStore((state) => state.user);
+  // ✅ Direct zustand selectors with useShallow
+  const {
+    jobs,
+    employers,
+    isLoaded,
+    addJob,
+    updateJob,
+    deleteJob,
+    fetchInitialData,
+  } = useDataStore(
+    useShallow((state) => ({
+      jobs: state.jobs,
+      employers: state.employers,
+      isLoaded: state.isLoaded,
+      addJob: state.addJob,
+      updateJob: state.updateJob,
+      deleteJob: state.deleteJob,
+      fetchInitialData: state.fetchInitialData,
+    }))
+  );
+
+  const { user } = useAuthStore(
+    useShallow((state) => ({
+      user: state.user,
+    }))
+  );
+
+  // 🔥 Fetch data on component mount
+  useEffect(() => {
+    fetchInitialData();
+  }, [fetchInitialData]);
 
   const [activeTab, setActiveTab] = useState("add");
 
-  // ADD TAB STATE
-  const [formData, setFormData] = useState(initialForm);
-  const [isSaving, setIsSaving] = useState(false);
-  const [errors, setErrors] = useState({});
+  // ADD TAB
+  const [addForm, setAddForm] = useState(initialForm);
+  const [addErrors, setAddErrors] = useState({});
+  const [addSaving, setAddSaving] = useState(false);
 
-  // VIEW TAB STATE
+  // VIEW TAB
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [viewForm, setViewForm] = useState(initialForm);
   const [viewErrors, setViewErrors] = useState({});
   const [isEditing, setIsEditing] = useState(false);
   const [viewSaving, setViewSaving] = useState(false);
 
-  const [confirmState, setConfirmState] = useState({
+  const selectedJob = jobs[selectedIndex] || null;
+  const jobCount = jobs.length;
+
+  // confirm delete dialog state
+  const [confirmDeleteState, setConfirmDeleteState] = useState({
     open: false,
-    id: null,
-    name: "",
+    jobId: null,
+    jobName: "",
   });
 
   const selectionTypeOptions = [
@@ -66,13 +95,7 @@ function JobOrderListPage() {
     "Direct Client Interview",
   ];
 
-  const foodOptions = [
-    "Yes",
-    "No",
-    "Company Provided",
-    "Self",
-    "Other",
-  ];
+  const foodOptions = ["Yes", "No", "Company Provided", "Self", "Other"];
 
   const accommodationOptions = [
     "Yes",
@@ -82,45 +105,31 @@ function JobOrderListPage() {
     "Other",
   ];
 
-  const selectedJob = jobs[selectedIndex] || null;
-  const jobCount = jobs.length;
-
   const getEmployerName = (employerId) => {
     const emp = employers.find((e) => e.id === employerId);
     return emp ? emp.companyName : "Unknown";
   };
 
-  // 🔥 AUTO-POPULATE POSITION & COUNTRY FROM EMPLOYER (ADD MODE)
-  useEffect(() => {
-    if (formData.employerid) {
-      const selectedEmployer = employers.find(
-        (e) => e.id === parseInt(formData.employerid)
-      );
-      if (selectedEmployer) {
-        setFormData((prev) => ({
-          ...prev,
-          country: selectedEmployer.country || "",
-          positionTitle: selectedEmployer.position || "", // Auto-fetch Position
-        }));
-      }
-    }
-  }, [formData.employerid, employers]);
+  // Validation function
+  const validate = (data, setErr) => {
+    const errs = {};
 
-  // 🔥 AUTO-POPULATE POSITION & COUNTRY FROM EMPLOYER (VIEW/EDIT MODE)
-  useEffect(() => {
-    if (viewForm.employerid && isEditing) {
-      const selectedEmployer = employers.find(
-        (e) => e.id === parseInt(viewForm.employerid)
-      );
-      if (selectedEmployer) {
-        setViewForm((prev) => ({
-          ...prev,
-          country: selectedEmployer.country || "",
-          positionTitle: selectedEmployer.position || "", // Auto-fetch Position
-        }));
-      }
+    if (!data.employer_id || data.employer_id === "" || data.employer_id === "0") {
+      errs.employer_id = "Select an employer.";
     }
-  }, [viewForm.employerid, employers, isEditing]);
+
+    if (!data.positionTitle || data.positionTitle.trim() === "") {
+      errs.positionTitle = "Position Title is required.";
+    }
+
+    const openings = parseInt(data.openingsCount, 10);
+    if (isNaN(openings) || openings < 1) {
+      errs.openingsCount = "Openings must be at least 1.";
+    }
+
+    setErr(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   // Sync selected job to viewForm
   const syncSelectedToForm = (idx) => {
@@ -146,7 +155,7 @@ function JobOrderListPage() {
     }
 
     setViewForm({
-      employerid: job.employerid,
+      employer_id: job.employer_id,
       positionTitle: job.positionTitle,
       country: job.country || "",
       openingsCount: job.openingsCount?.toString() || "1",
@@ -174,11 +183,11 @@ function JobOrderListPage() {
         setSelectedIndex(0);
         syncSelectedToForm(0);
       } else {
+        // ✅ Always sync when job data changes
         syncSelectedToForm(selectedIndex);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobs, activeTab]);
+  }, [jobs, activeTab, selectedIndex]);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -186,49 +195,59 @@ function JobOrderListPage() {
       setViewErrors({});
       setIsEditing(false);
       if (jobs.length > 0) {
-        setSelectedIndex(0);
-        syncSelectedToForm(0);
+        syncSelectedToForm(selectedIndex);
       } else {
         setViewForm(initialForm);
       }
     }
   };
 
-  const handleFormChange = (state, setState) => (e) => {
+  // 🔥 AUTO-POPULATE POSITION & COUNTRY FROM EMPLOYER (ADD MODE)
+  useEffect(() => {
+    if (addForm.employer_id) {
+      const selectedEmployer = employers.find(
+        (e) => e.id === parseInt(addForm.employer_id)
+      );
+      if (selectedEmployer) {
+        setAddForm((prev) => ({
+          ...prev,
+          country: selectedEmployer.country || "",
+          positionTitle: selectedEmployer.position || "",
+        }));
+      }
+    }
+  }, [addForm.employer_id, employers]);
+
+  // 🔥 AUTO-POPULATE POSITION & COUNTRY FROM EMPLOYER (VIEW/EDIT MODE)
+  useEffect(() => {
+    if (viewForm.employer_id && isEditing) {
+      const selectedEmployer = employers.find(
+        (e) => e.id === parseInt(viewForm.employer_id)
+      );
+      if (selectedEmployer) {
+        setViewForm((prev) => ({
+          ...prev,
+          country: selectedEmployer.country || "",
+          positionTitle: selectedEmployer.position || "",
+        }));
+      }
+    }
+  }, [viewForm.employer_id, employers, isEditing]);
+
+  // ADD handlers
+  const onAddChange = (e) => {
     const { name, value } = e.target;
     let v = value;
 
-    if (
-      ["openingsCount", "dutyHours", "overtime", "contractPeriod"].includes(
-        name
-      )
-    ) {
+    if (["openingsCount", "dutyHours", "overtime", "contractPeriod"].includes(name)) {
       v = value.replace(/[^\d]/g, "");
     }
 
-    const next = { ...state, [name]: v };
-    setState(next);
-
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
-    if (viewErrors[name])
-      setViewErrors((prev) => ({ ...prev, [name]: null }));
+    setAddForm((p) => ({ ...p, [name]: v }));
+    if (addErrors[name]) setAddErrors((p) => ({ ...p, [name]: null }));
   };
 
-  const validateForm = (state, setErr) => {
-    const newErrors = {};
-    if (!state.employerid) newErrors.employerid = "Select an employer.";
-    if (!state.positionTitle || state.positionTitle.trim() === "")
-      newErrors.positionTitle = "Position Title is required.";
-
-    const openings = parseInt(state.openingsCount, 10);
-    if (isNaN(openings) || openings < 1)
-      newErrors.openingsCount = "Openings must be at least 1.";
-
-    setErr(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // FIX: Force Integer mapping and handle "Other" logic correctly
+  // Build payload with proper "Other" handling
   const buildPayload = (state) => {
     let finalFood = state.food || null;
     if (state.food === "Other" && state.foodCustom) {
@@ -241,7 +260,7 @@ function JobOrderListPage() {
     }
 
     return {
-      employerid: parseInt(state.employerid, 10), // CRITICAL: Database expects Integer
+      employer_id: parseInt(state.employer_id, 10),
       positionTitle: state.positionTitle || "",
       country: state.country || "",
       openingsCount: parseInt(state.openingsCount || "0", 10),
@@ -256,94 +275,41 @@ function JobOrderListPage() {
     };
   };
 
-  // ADD TAB HANDLER
-  const handleSubmit = async (e) => {
+  const onAddSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm(formData, setErrors)) {
+    if (!validate(addForm, setAddErrors)) {
       toast.error("Please select an employer and enter a position.");
       return;
     }
 
-    setIsSaving(true);
-    const payload = buildPayload(formData);
+    setAddSaving(true);
+    const payload = buildPayload(addForm);
     const res = await window.electronAPI.addJobOrder({ user, data: payload });
 
     if (res.success) {
-      addJobToStore(res.data); // Update global store
-      setFormData(initialForm);
-      setErrors({});
+      addJob(res.data);
+      setAddForm(initialForm);
+      setAddErrors({});
       toast.success("Job Order added successfully!");
     } else {
       toast.error(res.error || "Failed to add job order.");
     }
-    setIsSaving(false);
+    setAddSaving(false);
   };
 
-  // VIEW TAB HANDLER (Fixed for Immediate Refresh)
-  const saveEdit = async (e) => {
-    e.preventDefault();
-    if (!selectedJob) return;
+  // VIEW handlers
+  const onViewChange = (e) => {
+    const { name, value } = e.target;
+    let v = value;
 
-    if (!validateForm(viewForm, setViewErrors)) {
-      toast.error("Fix validation errors before saving.");
-      return;
+    if (["openingsCount", "dutyHours", "overtime", "contractPeriod"].includes(name)) {
+      v = value.replace(/[^\d]/g, "");
     }
 
-    setViewSaving(true);
-    const payload = buildPayload(viewForm);
-    const res = await window.electronAPI.updateJobOrder({
-      user,
-      id: selectedJob.id,
-      data: payload,
-    });
-
-    if (res.success) {
-      // 1. Update global store
-      updateJobInStore(res.data);
-      
-      // 2. IMMEDIATE UI REFRESH: Re-sync local view form with actual DB response
-      const job = res.data;
-      let foodValue = job.food || "";
-      let foodCustomValue = "";
-      if (foodValue.startsWith("Other: ")) {
-        foodCustomValue = foodValue.replace("Other: ", "");
-        foodValue = "Other";
-      }
-
-      let accommodationValue = job.accommodation || "";
-      let accommodationCustomValue = "";
-      if (accommodationValue.startsWith("Other: ")) {
-        accommodationCustomValue = accommodationValue.replace("Other: ", "");
-        accommodationValue = "Other";
-      }
-
-      setViewForm({
-        employerid: job.employerid,
-        positionTitle: job.positionTitle,
-        country: job.country || "",
-        openingsCount: job.openingsCount?.toString() || "1",
-        status: job.status,
-        requirements: job.requirements || "",
-        food: foodValue,
-        foodCustom: foodCustomValue,
-        accommodation: accommodationValue,
-        accommodationCustom: accommodationCustomValue,
-        dutyHours: job.dutyHours || "",
-        overtime: job.overtime || "",
-        contractPeriod: job.contractPeriod || "",
-        selectionType: job.selectionType || "CV Selection",
-      });
-
-      toast.success(`Job updated successfully.`);
-      setIsEditing(false);
-      setViewErrors({});
-    } else {
-      toast.error(res.error || "Update failed");
-    }
-    setViewSaving(false);
+    setViewForm((p) => ({ ...p, [name]: v }));
+    if (viewErrors[name]) setViewErrors((p) => ({ ...p, [name]: null }));
   };
 
-  // VIEW TAB HANDLERS
   const onJobSelect = (e) => {
     const idx = Number(e.target.value);
     setSelectedIndex(idx);
@@ -362,35 +328,105 @@ function JobOrderListPage() {
     setViewErrors({});
   };
 
-  // DELETE HANDLERS
-  const askDeleteJob = () => {
+  const saveEdit = async (e) => {
+    e.preventDefault();
     if (!selectedJob) return;
-    setConfirmState({
-      open: true,
-      id: selectedJob.id,
-      name: selectedJob.positionTitle || "",
-    });
-  };
 
-  const confirmDeleteJob = async () => {
-    const { id, name } = confirmState;
-    setConfirmState({ open: false, id: null, name: "" });
-    if (!id) return;
+    if (!validate(viewForm, setViewErrors)) {
+      toast.error("Fix validation errors before saving.");
+      return;
+    }
 
-    const res = await window.electronAPI.deleteJobOrder({ user, id });
+    setViewSaving(true);
 
-    if (res.success) {
-      deleteJobToStore(id);
-      toast.success(
-        `Job Order "${name}" and linked placements moved to Recycle Bin.`
-      );
-    } else {
-      toast.error(res.error || "Failed to delete job order.");
+    try {
+      const payload = buildPayload(viewForm);
+      const res = await window.electronAPI.updateJobOrder({
+        user,
+        id: selectedJob.id,
+        data: payload,
+      });
+
+      if (res.success) {
+        // Update global store
+        updateJob(res.data);
+
+        // ✅ Immediately update local form state with server response
+        const job = res.data;
+        let foodValue = job.food || "";
+        let foodCustomValue = "";
+        if (foodValue.startsWith("Other: ")) {
+          foodCustomValue = foodValue.replace("Other: ", "");
+          foodValue = "Other";
+        }
+
+        let accommodationValue = job.accommodation || "";
+        let accommodationCustomValue = "";
+        if (accommodationValue.startsWith("Other: ")) {
+          accommodationCustomValue = accommodationValue.replace("Other: ", "");
+          accommodationValue = "Other";
+        }
+
+        const updatedData = {
+          employer_id: job.employer_id,
+          positionTitle: job.positionTitle,
+          country: job.country || "",
+          openingsCount: job.openingsCount?.toString() || "1",
+          status: job.status,
+          requirements: job.requirements || "",
+          food: foodValue,
+          foodCustom: foodCustomValue,
+          accommodation: accommodationValue,
+          accommodationCustom: accommodationCustomValue,
+          dutyHours: job.dutyHours || "",
+          overtime: job.overtime || "",
+          contractPeriod: job.contractPeriod || "",
+          selectionType: job.selectionType || "CV Selection",
+        };
+
+        setViewForm(updatedData);
+        setIsEditing(false);
+        setViewErrors({});
+        toast.success(`Job "${res.data.positionTitle}" updated successfully.`);
+      } else {
+        toast.error(res.error || "Update failed");
+      }
+    } catch (error) {
+      console.error("Update error:", error);
+      toast.error("An error occurred while updating.");
+    } finally {
+      setViewSaving(false);
     }
   };
 
-  const cancelDeleteJob = () => {
-    setConfirmState({ open: false, id: null, name: "" });
+  // open confirm dialog
+  const onDeleteClick = () => {
+    if (!selectedJob) return;
+    setConfirmDeleteState({
+      open: true,
+      jobId: selectedJob.id,
+      jobName: selectedJob.positionTitle,
+    });
+  };
+
+  // confirm delete from dialog
+  const handleConfirmDelete = async () => {
+    const { jobId, jobName } = confirmDeleteState;
+    setConfirmDeleteState({ open: false, jobId: null, jobName: "" });
+    if (!jobId) return;
+
+    const res = await window.electronAPI.deleteJobOrder({ user, id: jobId });
+
+    if (res.success) {
+      deleteJob(jobId);
+      toast.success(`Job Order "${jobName}" moved to Recycle Bin.`);
+    } else {
+      toast.error(res.error || "Delete failed.");
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setConfirmDeleteState({ open: false, jobId: null, jobName: "" });
   };
 
   const getStatusBadgeClass = (status) => {
@@ -409,24 +445,31 @@ function JobOrderListPage() {
   if (!isLoaded) {
     return (
       <div className="job-page-container">
-        <p>⏳ Loading jobs and employers...</p>
+        <p className="empty-text">
+          <span className="emoji-inline">⏳</span> Loading jobs and employers...
+        </p>
       </div>
     );
   }
 
-  const renderJobFormFields = (state, setState, disabled = false) => {
-    const onChange = disabled ? undefined : handleFormChange(state, setState);
-
+  const renderJobFormFields = (state, onChange, disabled = false) => {
     return (
       <div className={`job-grid-4 ${disabled ? "read-grid" : ""}`}>
         {/* EMPLOYER */}
-        <div className="form-group">
-          <label>🏢 Company (Employer)</label>
+        <div className={`form-group ${addErrors.employer_id || viewErrors.employer_id ? "error" : ""}`}>
+          <label>
+            <span className="emoji-inline">🏢</span> COMPANY (EMPLOYER)
+          </label>
           <select
-            name="employerid"
-            value={state.employerid}
+            name="employer_id"
+            value={state.employer_id}
             onChange={onChange}
             disabled={disabled}
+            style={
+              addErrors.employer_id || viewErrors.employer_id
+                ? { borderColor: "red" }
+                : {}
+            }
           >
             <option value="">-- Select Employer --</option>
             {employers.map((emp) => (
@@ -435,11 +478,18 @@ function JobOrderListPage() {
               </option>
             ))}
           </select>
+          {(addErrors.employer_id || viewErrors.employer_id) && (
+            <p className="error-text">
+              {addErrors.employer_id || viewErrors.employer_id}
+            </p>
+          )}
         </div>
 
         {/* POSITION */}
-        <div className="form-group">
-          <label>💼 Position</label>
+        <div className={`form-group ${addErrors.positionTitle || viewErrors.positionTitle ? "error" : ""}`}>
+          <label>
+            <span className="emoji-inline">🎯</span> POSITION
+          </label>
           <input
             type="text"
             name="positionTitle"
@@ -447,12 +497,24 @@ function JobOrderListPage() {
             onChange={onChange}
             placeholder="e.g. Admin"
             disabled={disabled}
+            style={
+              addErrors.positionTitle || viewErrors.positionTitle
+                ? { borderColor: "red" }
+                : {}
+            }
           />
+          {(addErrors.positionTitle || viewErrors.positionTitle) && (
+            <p className="error-text">
+              {addErrors.positionTitle || viewErrors.positionTitle}
+            </p>
+          )}
         </div>
 
         {/* COUNTRY */}
         <div className="form-group">
-          <label>🌍 Country</label>
+          <label>
+            <span className="emoji-inline">🌍</span> COUNTRY
+          </label>
           <input
             type="text"
             name="country"
@@ -464,8 +526,10 @@ function JobOrderListPage() {
         </div>
 
         {/* OPENINGS */}
-        <div className="form-group">
-          <label>🔢 No. of Openings</label>
+        <div className={`form-group ${addErrors.openingsCount || viewErrors.openingsCount ? "error" : ""}`}>
+          <label>
+            <span className="emoji-inline">🔢</span> NO. OF OPENINGS
+          </label>
           <input
             type="text"
             inputMode="numeric"
@@ -474,12 +538,24 @@ function JobOrderListPage() {
             onChange={onChange}
             placeholder="1"
             disabled={disabled}
+            style={
+              addErrors.openingsCount || viewErrors.openingsCount
+                ? { borderColor: "red" }
+                : {}
+            }
           />
+          {(addErrors.openingsCount || viewErrors.openingsCount) && (
+            <p className="error-text">
+              {addErrors.openingsCount || viewErrors.openingsCount}
+            </p>
+          )}
         </div>
 
         {/* FOOD */}
         <div className="form-group">
-          <label>🍽️ Food</label>
+          <label>
+            <span className="emoji-inline">🍽️</span> FOOD
+          </label>
           <select
             name="food"
             value={state.food}
@@ -511,7 +587,9 @@ function JobOrderListPage() {
 
         {/* ACCOMMODATION */}
         <div className="form-group">
-          <label>🏠 Accommodation</label>
+          <label>
+            <span className="emoji-inline">🏠</span> ACCOMMODATION
+          </label>
           <select
             name="accommodation"
             value={state.accommodation}
@@ -536,18 +614,16 @@ function JobOrderListPage() {
               style={{ marginTop: "8px" }}
             />
           )}
-          {state.accommodation === "Other" &&
-            disabled &&
-            state.accommodationCustom && (
-              <div className="custom-value-display">
-                {state.accommodationCustom}
-              </div>
-            )}
+          {state.accommodation === "Other" && disabled && state.accommodationCustom && (
+            <div className="custom-value-display">{state.accommodationCustom}</div>
+          )}
         </div>
 
         {/* DUTY HOURS */}
         <div className="form-group">
-          <label>⏰ Duty Hours</label>
+          <label>
+            <span className="emoji-inline">⏰</span> DUTY HOURS
+          </label>
           <input
             type="text"
             inputMode="numeric"
@@ -561,7 +637,9 @@ function JobOrderListPage() {
 
         {/* OVERTIME */}
         <div className="form-group">
-          <label>⏱️ Overtime (OT)</label>
+          <label>
+            <span className="emoji-inline">⏱️</span> OVERTIME (OT)
+          </label>
           <input
             type="text"
             inputMode="numeric"
@@ -575,7 +653,9 @@ function JobOrderListPage() {
 
         {/* CONTRACT PERIOD */}
         <div className="form-group">
-          <label>📅 Contract Period (months)</label>
+          <label>
+            <span className="emoji-inline">📅</span> CONTRACT PERIOD (MONTHS)
+          </label>
           <input
             type="text"
             inputMode="numeric"
@@ -589,7 +669,9 @@ function JobOrderListPage() {
 
         {/* SELECTION TYPE */}
         <div className="form-group">
-          <label>🎯 Selection Type</label>
+          <label>
+            <span className="emoji-inline">🎯</span> SELECTION TYPE
+          </label>
           <select
             name="selectionType"
             value={state.selectionType}
@@ -606,7 +688,9 @@ function JobOrderListPage() {
 
         {/* STATUS */}
         <div className="form-group">
-          <label>📊 Status</label>
+          <label>
+            <span className="emoji-inline">📊</span> STATUS
+          </label>
           <select
             name="status"
             value={state.status}
@@ -623,11 +707,14 @@ function JobOrderListPage() {
 
         {/* REQUIREMENTS */}
         <div className="form-group form-group-full">
-          <label>📝 Requirements</label>
+          <label>
+            <span className="emoji-inline">📝</span> REQUIREMENTS
+          </label>
           <textarea
             name="requirements"
             value={state.requirements}
             onChange={onChange}
+            placeholder="job requirements, skills, experience, etc."
             rows="3"
             disabled={disabled}
           />
@@ -637,176 +724,183 @@ function JobOrderListPage() {
   };
 
   return (
-    <div className="job-page-container">
+    <div className="job-page-container fade-in">
       {/* HEADER */}
-      <div className="job-page-header">
+      <header className="job-page-header">
         <h1>
-          <FiClipboard /> Job Order Management
+          <span className="emoji-inline">📋</span> Job Order Management
         </h1>
-      </div>
+      </header>
 
       {/* TABS */}
       <div className="job-tabs">
         <button
+          type="button"
           className={`job-tab ${activeTab === "add" ? "job-tab-active" : ""}`}
           onClick={() => handleTabChange("add")}
         >
-          <FiPlus /> Add New
+          <FiPlus />
+          <span className="emoji-inline">➕</span> Add New
         </button>
         <button
+          type="button"
           className={`job-tab ${activeTab === "list" ? "job-tab-active" : ""}`}
           onClick={() => handleTabChange("list")}
         >
-          View / Edit
+          <FiClipboard />
+          <span className="emoji-inline">👁️</span> View/Edit{" "}
+          <span className="tab-count-pill">
+            <span className="emoji-inline">📊</span> {jobCount}
+          </span>
         </button>
       </div>
 
-      {/* ADD TAB */}
+      {/* TAB 1: ADD NEW */}
       {activeTab === "add" && (
-        <div className="tab-panel fade-in">
-          <div className="job-card-wide job-card-elevated">
-            <div className="job-card-header">
-              <h2>📋 Create New Job Order</h2>
-            </div>
-            <div className="job-card-body">
-              <form onSubmit={handleSubmit}>
-                {renderJobFormFields(formData, setFormData, false)}
-                <div className="form-footer">
-                  <button
-                    type="submit"
-                    className="btn-primary-lg"
-                    disabled={isSaving}
-                  >
-                    {isSaving ? "💾 Saving..." : "💾 Add Job Order"}
-                  </button>
-                </div>
-              </form>
+        <section className="job-card-wide job-card-elevated slide-up">
+          <div className="job-card-header">
+            <div className="job-title-block">
+              <div className="job-title">
+                <span className="emoji-inline">🆕</span> New Job Order Setup
+              </div>
+              <div className="job-subtitle">
+                <span className="emoji-inline">📋</span> Create a job order linked to an employer
+              </div>
             </div>
           </div>
-        </div>
+
+          <div className="job-card-body">
+            <form onSubmit={onAddSubmit}>
+              {renderJobFormFields(addForm, onAddChange, false)}
+
+              <div className="form-footer">
+                <button type="submit" className="btn-primary-lg" disabled={addSaving}>
+                  {addSaving ? (
+                    <span className="emoji-inline">⏳</span>
+                  ) : (
+                    <span className="emoji-inline">💾</span>
+                  )}{" "}
+                  Save Job Order
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
       )}
 
-      {/* VIEW/EDIT TAB */}
-      {activeTab === "list" && (
-        <div className="tab-panel fade-in">
-          <div className="view-tab-header">
-            <span className="view-tab-pill">📊 Showing {jobCount} Job Orders</span>
-            <span className="view-tab-hint">
-              Tip: Click ✏️ to edit or 🗑️ to move to recycle bin
-            </span>
-          </div>
-
-          {jobCount === 0 ? (
-            <p className="empty-text">
-              📭 No job orders found. Switch to "Add New" to create one.
-            </p>
-          ) : (
-            <div className="job-list-container">
-              {/* JOB SELECTOR */}
-              <div className="job-selector-bar">
-                <label>Select Job Order:</label>
-                <select value={selectedIndex} onChange={onJobSelect}>
-                  {jobs.map((job, idx) => (
-                    <option key={job.id} value={idx}>
-                      {job.positionTitle} - {getEmployerName(job.employerid)}
-                    </option>
-                  ))}
-                </select>
+      {/* TAB 2: VIEW & MANAGE */}
+      {activeTab === "list" &&
+        (jobCount === 0 ? (
+          <p className="empty-text">
+            <span className="emoji-inline">📭</span> No job orders available. Create one from the Add New tab.
+          </p>
+        ) : (
+          <section className="job-card-wide job-card-elevated job-card-editing slide-up">
+            <div className="job-card-header">
+              <div className="job-title-block">
+                <div className="job-title">
+                  <span className="emoji-inline">📋</span>{" "}
+                  {viewForm.positionTitle || "No Job Selected"}
+                </div>
+                <div className="job-subtitle">
+                  {viewForm.country || getEmployerName(viewForm.employer_id) ? (
+                    <>
+                      <span className="emoji-inline">🏢</span>{" "}
+                      {getEmployerName(viewForm.employer_id) || "N/A"}{" "}
+                      <span className="emoji-inline">🌍</span> {viewForm.country || "N/A"}
+                    </>
+                  ) : (
+                    ""
+                  )}
+                </div>
               </div>
 
-              {/* SELECTED JOB CARD */}
-              {selectedJob && (
-                <div
-                  className={`job-card-wide job-card-elevated ${
-                    isEditing ? "job-card-editing" : ""
-                  }`}
+              <div className="job-header-actions">
+                <span className="job-count-chip">
+                  <span className="emoji-inline">📊</span> {jobCount} Job Orders
+                </span>
+                <select
+                  className="job-picker-select"
+                  value={selectedIndex}
+                  onChange={onJobSelect}
+                  disabled={jobs.length === 0}
                 >
-                  <div className="job-card-header">
-                    <div className="job-title-block">
-                      <span className="job-title">
-                        {isEditing ? "✏️ Editing Job Order" : selectedJob.positionTitle}
-                      </span>
-                      <span className="job-subtitle">
-                        {getEmployerName(selectedJob.employerid)} •{" "}
-                        {selectedJob.country || "N/A"}
-                      </span>
-                    </div>
-                    <div className="job-header-actions">
-                      <span
-                        className={`status-pill ${getStatusBadgeClass(
-                          selectedJob.status
-                        )}`}
-                      >
-                        {selectedJob.status === "Open" && "✅ "}
-                        {selectedJob.status === "On Hold" && "⏸️ "}
-                        {selectedJob.status === "Closed" && "🔒 "}
-                        {selectedJob.status}
-                      </span>
+                  {jobs.length === 0 ? (
+                    <option>No jobs found</option>
+                  ) : (
+                    jobs.map((j, i) => (
+                      <option key={j.id} value={i}>
+                        {i + 1}. {j.positionTitle} - {getEmployerName(j.employer_id)}
+                      </option>
+                    ))
+                  )}
+                </select>
 
-                      {!isEditing ? (
-                        <>
-                          <button
-                            className="icon-btn"
-                            title="Edit"
-                            onClick={startEdit}
-                          >
-                            <FiEdit2 />
-                          </button>
-                          <button
-                            className="icon-btn danger"
-                            title="Delete"
-                            onClick={askDeleteJob}
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            className="icon-btn success"
-                            title="Save"
-                            onClick={saveEdit}
-                            disabled={viewSaving}
-                          >
-                            <FiSave />
-                          </button>
-                          <button
-                            className="icon-btn muted"
-                            title="Cancel"
-                            onClick={cancelEdit}
-                          >
-                            <FiX />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="job-card-body">
-                    {isEditing
-                      ? renderJobFormFields(viewForm, setViewForm, false)
-                      : renderJobFormFields(viewForm, () => {}, true)}
-                  </div>
-                </div>
-              )}
+                {!isEditing ? (
+                  <>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      title="Edit job order"
+                      onClick={startEdit}
+                    >
+                      <FiEdit2 />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn danger"
+                      title="Move job order to Recycle Bin"
+                      onClick={onDeleteClick}
+                      disabled={!selectedJob}
+                    >
+                      <FiTrash2 />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="icon-btn success"
+                      title="Save changes"
+                      onClick={saveEdit}
+                      disabled={viewSaving}
+                    >
+                      <FiSave />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn muted"
+                      title="Cancel editing"
+                      onClick={cancelEdit}
+                    >
+                      <FiX />
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-      )}
+
+            <div className="job-card-body">
+              {isEditing
+                ? renderJobFormFields(viewForm, onViewChange, false)
+                : renderJobFormFields(viewForm, () => {}, true)}
+            </div>
+          </section>
+        ))}
 
       {/* CONFIRM DELETE DIALOG */}
       <ConfirmDialog
-        open={confirmState.open}
+        open={confirmDeleteState.open}
         title="Move job order to Recycle Bin?"
         message={
-          confirmState.name
-            ? `Job "${confirmState.name}" and all linked placements will be moved to the Recycle Bin.`
+          confirmDeleteState.jobName
+            ? `Job "${confirmDeleteState.jobName}" and all linked placements will be moved to the Recycle Bin.`
             : "This job order and all linked placements will be moved to the Recycle Bin."
         }
         confirmLabel="Yes, move to Recycle Bin"
         cancelLabel="No, keep job"
-        onConfirm={confirmDeleteJob}
-        onCancel={cancelDeleteJob}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
       />
     </div>
   );

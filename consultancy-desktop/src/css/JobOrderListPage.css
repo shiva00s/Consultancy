@@ -626,3 +626,131 @@
   border-color: #4a90e2;
   background: #252d3a;
 }
+/* Tab Header Emoji Styling */
+.job-card-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.new-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.header-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #0f4994;
+}
+
+.header-subtitle {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  margin: 0;
+  padding-left: 8px;
+}
+/* Tab Button Styling with Emojis */
+.job-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+
+.job-tab svg {
+  font-size: 1.1rem;
+}
+
+.job-tab-active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+/* ========== LIGHT MODE FIXES ========== */
+
+/* Light Mode: Card Headers */
+.theme-light .job-card-header h2,
+.theme-light .job-title {
+  color: #1e293b;
+}
+
+/* Light Mode: Card Backgrounds */
+.theme-light .job-card-wide {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+}
+
+/* Light Mode: Form Inputs */
+.theme-light .form-group input,
+.theme-light .form-group select,
+.theme-light .form-group textarea {
+  background: #ffffff;
+  color: #1e293b;
+  border-color: #e2e8f0;
+}
+
+/* Light Mode: Icon Buttons */
+.theme-light .icon-btn {
+  background: #f8fafc;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+.theme-light .icon-btn:hover {
+  background: #e0e7ff;
+  color: #3730a3;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+}
+
+/* Light Mode: Danger Button */
+.theme-light .icon-btn.danger {
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+.theme-light .icon-btn.danger:hover {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+/* Light Mode: Success Button */
+.theme-light .icon-btn.success {
+  color: #16a34a;
+  border-color: #86efac;
+}
+
+.theme-light .icon-btn.success:hover {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+/* Light Mode: Labels */
+.theme-light .form-group label,
+.theme-light .detail-label {
+  color: #64748b;
+}
+
+/* Light Mode: Detail Values */
+.theme-light .detail-value {
+  color: #1e293b;
+}
+
+/* Light Mode: Disabled/Read-only Inputs */
+.theme-light .read-grid .form-group input,
+.theme-light .read-grid .form-group select,
+.theme-light .read-grid .form-group textarea {
+  background: #f8fafc;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+/* Light Mode: Tab Pills */
+.theme-light .view-tab-pill {
+  background: #dbeafe;
+  color: #1e40af;
+}

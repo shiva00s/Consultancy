@@ -3317,14 +3317,33 @@ async function getJobOrders() {
 // ---------- ADD JOB ORDER ----------
 async function addJobOrder(user, data) {
   const errors = {};
+  
+  // Employer and Position validation
   if (validateRequired(data.employer_id, "Employer ID"))
     errors.employer_id = "Employer is required.";
   if (validateRequired(data.positionTitle, "Position Title"))
     errors.positionTitle = "Position Title is required.";
 
+  // Openings count validation
   const openings = parseInt(data.openingsCount, 10);
   if (isNaN(openings) || openings < 1)
     errors.openingsCount = "Openings must be at least 1.";
+
+  // ✅ ADD THESE NEW VALIDATIONS:
+  if (validateRequired(data.requirements, "Requirements"))
+    errors.requirements = validateRequired(data.requirements, "Requirements");
+  
+  if (validateRequired(data.food, "Food"))
+    errors.food = validateRequired(data.food, "Food");
+  
+  if (validateRequired(data.accommodation, "Accommodation"))
+    errors.accommodation = validateRequired(data.accommodation, "Accommodation");
+  
+  if (validateRequired(data.dutyHours, "Duty Hours"))
+    errors.dutyHours = validateRequired(data.dutyHours, "Duty Hours");
+  
+  if (validateRequired(data.contractPeriod, "Contract Period"))
+    errors.contractPeriod = validateRequired(data.contractPeriod, "Contract Period");
 
   if (Object.keys(errors).length > 0)
     return {

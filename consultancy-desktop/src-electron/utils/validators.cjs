@@ -48,4 +48,58 @@ function validateVerhoeff(aadhaarNumber) {
     return c === 0;
 }
 
+// ====================================================================
+// --- VALIDATION HELPERS ---
+// ====================================================================
+
+const validateEmail = (email) => {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+};
+
+// Returns only the clean error message string
+const validateRequired = (field, name) => {
+  if (!field || (typeof field === "string" && field.trim() === "")) {
+    return `${name} is required.`;
+  }
+  return null;
+};
+
+// Returns only the clean error message string
+const validatePositiveNumber = (field, name) => {
+  const num = parseFloat(field);
+  if (isNaN(num) || num < 0) {
+    return `${name} must be a valid positive number.`;
+  }
+  return null;
+};
+
+// --- Promise-based DB helpers ---
+const dbRun = (db, sql, params) => {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) reject(err);
+      else resolve(this);
+    });
+  });
+};
+
+const dbGet = (db, sql, params) => {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+};
+
+const dbAll = (db, sql, params) => {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+};
+
 module.exports = { validateVerhoeff };

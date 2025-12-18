@@ -363,7 +363,8 @@ getUsers: (data) => ipcRenderer.invoke('get-users', data),
 deletePassportMovement: ({ movementId, user }) =>    ipcRenderer.invoke('delete-passport-movement', { movementId, user }),
 
 backupDatabase: (user, destinationPath) =>     ipcRenderer.invoke('backupDatabase', { user, destinationPath }),
-  showSaveDialog: (options) =>     ipcRenderer.invoke('showSaveDialog', options),
+  showSaveDialog: (options) => 
+    ipcRenderer.invoke('showSaveDialog', options),
 
   // Notifications
 getNotifications: (args) => ipcRenderer.invoke('get-notifications', args),

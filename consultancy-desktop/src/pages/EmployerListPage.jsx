@@ -171,7 +171,7 @@ function EmployerListPage() {
       // ✅ FIXED: Page refresh after successful save
       setTimeout(() => {
         window.location.reload();
-      }, 500); // Wait 500ms so toast shows first
+      }, 1000); // Wait 500ms so toast shows first
     } else {
       toast.error(res.error || 'Update failed.');
       setViewSaving(false);

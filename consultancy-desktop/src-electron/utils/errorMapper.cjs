@@ -1,27 +1,49 @@
+// src-electron/utils/errorMapper.cjs
+
 /**
- * Maps technical error messages to user-friendly toast messages
+ * Maps technical error messages to user-friendly messages
  * @param {Error|string} err - The error object or error message
  * @returns {string} - User-friendly error message
  */
-export function mapErrorToFriendlyToast(err) {
+function mapErrorToFriendly(err) {
   if (!err) return "Unexpected error occurred.";
 
   // Convert error to string for pattern matching
-  const msg = typeof err === 'string' ? err : err.toString();
+  const msg = typeof err === 'string' ? err : (err.message || err.toString());
+
+  if (process.env.NODE_ENV === 'development') {
+    return err.message;
+  }
+  
+  // Production-friendly messages
+  if (err.message?.includes('SQLITE_ERROR')) {
+    return 'Database error. Please check your data.';
+  }
+
+  // ✅ VALIDATION ERRORS - FIRST PRIORITY (before database errors)
+  if (msg.includes("Validation failed")) {
+    return "Some fields need correction. Please review your input.";
+  }
+  if (msg.toLowerCase().includes("validation")) {
+    return "Some fields need correction. Please review your input.";
+  }
 
   // Database constraint errors
   if (msg.includes("SQLITE_CONSTRAINT") || msg.includes("UNIQUE constraint")) {
-    if (msg.includes("placements.candidate_id") || msg.includes("already assigned")) {
+    if (msg.includes("placements.candidate_id") || msg.includes("candidate_id, job_order_id") || msg.includes("already assigned")) {
       return "This candidate is already assigned to that job.";
     }
-    if (msg.includes("candidates.passportNo") || msg.includes("passport")) {
+    if (msg.includes("candidates.passportNo") || msg.toLowerCase().includes("passport")) {
       return "Duplicate passport number found.";
     }
-    if (msg.includes("candidates.aadhar") || msg.includes("aadhar")) {
+    if (msg.includes("candidates.aadhar") || msg.toLowerCase().includes("aadhar")) {
       return "Duplicate Aadhar number found.";
     }
-    if (msg.includes("candidates.contact")) {
+    if (msg.includes("candidates.contact") || msg.toLowerCase().includes("contact")) {
       return "Duplicate contact number found.";
+    }
+    if (msg.toLowerCase().includes("username") || msg.includes("users.username")) {
+      return "Username already exists.";
     }
     if (msg.includes("documents")) {
       return "Duplicate document entry.";
@@ -33,11 +55,6 @@ export function mapErrorToFriendlyToast(err) {
       return "Duplicate employer entry.";
     }
     return "Duplicate entry found. Please check your details.";
-  }
-
-  // Validation errors
-  if (msg.includes("Validation failed") || msg.includes("validation")) {
-    return "Some fields need correction. Please review your input.";
   }
 
   // File-related errors
@@ -60,7 +77,7 @@ export function mapErrorToFriendlyToast(err) {
   }
 
   // Database errors
-  if (msg.includes("database") || msg.includes("SQLITE_ERROR")) {
+  if (msg.includes("SQLITE_ERROR") || msg.toLowerCase().includes("database")) {
     return "Database error. Please try again or contact support.";
   }
   if (msg.includes("locked") || msg.includes("SQLITE_BUSY")) {
@@ -87,37 +104,19 @@ export function mapErrorToFriendlyToast(err) {
   }
 
   // Not found errors
-  if (msg.includes("not found") || msg.includes("404")) {
+  if (msg.toLowerCase().includes("not found") || msg.includes("404")) {
     return "Record not found. It may have been deleted.";
   }
 
   // Generic fallback - try to clean up the message
-  if (msg.length > 100) {
+  if (msg.length > 150) {
     // If message is too long, return generic error
     return "An error occurred. Please try again or contact support.";
   }
 
   // Return the original message if it's already user-friendly
-  return msg.includes("Error:") ? msg.replace("Error:", "").trim() : msg;
+  return msg.replace(/^Error:\s*/i, "").trim();
 }
 
-/**
- * Shorthand function for showing error toasts
- * Usage: showErrorToast(error, toast)
- */
-export function showErrorToast(err, toastInstance) {
-  const message = mapErrorToFriendlyToast(err);
-  toastInstance.error(message);
-}
-
-/**
- * Logs error to console while showing user-friendly message
- */
-export function handleError(err, toastInstance, context = "") {
-  // Log technical details for debugging
-  console.error(`[${context}] Error:`, err);
-  
-  // Show user-friendly message
-  const message = mapErrorToFriendlyToast(err);
-  toastInstance.error(message);
-}
+// Export for CommonJS (Node.js/Electron backend)
+module.exports = { mapErrorToFriendly };

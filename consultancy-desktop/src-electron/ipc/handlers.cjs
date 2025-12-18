@@ -1372,8 +1372,7 @@ ipcMain.handle('get-job-orders', () => {
 // Add Job Order
 // --------------------------------------------------------------------
 ipcMain.handle('add-job-order', async (event, { user, data }) => {
-  // data contains: employer_id, positionTitle, country, openingsCount, status,
-  // requirements, food, accommodation, dutyHours, overtime, contractPeriod, selectionType
+
   const result = await queries.addJobOrder(user, data);
 
   if (result.success) {
