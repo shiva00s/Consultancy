@@ -353,6 +353,19 @@ function setupDatabaseSchema(dbInstance) {
         // ========================================================================
         // 14. PASSPORT MOVEMENTS (NEW UNIFIED TABLE)
         // ========================================================================
+dbInstance.run(`
+          CREATE TABLE passport_movement_files (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  movement_id INTEGER NOT NULL,
+  file_name TEXT NOT NULL,
+  file_type TEXT NOT NULL,
+  file_data BLOB NOT NULL,
+  uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (movement_id) REFERENCES passport_movements(id) ON DELETE CASCADE
+);
+
+        `);
+
         dbInstance.run(`
           CREATE TABLE IF NOT EXISTS passport_movements (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -368,6 +381,7 @@ function setupDatabaseSchema(dbInstance) {
             send_to_name TEXT,
             send_to_contact TEXT,
             sent_by TEXT,
+            files TEXT,
             dispatch_date TEXT,
             dispatch_notes TEXT,
             docket_number TEXT,

@@ -651,16 +651,3 @@
   border-color: #6366f1;
   color: #6366f1;
 }
-/* ===== REMOVE SCROLLBAR & BOTTOM LINE ===== */
-
-.tabs-header {
-  overflow-x: hidden; /* No scroll */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
-  border-bottom: none; /* Remove white line */
-}
-
-.tabs-header::-webkit-scrollbar {
-  display: none; /* Chrome/Safari/Opera */
-}
-/* ===== STYLED COLORED LINE BELOW TABS ===== */
