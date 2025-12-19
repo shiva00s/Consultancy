@@ -1,0 +1,967 @@
+/* ============================================
+   CANDIDATE VISA STYLES
+   Modern Professional Design
+============================================ */
+
+.visa-tracking-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+/* Visa List - Enhanced Grid */
+.visa-list {
+  display: grid;
+  gap: 1.2rem;
+  padding: 0;
+  margin: 0;
+}
+
+/* Visa Item - Premium Card Design */
+.visa-list .module-list-item {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.2rem;
+  display: flex;
+  gap: 1.2rem;
+  align-items: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  animation: slideInUp 0.4s ease-out forwards;
+}
+
+.visa-list .module-list-item:nth-child(1) { animation-delay: 0.05s; }
+.visa-list .module-list-item:nth-child(2) { animation-delay: 0.1s; }
+.visa-list .module-list-item:nth-child(3) { animation-delay: 0.15s; }
+.visa-list .module-list-item:nth-child(4) { animation-delay: 0.2s; }
+.visa-list .module-list-item:nth-child(5) { animation-delay: 0.25s; }
+
+/* Top accent line */
+.visa-list .module-list-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    #2196F3 50%,
+    transparent 100%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.visa-list .module-list-item:hover::before {
+  opacity: 1;
+}
+
+.visa-list .module-list-item:hover {
+  background: var(--bg-input);
+  border-color: #2196F3;
+  box-shadow: 0 6px 24px rgba(33, 150, 243, 0.15);
+  transform: translateY(-4px);
+}
+
+/* Visa Icon - Enhanced with gradient */
+.visa-list .item-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: white;
+  font-size: 1.4rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.visa-list .item-icon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.visa-list .module-list-item:hover .item-icon {
+  transform: rotate(5deg) scale(1.1);
+  box-shadow: 0 6px 20px rgba(33, 150, 243, 0.5);
+}
+
+.visa-list .module-list-item:hover .item-icon::before {
+  opacity: 1;
+}
+
+/* Visa Details - Enhanced Typography */
+.visa-list .item-details {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.visa-list .item-details strong {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+}
+
+.visa-list .item-details p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 0.3rem 0;
+  line-height: 1.5;
+}
+
+.visa-list .item-details small {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  opacity: 0.85;
+}
+
+/* Agent Contact Highlight */
+.visa-list .item-details p[style*="primary-color"] {
+  background: rgba(33, 150, 243, 0.1);
+  padding: 6px 10px;
+  border-radius: 8px;
+  border-left: 3px solid var(--primary-color);
+}
+
+/* Status Badge - Enhanced with colors */
+.visa-list .item-status {
+  flex-shrink: 0;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.badge-green {
+  background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.badge-red {
+  background: linear-gradient(135deg, #F44336 0%, #D32F2F 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+}
+
+.badge-yellow {
+  background: linear-gradient(135deg, #FFC107 0%, #FFA000 100%);
+  color: #333;
+  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+}
+
+.badge-blue {
+  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+}
+
+.badge-cyan {
+  background: linear-gradient(135deg, #00BCD4 0%, #0097A7 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 188, 212, 0.3);
+}
+
+.badge-grey {
+  background: linear-gradient(135deg, #9E9E9E 0%, #757575 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(158, 158, 158, 0.3);
+}
+
+.visa-list .module-list-item:hover .status-badge {
+  transform: scale(1.05);
+}
+
+/* Visa Actions */
+.visa-list .item-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.visa-list .item-actions button {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.visa-list .item-actions button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2196F3, #1976D2);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.visa-list .item-actions button svg {
+  position: relative;
+  z-index: 1;
+}
+
+.visa-list .item-actions button:hover {
+  border-color: #2196F3;
+  color: white;
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+  transform: translateY(-2px);
+}
+
+.visa-list .item-actions button:hover::before {
+  opacity: 1;
+}
+
+.visa-list .item-actions button:active {
+  transform: translateY(0);
+}
+
+/* Delete button - Red accent */
+.visa-list .item-actions button:last-child:hover {
+  border-color: var(--danger-color);
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+}
+
+.visa-list .item-actions button:last-child:hover::before {
+  background: linear-gradient(135deg, var(--danger-color), #d32f2f);
+}
+
+/* Empty State */
+.visa-list:empty::after {
+  content: 'ℹ️ No visa tracking entries found.';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
+  border-radius: 12px;
+  border: 2px dashed var(--border-color);
+}
+
+/* Form Container - Clean styling */
+.visa-form-container {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  margin-bottom: 2rem;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.visa-form-container h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Auto-fill indicator */
+.visa-form input[style*="rgba(var(--primary-rgb)"] {
+  border-left: 3px solid var(--primary-color);
+  position: relative;
+}
+
+.visa-form input[style*="rgba(var(--primary-rgb)"]:focus {
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.15);
+}
+
+/* Agent Contact Field Highlight */
+.visa-form input[style*="borderColor"] {
+  border: 2px solid var(--primary-color) !important;
+  background: rgba(33, 150, 243, 0.05);
+}
+
+/* List Container - Enhanced header */
+.visa-list-container {
+  background: transparent;
+  border: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.visa-list-container h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1.5rem 0;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+
+.visa-list-container h3::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 80px;
+  height: 2px;
+  background: linear-gradient(90deg, #2196F3, transparent);
+  transition: width 0.3s ease;
+}
+
+.visa-list-container h3:hover::after {
+  width: 150px;
+}
+
+/* Submit Button - Enhanced */
+.visa-tracking-content .btn-full-width {
+  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.visa-tracking-content .btn-full-width::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.visa-tracking-content .btn-full-width:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+}
+
+.visa-tracking-content .btn-full-width:hover::before {
+  opacity: 1;
+}
+
+.visa-tracking-content .btn-full-width:active {
+  transform: translateY(0);
+}
+
+.visa-tracking-content .btn-full-width:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Special styling for date/info rows */
+.visa-list .item-details > div[style*="display: flex"] {
+  background: var(--bg-tertiary);
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.visa-list .item-details > div[style*="display: flex"] span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Clean form card without purple */
+.detail-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.detail-card h3 {
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+/* Visa entry cards - clean design */
+.visa-entry-card {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.visa-entry-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #2196F3;
+}
+
+/* Left accent for contact types */
+.visa-entry-card.direct {
+  border-left: 4px solid #10b981;
+}
+
+.visa-entry-card.agency {
+  border-left: 4px solid #3b82f6;
+}
+
+.visa-entry-card.referral {
+  border-left: 4px solid #f59e0b;
+}
+
+/* Animations */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .visa-list .module-list-item {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem;
+  }
+
+  .visa-list .item-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 1.2rem;
+  }
+
+  .visa-list .item-status {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  .visa-list .item-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+  }
+
+  .visa-form-container {
+    padding: 1.2rem;
+  }
+
+  .visa-list {
+    gap: 1rem;
+  }
+
+  .visa-form.form-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .visa-list .item-actions button {
+    width: 34px;
+    height: 34px;
+    font-size: 1rem;
+  }
+
+  .status-badge {
+    padding: 5px 12px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Dark mode enhancements */
+@media (prefers-color-scheme: dark) {
+  .visa-list .module-list-item {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  .visa-list .module-list-item:hover {
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  .visa-list .item-icon {
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+  }
+}
+/* 🎨 REMOVE FULL COLOR FROM FORM CARD */
+.detail-card {
+  background: var(--card-background) !important;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  
+  /* Remove any gradient background */
+  background-image: none !important;
+}
+
+.detail-card h3 {
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+/* 📦 CLEAN VISA LIST CONTAINER */
+.visa-list-container {
+  background: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  margin-top: 24px;
+}
+
+.visa-list-container h3 {
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+/* 🎯 VISA ENTRY CARDS - ORANGE LEFT BORDER */
+.visa-entry-card {
+  background: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid #ff9800; /* 🔶 Orange left border */
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.visa-entry-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.15);
+  border-left-color: #ff6f00; /* Darker orange on hover */
+}
+
+/* 📋 VISA ENTRY HEADER */
+.visa-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.visa-entry-info h4 {
+  margin: 0 0 8px 0;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.visa-entry-meta {
+  display: flex;
+  gap: 16px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* 🎬 ACTION BUTTONS */
+.visa-entry-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 📝 VISA ENTRY DETAILS */
+.visa-entry-details {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.visa-entry-details p {
+  margin: 6px 0;
+}
+
+/* 🔘 STATUS BADGES */
+.status-badge {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ✅ BIOMETRICS DONE BADGE (SAME AS STATUS) */
+.status-badge.badge-green,
+.visa-entry-actions .badge-green {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-badge.badge-yellow {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.status-badge.badge-blue {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.status-badge.badge-cyan {
+  background: #e0f7fa;
+  color: #00796b;
+}
+
+.status-badge.badge-red {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.status-badge.badge-grey {
+  background: #f5f5f5;
+  color: #616161;
+}
+
+/* 🔲 ICON BUTTONS */
+.btn-icon {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:hover {
+  background: rgba(var(--primary-rgb), 0.1);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.btn-icon.btn-danger:hover {
+  background: #ffebee;
+  border-color: #f44336;
+  color: #f44336;
+}
+
+/* 📭 EMPTY STATE */
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+
+/* ================================
+   🎨 ANIMATED GRADIENT BORDERS FOR VISA TAB
+   ================================ */
+
+/* 📦 ADD NEW VISA ENTRY FORM - WITH ANIMATED BORDER */
+.detail-card {
+  position: relative;
+  background: var(--card-background);
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  overflow: visible;
+  background-clip: padding-box;
+}
+
+/* 🌈 ANIMATED GRADIENT BORDER - BLUE TO CYAN background: linear-gradient(
+    135deg,
+    #8b5cf6 0%,
+    #a855f7 25%,
+    #d946ef 50%,
+    #ec4899 75%,
+    #f43f5e 100%
+  );*/
+.detail-card::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  
+  background-size: 300% 300%;
+  animation: animatedBorder 4s ease infinite;
+  border-radius: 14px;
+  z-index: -1;
+}
+
+/* 💫 TOP SHIMMER LINE - CYAN/BLUE */
+.detail-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #06b6d4, #0ea5e9, #3b82f6, #0ea5e9, #06b6d4);
+  background-size: 200% auto;
+  animation: shimmerCyan 3s linear infinite;
+  border-radius: 12px 12px 0 0;
+  z-index: 2;
+}
+
+.detail-card h3 {
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+/* 📋 VISA TRACKING HISTORY LIST CONTAINER */
+.visa-list-container {
+  position: relative;
+  background: var(--card-background);
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  overflow: visible;
+  background-clip: padding-box;
+}
+
+/* 🌈 ANIMATED GRADIENT BORDER FOR LIST  background: linear-gradient(
+    135deg,
+    #8b5cf6 0%,
+    #a855f7 25%,
+    #d946ef 50%,
+    #ec4899 75%,
+    #f43f5e 100%
+  );*/
+.visa-list-container::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  
+  background-size: 300% 300%;
+  animation: animatedBorder 4s ease infinite;
+  border-radius: 14px;
+  z-index: -1;
+}
+
+/* 💫 TOP SHIMMER LINE FOR LIST */
+.visa-list-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #06b6d4, #0ea5e9, #3b82f6, #0ea5e9, #06b6d4);
+  background-size: 200% auto;
+  animation: shimmerCyan 3s linear infinite;
+  border-radius: 12px 12px 0 0;
+  z-index: 2;
+}
+
+.visa-list-container h3 {
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 12px;
+  position: relative;
+}
+
+.visa-list-container h3::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 80px;
+  height: 2px;
+  background: linear-gradient(90deg, #2196F3, transparent);
+  transition: width 0.3s ease;
+}
+
+.visa-list-container h3:hover::after {
+  width: 150px;
+}
+
+/* 🎬 ANIMATIONS */
+@keyframes animatedBorder {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes shimmerCyan {
+  0% {
+    background-position: 0% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+/* Form Container - WITH ANIMATED TOP LINE */
+.visa-form-container {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  margin-bottom: 2rem;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: visible; /* ⚡ IMPORTANT - allows line to show */
+}
+
+/* 🌊 ANIMATED TOP LINE - THIS MAKES IT MOVE! */
+.visa-form-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #2196F3, #00BCD4, #03A9F4, #00BCD4, #2196F3);
+  background-size: 200% 100%; /* ⚡ CRITICAL - enables movement */
+  animation: shimmerBlue 3s linear infinite; /* ⚡ THE ANIMATION */
+  border-radius: 12px 12px 0 0;
+  z-index: 2;
+}
+
+.visa-form-container h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative; /* ⚡ Ensures it stays above the line */
+  z-index: 1;
+}
+/* 🌊 SHIMMER ANIMATION FOR TOP LINE */
+@keyframes shimmerBlue {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 200% 0%;
+  }
+}
+/* List Container - WITH ANIMATED TOP LINE */
+.visa-list-container {
+  background: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  margin-top: 24px;
+  position: relative;
+  overflow: visible; /* ⚡ IMPORTANT */
+}
+
+/* 🌊 ANIMATED TOP LINE */
+.visa-list-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #2196F3, #00BCD4, #03A9F4, #00BCD4, #2196F3);
+  background-size: 200% 100%; /* ⚡ CRITICAL */
+  animation: shimmerBlue 3s linear infinite; /* ⚡ THE ANIMATION */
+  border-radius: 16px 16px 0 0;
+  z-index: 2;
+}
+
+.visa-list-container h3 {
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 12px;
+  position: relative; /* ⚡ Stays above line */
+  z-index: 1;
+}

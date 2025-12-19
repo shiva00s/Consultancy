@@ -54,17 +54,17 @@ function CandidateTravel({ user, candidateId, candidateName }) {
       !travelForm.departure_city ||
       !travelForm.arrival_city
     ) {
-      toast.error('Travel Date, Departure, and Arrival cities are required.');
+      toast.error('⚠️ Travel Date, Departure, and Arrival cities are required.');
       return;
     }
 
     setIsSaving(true);
     let ticket_file_path = '';
-    const toastId = toast.loading('Saving travel entry...');
+    const toastId = toast.loading('⏳ Saving travel entry...');
 
     try {
       if (travelForm.ticket_file) {
-        toast.loading('Uploading ticket file...', { id: toastId });
+        toast.loading('📤 Uploading ticket file...', { id: toastId });
         const buffer = await readFileAsBuffer(travelForm.ticket_file);
         const fileData = {
           name: travelForm.ticket_file.name,
@@ -98,7 +98,7 @@ function CandidateTravel({ user, candidateId, candidateName }) {
         setTravelEntries((prev) => [res.data, ...prev]);
         setTravelForm(initialTravelForm);
         if (fileInputRef.current) fileInputRef.current.value = null;
-        toast.success('Travel entry saved successfully!', { id: toastId });
+        toast.success('✅ Travel entry saved successfully!', { id: toastId });
 
         // 🔔 create reminder for this travel
         try {
@@ -106,7 +106,7 @@ function CandidateTravel({ user, candidateId, candidateName }) {
             userId: user.id,
             candidateId,
             module: 'travel',
-            title: 'Travel scheduled',
+            title: '🧳 Travel scheduled',
             message: `${candidateName || 'Candidate'} traveling from ${
               travelForm.departure_city
             } to ${travelForm.arrival_city} on ${travelForm.travel_date}`,
@@ -116,11 +116,11 @@ function CandidateTravel({ user, candidateId, candidateName }) {
           console.error('createReminder (travel) failed:', err);
         }
       } else {
-        toast.error(res.error || 'Failed to save travel entry', { id: toastId });
+        toast.error('❌ ' + (res.error || 'Failed to save travel entry'), { id: toastId });
       }
     } catch (err) {
       console.error('addTravelEntry error:', err);
-      toast.error(`Error: ${err.message}`, { id: toastId });
+      toast.error(`❌ Error: ${err.message}`, { id: toastId });
     } finally {
       setIsSaving(false);
     }
@@ -137,15 +137,15 @@ function CandidateTravel({ user, candidateId, candidateName }) {
   const handleDeleteEntry = async (id) => {
     if (
       window.confirm(
-        'Are you sure you want to move this travel entry to the Recycle Bin?'
+        '⚠️ Are you sure you want to move this travel entry to the Recycle Bin?'
       )
     ) {
       const res = await window.electronAPI.deleteTravelEntry({ user, id });
       if (res.success) {
         setTravelEntries((prev) => prev.filter((e) => e.id !== id));
-        toast.success('Travel entry moved to Recycle Bin.');
+        toast.success('✅ Travel entry moved to Recycle Bin.');
       } else {
-        toast.error(res.error || 'Failed to delete travel entry');
+        toast.error('❌ ' + (res.error || 'Failed to delete travel entry'));
       }
     }
   };
@@ -154,7 +154,7 @@ function CandidateTravel({ user, candidateId, candidateName }) {
     window.electronAPI.openFileExternally({ path: filePath });
   };
 
-  if (loading) return <p>Loading travel tracking...</p>;
+  if (loading) return <p>⏳ Loading travel tracking...</p>;
 
   return (
     <div className="travel-tracking-content module-vertical-stack">
@@ -169,7 +169,7 @@ function CandidateTravel({ user, candidateId, candidateName }) {
 
       <div className="form-container module-form-card">
         <h3>
-          <FiPlus /> Add New Travel/Ticket Record
+          <FiPlus /> ➕ Add New Travel/Ticket Record
         </h3>
         <form
           onSubmit={handleAddEntry}
@@ -177,7 +177,7 @@ function CandidateTravel({ user, candidateId, candidateName }) {
           style={{ gridTemplateColumns: '1fr 1fr 1fr' }}
         >
           <div className="form-group">
-            <label>Travel Date (Required)</label>
+            <label>📅 Travel Date (Required)</label>
             <input
               type="date"
               name="travel_date"
@@ -186,7 +186,7 @@ function CandidateTravel({ user, candidateId, candidateName }) {
             />
           </div>
           <div className="form-group">
-            <label>PNR / Ticket No. (Optional)</label>
+            <label>🎫 PNR / Ticket No. (Optional)</label>
             <input
               type="text"
               name="pnr"
@@ -195,7 +195,7 @@ function CandidateTravel({ user, candidateId, candidateName }) {
             />
           </div>
           <div className="form-group">
-            <label>Upload Ticket Document (Optional)</label>
+            <label>📄 Upload Ticket Document (Optional)</label>
             <div className="custom-file-input">
               <input
                 type="file"
@@ -208,7 +208,7 @@ function CandidateTravel({ user, candidateId, candidateName }) {
                 htmlFor="travel-file-input"
                 className="file-input-label btn btn-no-hover"
               >
-                Choose File
+                📎 Choose File
               </label>
               <span className="file-name-display">
                 {travelForm.ticket_file
@@ -219,7 +219,7 @@ function CandidateTravel({ user, candidateId, candidateName }) {
           </div>
 
           <div className="form-group">
-            <label>Departure City (Required)</label>
+            <label>🛫 Departure City (Required)</label>
             <input
               type="text"
               name="departure_city"
@@ -228,7 +228,7 @@ function CandidateTravel({ user, candidateId, candidateName }) {
             />
           </div>
           <div className="form-group">
-            <label>Arrival City (Required)</label>
+            <label>🛬 Arrival City (Required)</label>
             <input
               type="text"
               name="arrival_city"
@@ -237,7 +237,7 @@ function CandidateTravel({ user, candidateId, candidateName }) {
             />
           </div>
           <div className="form-group">
-            <label>Notes</label>
+            <label>📝 Notes</label>
             <textarea
               name="notes"
               value={travelForm.notes}
@@ -252,19 +252,19 @@ function CandidateTravel({ user, candidateId, candidateName }) {
             disabled={isSaving}
             style={{ gridColumn: '1 / -1' }}
           >
-            {isSaving ? 'Saving...' : 'Save Travel Entry'}
+            {isSaving ? '⏳ Saving...' : '✅ Save Travel Entry'}
           </button>
         </form>
       </div>
 
       <div className="list-container module-list-card">
         <h3>
-          <FiSend /> Scheduled Travel History ({travelEntries.length})
+          <FiSend /> 🧳 Scheduled Travel History ({travelEntries.length})
         </h3>
         <div className="module-list travel-list">
           {travelEntries.length === 0 ? (
             <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-              No travel records found.
+              ℹ️ No travel records found.
             </p>
           ) : (
             travelEntries.map((entry) => (
@@ -274,14 +274,14 @@ function CandidateTravel({ user, candidateId, candidateName }) {
                 </div>
                 <div className="item-details">
                   <strong>
-                    {entry.departure_city} to {entry.arrival_city}
+                    🛫 {entry.departure_city} ✈️ 🛬 {entry.arrival_city}
                   </strong>
                   <p className="mt-1">
-                    Date: {entry.travel_date} | PNR: {entry.pnr || 'N/A'}
+                    📅 Date: {entry.travel_date} | 🎫 PNR: {entry.pnr || 'N/A'}
                   </p>
                   {entry.notes && (
                     <p className="mt-1">
-                      <small>Notes: {entry.notes}</small>
+                      <small>📝 Notes: {entry.notes}</small>
                     </p>
                   )}
                 </div>

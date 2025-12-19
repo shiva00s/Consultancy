@@ -4,7 +4,10 @@ import {
   FiCamera,
   FiTrash2,
   FiEye,
-  FiFile,
+  FiX,
+  FiChevronLeft,
+  FiChevronRight,
+  FiDownload,
 } from "react-icons/fi";
 import "../css/DocumentList.css";
 
@@ -30,185 +33,81 @@ function DocumentList({
   onView,
   onDelete,
 }) {
-  const [previewCache, setPreviewCache] = useState({});
-  const [hoveredDoc, setHoveredDoc] = useState(null);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageCache, setImageCache] = useState({});
 
   const hasDocuments =
     groupedDocuments && Object.keys(groupedDocuments).length > 0;
 
-  // Get file type category
-  const getFileCategory = (fileType, fileName) => {
-    if (!fileType && !fileName) return "other";
+  // Get all images for gallery
+  const getAllImages = () => {
+    const images = [];
+    if (!groupedDocuments) return images;
     
-    const type = fileType?.toLowerCase() || "";
-    const name = fileName?.toLowerCase() || "";
-
-    if (type.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(name)) {
-      return "image";
-    }
-    if (type === "application/pdf" || name.endsWith(".pdf")) {
-      return "pdf";
-    }
-    if (type.startsWith("text/") || /\.(txt|csv|log)$/i.test(name)) {
-      return "text";
-    }
-    if (
-      type.includes("word") ||
-      type.includes("document") ||
-      /\.(doc|docx)$/i.test(name)
-    ) {
-      return "document";
-    }
-    if (
-      type.includes("sheet") ||
-      type.includes("excel") ||
-      /\.(xls|xlsx)$/i.test(name)
-    ) {
-      return "spreadsheet";
-    }
-    return "other";
+    Object.values(groupedDocuments).forEach((docs) => {
+      docs.forEach((doc) => {
+        if (doc.fileType?.startsWith("image/")) {
+          images.push(doc);
+        }
+      });
+    });
+    return images;
   };
 
-  // Fetch file preview
-  const fetchPreview = async (doc) => {
-  console.log('🔍 Fetching preview for:', doc.fileName, doc.id);
-  
-  if (previewCache[doc.id]) {
-    console.log('✅ Using cached preview for:', doc.fileName);
-    return;
-  }
+  const allImages = getAllImages();
 
-  const fileCategory = getFileCategory(doc.fileType, doc.fileName);
-  console.log('📁 File category detected:', fileCategory);
+  // Load image for gallery
+  const loadImage = async (doc) => {
+    if (imageCache[doc.id]) return imageCache[doc.id];
 
-  try {
-    // For images - get base64
-    if (fileCategory === "image") {
-      console.log('🖼️ Fetching image base64 for:', doc.filePath);
-      
+    try {
       const res = await window.electronAPI.getImageBase64({
         filePath: doc.filePath,
       });
-
-      console.log('📥 Response received:', res.success ? '✅ Success' : '❌ Failed', res);
-
       if (res.success) {
-        setPreviewCache((prev) => ({
-          ...prev,
-          [doc.id]: {
-            type: "image",
-            data: res.data,
-          },
-        }));
-        console.log('✅ Image preview cached successfully');
-      } else {
-        console.error('❌ Failed to load image:', res.error);
+        setImageCache((prev) => ({ ...prev, [doc.id]: res.data }));
+        return res.data;
       }
+    } catch (error) {
+      console.error("Error loading image:", error);
     }
-    // For PDFs
-    else if (fileCategory === "pdf") {
-      console.log('📄 Setting PDF preview');
-      setPreviewCache((prev) => ({
-        ...prev,
-        [doc.id]: {
-          type: "pdf",
-          data: doc.fileName,
-          fileSize: doc.fileSize || "Unknown size",
-        },
-      }));
-    }
-    // For text files
-    else if (fileCategory === "text") {
-      console.log('📝 Text file detected - treating as generic file');
-      setPreviewCache((prev) => ({
-        ...prev,
-        [doc.id]: {
-          type: "file",
-          data: doc.fileName,
-          fileType: "Text Document",
-          fileSize: doc.fileSize || "Unknown size",
-        },
-      }));
-    }
-    // For other files
-    else {
-      console.log('📎 Generic file preview');
-      setPreviewCache((prev) => ({
-        ...prev,
-        [doc.id]: {
-          type: "file",
-          data: doc.fileName,
-          fileType: doc.fileType || "Unknown",
-          fileSize: doc.fileSize || "Unknown size",
-        },
-      }));
-    }
-  } catch (error) {
-    console.error('❌ Error loading preview:', error);
-  }
-};
+    return null;
+  };
 
-
-  const handleMouseEnter = (doc) => {
-  console.log('🖱️ Mouse Enter:', doc.fileName, 'ID:', doc.id);
-  setHoveredDoc(doc.id);
-  fetchPreview(doc);
-};
-
-const handleMouseLeave = () => {
-  console.log('🖱️ Mouse Leave');
-  setHoveredDoc(null);
-};
-
-  // Render preview content
-  const renderPreviewContent = (preview) => {
-    if (!preview) return null;
-
-    switch (preview.type) {
-      case "image":
-        return (
-          <div
-            className="preview-image"
-            style={{ backgroundImage: `url(${preview.data})` }}
-          />
-        );
-
-      case "pdf":
-        return (
-          <div className="preview-pdf">
-            <div className="preview-icon">📄</div>
-            <div className="preview-info">
-              <strong>PDF Document</strong>
-              <p>{preview.data}</p>
-              <small>{preview.fileSize}</small>
-            </div>
-          </div>
-        );
-
-      case "text":
-        return (
-          <div className="preview-text">
-            <div className="preview-icon">📝</div>
-            <pre>{preview.data}</pre>
-          </div>
-        );
-
-      case "file":
-        return (
-          <div className="preview-file">
-            <div className="preview-icon">📎</div>
-            <div className="preview-info">
-              <strong>{preview.data}</strong>
-              <p>{preview.fileType}</p>
-              <small>{preview.fileSize}</small>
-            </div>
-          </div>
-        );
-
-      default:
-        return null;
+  // Open gallery
+  const openGallery = async (doc) => {
+    const imageIndex = allImages.findIndex((img) => img.id === doc.id);
+    if (imageIndex !== -1) {
+      setCurrentImageIndex(imageIndex);
+      await loadImage(doc);
+      setGalleryOpen(true);
+    } else {
+      onView(doc); // Fallback to original view for non-images
     }
   };
+
+  // Navigate gallery
+  const navigateGallery = async (direction) => {
+    const newIndex =
+      direction === "next"
+        ? (currentImageIndex + 1) % allImages.length
+        : (currentImageIndex - 1 + allImages.length) % allImages.length;
+    setCurrentImageIndex(newIndex);
+    await loadImage(allImages[newIndex]);
+  };
+
+  // Close gallery on ESC
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!galleryOpen) return;
+      if (e.key === "Escape") setGalleryOpen(false);
+      if (e.key === "ArrowRight") navigateGallery("next");
+      if (e.key === "ArrowLeft") navigateGallery("prev");
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [galleryOpen, currentImageIndex]);
 
   return (
     <div className="doclist-card module-list-card">
@@ -246,30 +145,13 @@ const handleMouseLeave = () => {
 
                 <div className="doclist-items">
                   {docs.map((doc) => {
-                    const fileCategory = getFileCategory(
-                      doc.fileType,
-                      doc.fileName
-                    );
-                    const preview = previewCache[doc.id];
-                    const isHovered = hoveredDoc === doc.id;
-console.log('🔍 Is Hovered:', isHovered, 'Doc ID:', doc.id, 'Hovered ID:', hoveredDoc);
+                    const isImage = doc.fileType?.startsWith("image/");
 
                     return (
-                      <div
-                        key={doc.id}
-                        className="doclist-item"
-                        onMouseEnter={() => handleMouseEnter(doc)}
-                        onMouseLeave={handleMouseLeave}
-                      >
+                      <div key={doc.id} className="doclist-item">
                         <div className="doclist-item-main">
-                          <div className="doclist-icon">
-                            {fileCategory === "image" ? (
-                              <FiCamera />
-                            ) : fileCategory === "pdf" ? (
-                              <FiFileText />
-                            ) : (
-                              <FiFile />
-                            )}
+                          <div className={`doclist-icon ${isImage ? 'is-image' : ''}`}>
+                            {isImage ? <FiCamera /> : <FiFileText />}
                           </div>
                           <div className="doclist-text">
                             <span className="doclist-name" title={doc.fileName}>
@@ -300,8 +182,10 @@ console.log('🔍 Is Hovered:', isHovered, 'Doc ID:', doc.id, 'Hovered ID:', hov
                             <button
                               type="button"
                               className="doclist-btn doclist-btn-primary"
-                              title="View"
-                              onClick={() => onView(doc)}
+                              title={isImage ? "View in Gallery" : "View"}
+                              onClick={() =>
+                                isImage ? openGallery(doc) : onView(doc)
+                              }
                             >
                               <FiEye />
                             </button>
@@ -315,26 +199,86 @@ console.log('🔍 Is Hovered:', isHovered, 'Doc ID:', doc.id, 'Hovered ID:', hov
                             </button>
                           </div>
                         </div>
-
-                        {/* 🖼️ UNIVERSAL FILE PREVIEW TOOLTIP */}
-    {isHovered && preview ? (
-      <div className="doclist-preview-tooltip">
-        {renderPreviewContent(preview)}
-      </div>
-    ) : isHovered && !preview ? (
-      <div className="doclist-preview-tooltip">
-        <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>
-          Loading preview...
-        </div>
-      </div>
-    ) : null}
-  </div>
+                      </div>
                     );
                   })}
                 </div>
               </section>
             );
           })}
+        </div>
+      )}
+
+      {/* ✨ PREMIUM IMAGE GALLERY MODAL */}
+      {galleryOpen && allImages.length > 0 && (
+        <div className="gallery-overlay" onClick={() => setGalleryOpen(false)}>
+          <div className="gallery-modal" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="gallery-header">
+              <div className="gallery-info">
+                <h3>{allImages[currentImageIndex].fileName}</h3>
+                <p>
+                  {currentImageIndex + 1} of {allImages.length} images
+                </p>
+              </div>
+              <button
+                className="gallery-close"
+                onClick={() => setGalleryOpen(false)}
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+
+            {/* Main Image */}
+            <div className="gallery-content">
+              {imageCache[allImages[currentImageIndex].id] ? (
+                <img
+                  src={imageCache[allImages[currentImageIndex].id]}
+                  alt={allImages[currentImageIndex].fileName}
+                  className="gallery-image"
+                />
+              ) : (
+                <div className="gallery-loading">Loading image...</div>
+              )}
+            </div>
+
+            {/* Navigation */}
+            {allImages.length > 1 && (
+              <>
+                <button
+                  className="gallery-nav gallery-nav-prev"
+                  onClick={() => navigateGallery("prev")}
+                >
+                  <FiChevronLeft size={32} />
+                </button>
+                <button
+                  className="gallery-nav gallery-nav-next"
+                  onClick={() => navigateGallery("next")}
+                >
+                  <FiChevronRight size={32} />
+                </button>
+              </>
+            )}
+
+            {/* Thumbnail Strip */}
+            <div className="gallery-thumbnails">
+              {allImages.map((img, idx) => (
+                <div
+                  key={img.id}
+                  className={`gallery-thumb ${
+                    idx === currentImageIndex ? "active" : ""
+                  }`}
+                  onClick={async () => {
+                    setCurrentImageIndex(idx);
+                    await loadImage(img);
+                  }}
+                >
+                  <FiCamera size={16} />
+                  <span>{img.fileName.substring(0, 15)}...</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

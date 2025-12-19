@@ -49,18 +49,18 @@ function CandidateMedical({ user, candidateId, candidateName }) {
     e.preventDefault();
 
     if (!medicalForm.test_date) {
-      toast.error('Test Date is required.');
+      toast.error('⚠️ Test Date is required.');
       return;
     }
 
     setIsSaving(true);
-    let toastId = toast.loading('Saving medical entry...');
+    let toastId = toast.loading('⏳ Saving medical entry...');
 
     try {
       let certificate_path = '';
 
       if (medicalForm.certificate_file) {
-        toast.loading('Uploading certificate...', { id: toastId });
+        toast.loading('📤 Uploading certificate...', { id: toastId });
         const buffer = await readFileAsBuffer(medicalForm.certificate_file);
         const fileData = {
           name: medicalForm.certificate_file.name,
@@ -94,7 +94,7 @@ function CandidateMedical({ user, candidateId, candidateName }) {
         setMedicalEntries((prev) => [res.data, ...prev]);
         setMedicalForm(initialMedicalForm);
         if (fileInputRef.current) fileInputRef.current.value = null;
-        toast.success('Medical entry saved successfully!', { id: toastId });
+        toast.success('✅ Medical entry saved successfully!', { id: toastId });
 
         // 🔔 create reminder on test date
         try {
@@ -102,7 +102,7 @@ function CandidateMedical({ user, candidateId, candidateName }) {
             userId: user.id,
             candidateId,
             module: 'medical',
-            title: 'Medical test scheduled',
+            title: '🏥 Medical test scheduled',
             message: `${candidateName || 'Candidate'} medical test on ${medicalForm.test_date}`,
             remindAt: new Date(medicalForm.test_date).toISOString(),
           });
@@ -110,11 +110,11 @@ function CandidateMedical({ user, candidateId, candidateName }) {
           console.error('createReminder (medical) failed:', err);
         }
       } else {
-        toast.error(res.error || 'Failed to save medical entry', { id: toastId });
+        toast.error('❌ ' + (res.error || 'Failed to save medical entry'), { id: toastId });
       }
     } catch (err) {
       console.error('addMedicalEntry error:', err);
-      toast.error(`Error: ${err.message}`, { id: toastId });
+      toast.error(`❌ Error: ${err.message}`, { id: toastId });
     } finally {
       setIsSaving(false);
     }
@@ -131,15 +131,15 @@ function CandidateMedical({ user, candidateId, candidateName }) {
   const handleDeleteEntry = async (id, test_date) => {
     if (
       window.confirm(
-        `Are you sure you want to move the medical entry from ${test_date} to the Recycle Bin?`
+        `⚠️ Are you sure you want to move the medical entry from ${test_date} to the Recycle Bin?`
       )
     ) {
       const res = await window.electronAPI.deleteMedicalEntry({ user, id });
       if (res.success) {
         setMedicalEntries((prev) => prev.filter((e) => e.id !== id));
-        toast.success('Medical entry moved to Recycle Bin.');
+        toast.success('✅ Medical entry moved to Recycle Bin.');
       } else {
-        toast.error(res.error || 'Failed to delete medical entry');
+        toast.error('❌ ' + (res.error || 'Failed to delete medical entry'));
       }
     }
   };
@@ -149,11 +149,11 @@ function CandidateMedical({ user, candidateId, candidateName }) {
     if (res.success) {
       window.electronAPI.openFileExternally({ path: res.filePath });
     } else {
-      toast.error(res.error || 'File path lookup failed.');
+      toast.error('❌ ' + (res.error || 'File path lookup failed.'));
     }
   };
 
-  if (loading) return <p>Loading medical tracking...</p>;
+  if (loading) return <p>⏳ Loading medical tracking...</p>;
 
   const getStatusBadgeClass = (status) => {
     switch (status) {
@@ -182,7 +182,7 @@ function CandidateMedical({ user, candidateId, candidateName }) {
 
       <div className="form-container module-form-card">
         <h3>
-          <FiPlus /> Add New Medical Record
+          <FiPlus /> ➕ Add New Medical Record
         </h3>
         <form
           onSubmit={handleAddEntry}
@@ -190,7 +190,7 @@ function CandidateMedical({ user, candidateId, candidateName }) {
           style={{ gridTemplateColumns: '1fr 1fr 1fr' }}
         >
           <div className="form-group">
-            <label>Test Date</label>
+            <label>📅 Test Date</label>
             <input
               type="date"
               name="test_date"
@@ -199,7 +199,7 @@ function CandidateMedical({ user, candidateId, candidateName }) {
             />
           </div>
           <div className="form-group">
-            <label>Status</label>
+            <label>📊 Status</label>
             <select
               name="status"
               value={medicalForm.status}
@@ -213,7 +213,7 @@ function CandidateMedical({ user, candidateId, candidateName }) {
             </select>
           </div>
           <div className="form-group">
-            <label>Upload Certificate (Optional)</label>
+            <label>📄 Upload Certificate (Optional)</label>
             <div className="custom-file-input">
               <input
                 type="file"
@@ -226,7 +226,7 @@ function CandidateMedical({ user, candidateId, candidateName }) {
                 htmlFor="medical-file-input"
                 className="file-input-label btn btn-no-hover"
               >
-                Choose File
+                📎 Choose File
               </label>
               <span className="file-name-display">
                 {medicalForm.certificate_file
@@ -237,7 +237,7 @@ function CandidateMedical({ user, candidateId, candidateName }) {
           </div>
 
           <div className="form-group full-width">
-            <label>Notes</label>
+            <label>📝 Notes</label>
             <textarea
               name="notes"
               value={medicalForm.notes}
@@ -252,17 +252,17 @@ function CandidateMedical({ user, candidateId, candidateName }) {
             disabled={isSaving}
             style={{ gridColumn: '1 / -1' }}
           >
-            {isSaving ? 'Saving...' : 'Save Medical Entry'}
+            {isSaving ? '⏳ Saving...' : '✅ Save Medical Entry'}
           </button>
         </form>
       </div>
 
       <div className="list-container module-list-card">
-        <h3>Medical Tracking History ({medicalEntries.length})</h3>
+        <h3>🏥 Medical Tracking History ({medicalEntries.length})</h3>
         <div className="module-list medical-list">
           {medicalEntries.length === 0 ? (
             <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-              No medical records found.
+              ℹ️ No medical records found.
             </p>
           ) : (
             medicalEntries.map((entry) => (
@@ -271,10 +271,10 @@ function CandidateMedical({ user, candidateId, candidateName }) {
                   <FiFileText />
                 </div>
                 <div className="item-details">
-                  <strong>Test Date: {entry.test_date}</strong>
+                  <strong>📅 Test Date: {entry.test_date}</strong>
                   {entry.notes && (
                     <p className="mt-1">
-                      <small>Notes: {entry.notes}</small>
+                      <small>📝 Notes: {entry.notes}</small>
                     </p>
                   )}
                 </div>
@@ -282,7 +282,7 @@ function CandidateMedical({ user, candidateId, candidateName }) {
                   <span
                     className={`status-badge ${getStatusBadgeClass(entry.status)}`}
                   >
-                    {entry.status}
+                    📊 {entry.status}
                   </span>
                 </div>
                 <div className="item-actions">

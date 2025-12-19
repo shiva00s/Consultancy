@@ -1,133 +1,891 @@
-/* --- Financial Content Container --- */
+/* ============================================
+   CANDIDATE FINANCE STYLES
+   Premium Modern Design with Financial Theme
+   ============================================ */
+
 .financial-content {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0;
 }
 
-/* --- Summary Bar Container --- */
+/* ================================
+   🎨 FINANCIAL SUMMARY BAR - WITH ANIMATED BORDER
+   ================================ */
 .financial-summary-bar {
-    padding: 8px 12px;
-    margin-bottom: 1.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    background-color: var(--bg-secondary);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  position: relative;
+  background: var(--card-background); /* ✅ CHANGED: Removed blue gradient */
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); /* ✅ CHANGED: Neutral shadow */
+  overflow: visible;
+  background-clip: padding-box;
 }
 
-/* --- Financial Summary Header (Optional, if used) --- */
-.finance-summary-header {
-    font-size: 1.2rem;
-    font-weight: 600;
-    padding: 0 0 1rem 0;
-    margin: 0 0 1rem 0;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    gap: 10px;
+/* 🌈 ANIMATED GRADIENT BORDER FOR SUMMARY BAR   background: linear-gradient(
+    135deg,
+    #f59e0b 0%,
+    #f97316 25%,
+    #fb923c 50%,
+    #fbbf24 75%,
+    #f59e0b 100%
+  );*/
+.financial-summary-bar::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+
+  background-size: 300% 300%;
+  animation: animatedBorder 4s ease infinite;
+  border-radius: 14px;
+  z-index: -1;
 }
 
-/* --- Legacy Horizontal Summary Widgets (if used elsewhere) --- */
-.finance-summary-widgets {
-    display: flex;
-    justify-content: space-between;
-    gap: 15px;
+/* 💫 TOP SHIMMER LINE - GOLD/ORANGE */
+.financial-summary-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #f59e0b, #f97316, #fbbf24, #f97316, #f59e0b);
+  background-size: 200% auto;
+  animation: shimmerGold 3s linear infinite;
+  border-radius: 12px 12px 0 0;
+  z-index: 2;
 }
 
-.summary-widget {
-    background-color: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    padding: 8px 12px; 
-    flex-grow: 1;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.summary-widget p {
-    margin: 0;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    flex-shrink: 0;
-}
-
-.summary-widget strong {
-    font-size: 1rem;
-    color: var(--text-primary);
-    font-weight: 600;
-    margin-left: 10px;
-    flex-shrink: 0;
-}
-
-/* --- Inline Financial Summary (Professional Row Style) --- */
 .finance-summary-inline {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap; /* allows wrapping on smaller screens */
-    gap: 10px;
-    font-size: 0.95rem;
-    color: var(--text-primary);
-    line-height: 1.6;
-}
-
-.finance-summary-inline span {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.finance-summary-inline strong {
-    font-weight: 600;
-    color: var(--text-primary);
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  color: var(--text-primary); /* ✅ CHANGED: Now uses theme color instead of white */
 }
 
 .summary-icon {
-    color: var(--primary-color);
-    font-size: 1.1rem;
-    display: flex;
-    align-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); /* ✅ KEPT: Orange icon */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: white;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.summary-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary); /* ✅ CHANGED: Theme color */
 }
 
 .summary-divider {
-    color: var(--border-color);
-    font-weight: 400;
+  color: var(--border-color); /* ✅ CHANGED: Theme color */
+  font-weight: 300;
 }
 
-.blue-text strong { color: var(--primary-color); }
-.green-text strong { color: var(--success-color); }
-.red-text strong { color: var(--danger-color); }
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--bg-secondary); /* ✅ CHANGED: Theme background */
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
 
-/* --- Payment Section Styles --- */
+.summary-item:hover {
+  background: var(--bg-input);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+}
+
+.summary-item strong {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.blue-text {
+  border-left: 3px solid #2196F3;
+}
+
+.green-text {
+  border-left: 3px solid #4CAF50;
+}
+
+.red-text {
+  border-left: 3px solid #F44336;
+}
+
+/* ================================
+   📝 PAYMENT FORM CONTAINER - WITH ANIMATED BORDER
+   ================================ */
+.payment-form-container {
+  position: relative;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  overflow: visible;
+  background-clip: padding-box;
+}
+
+/* 🌈 ANIMATED GRADIENT BORDER FOR FORM background: linear-gradient(
+    135deg,
+    #f59e0b 0%,
+    #f97316 25%,
+    #fb923c 50%,
+    #fbbf24 75%,
+    #f59e0b 100%
+  );*/
+.payment-form-container::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  
+  background-size: 300% 300%;
+  animation: animatedBorder 4s ease infinite;
+  border-radius: 14px;
+  z-index: -1;
+}
+
+/* 💫 TOP SHIMMER LINE FOR FORM */
+.payment-form-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #f59e0b, #f97316, #fbbf24, #f97316, #f59e0b);
+  background-size: 200% auto;
+  animation: shimmerGold 3s linear infinite;
+  border-radius: 12px 12px 0 0;
+  z-index: 2;
+}
+
+.payment-form-container h3 {
+  position: relative;
+  z-index: 1;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ================================
+   📋 PAYMENT HISTORY CONTAINER - WITH ANIMATED BORDER
+   ================================ */
+.payment-list-container {
+  position: relative;
+  background: var(--card-background);
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 24px;
+  overflow: visible;
+  background-clip: padding-box;
+}
+
+/* 🌈 ANIMATED GRADIENT BORDER FOR LIST background: linear-gradient(
+    135deg,
+    #f59e0b 0%,
+    #f97316 25%,
+    #fb923c 50%,
+    #fbbf24 75%,
+    #f59e0b 100%
+  );*/
+.payment-list-container::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  
+  background-size: 300% 300%;
+  animation: animatedBorder 4s ease infinite;
+  border-radius: 14px;
+  z-index: -1;
+}
+
+/* 💫 TOP SHIMMER LINE FOR LIST */
+.payment-list-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #f59e0b, #f97316, #fbbf24, #f97316, #f59e0b);
+  background-size: 200% auto;
+  animation: shimmerGold 3s linear infinite;
+  border-radius: 12px 12px 0 0;
+  z-index: 2;
+}
+
 .payment-list-container h3 {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  position: relative;
+  z-index: 1;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1.5rem 0;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
+.payment-list-container h3::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 80px;
+  height: 2px;
+  background: linear-gradient(90deg, #f59e0b, transparent);
+  transition: width 0.3s ease;
+}
+
+.payment-list-container h3:hover::after {
+  width: 150px;
+}
+
+/* ================================
+   📋 PAYMENT LIST - ENHANCED GRID
+   ================================ */
+.payment-list {
+  display: grid;
+  gap: 1.2rem;
+  padding: 0;
+  margin: 0;
+}
+
+/* Payment Item - Premium Card Design */
 .payment-item {
-    grid-template-columns: 1.5fr 1.2fr auto;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.2rem;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 1.5rem;
+  align-items: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  animation: slideInUp 0.4s ease-out forwards;
+}
+
+.payment-item:nth-child(1) { animation-delay: 0.05s; }
+.payment-item:nth-child(2) { animation-delay: 0.1s; }
+.payment-item:nth-child(3) { animation-delay: 0.15s; }
+.payment-item:nth-child(4) { animation-delay: 0.2s; }
+.payment-item:nth-child(5) { animation-delay: 0.25s; }
+
+/* Top accent line */
+.payment-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    #FFD700 50%,
+    transparent 100%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.payment-item:hover::before {
+  opacity: 1;
+}
+
+.payment-item:hover {
+  background: var(--bg-input);
+  border-color: #FFD700;
+  box-shadow: 0 6px 24px rgba(255, 215, 0, 0.15);
+  transform: translateY(-4px);
+}
+
+/* Overdue Payment - Red Accent */
+.payment-item.overdue {
+  border-left: 4px solid var(--danger-color);
+  background: linear-gradient(135deg,
+    rgba(244, 67, 54, 0.05) 0%,
+    var(--bg-secondary) 100%
+  );
+}
+
+.payment-item.overdue::before {
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--danger-color) 50%,
+    transparent 100%
+  );
+}
+
+.payment-item.overdue:hover {
+  border-color: var(--danger-color);
+  box-shadow: 0 6px 24px rgba(244, 67, 54, 0.2);
+}
+
+/* Payment Item Details */
+.payment-item-details {
+  min-width: 0;
 }
 
 .payment-item-details h4 {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem 0;
+  line-height: 1.4;
+}
+
+.payment-item-details p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 0.3rem 0;
+  line-height: 1.5;
+}
+
+/* Payment Status Section */
+.payment-item-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  min-width: 150px;
 }
 
 .payment-item-status strong {
-    font-size: 1.1rem;
-    color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
 }
 
-/* --- Responsive Refinement --- */
-@media (max-width: 600px) {
-    .finance-summary-inline {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 6px;
-    }
-    .summary-divider {
-        display: none;
-    }
+.payment-item-status span {
+  font-size: 0.85rem;
+}
+
+/* ================================
+   🏷️ STATUS BADGES - ENHANCED
+   ================================ */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.badge-green {
+  background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.badge-yellow {
+  background: linear-gradient(135deg, #FFC107 0%, #FFA000 100%);
+  color: #333;
+  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+}
+
+.badge-red {
+  background: linear-gradient(135deg, #F44336 0%, #D32F2F 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+}
+
+.badge-grey {
+  background: linear-gradient(135deg, #9E9E9E 0%, #757575 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(158, 158, 158, 0.3);
+}
+
+.payment-item:hover .status-badge {
+  transform: scale(1.05);
+}
+
+/* ================================
+   🔧 PAYMENT ACTIONS
+   ================================ */
+.payment-item-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.payment-item-actions button {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.payment-item-actions button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #FFD700, #FFA000);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.payment-item-actions button svg {
+  position: relative;
+  z-index: 1;
+}
+
+.payment-item-actions button:hover {
+  border-color: #FFD700;
+  color: white;
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+.payment-item-actions button:hover::before {
+  opacity: 1;
+}
+
+.payment-item-actions button:active {
+  transform: translateY(0);
+}
+
+/* Delete button - Red accent */
+.payment-item-actions button:last-child:hover {
+  border-color: var(--danger-color);
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+}
+
+.payment-item-actions button:last-child:hover::before {
+  background: linear-gradient(135deg, var(--danger-color), #d32f2f);
+}
+
+/* ================================
+   📝 SUBMIT BUTTON - ENHANCED
+   ================================ */
+.financial-content .btn-full-width {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA000 100%);
+  color: #333;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+  width: 100%;
+}
+
+.financial-content .btn-full-width::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.financial-content .btn-full-width:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 215, 0, 0.5);
+}
+
+.financial-content .btn-full-width:hover::before {
+  opacity: 1;
+}
+
+.financial-content .btn-full-width:active {
+  transform: translateY(0);
+}
+
+.financial-content .btn-full-width:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ================================
+   🎬 ANIMATIONS
+   ================================ */
+@keyframes animatedBorder {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes shimmerGold {
+  0% {
+    background-position: 0% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ================================
+   📱 RESPONSIVE DESIGN
+   ================================ */
+@media (max-width: 968px) {
+  .payment-item {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .payment-item-status {
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .payment-item-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .finance-summary-inline {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.8rem;
+  }
+
+  .summary-divider {
+    display: none;
+  }
+
+  .summary-item {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 768px) {
+  .financial-summary-bar {
+    padding: 1.2rem;
+  }
+
+  .payment-form-container {
+    padding: 1.2rem;
+  }
+
+  .payment-list {
+    gap: 1rem;
+  }
+
+  .payment-item {
+    padding: 1rem;
+  }
+
+  .payment-item-actions button {
+    width: 34px;
+    height: 34px;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .summary-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+
+  .summary-title {
+    font-size: 1.1rem;
+  }
+
+  .summary-item {
+    font-size: 0.85rem;
+    padding: 5px 10px;
+  }
+
+  .status-badge {
+    padding: 5px 12px;
+    font-size: 0.8rem;
+  }
+}
+
+/* ================================
+   ☀️ LIGHT MODE ENHANCEMENTS
+   ================================ */
+[data-theme="light"] .financial-summary-bar {
+  background: var(--card-background); /* ✅ CHANGED: No blue in light mode */
+  border: 2px solid var(--border-color);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .financial-summary-bar::after {
+  background: linear-gradient(90deg, #f59e0b, #eab308, #fbbf24, #f59e0b);
+}
+
+[data-theme="light"] .summary-icon {
+  background: linear-gradient(135deg, #f59e0b 0%, #eab308 100%);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+[data-theme="light"] .summary-title {
+  color: var(--text-primary); /* ✅ CHANGED: Theme color */
+}
+
+[data-theme="light"] .summary-divider {
+  color: var(--border-color);
+}
+
+[data-theme="light"] .summary-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .summary-item:hover {
+  background: var(--bg-input);
+  border-color: #f59e0b;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+}
+
+[data-theme="light"] .summary-item strong {
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .blue-text {
+  border-left-color: #3b82f6;
+}
+
+[data-theme="light"] .green-text {
+  border-left-color: #22c55e;
+}
+
+[data-theme="light"] .red-text {
+  border-left-color: #ef4444;
+}
+
+[data-theme="light"] .payment-item {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .payment-item::before {
+  background: linear-gradient(90deg,
+    transparent 0%,
+    #f59e0b 50%,
+    transparent 100%
+  );
+}
+
+[data-theme="light"] .payment-item:hover {
+  background: #ffffff;
+  border-color: #f59e0b;
+  box-shadow: 0 6px 24px rgba(245, 158, 11, 0.15);
+}
+
+[data-theme="light"] .payment-item.overdue {
+  border-left-color: #ef4444;
+  background: linear-gradient(135deg,
+    rgba(239, 68, 68, 0.08) 0%,
+    #ffffff 100%
+  );
+}
+
+[data-theme="light"] .payment-item.overdue::before {
+  background: linear-gradient(90deg,
+    transparent 0%,
+    #ef4444 50%,
+    transparent 100%
+  );
+}
+
+[data-theme="light"] .payment-item.overdue:hover {
+  border-color: #ef4444;
+  box-shadow: 0 6px 24px rgba(239, 68, 68, 0.2);
+}
+
+[data-theme="light"] .payment-item-details h4 {
+  color: #1e293b;
+}
+
+[data-theme="light"] .payment-item-details p {
+  color: #64748b;
+}
+
+[data-theme="light"] .payment-item-status strong {
+  color: #0f172a;
+}
+
+[data-theme="light"] .payment-item-status span {
+  color: #64748b;
+}
+
+[data-theme="light"] .badge-green {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  box-shadow: 0 2px 10px rgba(34, 197, 94, 0.3);
+}
+
+[data-theme="light"] .badge-yellow {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #78350f;
+  box-shadow: 0 2px 10px rgba(251, 191, 36, 0.35);
+}
+
+[data-theme="light"] .badge-red {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  box-shadow: 0 2px 10px rgba(239, 68, 68, 0.3);
+}
+
+[data-theme="light"] .badge-grey {
+  background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+  color: white;
+  box-shadow: 0 2px 10px rgba(148, 163, 184, 0.3);
+}
+
+[data-theme="light"] .payment-item-actions button {
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  color: #64748b;
+}
+
+[data-theme="light"] .payment-item-actions button::before {
+  background: linear-gradient(135deg, #f59e0b, #eab308);
+}
+
+[data-theme="light"] .payment-item-actions button:hover {
+  border-color: #f59e0b;
+  background: #fff7ed;
+  color: #ea580c;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+}
+
+[data-theme="light"] .payment-item-actions button:last-child:hover {
+  border-color: #ef4444;
+  background: #fef2f2;
+  color: #dc2626;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+}
+
+[data-theme="light"] .payment-item-actions button:last-child:hover::before {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+[data-theme="light"] .payment-form-container {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .payment-form-container::after {
+  background: linear-gradient(90deg, #f59e0b, #eab308, #fbbf24, #f59e0b);
+}
+
+[data-theme="light"] .payment-form-container h3 {
+  color: #1e293b;
+}
+
+[data-theme="light"] .payment-list-container h3 {
+  color: #1e293b;
+  border-bottom-color: #e2e8f0;
+}
+
+[data-theme="light"] .payment-list-container h3::after {
+  background: linear-gradient(90deg, #f59e0b, transparent);
+}
+
+[data-theme="light"] .financial-content .btn-full-width {
+  background: linear-gradient(135deg, #f59e0b 0%, #eab308 100%);
+  color: #78350f;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  border: 2px solid #f59e0b;
+}
+
+[data-theme="light"] .financial-content .btn-full-width::before {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), transparent);
+}
+
+[data-theme="light"] .financial-content .btn-full-width:hover {
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45);
+  border-color: #ea580c;
+}
+
+[data-theme="light"] .financial-content .btn-full-width:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  border-color: #d1d5db;
+  box-shadow: none;
 }

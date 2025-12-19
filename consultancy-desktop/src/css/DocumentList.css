@@ -1,160 +1,176 @@
 /* ============================================
-   📋 DOCUMENT LIST - MAIN CONTAINER
+   📂 DOCUMENT LIST - PREMIUM UI (FINAL)
    ============================================ */
 
 .doclist-card {
-  padding: 1.1rem 1.2rem 1.2rem;
-  background: var(--bg-primary);
+  padding: 1.5rem;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-/* ============================================
-   🎯 HEADER SECTION
-   ============================================ */
-
+/* ===== HEADER ===== */
 .doclist-header {
-  padding-bottom: 0.8rem;
-  margin-bottom: 0.8rem;
-  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 2px solid var(--border-color);
+  background: transparent;
 }
 
 .doclist-title {
   display: flex;
-  align-items: center;
-  gap: 0.7rem;
+  align-items: flex-start;
+  gap: 0.75rem;
 }
 
 .doclist-emoji {
-  font-size: 1.4rem;
+  font-size: 2rem;
+  flex-shrink: 0;
+  line-height: 1;
+  margin-top: 0.25rem;
+}
+
+.doclist-title > div {
+  flex: 1;
+  min-width: 0;
 }
 
 .doclist-title h3 {
-  margin: 0;
-  font-size: 1.05rem;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.4;
 }
 
 .doclist-title p {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
   color: var(--text-secondary);
 }
 
-/* ============================================
-   🔲 EMPTY STATE
-   ============================================ */
-
+/* ===== EMPTY STATE ===== */
 .doclist-empty {
-  padding: 1.5rem;
+  padding: 3rem;
   text-align: center;
   color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  border: 2px dashed var(--border-color);
+  font-size: 1rem;
 }
 
-/* ============================================
-   📊 GRID LAYOUT - 2 COLUMNS
-   ============================================ */
-
+/* ===== GRID LAYOUT ===== */
 .doclist-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px 20px;
+  gap: 1.25rem;
 }
 
-@media (max-width: 1100px) {
-  .doclist-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ============================================
-   📁 CATEGORY SECTION
-   ============================================ */
-
+/* ===== CATEGORY CARD ===== */
 .doclist-category {
   background: var(--bg-secondary);
-  border-radius: var(--border-radius);
+  border-radius: 12px;
   border: 1px solid var(--border-color);
-  padding: 10px 12px;
-  transition: all 0.2s ease;
+  padding: 1rem;
+  transition: all 0.3s ease;
 }
 
 .doclist-category:hover {
-  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
 }
 
 .doclist-category-header {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.55rem;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .doclist-category-emoji {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.doclist-category-header > div {
+  flex: 1;
+  min-width: 0;
 }
 
 .doclist-category-header h4 {
-  margin: 0;
-  font-size: 0.95rem;
+  margin: 0 0 0.25rem 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
 }
 
 .doclist-category-header small {
   display: block;
-  margin-top: 2px;
   font-size: 0.75rem;
   color: var(--text-secondary);
+  font-weight: 600;
+  line-height: 1.2;
 }
 
-/* ============================================
-   📄 DOCUMENT ITEMS
-   ============================================ */
-
+/* ===== DOCUMENT ITEMS ===== */
 .doclist-items {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0.75rem;
 }
 
 .doclist-item {
-  position: relative;
   background: var(--bg-primary);
-  border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.45);
-  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  padding: 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  transition: background 0.12s ease, transform 0.12s ease;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
 }
 
 .doclist-item:hover {
-  background: var(--bg-secondary);
-  transform: translateY(-1px);
+  background: var(--bg-hover);
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-color: var(--primary-color);
 }
 
 .doclist-item-main {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.75rem;
 }
 
-/* ============================================
-   🖼️ FILE ICON
-   ============================================ */
-
+/* ===== ICON WITH GRADIENT ===== */
 .doclist-icon {
-  width: 24px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
-  color: var(--text-secondary);
+  font-size: 1.1rem;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
-/* ============================================
-   📝 FILE TEXT INFO
-   ============================================ */
+.doclist-icon.is-image {
+  background: linear-gradient(135deg, #f093fb, #f5576c);
+  box-shadow: 0 2px 8px rgba(240, 147, 251, 0.3);
+}
 
+/* ===== TEXT ===== */
 .doclist-text {
   flex: 1;
   min-width: 0;
@@ -163,327 +179,464 @@
 .doclist-name {
   display: block;
   font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 0.25rem;
+  line-height: 1.3;
 }
 
 .doclist-meta {
   display: block;
   font-size: 0.75rem;
   color: var(--text-secondary);
+  font-weight: 500;
+  line-height: 1.2;
 }
 
-/* ============================================
-   🎛️ CONTROLS (SELECT + ACTIONS)
-   ============================================ */
-
+/* ===== CONTROLS ===== */
 .doclist-controls {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 2px;
+  gap: 0.75rem;
 }
 
 .doclist-select {
   flex: 1;
-  min-width: 120px;
-  padding: 4px 24px 4px 8px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  color: var(--text-primary);
+  min-width: 140px;
+  padding: 0.5rem 0.75rem;
   font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba(148,163,184,0.6)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 6px center;
-  background-size: 14px;
+  line-height: 1.4;
 }
 
 .doclist-select:hover {
-  border-color: rgba(59, 130, 246, 0.6);
+  border-color: var(--primary-color);
 }
 
 .doclist-select:focus {
   outline: none;
-  border-color: rgba(59, 130, 246, 0.8);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
-.doclist-select option {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-}
-
-/* ============================================
-   🔘 ACTION BUTTONS
-   ============================================ */
-
+/* ===== ACTION BUTTONS ===== */
 .doclist-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 0.5rem;
 }
 
 .doclist-btn {
-  width: 30px;
-  height: 28px;
-  border-radius: 999px;
-  border: 1px solid transparent;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 2px solid transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--bg-secondary);
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.12s ease;
+  font-size: 1rem;
+  transition: all 0.2s ease;
 }
 
 .doclist-btn:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .doclist-btn-primary {
-  border-color: rgba(59, 130, 246, 0.7);
-  color: #bfdbfe;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  border-color: #3b82f6;
 }
 
 .doclist-btn-primary:hover {
-  background: rgba(59, 130, 246, 0.18);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
 }
 
 .doclist-btn-danger {
-  border-color: rgba(239, 68, 68, 0.7);
-  color: #fecaca;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border-color: #ef4444;
 }
 
 .doclist-btn-danger:hover {
-  background: rgba(239, 68, 68, 0.18);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
 }
 
 /* ============================================
-   🖼️ UNIVERSAL FILE PREVIEW TOOLTIP - LEFT SIDE
+   🖼️ PREMIUM IMAGE GALLERY - STABLE VERSION
    ============================================ */
 
-.doclist-item {
+.gallery-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(10px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.gallery-modal {
+  width: 90vw;
+  max-width: 1200px;
+  height: 90vh; /* ✅ FIXED HEIGHT */
+  background: var(--bg-card);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+/* Gallery Header */
+.gallery-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  flex-shrink: 0; /* ✅ PREVENT HEADER FROM SHRINKING */
+}
+
+.gallery-info h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 600px;
+}
+
+.gallery-info p {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.gallery-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0; /* ✅ PREVENT BUTTON FROM SHRINKING */
+}
+
+.gallery-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+/* Gallery Content - STABLE CONTAINER */
+.gallery-content {
+  flex: 1; /* ✅ TAKES REMAINING SPACE */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: var(--bg-primary);
   position: relative;
+  overflow: hidden; /* ✅ CRITICAL: PREVENT OVERFLOW */
+  min-height: 0; /* ✅ ALLOW FLEX SHRINKING */
 }
 
-.doclist-preview-tooltip {
+/* 🔧 FIXED: STABLE IMAGE WITH OBJECT-FIT */
+.gallery-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain; /* ✅ MAINTAIN ASPECT RATIO */
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  animation: zoomIn 0.3s ease;
+  display: block; /* ✅ REMOVE INLINE SPACING */
+}
+
+.gallery-loading {
+  font-size: 1.25rem;
+  color: var(--text-secondary);
   position: absolute;
   top: 50%;
-  right: calc(100% + 12px);  /* 👈 CHANGED: Now shows on LEFT */
-  transform: translateY(-50%) scale(0.95);
-  min-width: 220px;
-  max-width: 280px;
-  min-height: 180px;
-  max-height: 320px;
-  background: #1e293b;
-  border: 2px solid #3b82f6;
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  z-index: 1000;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.25s ease, visibility 0.25s ease, transform 0.25s ease;
-  pointer-events: none;
-  overflow: hidden;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
-/* Show tooltip when hovering */
-.doclist-item:hover .doclist-preview-tooltip {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(-50%) scale(1);
-}
-
-/* Arrow pointing RIGHT (towards the item) */
-.doclist-preview-tooltip::before {
-  content: '';
+/* Navigation Arrows - FIXED POSITION */
+.gallery-nav {
   position: absolute;
   top: 50%;
-  right: -7px;  /* 👈 CHANGED: Arrow on right side */
   transform: translateY(-50%);
-  width: 0;
-  height: 0;
-  border-top: 7px solid transparent;
-  border-bottom: 7px solid transparent;
-  border-left: 7px solid #3b82f6;  /* 👈 CHANGED: Arrow points right */
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
 }
 
-/* ============================================
-   📷 IMAGE PREVIEW
-   ============================================ */
+.gallery-nav:hover {
+  background: rgba(0, 0, 0, 0.7);
+  transform: translateY(-50%) scale(1.1);
+}
 
-.preview-image {
-  width: 100%;
-  height: 260px;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+.gallery-nav-prev {
+  left: 1rem;
+}
+
+.gallery-nav-next {
+  right: 1rem;
+}
+
+/* Thumbnail Strip - FIXED HEIGHT */
+.gallery-thumbnails {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background: var(--bg-secondary);
+  overflow-x: auto;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0; /* ✅ PREVENT THUMBNAILS FROM SHRINKING */
+  max-height: 80px; /* ✅ FIXED THUMBNAIL STRIP HEIGHT */
+}
+
+.gallery-thumbnails::-webkit-scrollbar {
+  height: 6px;
+}
+
+.gallery-thumbnails::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 10px;
+}
+
+.gallery-thumb {
+  flex-shrink: 0;
+  width: 120px;
+  padding: 0.5rem;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
   border-radius: 8px;
-}
-
-/* ============================================
-   📄 PDF PREVIEW
-   ============================================ */
-
-.preview-pdf {
-  padding: 18px;
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  text-align: center;
-  gap: 10px;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
 }
 
-.preview-pdf .preview-icon {
-  font-size: 56px;
+.gallery-thumb:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
 }
 
-.preview-pdf .preview-info strong {
-  color: #f1f5f9;
-  font-size: 14px;
-  display: block;
-  margin-bottom: 6px;
+.gallery-thumb.active {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: white;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
 }
 
-.preview-pdf .preview-info p {
-  color: #94a3b8;
-  font-size: 12px;
-  margin: 3px 0;
-  word-break: break-word;
-}
-
-.preview-pdf .preview-info small {
-  color: #64748b;
-  font-size: 10px;
-}
-
-/* ============================================
-   📝 TEXT FILE PREVIEW
-   ============================================ */
-
-.preview-text {
-  padding: 14px;
-  max-height: 280px;
+.gallery-thumb span {
+  font-size: 0.8rem;
+  white-space: nowrap;
   overflow: hidden;
-}
-
-.preview-text .preview-icon {
-  font-size: 28px;
-  text-align: center;
-  margin-bottom: 10px;
-}
-
-.preview-text pre {
-  font-family: 'Courier New', monospace;
-  font-size: 10px;
-  color: #cbd5e1;
-  background: rgba(0, 0, 0, 0.3);
-  padding: 10px;
-  border-radius: 5px;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  line-height: 1.35;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.preview-text pre::-webkit-scrollbar {
-  width: 5px;
-}
-
-.preview-text pre::-webkit-scrollbar-thumb {
-  background: rgba(59, 130, 246, 0.4);
-  border-radius: 3px;
+  text-overflow: ellipsis;
 }
 
 /* ============================================
-   📎 GENERIC FILE PREVIEW
+   📱 RESPONSIVE - STABLE ON MOBILE
    ============================================ */
-
-.preview-file {
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 10px;
-}
-
-.preview-file .preview-icon {
-  font-size: 56px;
-}
-
-.preview-file .preview-info strong {
-  color: #f1f5f9;
-  font-size: 13px;
-  display: block;
-  margin-bottom: 6px;
-  word-break: break-word;
-}
-
-.preview-file .preview-info p {
-  color: #94a3b8;
-  font-size: 11px;
-  margin: 3px 0;
-}
-
-.preview-file .preview-info small {
-  color: #64748b;
-  font-size: 10px;
-}
-
-/* ============================================
-   📱 RESPONSIVE DESIGN
-   ============================================ */
-
-@media (max-width: 1200px) {
-  /* Switch to right side on smaller screens if needed */
-  .doclist-preview-tooltip {
-    right: auto;
-    left: calc(100% + 12px);
-  }
-
-  .doclist-preview-tooltip::before {
-    right: auto;
-    left: -7px;
-    border-left: none;
-    border-right: 7px solid #3b82f6;
-  }
-}
 
 @media (max-width: 768px) {
-  .doclist-preview-tooltip {
-    min-width: 180px;
-    max-width: 220px;
-    min-height: 160px;
-    max-height: 260px;
+  .gallery-modal {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
   }
 
-  .preview-image {
-    height: 180px;
+  .gallery-content {
+    padding: 1rem;
+  }
+
+  .gallery-nav {
+    width: 40px;
+    height: 40px;
+  }
+
+  .gallery-nav-prev {
+    left: 0.5rem;
+  }
+
+  .gallery-nav-next {
+    right: 0.5rem;
+  }
+
+  .gallery-thumbnails {
+    padding: 0.75rem;
+    max-height: 70px;
+  }
+
+  .gallery-thumb {
+    width: 100px;
+  }
+
+  .gallery-header {
+    padding: 1rem;
+  }
+
+  .gallery-info h3 {
+    font-size: 1rem;
+  }
+
+  .gallery-info p {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .gallery-content {
+    padding: 0.5rem;
+  }
+
+  .gallery-thumbnails {
+    max-height: 60px;
+  }
+
+  .gallery-thumb {
+    width: 80px;
+    padding: 0.375rem;
+  }
+
+  .gallery-thumb span {
+    font-size: 0.7rem;
+  }
+}
+
+/* ============================================
+   🎬 ANIMATIONS
+   ============================================ */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
 
 /* ============================================
-   🌈 LIGHT MODE SUPPORT
+   🌙 DARK MODE
    ============================================ */
 
-[data-theme="light"] .doclist-category {
+[data-theme="dark"] .doclist-card {
+  background: #1e293b;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .doclist-title h3 {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .doclist-title p {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .doclist-category {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .doclist-category-header h4 {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .doclist-item {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .doclist-item:hover {
+  background: #334155;
+}
+
+/* ============================================
+   ☀️ LIGHT MODE
+   ============================================ */
+
+[data-theme="light"] .doclist-card {
   background: #ffffff;
   border-color: #e5e7eb;
 }
 
-[data-theme="light"] .doclist-item {
+[data-theme="light"] .doclist-title h3 {
+  color: #1f2937;
+}
+
+[data-theme="light"] .doclist-title p {
+  color: #6b7280;
+}
+
+[data-theme="light"] .doclist-category {
   background: #f9fafb;
   border-color: #e5e7eb;
+}
+
+[data-theme="light"] .doclist-category-header h4 {
+  color: #1f2937;
+}
+
+[data-theme="light"] .doclist-item {
+  background: #ffffff;
+  border-color: #e5e7eb;
+}
+
+[data-theme="light"] .doclist-item:hover {
+  background: #f3f4f6;
 }
 
 [data-theme="light"] .doclist-btn {
@@ -492,32 +645,220 @@
 }
 
 [data-theme="light"] .doclist-btn-primary {
-  color: #1d4ed8;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
 }
 
 [data-theme="light"] .doclist-btn-danger {
-  color: #b91c1c;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
 }
 
-[data-theme="light"] .doclist-preview-tooltip {
-  background: #ffffff;
-  border-color: #3b82f6;
+/* ============================================
+   🎬 ANIMATIONS
+   ============================================ */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-[data-theme="light"] .preview-pdf .preview-info strong,
-[data-theme="light"] .preview-file .preview-info strong {
-  color: #1e293b;
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-[data-theme="light"] .preview-pdf .preview-info p,
-[data-theme="light"] .preview-file .preview-info p {
-  color: #64748b;
+/* ============================================
+   📱 RESPONSIVE
+   ============================================ */
+
+@media (max-width: 1100px) {
+  .doclist-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-[data-theme="light"] .preview-text pre {
-  background: #f1f5f9;
-  color: #1e293b;
+@media (max-width: 768px) {
+  .doclist-card {
+    padding: 1rem;
+  }
+
+  .doclist-title h3 {
+    font-size: 1.1rem;
+  }
+
+  .doclist-title p {
+    font-size: 0.8rem;
+  }
+
+  .doclist-emoji {
+    font-size: 1.75rem;
+  }
+
+  .gallery-modal {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+  }
+
+  .gallery-thumbnails {
+    padding: 0.75rem;
+  }
+
+  .gallery-thumb {
+    width: 100px;
+  }
 }
-[data-theme="light"] .preview-text pre::-webkit-scrollbar-thumb {
-  background: rgba(59, 130, 246, 0.6);
+/* ===== FIX FOR OVERLAPPING TEXT AND BUTTONS ===== */
+
+.doclist-item {
+  background: var(--bg-primary);
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+  overflow: hidden; /* ✅ Prevent overflow */
+}
+
+.doclist-item-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0; /* ✅ Allow shrinking */
+}
+
+.doclist-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  flex-shrink: 0; /* ✅ Prevent icon from shrinking */
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.doclist-text {
+  flex: 1;
+  min-width: 0; /* ✅ CRITICAL: Allows text truncation */
+  overflow: hidden; /* ✅ Hide overflow */
+}
+
+.doclist-name {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap; /* ✅ Keep on one line */
+  overflow: hidden; /* ✅ Hide overflow */
+  text-overflow: ellipsis; /* ✅ Show ... */
+  margin-bottom: 0.25rem;
+  line-height: 1.3;
+  max-width: 100%; /* ✅ Respect parent width */
+}
+
+.doclist-meta {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap; /* ✅ Keep on one line */
+  overflow: hidden; /* ✅ Hide overflow */
+  text-overflow: ellipsis; /* ✅ Show ... */
+  max-width: 100%; /* ✅ Respect parent width */
+}
+
+/* ===== CONTROLS - PREVENT OVERLAP ===== */
+.doclist-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0; /* ✅ Prevent controls from shrinking */
+}
+
+.doclist-select {
+  flex: 1;
+  min-width: 120px; /* ✅ Reduced from 140px */
+  max-width: 180px; /* ✅ Limit max width */
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  line-height: 1.4;
+  white-space: nowrap; /* ✅ Keep on one line */
+  overflow: hidden; /* ✅ Hide overflow */
+  text-overflow: ellipsis; /* ✅ Show ... for long category names */
+}
+
+.doclist-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0; /* ✅ CRITICAL: Never shrink action buttons */
+}
+
+.doclist-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  flex-shrink: 0; /* ✅ Never shrink buttons */
+}
+/* ===== ADD PURPLE GRADIENT LINE AT TOP ===== */
+.doclist-card {
+  position: relative;
+  overflow: visible;
+}
+
+.doclist-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #9C27B0, #E91E63, #9C27B0);
+  background-size: 200% 100%;
+  animation: shimmerLine 3s linear infinite;
+  border-radius: 16px 16px 0 0;
+  z-index: 1;
+}
+
+@keyframes shimmerLine {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }

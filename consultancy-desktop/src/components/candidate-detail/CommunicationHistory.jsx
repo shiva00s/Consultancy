@@ -1,135 +1,149 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { FiMail, FiClock, FiPhone, FiMessageSquare, FiRefreshCw, FiUser } from 'react-icons/fi';
-import toast from 'react-hot-toast';
-import { LoadingSpinner } from '../LoadingSpinner';
-import '../../css/CommunicationHistory.css';
+import React, { useState, useEffect } from 'react';
+import { FiClock, FiUser, FiEdit, FiPlus, FiTrash2, FiFileText } from 'react-icons/fi';
+import '../../css/CandidateHistory.css';
 
+// Helper to format the date and time (Fixed for UTC)
 const formatTimestamp = (isoString) => {
   if (!isoString) return 'N/A';
-  try {
-    const date = new Date(isoString.replace(' ', 'T'));
-    if (isNaN(date.getTime())) return isoString;
-    
-    return date.toLocaleString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-      timeZone: 'Asia/Kolkata'
-    });
-  } catch (err) {
-    console.error('Date parsing error:', err);
-    return isoString;
+  
+  // SQLite stores as 'YYYY-MM-DD HH:MM:SS' (UTC). 
+  // We replace space with 'T' and add 'Z' to force JS to treat it as UTC.
+  let safeIso = isoString;
+  if (!isoString.includes('T')) {
+      safeIso = isoString.replace(' ', 'T') + 'Z';
+  } else if (!isoString.endsWith('Z')) {
+      safeIso = isoString + 'Z';
   }
+
+  const date = new Date(safeIso);
+  
+  return date.toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
 };
 
-function CommunicationHistory({ candidateId }) {
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
+// Helper to get an icon based on the action
+const getActionIcon = (action) => {
+  if (action.includes('delete')) return <FiTrash2 style={{ color: 'var(--danger-color)' }} />;
+  if (action.includes('create') || action.includes('add') || action.includes('assign')) return <FiPlus style={{ color: 'var(--success-color)' }} />;
+  if (action.includes('update') || action.includes('change')) return <FiEdit style={{ color: 'var(--primary-color)' }} />;
+  return <FiFileText />;
+};
 
-  const loadCommunicationHistory = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await window.electronAPI.getCommunicationLogs({ candidateId });
-      if (res.success) {
-        setLogs(res.data || []);
-      } else {
-        toast.error(res.error || 'Failed to load communication logs.');
-      }
-    } catch (error) {
-      console.error('❌ Error loading communication history:', error);
-      toast.error('Error loading communication history.');
-    } finally {
-      setLoading(false);
-    }
-  }, [candidateId]);
+// 🎯 Helper to get ACTION-SPECIFIC EMOJI
+const getActionEmoji = (action) => {
+  const lowerAction = action.toLowerCase();
+  
+  // 🗑️ DELETE operations
+  if (lowerAction.includes('delete') || lowerAction.includes('remove')) {
+    return '🗑️';
+  }
+  
+  // ➕ CREATE operations
+  if (lowerAction.includes('create') || lowerAction.includes('add') || lowerAction.includes('assign')) {
+    return '➕';
+  }
+  
+  // ✏️ UPDATE operations
+  if (lowerAction.includes('update') || lowerAction.includes('edit') || lowerAction.includes('change') || lowerAction.includes('modify')) {
+    return '✏️';
+  }
+  
+  // 👁️ VIEW operations
+  if (lowerAction.includes('view') || lowerAction.includes('read') || lowerAction.includes('access')) {
+    return '👁️';
+  }
+  
+  // 📥 DOWNLOAD/EXPORT operations
+  if (lowerAction.includes('download') || lowerAction.includes('export')) {
+    return '📥';
+  }
+  
+  // 📤 UPLOAD operations
+  if (lowerAction.includes('upload')) {
+    return '📤';
+  }
+  
+  // 🔐 LOGIN operations
+  if (lowerAction.includes('login')) {
+    return '🔐';
+  }
+  
+  // 🚪 LOGOUT operations
+  if (lowerAction.includes('logout')) {
+    return '🚪';
+  }
+  
+  // 📋 Default for other actions
+  return '📋';
+};
+
+function CandidateHistory({ candidateId }) {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadCommunicationHistory();
-  }, [loadCommunicationHistory]);
+    const fetchHistory = async () => {
+      setLoading(true);
+      setError(null);
+      
+      const res = await window.electronAPI.getAuditLogForCandidate({ candidateId });
+      
+      if (res.success) {
+        setHistory(res.data);
+      } else {
+        setError(res.error || 'Failed to fetch history.');
+      }
+      setLoading(false);
+    };
 
-  const getIcon = (type) => {
-    if (type === 'WhatsApp') return <FiMessageSquare />;
-    if (type === 'Call') return <FiPhone />;
-    if (type === 'Email') return <FiMail />;
-    return <FiMessageSquare />;
-  };
+    fetchHistory();
+  }, [candidateId]);
 
-  const getTypeClass = (type) => {
-    if (type === 'WhatsApp') return 'comm-type-whatsapp';
-    if (type === 'Call') return 'comm-type-call';
-    if (type === 'Email') return 'comm-type-email';
-    return 'comm-type-other';
-  };
-
-  if (loading) {
-    return (
-      <div className="communication-loading-container">
-        <LoadingSpinner />
-        <p style={{ marginTop: '16px' }}>Loading communication history...</p>
-      </div>
-    );
-  }
-
-  if (logs.length === 0) {
-    return (
-      <div className="communication-empty-state">
-        <FiClock size={48} />
-        <h3>No interactions recorded yet</h3>
-        <p>WhatsApp messages, calls, and emails will appear here once logged.</p>
-        <button onClick={loadCommunicationHistory} className="communication-refresh-btn">
-          <FiRefreshCw size={16} />
-          Refresh
-        </button>
-      </div>
-    );
-  }
+  if (loading) return <p>⏳ Loading history...</p>;
+  if (error) return <p style={{ color: 'var(--danger-color)' }}>❌ Error: {error}</p>;
 
   return (
-    <div className="communication-history-container">
-      <div className="communication-history-header">
-        <h3>Communication History ({logs.length})</h3>
-        <button 
-          onClick={loadCommunicationHistory} 
-          className="communication-refresh-btn" 
-          title="Refresh"
-          aria-label="Refresh communication history"
-        >
-          <FiRefreshCw size={20} />
-        </button>
-      </div>
-
-      <ul className="communication-timeline-list">
-        {logs.map((log) => (
-          <li key={log.id} className={`communication-timeline-item ${getTypeClass(log.communication_type)}`}>
-            <div className="communication-timeline-icon">
-              {getIcon(log.communication_type)}
-            </div>
-            <div className="communication-timeline-content">
-              <div className="communication-timeline-header">
-                <strong>{log.communication_type || 'Communication'}</strong>
-                {log.username && (
-                  <div className="communication-timeline-user">
-                    <FiUser size={14} />
-                    {log.username}
-                  </div>
-                )}
+    <div className="history-timeline-container">
+      {history.length === 0 ? (
+        <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+          ℹ️ No history found for this candidate.
+        </p>
+      ) : (
+        <ul className="timeline-list">
+          {history.map((log) => (
+            <li className="timeline-item" key={log.id}>
+              <div className="timeline-icon">
+                {getActionIcon(log.action)}
               </div>
-              <p className="communication-timeline-details">
-                {log.details || 'No details provided'}
-              </p>
-              <div className="communication-timeline-timestamp">
-                <FiClock size={14} />
-                {formatTimestamp(log.createdAt)}
+              <div className="timeline-content">
+                <div className="timeline-header">
+                  <strong>
+                    {getActionEmoji(log.action)} {log.action.replace(/_/g, ' ')}
+                  </strong>
+                  <span className="timeline-user">
+                    <FiUser /> 👤 {log.username}
+                  </span>
+                </div>
+                <p className="timeline-details">
+                  📝 {log.details || 'No details recorded.'}
+                </p>
+                <span className="timeline-timestamp">
+                  <FiClock /> 🕐 {formatTimestamp(log.timestamp)}
+                </span>
               </div>
-            </div>
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
 
-export default CommunicationHistory;
+export default CandidateHistory;

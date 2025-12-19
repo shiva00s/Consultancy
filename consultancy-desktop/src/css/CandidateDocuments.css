@@ -1,40 +1,609 @@
+/* ============================================
+   CANDIDATE DOCUMENTS STYLES
+   Premium Modern Design with Rich Visuals
+   ============================================ */
+
 .candocs-root {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  width: 100%;
+  min-height: 500px;
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 2 columns: left stack (check + upload) | right list */
+/* === Grid Split Layout === */
 .candocs-grid-split {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
-  gap: 20px;
-  align-items: flex-start;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
 }
 
-/* Left column: stack checker + uploader */
+/* === Left Section - Enhanced === */
 .candocs-left {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 2rem;
 }
 
-/* Right column: list */
+/* === Right Section - NO INTERNAL SCROLL === */
 .candocs-right {
+  /* REMOVED max-height and overflow-y for free page scroll */
+  padding-right: 8px;
+}
+
+/* === Document Checker - Premium Card === */
+.candocs-left > :first-child {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
+  border: 2px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.candocs-left > :first-child::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #4CAF50, #8BC34A, #4CAF50);
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}
+
+.candocs-left > :first-child:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-color: #4CAF50;
+}
+
+/* === Document Uploader - Premium Card === */
+.candocs-left > :last-child {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
+  border: 2px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.candocs-left > :last-child::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #2196F3, #00BCD4, #2196F3);
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}
+
+.candocs-left > :last-child:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-color: #2196F3;
+}
+
+/* === Document List Container - Premium === */
+.candocs-right > * {
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-secondary) 100%);
+  border: 2px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: visible; /* Changed from hidden to visible */
+}
+
+
+
+/* === Document Category Headers === */
+.doc-category-group h4 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--border-color);
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  position: relative;
 }
 
-/* make cards fill column width */
-.candocs-left > .dchk-card,
-.candocs-left > .du-card,
-.candocs-right > .doclist-card {
-  width: 100%;
+.doc-category-group h4::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--primary-color), transparent);
+  transition: width 0.3s ease;
 }
 
-/* Responsive */
-@media (max-width: 1100px) {
+.doc-category-group:hover h4::after {
+  width: 120px;
+}
+
+/* === Document Item - Premium Design === */
+.doc-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 10px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  animation: slideInUp 0.4s ease-out forwards;
+}
+
+.doc-item:nth-child(1) { animation-delay: 0.05s; }
+.doc-item:nth-child(2) { animation-delay: 0.1s; }
+.doc-item:nth-child(3) { animation-delay: 0.15s; }
+.doc-item:nth-child(4) { animation-delay: 0.2s; }
+.doc-item:nth-child(5) { animation-delay: 0.25s; }
+
+.doc-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    var(--primary-color) 50%, 
+    transparent 100%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.doc-item:hover {
+  background: var(--bg-card);
+  border-color: var(--primary-color);
+  transform: translateX(8px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.doc-item:hover::before {
+  opacity: 1;
+}
+
+/* === Document Icon - Enhanced === */
+.doc-item .doc-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary-color) 0%, #2196F3 100%);
+  border-radius: 10px;
+  color: white;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+}
+
+.doc-item:hover .doc-icon {
+  transform: rotate(5deg) scale(1.1);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.5);
+}
+
+/* === Document Name === */
+.doc-item .doc-name {
+  flex-grow: 1;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* === Document Category Select === */
+.doc-category-select {
+  flex-shrink: 0;
+  margin-left: auto;
+  margin-right: 1rem;
+}
+
+.doc-category-select select {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  min-height: 32px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.doc-category-select select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.15);
+}
+
+.doc-category-select select:hover {
+  border-color: var(--primary-color);
+  background: var(--bg-hover);
+}
+
+/* === Document Actions === */
+.doc-item .doc-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.doc-item .doc-actions button {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--text-secondary);
+  font-size: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.doc-item .doc-actions button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--primary-color), #2196F3);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.doc-item .doc-actions button svg {
+  position: relative;
+  z-index: 1;
+}
+
+.doc-item .doc-actions button:hover {
+  border-color: var(--primary-color);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.doc-item .doc-actions button:hover::before {
+  opacity: 1;
+}
+
+.doc-item .doc-actions button:active {
+  transform: translateY(0);
+}
+
+/* Delete button - Red accent */
+.doc-item .doc-actions button:last-child:hover {
+  border-color: var(--danger-color);
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+}
+
+.doc-item .doc-actions button:last-child:hover::before {
+  background: linear-gradient(135deg, var(--danger-color), #d32f2f);
+}
+
+/* === Empty State === */
+.doc-category-group:empty::after {
+  content: 'ℹ️ No documents in this category';
+  display: block;
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
+  border-radius: 12px;
+  border: 2px dashed var(--border-color);
+}
+
+/* === Animations === */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* === Dark Mode Enhancements === */
+[data-theme="dark"] .doc-item {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .doc-item:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .candocs-left > * {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .candocs-left > *:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* === Light Mode Enhancements === */
+[data-theme="light"] .doc-item {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .doc-item:hover {
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .candocs-left > * {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid #e2e8f0;
+}
+
+/* === Responsive Design === */
+@media (max-width: 1024px) {
   .candocs-grid-split {
     grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .candocs-right {
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .candocs-left > *,
+  .candocs-right > * {
+    padding: 1.25rem;
+    border-radius: 12px;
+  }
+
+  .doc-item {
+    padding: 12px 14px;
+  }
+
+  .doc-item .doc-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+  }
+
+  .doc-item .doc-actions button {
+    width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .candocs-grid-split {
+    gap: 1rem;
+  }
+
+  .doc-item {
+    flex-wrap: wrap;
+  }
+
+  .doc-category-select {
+    width: 100%;
+    margin: 0.5rem 0;
+  }
+
+  .doc-category-select select {
+    width: 100%;
+  }
+
+  .doc-item .doc-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+  }
+}
+/* ============================================
+   CANDIDATE DOCUMENTS STYLES - TABBED LAYOUT
+   ============================================ */
+
+.candocs-root {
+  width: 100%;
+  min-height: 500px;
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== TAB CONTENT WRAPPER ===== */
+.candocs-tab-content {
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+
+/* Override DocumentList to show 4 columns inside View All tab */
+.candocs-viewall-grid .doclist-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+/* Responsive: 3 columns on medium screens */
+@media (max-width: 1400px) {
+  .candocs-viewall-grid .doclist-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Responsive: 2 columns on tablets */
+@media (max-width: 1100px) {
+  .candocs-viewall-grid .doclist-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Responsive: 1 column on mobile */
+@media (max-width: 768px) {
+  .candocs-viewall-grid .doclist-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== STATUS CHECK TAB - 2 COLUMN LAYOUT ===== */
+.candocs-checker-layout {
+  max-width: 100%;
+}
+
+/* DocumentChecker already uses 2-column internally via its own CSS */
+
+/* ===== UPLOAD TAB - SINGLE COLUMN ===== */
+.candocs-upload-layout {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* ===== PREMIUM STYLING FOR TABS ===== */
+.candocs-root .tabs-header {
+  background: var(--bg-secondary);
+  border-radius: 12px 12px 0 0;
+  padding: 0.5rem 1rem 0;
+  margin-bottom: 0;
+  border-bottom: 3px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.candocs-root .tab-button {
+  padding: 12px 24px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.candocs-root .tab-button:hover {
+  background: rgba(99, 102, 241, 0.1);
+  transform: translateY(-2px);
+}
+
+.candocs-root .tab-button.active {
+  background: var(--bg-card);
+  border-bottom: 3px solid var(--primary-color);
+  box-shadow: 0 -2px 8px rgba(99, 102, 241, 0.2);
+}
+
+.candocs-root .tab-button.active .tab-label {
+  color: var(--primary-color);
+  font-weight: 700;
+}
+
+/* ===== DARK MODE ===== */
+[data-theme="dark"] .candocs-root .tabs-header {
+  background: #1e293b;
+  border-bottom-color: #334155;
+}
+
+[data-theme="dark"] .candocs-root .tab-button.active {
+  background: #0f172a;
+}
+
+/* ===== LIGHT MODE ===== */
+[data-theme="light"] .candocs-root .tabs-header {
+  background: #f9fafb;
+  border-bottom-color: #e5e7eb;
+}
+
+[data-theme="light"] .candocs-root .tab-button.active {
+  background: #ffffff;
+}
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .candocs-root .tabs-header {
+    padding: 0.25rem 0.5rem 0;
+  }
+
+  .candocs-root .tab-button {
+    padding: 10px 16px;
+    font-size: 0.85rem;
+  }
+
+  .candocs-upload-layout {
+    max-width: 100%;
   }
 }

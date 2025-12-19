@@ -1,52 +1,92 @@
 /* ============================================
    COMMUNICATION HISTORY STYLES
-   Matches History.jsx timeline design
+   Premium Modern Design with Emoji Support
    ============================================ */
 
 .communication-history-container {
-  max-width: 800px;
+  max-width: 850px;
   margin: 0 auto;
-  padding: 1.5rem 1rem;
+  padding: 2rem 1.5rem;
 }
 
 .communication-history-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 0.8rem;
+  margin-bottom: 2.5rem;
+  padding-bottom: 1rem;
   border-bottom: 2px solid var(--border-color);
+  position: relative;
+}
+
+.communication-history-header::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 80px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--primary-color), transparent);
+  transition: width 0.3s ease;
+}
+
+.communication-history-header:hover::after {
+  width: 150px;
 }
 
 .communication-history-header h3 {
-  font-size: 1.3rem;
+  font-size: 1.4rem;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 /* Refresh button - Circular style in top-right */
 .communication-refresh-btn {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: var(--bg-secondary);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
   border: 2px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   color: var(--text-secondary);
   flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.communication-refresh-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-color), #2196F3);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.communication-refresh-btn:hover::before {
+  opacity: 1;
 }
 
 .communication-refresh-btn:hover {
-  background: var(--primary-color);
   border-color: var(--primary-color);
   color: white;
-  transform: rotate(180deg) scale(1.05);
-  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+  transform: rotate(180deg) scale(1.08);
+  box-shadow: 0 6px 20px rgba(33, 150, 243, 0.35);
+}
+
+.communication-refresh-btn svg {
+  position: relative;
+  z-index: 1;
+  font-size: 1.2rem;
 }
 
 .communication-refresh-btn:active {
@@ -61,34 +101,50 @@
   position: relative;
 }
 
-/* Vertical timeline bar */
+/* Vertical timeline bar - Premium gradient */
 .communication-timeline-list::before {
   content: '';
   position: absolute;
-  left: 18px;
+  left: 19px;
   top: 10px;
   bottom: 10px;
-  width: 2px;
-  background: var(--border-color);
+  width: 3px;
+  background: linear-gradient(
+    to bottom,
+    var(--primary-color) 0%,
+    var(--border-color) 20%,
+    var(--border-color) 80%,
+    transparent 100%
+  );
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(33, 150, 243, 0.2);
 }
 
 /* Individual Timeline Item */
 .communication-timeline-item {
   display: flex;
-  gap: 1.5rem;
-  padding-bottom: 2rem;
+  gap: 1.8rem;
+  padding-bottom: 2.5rem;
   position: relative;
+  opacity: 0;
+  animation: slideInFromLeft 0.4s ease-out forwards;
 }
+
+.communication-timeline-item:nth-child(1) { animation-delay: 0.05s; }
+.communication-timeline-item:nth-child(2) { animation-delay: 0.1s; }
+.communication-timeline-item:nth-child(3) { animation-delay: 0.15s; }
+.communication-timeline-item:nth-child(4) { animation-delay: 0.2s; }
+.communication-timeline-item:nth-child(5) { animation-delay: 0.25s; }
 
 .communication-timeline-item:last-child {
   padding-bottom: 0;
 }
 
-/* Timeline Icon (Circle with icon inside) */
+/* Timeline Icon (Circle with icon inside) - Enhanced */
 .communication-timeline-icon {
-  font-size: 1.25rem;
-  width: 38px;
-  height: 38px;
+  font-size: 1.3rem;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--bg-secondary);
   display: flex;
@@ -96,45 +152,116 @@
   justify-content: center;
   flex-shrink: 0;
   z-index: 2;
-  border: 2px solid var(--border-color);
-  transition: all 0.2s ease;
+  border: 3px solid var(--border-color);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-/* Type-specific icon colors */
+/* Emoji support for timeline icon */
+.communication-timeline-icon::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, transparent, var(--primary-color));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Type-specific icon colors with glow */
 .comm-type-whatsapp .communication-timeline-icon {
   border-color: #25D366;
   color: #25D366;
+  background: linear-gradient(135deg, #fff 0%, #f0fdf4 100%);
+}
+
+.comm-type-whatsapp .communication-timeline-icon:hover {
+  box-shadow: 0 0 20px rgba(37, 211, 102, 0.4);
 }
 
 .comm-type-call .communication-timeline-icon {
   border-color: #2196F3;
   color: #2196F3;
+  background: linear-gradient(135deg, #fff 0%, #e3f2fd 100%);
+}
+
+.comm-type-call .communication-timeline-icon:hover {
+  box-shadow: 0 0 20px rgba(33, 150, 243, 0.4);
 }
 
 .comm-type-email .communication-timeline-icon {
   border-color: #EA4335;
   color: #EA4335;
+  background: linear-gradient(135deg, #fff 0%, #ffebee 100%);
 }
 
-/* Content area */
+.comm-type-email .communication-timeline-icon:hover {
+  box-shadow: 0 0 20px rgba(234, 67, 53, 0.4);
+}
+
+.comm-type-meeting .communication-timeline-icon {
+  border-color: #9C27B0;
+  color: #9C27B0;
+  background: linear-gradient(135deg, #fff 0%, #f3e5f5 100%);
+}
+
+.comm-type-meeting .communication-timeline-icon:hover {
+  box-shadow: 0 0 20px rgba(156, 39, 176, 0.4);
+}
+
+.comm-type-sms .communication-timeline-icon {
+  border-color: #FF9800;
+  color: #FF9800;
+  background: linear-gradient(135deg, #fff 0%, #fff3e0 100%);
+}
+
+.comm-type-sms .communication-timeline-icon:hover {
+  box-shadow: 0 0 20px rgba(255, 152, 0, 0.4);
+}
+
+/* Content area - Premium card design */
 .communication-timeline-content {
   flex-grow: 1;
-  background: var(--bg-secondary);
-  padding: 1rem;
-  border-radius: 8px;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
+  padding: 1.2rem;
+  border-radius: 12px;
   border: 1px solid var(--border-color);
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.communication-timeline-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    var(--primary-color) 50%, 
+    transparent 100%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.communication-timeline-item:hover .communication-timeline-content::before {
+  opacity: 1;
 }
 
 .communication-timeline-item:hover .communication-timeline-content {
   background: var(--bg-input);
   border-color: var(--primary-color);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transform: translateX(4px);
 }
 
 .communication-timeline-item:hover .communication-timeline-icon {
-  transform: scale(1.1);
-  box-shadow: 0 0 0 4px rgba(33, 150, 243, 0.1);
+  transform: scale(1.15) rotate(5deg);
+  border-width: 3px;
 }
 
 /* Header (Type + User) */
@@ -142,14 +269,18 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.7rem;
+  gap: 10px;
 }
 
 .communication-timeline-header strong {
   color: var(--text-primary);
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 600;
   text-transform: capitalize;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .communication-timeline-user {
@@ -159,16 +290,26 @@
   font-size: 0.85rem;
   color: var(--text-secondary);
   background: var(--bg-tertiary);
-  padding: 4px 10px;
-  border-radius: 12px;
+  padding: 5px 12px;
+  border-radius: 14px;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.communication-timeline-item:hover .communication-timeline-user {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
 }
 
 /* Details */
 .communication-timeline-details {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.9rem;
+  margin: 0 0 0.7rem 0;
+  font-size: 0.95rem;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.6;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 /* Timestamp */
@@ -176,13 +317,64 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   color: var(--text-secondary);
-  opacity: 0.8;
+  opacity: 0.75;
+  transition: opacity 0.2s ease;
 }
 
-/* Empty State */
+.communication-timeline-item:hover .communication-timeline-timestamp {
+  opacity: 1;
+}
+
+/* Empty State - Enhanced */
 .communication-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
+  border-radius: 16px;
+  border: 2px dashed var(--border-color);
+}
+
+.communication-empty-state svg {
+  color: var(--text-secondary);
+  opacity: 0.3;
+  margin-bottom: 20px;
+  font-size: 3.5rem;
+  animation: floatIcon 3s ease-in-out infinite;
+}
+
+.communication-empty-state h3 {
+  margin: 0 0 10px 0;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1.2rem;
+}
+
+.communication-empty-state p {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  max-width: 420px;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.communication-empty-state .communication-refresh-btn {
+  padding: 12px 24px;
+  border-radius: 10px;
+  width: auto;
+  height: auto;
+  gap: 10px;
+  font-weight: 500;
+}
+
+/* Loading State - Enhanced */
+.communication-loading-container {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -192,47 +384,115 @@
   color: var(--text-secondary);
 }
 
-.communication-empty-state svg {
-  color: var(--text-secondary);
-  opacity: 0.4;
+.communication-loading-container svg {
+  animation: spin 1s linear infinite;
+  font-size: 2.5rem;
+  color: var(--primary-color);
   margin-bottom: 16px;
 }
 
-.communication-empty-state h3 {
-  margin: 0 0 8px 0;
-  font-weight: 500;
-  color: var(--text-primary);
-  font-size: 1.1rem;
+/* Animations */
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
-.communication-empty-state p {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  max-width: 400px;
-  margin: 0 0 20px 0;
+@keyframes floatIcon {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
-.communication-empty-state .communication-refresh-btn {
-  padding: 10px 20px;
-  border-radius: 8px;
-  width: auto;
-  height: auto;
-  gap: 8px;
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-/* Loading State */
-.communication-loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  text-align: center;
-  color: var(--text-secondary);
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Scrollbar Styling - Premium */
+.communication-timeline-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.communication-timeline-list::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.communication-timeline-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, var(--primary-color), var(--border-color));
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.communication-timeline-list::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
 }
 
 /* Responsive */
 @media (max-width: 768px) {
+  .communication-history-container {
+    padding: 1.5rem 1rem;
+  }
+
+  .communication-timeline-item {
+    gap: 1.2rem;
+  }
+
+  .communication-timeline-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+    border-width: 2px;
+  }
+
+  .communication-timeline-list::before {
+    left: 17px;
+    width: 2px;
+  }
+
+  .communication-timeline-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .communication-refresh-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .communication-history-header h3 {
+    font-size: 1.2rem;
+  }
+
+  .communication-timeline-content {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
   .communication-history-container {
     padding: 1rem 0.5rem;
   }
@@ -241,59 +501,26 @@
     gap: 1rem;
   }
 
-  .communication-timeline-icon {
-    width: 32px;
-    height: 32px;
-    font-size: 1rem;
+  .communication-empty-state {
+    padding: 60px 15px;
   }
 
+  .communication-empty-state svg {
+    font-size: 2.5rem;
+  }
+}
+
+/* Dark mode enhancements (if applicable) */
+@media (prefers-color-scheme: dark) {
   .communication-timeline-list::before {
-    left: 15px;
+    box-shadow: 0 0 12px rgba(33, 150, 243, 0.3);
   }
 
-  .communication-timeline-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+  .communication-timeline-icon {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
   }
 
-  .communication-refresh-btn {
-    width: 38px;
-    height: 38px;
+  .communication-timeline-content {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   }
-}
-
-/* Animation */
-@keyframes slideInFromLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.communication-timeline-item {
-  animation: slideInFromLeft 0.3s ease-out;
-}
-
-/* Scrollbar Styling */
-.communication-timeline-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.communication-timeline-list::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
-  border-radius: 3px;
-}
-
-.communication-timeline-list::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 3px;
-}
-
-.communication-timeline-list::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
 }

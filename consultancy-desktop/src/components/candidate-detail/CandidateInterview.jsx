@@ -48,12 +48,12 @@ function CandidateInterview({ user, candidateId, candidateName }) {
     e.preventDefault();
 
     if (!interviewForm.job_order_id || !interviewForm.interview_date) {
-      toast.error('Job and Date are required.');
+      toast.error('⚠️ Job and Date are required.');
       return;
     }
 
     setIsSaving(true);
-    const toastId = toast.loading('Scheduling interview...');
+    const toastId = toast.loading('⏳ Scheduling interview...');
 
     try {
       const res = await window.electronAPI.addInterviewEntry({
@@ -64,11 +64,11 @@ function CandidateInterview({ user, candidateId, candidateName }) {
       if (res.success) {
         setInterviewEntries((prev) => [res.data, ...prev]);
         setInterviewForm(initialInterviewForm);
-        toast.success('Interview scheduled successfully!', { id: toastId });
+        toast.success('✅ Interview scheduled successfully!', { id: toastId });
 
         // 🔔 push to notification center
         createNotification({
-          title: 'Interview scheduled',
+          title: '📋 Interview scheduled',
           message: `${candidateName || 'Candidate'} interview on ${interviewForm.interview_date}`,
           type: 'info',
           priority: 'normal',
@@ -80,7 +80,7 @@ function CandidateInterview({ user, candidateId, candidateName }) {
             userId: user.id,
             candidateId,
             module: 'interview',
-            title: 'Interview scheduled',
+            title: '📋 Interview scheduled',
             message: `${candidateName || 'Candidate'} interview on ${interviewForm.interview_date}`,
             remindAt: new Date(interviewForm.interview_date).toISOString(),
           });
@@ -88,11 +88,11 @@ function CandidateInterview({ user, candidateId, candidateName }) {
           console.error('createReminder (interview) failed:', err);
         }
       } else {
-        toast.error(res.error || 'Failed to schedule interview', { id: toastId });
+        toast.error('❌ ' + (res.error || 'Failed to schedule interview'), { id: toastId });
       }
     } catch (err) {
       console.error('addInterviewEntry error:', err);
-      toast.error('Failed to schedule interview', { id: toastId });
+      toast.error('❌ Failed to schedule interview', { id: toastId });
     } finally {
       setIsSaving(false);
     }
@@ -105,7 +105,7 @@ function CandidateInterview({ user, candidateId, candidateName }) {
     setEditingInterview(null);
 
     createNotification({
-      title: 'Interview updated',
+      title: '✅ Interview updated',
       message: `${candidateName || 'Candidate'} interview updated (${updatedInterviewData.status})`,
       type: 'success',
       priority: 'normal',
@@ -116,28 +116,28 @@ function CandidateInterview({ user, candidateId, candidateName }) {
   const handleDeleteEntry = async (id, position) => {
     if (
       window.confirm(
-        `Are you sure you want to move the interview entry for "${position}" to the Recycle Bin?`
+        `⚠️ Are you sure you want to move the interview entry for "${position}" to the Recycle Bin?`
       )
     ) {
       try {
         const res = await window.electronAPI.deleteInterviewEntry({ user, id });
         if (res.success) {
           setInterviewEntries((prev) => prev.filter((e) => e.id !== id));
-          toast.success('Interview entry moved to Recycle Bin.');
+          toast.success('✅ Interview entry moved to Recycle Bin.');
 
           createNotification({
-            title: 'Interview deleted',
+            title: '🗑️ Interview deleted',
             message: `Interview for "${position}" moved to Recycle Bin.`,
             type: 'warning',
             priority: 'high',
             actionRequired: false,
           });
         } else {
-          toast.error(res.error || 'Failed to delete interview entry');
+          toast.error('❌ ' + (res.error || 'Failed to delete interview entry'));
         }
       } catch (err) {
         console.error('deleteInterviewEntry error:', err);
-        toast.error('Failed to delete interview entry');
+        toast.error('❌ Failed to delete interview entry');
       }
     }
   };
@@ -156,7 +156,7 @@ function CandidateInterview({ user, candidateId, candidateName }) {
     }
   };
 
-  if (loading) return <p>Loading interview tracking...</p>;
+  if (loading) return <p>⏳ Loading interview tracking...</p>;
 
   return (
     <div className="interview-tracking-content module-vertical-stack">
@@ -173,7 +173,7 @@ function CandidateInterview({ user, candidateId, candidateName }) {
       {/* --- ADD INTERVIEW FORM --- */}
       <div className="form-container module-form-card">
         <h3>
-          <FiPlus /> Schedule New Interview
+          <FiPlus /> ➕ Schedule New Interview
         </h3>
         <form
           onSubmit={handleAddEntry}
@@ -181,7 +181,7 @@ function CandidateInterview({ user, candidateId, candidateName }) {
           style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}
         >
           <div className="form-group full-width">
-            <label>Job Order</label>
+            <label>💼 Job Order</label>
             <select
               name="job_order_id"
               value={interviewForm.job_order_id}
@@ -190,13 +190,13 @@ function CandidateInterview({ user, candidateId, candidateName }) {
               <option value="">-- Select a Job Order --</option>
               {jobOrders.map((job) => (
                 <option key={job.id} value={job.id}>
-                  {job.companyName} - {job.positionTitle}
+                  🏢 {job.companyName} - 💼 {job.positionTitle}
                 </option>
               ))}
             </select>
           </div>
           <div className="form-group">
-            <label>Interview Date</label>
+            <label>📅 Interview Date</label>
             <input
               type="date"
               name="interview_date"
@@ -205,7 +205,7 @@ function CandidateInterview({ user, candidateId, candidateName }) {
             />
           </div>
           <div className="form-group">
-            <label>Round</label>
+            <label>🔄 Round</label>
             <input
               type="text"
               name="round"
@@ -214,7 +214,7 @@ function CandidateInterview({ user, candidateId, candidateName }) {
             />
           </div>
           <div className="form-group">
-            <label>Status</label>
+            <label>📊 Status</label>
             <select
               name="status"
               value={interviewForm.status}
@@ -228,7 +228,7 @@ function CandidateInterview({ user, candidateId, candidateName }) {
             </select>
           </div>
           <div className="form-group full-width">
-            <label>Notes/Feedback</label>
+            <label>📝 Notes/Feedback</label>
             <textarea
               name="notes"
               value={interviewForm.notes}
@@ -242,7 +242,7 @@ function CandidateInterview({ user, candidateId, candidateName }) {
             disabled={isSaving}
             style={{ gridColumn: '1 / -1' }}
           >
-            {isSaving ? 'Scheduling...' : 'Save Interview Entry'}
+            {isSaving ? '⏳ Scheduling...' : '✅ Save Interview Entry'}
           </button>
         </form>
       </div>
@@ -250,12 +250,12 @@ function CandidateInterview({ user, candidateId, candidateName }) {
       {/* --- INTERVIEW HISTORY LIST --- */}
       <div className="list-container module-list-card">
         <h3>
-          <FiCalendar /> Interview History ({interviewEntries.length})
+          <FiCalendar /> 📋 Interview History ({interviewEntries.length})
         </h3>
         <div className="module-list interview-list">
           {interviewEntries.length === 0 ? (
             <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-              No interview history found.
+              ℹ️ No interview history found.
             </p>
           ) : (
             interviewEntries.map((entry) => (
@@ -265,20 +265,20 @@ function CandidateInterview({ user, candidateId, candidateName }) {
                 </div>
                 <div className="item-details">
                   <strong>
-                    {entry.positionTitle} at {entry.companyName}
+                    💼 {entry.positionTitle} at 🏢 {entry.companyName}
                   </strong>
                   <p className="mt-1">
-                    Round: {entry.round} | Date: {entry.interview_date}
+                    🔄 Round: {entry.round} | 📅 Date: {entry.interview_date}
                   </p>
                   {entry.notes && (
                     <p className="mt-1">
-                      <small>Feedback: {entry.notes}</small>
+                      <small>📝 Feedback: {entry.notes}</small>
                     </p>
                   )}
                 </div>
                 <div className="item-status">
                   <span className={`status-badge ${getStatusBadgeClass(entry.status)}`}>
-                    {entry.status}
+                    📊 {entry.status}
                   </span>
                 </div>
                 <div className="item-actions">

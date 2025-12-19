@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiClipboard, FiPlus, FiTrash2, FiServer, FiBriefcase } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import '../../css/CandidateJobs.css';
 
 function CandidateJobs({ user, candidateId, onJobAssigned }) {
   const [placements, setPlacements] = useState([]);
@@ -24,7 +25,7 @@ function CandidateJobs({ user, candidateId, onJobAssigned }) {
       }
     } catch (err) {
       console.error('Error fetching placements:', err);
-      toast.error('Failed to load placements');
+      toast.error('❌ Failed to load placements');
     } finally {
       setLoading(false);
     }
@@ -47,7 +48,7 @@ function CandidateJobs({ user, candidateId, onJobAssigned }) {
   const handleAssignJob = async (e) => {
     e.preventDefault();
     if (!selectedJobId) {
-      toast.error('Please select a job first.');
+      toast.error('⚠️ Please select a job first.');
       return;
     }
     
@@ -63,24 +64,24 @@ function CandidateJobs({ user, candidateId, onJobAssigned }) {
         await fetchPlacements();
         await fetchUnassignedJobs();
         setSelectedJobId('');
-        toast.success('Job assigned successfully!');
+        toast.success('✅ Job assigned successfully!');
         
         if (onJobAssigned) {
           onJobAssigned(res.data?.jobId);
         }
       } else {
-        toast.error(res.error || 'Failed to assign job');
+        toast.error(res.error || '❌ Failed to assign job');
       }
     } catch (err) {
       console.error('Error assigning job:', err);
-      toast.error('Failed to assign job');
+      toast.error('❌ Failed to assign job');
     } finally {
       setIsAssigning(false);
     }
   };
 
   const handleRemovePlacement = async (placementId, jobName) => {
-    if (window.confirm(`Are you sure you want to remove the placement for "${jobName}"? It will be moved to the Recycle Bin.`)) {
+    if (window.confirm(`⚠️ Are you sure you want to remove the placement for "${jobName}"? It will be moved to the Recycle Bin.`)) {
       try {
         const res = await window.electronAPI.removeCandidateFromJob({
           user,
@@ -90,13 +91,13 @@ function CandidateJobs({ user, candidateId, onJobAssigned }) {
         if (res.success) {
           await fetchPlacements();
           await fetchUnassignedJobs();
-          toast.success('Job assignment removed (soft-deleted).');
+          toast.success('✅ Job assignment removed (soft-deleted).');
         } else {
-          toast.error(res.error || 'Failed to remove placement');
+          toast.error(res.error || '❌ Failed to remove placement');
         }
       } catch (err) {
         console.error('Error removing placement:', err);
-        toast.error('Failed to remove placement');
+        toast.error('❌ Failed to remove placement');
       }
     }
   };
@@ -118,17 +119,59 @@ function CandidateJobs({ user, candidateId, onJobAssigned }) {
         padding: '2rem', 
         color: 'var(--text-secondary)' 
       }}>
-        Loading job placements...
+        ⏳ Loading job placements...
       </div>
     );
   }
 
   return (
+
+
     <div className="job-placement-content module-vertical-stack">
       {/* Active Job Placements */}
+
+      {/* Assign Job Form */}
+      <div className="form-container module-form-card">
+        <h3>
+          <FiPlus /> ➕ Assign Candidate to Job Order
+        </h3>
+        <form 
+          onSubmit={handleAssignJob} 
+          className="assign-job-form" 
+          style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}
+        >
+          <div className="form-group" style={{ flexGrow: 1, marginBottom: 0 }}>
+            <label>📋 Available Job Orders</label>
+            <select
+              value={selectedJobId}
+              onChange={(e) => setSelectedJobId(e.target.value)}
+              disabled={isAssigning}
+            >
+              <option value="">-- Select a job to assign --</option>
+              {unassignedJobs.length === 0 && (
+                <option disabled>❌ No available jobs</option>
+              )}
+              {unassignedJobs.map((job) => (
+                <option key={job.id} value={job.id}>
+                  🏢 {job.companyName || 'Unknown'} - 💼 {job.positionTitle || 'Unknown'} 
+                  {job.country ? ` 🌍 (${job.country})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="submit"
+            className="btn"
+            disabled={isAssigning || !selectedJobId}
+            style={{ minWidth: '120px', minHeight: '36px' }}
+          >
+            {isAssigning ? '⏳ Assigning...' : '✅ Assign Job'}
+          </button>
+        </form>
+      </div>
       <div className="list-container module-list-card">
         <h3>
-          <FiClipboard /> Active Job Placements ({placements.length})
+          <FiClipboard /> 💼 Active Job Placements ({placements.length})
         </h3>
         <div className="module-list">
           {placements.length === 0 ? (
@@ -137,7 +180,7 @@ function CandidateJobs({ user, candidateId, onJobAssigned }) {
               color: 'var(--text-secondary)',
               padding: '2rem' 
             }}>
-              This candidate is not assigned to any active job orders.
+              ℹ️ This candidate is not assigned to any active job orders.
             </p>
           ) : (
             placements.map((p) => (
@@ -146,16 +189,16 @@ function CandidateJobs({ user, candidateId, onJobAssigned }) {
                   <FiBriefcase />
                 </div>
                 <div className="item-details">
-                  <h4>{p.positionTitle || 'Unknown Position'}</h4>
+                  <h4>💼 {p.positionTitle || 'Unknown Position'}</h4>
                   <p>
                     <FiServer style={{ marginRight: '5px' }}/> 
-                    {p.companyName || 'Unknown Company'} 
-                    {p.country ? ` (${p.country})` : ''}
+                    🏢 {p.companyName || 'Unknown Company'} 
+                    {p.country ? ` 🌍 (${p.country})` : ''}
                   </p>
                 </div>
                 <div className="item-status">
                   <span className={`status-badge ${getStatusBadgeClass(p.placementStatus)}`}>
-                    {p.placementStatus || 'Unknown'}
+                    📊 {p.placementStatus || 'Unknown'}
                   </span>
                 </div>
                 <div className="item-actions">
@@ -174,45 +217,7 @@ function CandidateJobs({ user, candidateId, onJobAssigned }) {
         </div>
       </div>
 
-      {/* Assign Job Form */}
-      <div className="form-container module-form-card">
-        <h3>
-          <FiPlus /> Assign Candidate to Job Order
-        </h3>
-        <form 
-          onSubmit={handleAssignJob} 
-          className="assign-job-form" 
-          style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}
-        >
-          <div className="form-group" style={{ flexGrow: 1, marginBottom: 0 }}>
-            <label>Available Job Orders</label>
-            <select
-              value={selectedJobId}
-              onChange={(e) => setSelectedJobId(e.target.value)}
-              disabled={isAssigning}
-            >
-              <option value="">-- Select a job to assign --</option>
-              {unassignedJobs.length === 0 && (
-                <option disabled>No available jobs</option>
-              )}
-              {unassignedJobs.map((job) => (
-                <option key={job.id} value={job.id}>
-                  {job.companyName || 'Unknown'} - {job.positionTitle || 'Unknown'} 
-                  {job.country ? ` (${job.country})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            type="submit"
-            className="btn"
-            disabled={isAssigning || !selectedJobId}
-            style={{ minWidth: '120px', minHeight: '36px' }}
-          >
-            {isAssigning ? 'Assigning...' : 'Assign Job'}
-          </button>
-        </form>
-      </div>
+      
     </div>
   );
 }

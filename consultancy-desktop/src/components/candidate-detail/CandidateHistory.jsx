@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiClock, FiUser, FiEdit, FiPlus, FiTrash2, FiFileText } from 'react-icons/fi';
-import '../../css/CandidateHistory.css'; // <-- 1. IMPORT THE NEW CSS FILE
+import '../../css/CandidateHistory.css';
 
 // Helper to format the date and time (Fixed for UTC)
 const formatTimestamp = (isoString) => {
@@ -35,6 +35,52 @@ const getActionIcon = (action) => {
   return <FiFileText />;
 };
 
+// 🎯 NEW: Helper to get ACTION-SPECIFIC EMOJI
+const getActionEmoji = (action) => {
+  const lowerAction = action.toLowerCase();
+  
+  // 🗑️ DELETE operations
+  if (lowerAction.includes('delete') || lowerAction.includes('remove')) {
+    return '🗑️';
+  }
+  
+  // ➕ CREATE operations
+  if (lowerAction.includes('create') || lowerAction.includes('add') || lowerAction.includes('assign')) {
+    return '➕';
+  }
+  
+  // ✏️ UPDATE operations
+  if (lowerAction.includes('update') || lowerAction.includes('edit') || lowerAction.includes('change') || lowerAction.includes('modify')) {
+    return '✏️';
+  }
+  
+  // 👁️ VIEW operations
+  if (lowerAction.includes('view') || lowerAction.includes('read') || lowerAction.includes('access')) {
+    return '👁️';
+  }
+  
+  // 📥 DOWNLOAD/EXPORT operations
+  if (lowerAction.includes('download') || lowerAction.includes('export')) {
+    return '📥';
+  }
+  
+  // 📤 UPLOAD operations
+  if (lowerAction.includes('upload')) {
+    return '📤';
+  }
+  
+  // 🔐 LOGIN/LOGOUT operations
+  if (lowerAction.includes('login')) {
+    return '🔐';
+  }
+  if (lowerAction.includes('logout')) {
+    return '🚪';
+  }
+  
+  // 📋 Default for other actions
+  return '📋';
+};
+
 function CandidateHistory({ candidateId }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,14 +104,14 @@ function CandidateHistory({ candidateId }) {
     fetchHistory();
   }, [candidateId]);
 
-  if (loading) return <p>Loading history...</p>;
-  if (error) return <p style={{ color: 'var(--danger-color)' }}>Error: {error}</p>;
+  if (loading) return <p>⏳ Loading history...</p>;
+  if (error) return <p style={{ color: 'var(--danger-color)' }}>❌ Error: {error}</p>;
 
   return (
     <div className="history-timeline-container">
       {history.length === 0 ? (
         <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-          No history found for this candidate.
+          ℹ️ No history found for this candidate.
         </p>
       ) : (
         <ul className="timeline-list">
@@ -76,24 +122,24 @@ function CandidateHistory({ candidateId }) {
               </div>
               <div className="timeline-content">
                 <div className="timeline-header">
-                  <strong>{log.action.replace(/_/g, ' ')}</strong>
+                  <strong>
+                    {getActionEmoji(log.action)} {log.action.replace(/_/g, ' ')}
+                  </strong>
                   <span className="timeline-user">
-                    <FiUser /> {log.username}
+                    <FiUser /> 👤 {log.username}
                   </span>
                 </div>
                 <p className="timeline-details">
-                  {log.details || 'No details recorded.'}
+                  📝 {log.details || 'No details recorded.'}
                 </p>
                 <span className="timeline-timestamp">
-                  <FiClock /> {formatTimestamp(log.timestamp)}
+                  <FiClock /> 🕐 {formatTimestamp(log.timestamp)}
                 </span>
               </div>
             </li>
           ))}
         </ul>
       )}
-
-      {/* --- 2. THE <style> BLOCK IS NOW REMOVED --- */}
     </div>
   );
 }

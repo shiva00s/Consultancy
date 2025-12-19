@@ -13,7 +13,7 @@ function DocumentUploader({
   onUploaded,       // (newDocs) => void
   readFileAsBuffer, // util
 }) {
-  const [uploadCategory, setUploadCategory] = useState("Uncategorized");
+  const [uploadCategory, setUploadCategory] = useState("📂 Uncategorized");
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -78,7 +78,7 @@ function DocumentUploader({
 
       onUploaded(res.newDocs);
       setFiles([]);
-      setUploadCategory("Uncategorized");
+      setUploadCategory("📂 Uncategorized");
       if (fileInputRef.current) fileInputRef.current.value = null;
     } catch (err) {
       console.error("Upload error:", err);
@@ -100,15 +100,15 @@ function DocumentUploader({
         <div className="du-title">
           <span className="du-emoji">📤</span>
           <div>
-            <h3>Upload Documents</h3>
-            <p>Drop files or browse. Assign a category and upload.</p>
+            <h3>📄 Upload Documents</h3>
+            <p>🎯 Drop files or browse. Assign a category and upload.</p>
           </div>
         </div>
       </header>
 
       <div className="du-body">
         <div className="du-field">
-          <label>Document Category</label>
+          <label>📂 Document Category</label>
           <select
             value={uploadCategory}
             onChange={(e) => setUploadCategory(e.target.value)}
@@ -131,8 +131,8 @@ function DocumentUploader({
         >
           <FiUploadCloud className="du-drop-icon" />
           <div className="du-drop-text">
-            <span>Drag &amp; drop files here</span>
-            <small>or click to browse from your computer</small>
+            <span>🎯 Drag &amp; drop files here</span>
+            <small>💡 or click to browse from your computer</small>
           </div>
           <input
             ref={fileInputRef}
@@ -148,22 +148,22 @@ function DocumentUploader({
           <div className="du-files">
             <div className="du-files-header">
               <span className="du-files-title">
-                <FiFilePlus /> Selected files ({files.length})
+                <FiFilePlus /> 📋 Selected files ({files.length})
               </span>
               <button
                 type="button"
                 className="du-mini-btn"
                 onClick={clearFiles}
               >
-                <FiTrash2 /> Clear
+                <FiTrash2 /> 🗑️ Clear
               </button>
             </div>
             <ul className="du-files-list">
               {files.map((f, idx) => (
                 <li key={`${f.name}-${idx}`}>
-                  <span className="du-file-name">{f.name}</span>
+                  <span className="du-file-name">📄 {f.name}</span>
                   <span className="du-file-size">
-                    {formatSize(f.size)}
+                    💾 {formatSize(f.size)}
                   </span>
                 </li>
               ))}
@@ -182,8 +182,8 @@ function DocumentUploader({
           <FiUploadCloud />
           <span>
             {isUploading
-              ? "Uploading..."
-              : `Upload ${files.length || 0} file(s)`}
+              ? "⏳ Uploading..."
+              : `✅ Upload ${files.length || 0} file(s)`}
           </span>
         </button>
       </footer>

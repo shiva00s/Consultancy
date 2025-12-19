@@ -61,13 +61,12 @@ function DocumentViewer({ doc, onClose }) {
     };
   }, [doc.filePath, mimeForIframe]);
 
-  const emoji =
-    isImage ? "🖼️" : isPdf ? "📄" : "📎";
+  const emoji = isImage ? "🖼️" : isPdf ? "📄" : "📎";
 
   return (
     <div className="dv-backdrop">
       <div className="dv-shell">
-        <button className="dv-close" onClick={onClose}>
+        <button className="dv-close" onClick={onClose} title="Close Preview">
           <FiX />
         </button>
 
@@ -76,10 +75,10 @@ function DocumentViewer({ doc, onClose }) {
             <span className="dv-emoji">{emoji}</span>
             <div className="dv-title-text">
               <h3 title={doc.fileName || doc.filePath}>
-                {doc.fileName || "Document Preview"}
+                📄 {doc.fileName || "Document Preview"}
               </h3>
               <p className="dv-subtitle">
-                {fileType || "Unknown type"}
+                📋 {fileType || "Unknown type"}
               </p>
             </div>
           </div>
@@ -89,14 +88,14 @@ function DocumentViewer({ doc, onClose }) {
           {loading && (
             <div className="dv-state dv-loading">
               <FiLoader className="dv-spinner" />
-              <span>Loading your document…</span>
+              <span>⏳ Loading your document…</span>
             </div>
           )}
 
           {!loading && error && (
             <div className="dv-state dv-error">
               <span>⚠️ Could not open this file.</span>
-              <small>{error}</small>
+              <small>❌ {error}</small>
             </div>
           )}
 

@@ -38,11 +38,11 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
         setPayments(res.data || []);
       } else {
         console.error('Payment fetch error:', res.error);
-        toast.error(res.error || 'Failed to load payments');
+        toast.error('❌ ' + (res.error || 'Failed to load payments'));
       }
     } catch (err) {
       console.error('getCandidatePayments error:', err);
-      toast.error('Failed to load payments');
+      toast.error('❌ Failed to load payments');
     }
     setLoading(false);
   }, [candidateId, authUser]);
@@ -69,20 +69,20 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
     const amount_paid = parseFloat(paymentForm.amount_paid) || 0;
 
     if (!paymentForm.description || paymentForm.description.trim() === '') {
-      toast.error('Description is required.');
+      toast.error('⚠️ Description is required.');
       return;
     }
     if (isNaN(total_amount) || total_amount <= 0) {
-      toast.error('Total Amount Due must be a positive number.');
+      toast.error('⚠️ Total Amount Due must be a positive number.');
       return;
     }
     if (isNaN(amount_paid) || amount_paid < 0) {
-      toast.error('Amount Paid must be a valid positive number.');
+      toast.error('⚠️ Amount Paid must be a valid positive number.');
       return;
     }
 
     setIsSavingPayment(true);
-    const toastId = toast.loading('Adding payment record...');
+    const toastId = toast.loading('⏳ Adding payment record...');
 
     let calculatedStatus;
     if (amount_paid >= total_amount) {
@@ -119,7 +119,7 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
               userId: authUser.id,
               candidateId,
               module: 'finance',
-              title: 'Payment due',
+              title: '💰 Payment due',
               message: `${paymentForm.description} for ${
                 candidateName || 'candidate'
               } is due on ${paymentForm.due_date}`,
@@ -131,11 +131,11 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
         }
       } else {
         console.error('Add payment error:', res.error);
-        toast.error(res.error || 'Failed to add payment record.', { id: toastId });
+        toast.error('❌ ' + (res.error || 'Failed to add payment record.'), { id: toastId });
       }
     } catch (err) {
       console.error('addPayment error:', err);
-      toast.error('Failed to add payment record.', { id: toastId });
+      toast.error('❌ Failed to add payment record.', { id: toastId });
     } finally {
       setIsSavingPayment(false);
     }
@@ -147,7 +147,7 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
       return;
     }
 
-    const toastId = toast.loading('Updating payment record...');
+    const toastId = toast.loading('⏳ Updating payment record...');
 
     try {
       const res = await window.electronAPI.updatePayment({
@@ -167,11 +167,11 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
         // Optional: if now fully paid, you could update reminders in backend
       } else {
         console.error('Update payment error:', res.error);
-        toast.error(res.error || 'Failed to update payment.', { id: toastId });
+        toast.error('❌ ' + (res.error || 'Failed to update payment.'), { id: toastId });
       }
     } catch (err) {
       console.error('updatePayment error:', err);
-      toast.error('Failed to update payment.', { id: toastId });
+      toast.error('❌ Failed to update payment.', { id: toastId });
     }
   };
 
@@ -183,7 +183,7 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
 
     if (
       window.confirm(
-        `Are you sure you want to move the payment "${description}" to the Recycle Bin?`
+        `⚠️ Are you sure you want to move the payment "${description}" to the Recycle Bin?`
       )
     ) {
       try {
@@ -197,11 +197,11 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
           toast.success('✅ Payment record moved to Recycle Bin.');
         } else {
           console.error('Delete payment error:', res.error);
-          toast.error(res.error || 'Failed to delete payment');
+          toast.error('❌ ' + (res.error || 'Failed to delete payment'));
         }
       } catch (err) {
         console.error('deletePayment error:', err);
-        toast.error('Failed to delete payment');
+        toast.error('❌ Failed to delete payment');
       }
     }
   };
@@ -229,7 +229,7 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
           color: 'var(--text-secondary)',
         }}
       >
-        Loading financial data...
+        ⏳ Loading financial data...
       </div>
     );
   }
@@ -266,9 +266,9 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
           </div>
           <div>
             <h3 style={{ marginBottom: '0.5rem', color: 'var(--text)' }}>
-              Financial Tracking Disabled
+              🔒 Financial Tracking Disabled
             </h3>
-            <p>You do not have permission to view or manage financial records.</p>
+            <p>❌ You do not have permission to view or manage financial records.</p>
             <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>
               Current role: <strong>{authUser?.role}</strong>
             </p>
@@ -304,25 +304,25 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
           <span className="summary-icon">
             <FiDollarSign />
           </span>
-          <strong className="summary-title">Financial Summary</strong>
+          <strong className="summary-title">💰 Financial Summary</strong>
           <span className="summary-divider">|</span>
           <span className="summary-item blue-text">
-            Total Invoiced <strong>{formatCurrency(totalDue)}</strong>
+            📊 Total Invoiced <strong>{formatCurrency(totalDue)}</strong>
           </span>
           <span className="summary-divider">|</span>
           <span className="summary-item green-text">
-            Total Collected <strong>{formatCurrency(totalPaid)}</strong>
+            ✅ Total Collected <strong>{formatCurrency(totalPaid)}</strong>
           </span>
           <span className="summary-divider">|</span>
           <span className="summary-item red-text">
-            Pending <strong>{formatCurrency(totalPending)}</strong>
+            ⏳ Pending <strong>{formatCurrency(totalPending)}</strong>
           </span>
         </div>
       </div>
 
       <div className="payment-form-container module-form-card">
         <h3>
-          <FiPlus /> Add New Payment Entry
+          <FiPlus /> ➕ Add New Payment Entry
         </h3>
         <form
           onSubmit={handleAddPayment}
@@ -330,7 +330,7 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
           style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}
         >
           <div className="form-group full-width" style={{ gridColumn: '1 / -1' }}>
-            <label>Description</label>
+            <label>📝 Description</label>
             <input
               type="text"
               name="description"
@@ -342,7 +342,7 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
           </div>
 
           <div className="form-group">
-            <label>Total Amount Due</label>
+            <label>💰 Total Amount Due</label>
             <input
               type="number"
               name="total_amount"
@@ -355,7 +355,7 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
             />
           </div>
           <div className="form-group">
-            <label>Amount Paid Now</label>
+            <label>💵 Amount Paid Now</label>
             <input
               type="number"
               name="amount_paid"
@@ -367,7 +367,7 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
             />
           </div>
           <div className="form-group">
-            <label>Due Date</label>
+            <label>📅 Due Date</label>
             <input
               type="date"
               name="due_date"
@@ -382,14 +382,14 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
             disabled={isSavingPayment}
             style={{ gridColumn: '1 / -1' }}
           >
-            {isSavingPayment ? 'Saving...' : 'Add Payment Record'}
+            {isSavingPayment ? '⏳ Saving...' : '✅ Add Payment Record'}
           </button>
         </form>
       </div>
 
       <div className="payment-list-container module-list-card">
         <h3>
-          <FiDollarSign /> Payment History ({payments.length})
+          <FiDollarSign /> 💳 Payment History ({payments.length})
         </h3>
         <div className="module-list payment-list">
           {payments.length === 0 ? (
@@ -400,7 +400,7 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
                 padding: '2rem',
               }}
             >
-              No payment records found.
+              ℹ️ No payment records found.
             </p>
           ) : (
             payments.map((p) => {
@@ -416,8 +416,8 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
                   key={p.id}
                 >
                   <div className="payment-item-details">
-                    <h4>{p.description}</h4>
-                    <p>Due: {p.due_date || 'N/A'}</p>
+                    <h4>💰 {p.description}</h4>
+                    <p>📅 Due: {p.due_date || 'N/A'}</p>
                     {isOverdue && (
                       <p
                         style={{
@@ -432,13 +432,13 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
                   </div>
                   <div className="payment-item-status item-status">
                     <span className={`status-badge ${getStatusBadgeClass(p.status)}`}>
-                      {p.status}
+                      📊 {p.status}
                     </span>
                     <strong
                       className="mt-1"
                       style={{ color: 'var(--success-color)' }}
                     >
-                      Paid: {formatCurrency(p.amount_paid)}
+                      ✅ Paid: {formatCurrency(p.amount_paid)}
                     </strong>
                     <span
                       style={{
@@ -446,7 +446,7 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
                         color: 'var(--text-secondary)',
                       }}
                     >
-                      Due: {formatCurrency(p.total_amount)}
+                      💰 Due: {formatCurrency(p.total_amount)}
                     </span>
                   </div>
                   <div className="payment-item-actions item-actions">

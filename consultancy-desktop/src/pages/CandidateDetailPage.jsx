@@ -179,44 +179,43 @@ function CandidateDetailPage({ user, flags }) {
   };
 
   const handleSave = async () => {
-  // Clean passport number
-  const cleanedData = {
-    ...formData,
-    passportNo: formData.passportNo
-      ? formData.passportNo.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
-      : formData.passportNo,
+    // Clean passport number
+    const cleanedData = {
+      ...formData,
+      passportNo: formData.passportNo
+        ? formData.passportNo.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
+        : formData.passportNo,
+    };
+
+    console.log("Sending to IPC:", { user, id, data: cleanedData });
+
+    const res = await window.electronAPI.updateCandidateText({
+      user,
+      id,
+      data: cleanedData, // ✅ Make sure this is structured correctly
+    });
+
+    if (res.success) {
+      toast.success("✅ Details saved successfully!");
+      setIsEditing(false);
+      fetchDetails();
+    } else {
+      console.error("Save failed:", res);
+      toast.error(res.error || "Failed to save changes");
+    }
   };
-
-  console.log("Sending to IPC:", { user, id, data: cleanedData });
-
-  const res = await window.electronAPI.updateCandidateText({
-    user,
-    id,
-    data: cleanedData,  // ✅ Make sure this is structured correctly
-  });
-
-  if (res.success) {
-    toast.success("Details saved successfully!");
-    setIsEditing(false);
-    fetchDetails();
-  } else {
-    console.error("Save failed:", res);
-    toast.error(res.error || "Failed to save changes");
-  }
-};
-
 
   const handleDeleteCandidate = async () => {
     if (
       window.confirm(
-        "Are you sure you want to move this candidate to the Recycle Bin?",
+        "⚠️ Are you sure you want to move this candidate to the Recycle Bin?",
       )
     ) {
       const res = await window.electronAPI.deleteCandidate({ user, id });
       if (res.success) {
         navigate("/search");
         toast.success(
-          `Candidate ${details.candidate.name} moved to Recycle Bin.`,
+          `🗑️ Candidate ${details.candidate.name} moved to Recycle Bin.`,
         );
       } else {
         toast.error(res.error);
@@ -225,7 +224,7 @@ function CandidateDetailPage({ user, flags }) {
   };
 
   const handleExportDocuments = async () => {
-    toast.loading("Preparing ZIP...", { id: "zip-status" });
+    toast.loading("📦 Preparing ZIP...", { id: "zip-status" });
     const dialogResult = await window.electronAPI.showSaveDialog({
       title: "Save Candidate Documents ZIP",
       defaultPath: `${details.candidate.name.replace(/\s/g, "_")}_Docs.zip`,
@@ -238,7 +237,7 @@ function CandidateDetailPage({ user, flags }) {
       return;
     }
 
-    toast.loading("Exporting...", { id: "zip-status" });
+    toast.loading("📥 Exporting...", { id: "zip-status" });
     const res = await window.electronAPI.zipCandidateDocuments({
       user,
       candidateId: id,
@@ -246,13 +245,13 @@ function CandidateDetailPage({ user, flags }) {
     });
     toast.dismiss("zip-status");
 
-    if (res.success) toast.success(`Documents successfully exported!`);
+    if (res.success) toast.success(`✅ Documents successfully exported!`);
     else toast.error(res.error || "Failed to create ZIP archive.");
   };
 
   if (loading || !granularPermsLoaded)
-    return <h2>Loading Candidate Details...</h2>;
-  if (!details) return <h2>Candidate not found.</h2>;
+    return <h2>⏳ Loading Candidate Details...</h2>;
+  if (!details) return <h2>⚠️ Candidate not found.</h2>;
 
   const { candidate, documents } = details;
 
@@ -272,12 +271,12 @@ function CandidateDetailPage({ user, flags }) {
           className="detail-header"
           style={{ borderRadius: "var(--border-radius)" }}
         >
-          <h2>{isEditing ? "Edit Profile" : "Profile Overview"}</h2>
+          <h2>{isEditing ? "✏️ Edit Profile" : "👤 Profile Overview"}</h2>
           <div className="header-actions">
             {isEditing ? (
               <>
                 <button className="btn" onClick={handleSave}>
-                  Save Changes
+                  💾 Save Changes
                 </button>
                 <button
                   className="btn btn-secondary"
@@ -286,7 +285,7 @@ function CandidateDetailPage({ user, flags }) {
                     setFormData(candidate);
                   }}
                 >
-                  Cancel
+                  ❌ Cancel
                 </button>
               </>
             ) : (
@@ -295,10 +294,10 @@ function CandidateDetailPage({ user, flags }) {
                   className="btn btn-secondary"
                   onClick={handleExportDocuments}
                 >
-                  <FiDownload /> Export Documents
+                  <FiDownload /> 📥 Export Documents
                 </button>
                 <button className="btn" onClick={() => setIsEditing(true)}>
-                  Edit Details
+                  ✏️ Edit Details
                 </button>
               </>
             )}
@@ -306,7 +305,7 @@ function CandidateDetailPage({ user, flags }) {
         </div>
         <div className="form-grid">
           <div className="form-group">
-            <label>Name</label>
+            <label>👤 Name</label>
             <input
               type="text"
               name="name"
@@ -316,7 +315,7 @@ function CandidateDetailPage({ user, flags }) {
             />
           </div>
           <div className="form-group">
-            <label>Status</label>
+            <label>📊 Status</label>
             {isEditing ? (
               <select
                 name="status"
@@ -333,73 +332,72 @@ function CandidateDetailPage({ user, flags }) {
               <input type="text" value={formData.status} readOnly />
             )}
           </div>
-          
-          <div className="form-group">
-  <label>Contact Number</label>
-  <div style={{ display: "flex", gap: "5px" }}>
-    <input
-      type="text"
-      name="contact"
-      value={formData.contact || ""}
-      onChange={handleTextChange}
-      readOnly={!isEditing}
-      style={{ flexGrow: 1 }}
-    />
-    {formData.contact && (
-      <button
-        className="btn"
-        style={{
-          backgroundColor: "#25D366",
-          color: "white",
-          padding: "0 12px",
-          minWidth: "auto",
-        }}
-        title="Chat on WhatsApp"
-        type="button"
-        onClick={async (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          
-          const phone = formData.contact.replace(/\D/g, "");
-          console.log("🔵 WhatsApp button clicked!");
-          console.log("🔵 user:", user);
-          console.log("🔵 candidateId:", id);
-          console.log("🔵 phone:", phone);
-          
-          try {
-            // Open WhatsApp
-            window.open(`https://wa.me/${phone}`, "_blank");
-            
-            // Log communication
-            const result = await window.electronAPI.logCommunication({
-              user: user,
-              candidateId: id,
-              communication_type: "WhatsApp",
-              details: `Opened WhatsApp chat with +${phone}`,
-            });
-            
-            console.log("🟢 logCommunication result:", result);
-            
-            if (result.success) {
-              toast.success("WhatsApp opened and logged");
-            } else {
-              toast.error("Failed to log: " + result.error);
-            }
-          } catch (err) {
-            console.error("❌ WhatsApp error:", err);
-            toast.error("Error: " + err.message);
-          }
-        }}
-      >
-        <FiMessageSquare style={{ fontSize: "1.1rem" }} />
-      </button>
-    )}
-  </div>
-</div>
-
 
           <div className="form-group">
-            <label>Aadhar Number</label>
+            <label>📱 Contact Number</label>
+            <div style={{ display: "flex", gap: "5px" }}>
+              <input
+                type="text"
+                name="contact"
+                value={formData.contact || ""}
+                onChange={handleTextChange}
+                readOnly={!isEditing}
+                style={{ flexGrow: 1 }}
+              />
+              {formData.contact && (
+                <button
+                  className="btn"
+                  style={{
+                    backgroundColor: "#25D366",
+                    color: "white",
+                    padding: "0 12px",
+                    minWidth: "auto",
+                  }}
+                  title="Chat on WhatsApp"
+                  type="button"
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const phone = formData.contact.replace(/\D/g, "");
+                    console.log("🔵 WhatsApp button clicked!");
+                    console.log("🔵 user:", user);
+                    console.log("🔵 candidateId:", id);
+                    console.log("🔵 phone:", phone);
+
+                    try {
+                      // Open WhatsApp
+                      window.open(`https://wa.me/${phone}`, "_blank");
+
+                      // Log communication
+                      const result = await window.electronAPI.logCommunication({
+                        user: user,
+                        candidateId: id,
+                        communication_type: "WhatsApp",
+                        details: `Opened WhatsApp chat with +${phone}`,
+                      });
+
+                      console.log("🟢 logCommunication result:", result);
+
+                      if (result.success) {
+                        toast.success("✅ WhatsApp opened and logged");
+                      } else {
+                        toast.error("Failed to log: " + result.error);
+                      }
+                    } catch (err) {
+                      console.error("❌ WhatsApp error:", err);
+                      toast.error("Error: " + err.message);
+                    }
+                  }}
+                >
+                  <FiMessageSquare style={{ fontSize: "1.1rem" }} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>🪪 Aadhar Number</label>
             <input
               type="text"
               name="aadhar"
@@ -409,7 +407,7 @@ function CandidateDetailPage({ user, flags }) {
             />
           </div>
           <div className="form-group">
-            <label>Passport No</label>
+            <label>🛂 Passport No</label>
             <input
               type="text"
               name="passportNo"
@@ -419,7 +417,7 @@ function CandidateDetailPage({ user, flags }) {
             />
           </div>
           <div className="form-group">
-            <label>Passport Expiry</label>
+            <label>📅 Passport Expiry</label>
             <input
               type="date"
               name="passportExpiry"
@@ -429,7 +427,7 @@ function CandidateDetailPage({ user, flags }) {
             />
           </div>
           <div className="form-group">
-            <label>Position Applying For</label>
+            <label>💼 Position Applying For</label>
             <input
               type="text"
               name="Position"
@@ -439,7 +437,7 @@ function CandidateDetailPage({ user, flags }) {
             />
           </div>
           <div className="form-group">
-            <label>Education</label>
+            <label>🎓 Education</label>
             <input
               type="text"
               name="education"
@@ -449,7 +447,7 @@ function CandidateDetailPage({ user, flags }) {
             />
           </div>
           <div className="form-group">
-            <label>Experience (years)</label>
+            <label>📊 Experience (years)</label>
             <input
               type="number"
               name="experience"
@@ -459,7 +457,7 @@ function CandidateDetailPage({ user, flags }) {
             />
           </div>
           <div className="form-group">
-            <label>Date of Birth</label>
+            <label>🎂 Date of Birth</label>
             <input
               type="date"
               name="dob"
@@ -469,7 +467,7 @@ function CandidateDetailPage({ user, flags }) {
             />
           </div>
           <div className="form-group full-width">
-            <label>Notes</label>
+            <label>📝 Notes</label>
             <textarea
               name="notes"
               value={formData.notes || ""}
@@ -480,13 +478,13 @@ function CandidateDetailPage({ user, flags }) {
         </div>
       </div>
       <div className="detail-card delete-zone">
-        <h3>Move Candidate to Recycle Bin</h3>
+        <h3>🗑️ Move Candidate to Recycle Bin</h3>
         <p>
           Moves candidate and all linked records to Recycle Bin. Restore is
           possible.
         </p>
         <button className="btn btn-danger" onClick={handleDeleteCandidate}>
-          <FiAlertTriangle /> Move to Recycle Bin
+          <FiAlertTriangle /> ⚠️ Move to Recycle Bin
         </button>
       </div>
     </div>
@@ -507,7 +505,7 @@ function CandidateDetailPage({ user, flags }) {
         className="form-group"
         style={{ maxWidth: "500px", marginBottom: "1.5rem" }}
       >
-        <label>Select Job Assignment:</label>
+        <label>💼 Select Job Assignment:</label>
         <select
           value={selectedJobForOffer || ""}
           onChange={(e) =>
@@ -539,7 +537,7 @@ function CandidateDetailPage({ user, flags }) {
   const tabConfig = [
     {
       key: "profile",
-      title: "Profile",
+      title: "👤 Profile",
       icon: <FiUser />,
       content: ProfileTabContent,
       permKey: "tab_profile",
@@ -547,7 +545,7 @@ function CandidateDetailPage({ user, flags }) {
 
     {
       key: "passport",
-      title: "Passport Tracking",
+      title: "🛂 Passport Tracking",
       icon: <FiPackage />,
       content: <CandidatePassport candidateId={id} documents={documents} />,
       permKey: "tab_passport",
@@ -555,7 +553,7 @@ function CandidateDetailPage({ user, flags }) {
 
     {
       key: "documents",
-      title: `Documents (${documents.length})`,
+      title: `📁 Documents (${documents.length})`,
       icon: <FiFileText />,
       content: DocumentTabContent,
       permKey: "tab_documents",
@@ -563,7 +561,7 @@ function CandidateDetailPage({ user, flags }) {
 
     {
       key: "jobs",
-      title: "Job Placements",
+      title: "💼 Job Placements",
       icon: <FiClipboard />,
       content: (
         <CandidateJobs
@@ -577,7 +575,7 @@ function CandidateDetailPage({ user, flags }) {
 
     {
       key: "visa",
-      title: "Visa Tracking",
+      title: "✈️ Visa Tracking",
       icon: <FiPackage />,
       content: <CandidateVisa user={user} candidateId={id} />,
       permKey: "tab_visa_tracking",
@@ -585,7 +583,7 @@ function CandidateDetailPage({ user, flags }) {
 
     {
       key: "finance",
-      title: "Financial Tracking",
+      title: "💰 Financial Tracking",
       icon: <FiDollarSign />,
       content: <CandidateFinance user={user} candidateId={id} flags={flags} />,
       permKey: "tab_financial",
@@ -593,7 +591,7 @@ function CandidateDetailPage({ user, flags }) {
 
     {
       key: "medical",
-      title: "Medical",
+      title: "🏥 Medical",
       icon: <FiUsers />,
       content: <CandidateMedical user={user} candidateId={id} />,
       permKey: "tab_medical",
@@ -601,7 +599,7 @@ function CandidateDetailPage({ user, flags }) {
 
     {
       key: "interview",
-      title: "Interview/Schedule",
+      title: "📋 Interview/Schedule",
       icon: <FiCalendar />,
       content: <CandidateInterview user={user} candidateId={id} />,
       permKey: "tab_interview",
@@ -609,7 +607,7 @@ function CandidateDetailPage({ user, flags }) {
 
     {
       key: "travel",
-      title: "Travel/Tickets",
+      title: "🧳 Travel/Tickets",
       icon: <FiSend />,
       content: <CandidateTravel user={user} candidateId={id} />,
       permKey: "tab_travel",
@@ -617,7 +615,7 @@ function CandidateDetailPage({ user, flags }) {
 
     {
       key: "offer",
-      title: "Offer Letter",
+      title: "📜 Offer Letter",
       icon: <FiFileText />,
       content: OfferLetterTabContent,
       permKey: "tab_offer_letter",
@@ -625,7 +623,7 @@ function CandidateDetailPage({ user, flags }) {
 
     {
       key: "history",
-      title: "History",
+      title: "🕐 History",
       icon: <FiClock />,
       content: <CandidateHistory candidateId={id} />,
       permKey: "tab_history",
@@ -633,7 +631,7 @@ function CandidateDetailPage({ user, flags }) {
 
     {
       key: "communications",
-      title: "Comms Log",
+      title: "💬 Comms Log",
       icon: <FiMessageSquare />,
       content: <CommunicationHistory candidateId={id} />,
       permKey: "tab_comms_log",
@@ -653,17 +651,13 @@ function CandidateDetailPage({ user, flags }) {
         }}
       >
         <button
-          onClick={() => navigate("/search")}
-          className="btn btn-secondary back-button"
-          style={{
-            marginBottom: 0,
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-          }}
-        >
-          <FiArrowLeft /> Back to Search
-        </button>
+  onClick={() => navigate("/search")}
+  className="back-to-search-btn"
+>
+  <FiArrowLeft size={16} />
+  <span>Back to Search</span>
+</button>
+
 
         <div style={{ textAlign: "right" }}>
           <h1
@@ -674,7 +668,7 @@ function CandidateDetailPage({ user, flags }) {
             }}
           >
             <FiUser style={{ marginRight: "10px", verticalAlign: "middle" }} />
-            {formData?.name || candidate.name}
+            👤 {formData?.name || candidate.name}
           </h1>
           <div
             style={{
@@ -686,10 +680,10 @@ function CandidateDetailPage({ user, flags }) {
             }}
           >
             <span>
-              <strong>ID:</strong> #{candidate.id}
+              <strong>🆔 ID:</strong> #{candidate.id}
             </span>
             <span>
-              <strong>Passport:</strong>{" "}
+              <strong>🛂 Passport:</strong>{" "}
               {formData?.passportNo || candidate.passportNo}
             </span>
             <span
@@ -700,7 +694,7 @@ function CandidateDetailPage({ user, flags }) {
                 background: "var(--bg-secondary)",
               }}
             >
-              {formData?.status || candidate.status}
+              📊 {formData?.status || candidate.status}
             </span>
           </div>
         </div>
