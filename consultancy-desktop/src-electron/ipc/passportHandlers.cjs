@@ -230,42 +230,50 @@ function registerPassportHandlers() {
   // ==========================================================================
   // DELETE PASSPORT MOVEMENT (SOFT DELETE)
   // ==========================================================================
-  ipcMain.handle('delete-passport-movement', async (event, { movementId, id, user }) => {
-    try {
-      if (!user || !user.id) {
-        return { success: false, error: 'Authentication required. Please log in.' };
-      }
-
-      // Accept both 'id' and 'movementId' for flexibility
-      const actualId = id || movementId;
-
-      if (!actualId) {
-        return { success: false, error: 'Movement ID is required' };
-      }
-
-      console.log(`🗑️ Soft deleting passport movement ID: ${actualId}...`);
-
-      const db = getDatabase();
-      await new Promise((resolve, reject) => {
-        db.run(
-          `UPDATE passport_movements SET is_deleted = 1, updated_at = datetime('now','localtime') WHERE id = ?`,
-          [actualId],
-          (err) => {
-            if (err) return reject(err);
-            resolve();
-          }
-        );
-      });
-
-      logAction(user, 'DELETE', 'passport_movements', actualId, 'Movement moved to recycle bin');
-
-      console.log(`✅ Soft deleted passport movement ID: ${actualId}`);
-      return { success: true };
-    } catch (error) {
-      console.error('❌ delete-passport-movement error:', error);
-      return { success: false, error: error.message };
+  // ✅ FIX: Accept data object instead of destructured params
+ipcMain.handle('delete-passport-movement', async (event, data) => {
+  try {
+    // Validate user authentication
+    if (!data || !data.user || !data.user.id) {
+      console.error('delete-passport-movement: Invalid user data', data);
+      return { success: false, error: 'Authentication required. Please log in.' };
     }
-  });
+
+    // Accept both id and movementId for flexibility
+    const actualId = data.id || data.movementId;
+    
+    if (!actualId) {
+      console.error('delete-passport-movement: Missing movement ID');
+      return { success: false, error: 'Movement ID is required' };
+    }
+
+    console.log(`[DELETE MOVEMENT] ID: ${actualId}, User: ${data.user.username}`);
+
+    const db = getDatabase();
+    
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE passport_movements 
+         SET is_deleted = 1, updated_at = datetime('now','localtime') 
+         WHERE id = ?`,
+        [actualId],
+        (err) => {
+          if (err) return reject(err);
+          resolve();
+        }
+      );
+    });
+
+    logAction(data.user, 'DELETE', 'passport_movements', actualId, 'Movement moved to recycle bin');
+    console.log(`✓ Soft deleted passport movement ID: ${actualId}`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('delete-passport-movement error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 
   // ==========================================================================
   // RESTORE DELETED MOVEMENT

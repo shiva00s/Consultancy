@@ -5,7 +5,7 @@ import '../css/JobOrderListPage.css';
 import '../css/EmployerListPage.css';
 import useDataStore from '../store/dataStore';
 import useAuthStore from '../store/useAuthStore';
-import ConfirmDialog from '../components/ConfirmDialog';
+import ConfirmDialog from '../components/common/ConfirmDialog';
 
 function EmployerListPage() {
   const initialForm = {

@@ -18,7 +18,7 @@ import {
 import toast from "react-hot-toast";
 
 import "../css/CandidateDetailPage.css";
-import UniversalTabs from "../components/common/UniversalTabs"; // ✅ Import UniversalTabs
+import UniversalTabs from "../components/common/UniversalTabs"; 
 import CandidateFinance from "../components/candidate-detail/CandidateFinance";
 import CandidateVisa from "../components/candidate-detail/CandidateVisa";
 import CandidateJobs from "../components/candidate-detail/CandidateJobs";

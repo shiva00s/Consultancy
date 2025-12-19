@@ -1,6 +1,6 @@
 import React from 'react';
 import { FiUser } from 'react-icons/fi';
-import CustomDropdown from '../tools/CustomDropdown';
+import CustomDropdown from '../common/CustomDropdown';
 
 function StaffSelector({ 
   value, 

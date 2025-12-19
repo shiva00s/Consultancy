@@ -26,6 +26,8 @@ const fetchAdminFeatures = async (user) => {
   }
 };
 
+
+
 const useAuthStore = create((set, get) => ({
   user: getInitialUser(),
   featureFlags: getInitialFlags(),

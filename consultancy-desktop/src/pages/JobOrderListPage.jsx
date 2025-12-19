@@ -12,7 +12,7 @@ import useDataStore from "../store/dataStore";
 import { useShallow } from "zustand/react/shallow";
 import useAuthStore from "../store/useAuthStore";
 import "../css/JobOrderListPage.css";
-import ConfirmDialog from "../components/ConfirmDialog";
+import ConfirmDialog from "../components/common/ConfirmDialog";
 
 function JobOrderListPage() {
   const initialForm = {

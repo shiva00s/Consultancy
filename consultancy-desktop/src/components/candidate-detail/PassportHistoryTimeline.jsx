@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { 
   FiPackage, FiMapPin, FiUser, FiCalendar, FiTruck, FiFileText, 
   FiImage, FiX, FiChevronDown, FiChevronUp, FiPhone, FiClock, 
-  FiTrash2, FiDownload, FiZoomIn, FiMaximize2, FiMinimize2 ,FiUserCheck 
+  FiTrash2, FiDownload, FiZoomIn, FiMaximize2, FiMinimize2 ,FiUserCheck
 } from 'react-icons/fi';
-import PassportPhotoGallery from './PassportPhotoGallery';
-import ConfirmDialog from '../../components/ConfirmDialog';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import '../../css/passport-tracking/PassportTimeline.css';
 import toast from 'react-hot-toast';
 
@@ -86,29 +85,33 @@ function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
   };
 
   const handleDeleteConfirm = async () => {
-    const movementId = deleteDialog.movementId;
-    setDeleteDialog({ open: false, movementId: null });
-    setDeletingId(movementId);
+  const movementId = deleteDialog.movementId;
+  setDeleteDialog({ open: false, movementId: null });
+  setDeletingId(movementId);
 
-    try {
-      const res = await window.electronAPI.deletePassportMovement({
-        id: movementId,
-        user
-      });
+  try {
+    console.log('Deleting movement:', { movementId, user: user.username });
+    
+    const res = await window.electronAPI.deletePassportMovement({
+      id: movementId,  // ✅ Pass as 'id'
+       user: user            // ✅ Pass complete user object
+    });
 
-      if (res.success) {
-        toast.success('Movement deleted successfully');
-        if (onMovementDeleted) onMovementDeleted();
-      } else {
-        toast.error(res.message || 'Failed to delete movement');
-      }
-    } catch (err) {
-      console.error('Error deleting movement:', err);
-      toast.error('An error occurred while deleting the movement');
-    } finally {
-      setDeletingId(null);
+    if (res.success) {
+      toast.success('Movement deleted successfully');
+      if (onMovementDeleted) onMovementDeleted();
+    } else {
+      console.error('Delete failed:', res);
+      toast.error(res.message || res.error || 'Failed to delete movement');
     }
-  };
+  } catch (err) {
+    console.error('Error deleting movement:', err);
+    toast.error('An error occurred while deleting the movement');
+  } finally {
+    setDeletingId(null);
+  }
+};
+
 
   const handleDeleteCancel = () => {
     setDeleteDialog({ open: false, movementId: null });
@@ -455,18 +458,18 @@ function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
       )}
 
       {/* Delete confirmation dialog */}
-      {deleteDialog.open && (
-        <ConfirmDialog
-          isOpen={deleteDialog.open}
-          title="Delete Movement?"
-          message="This will move the passport movement to the recycle bin. You can restore it later if needed."
-          onConfirm={handleDeleteConfirm}
-          onCancel={handleDeleteCancel}
-          confirmText="Delete"
-          cancelText="Cancel"
-          type="danger"
-        />
-      )}
+{deleteDialog.open && (
+  <ConfirmDialog
+    open={deleteDialog.open}
+    title="Delete Movement?"
+    message="This will move the passport movement to the recycle bin. You can restore it later if needed."
+    onConfirm={handleDeleteConfirm}
+    onCancel={handleDeleteCancel}
+    confirmLabel="Delete"
+    cancelLabel="Cancel"
+  />
+)}
+
     </>
   );
 }

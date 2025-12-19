@@ -1,15 +1,24 @@
 import React from 'react';
-import '../css/ConfirmDialog.css';
+import './ConfirmDialog.css';
 
-function ConfirmDialog({
-  open,
-  title,
-  message,
-  confirmLabel = 'Delete',
+function ConfirmDialog({ 
+  open,                    // Keep backward compatibility
+  isOpen,                  // New prop
+  title, 
+  message, 
+  confirmLabel = 'Delete', 
+  confirmText,             // Alias
   cancelLabel = 'Cancel',
-  onConfirm,
+  cancelText,              // Alias
+  onConfirm, 
   onCancel,
+  type = 'danger'          // New prop (currently unused)
 }) {
+  const isDialogOpen = isOpen !== undefined ? isOpen : open;
+  const confirmButtonText = confirmText || confirmLabel;
+  const cancelButtonText = cancelText || cancelLabel;
+
+  
   if (!open) return null;
 
   const handleBackdropClick = (e) => {

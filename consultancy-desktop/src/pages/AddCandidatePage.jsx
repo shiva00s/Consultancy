@@ -6,7 +6,7 @@ import useAuthStore from '../store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
 import ScannerModal from '../components/tools/ScannerModal';
 import '../css/AddCandidatePage.css';
-import CustomDropdown from '../components/tools/CustomDropdown';
+import CustomDropdown from '../components/common/CustomDropdown';
 
 const sanitizeDate = (dateString) => {
   if (!dateString) return '';
