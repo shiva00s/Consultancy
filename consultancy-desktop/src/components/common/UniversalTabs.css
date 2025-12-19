@@ -1,0 +1,1020 @@
+/* ============================================================================
+   UNIVERSAL PREMIUM TABS - GLASSMORPHISM DESIGN
+   Supports: Dark Mode, Light Mode, Documents, Passport, etc.
+============================================================================ */
+
+:root {
+  /* Light Mode Colors */
+  --tabs-primary-light: #667eea;
+  --tabs-secondary-light: #764ba2;
+  --tabs-glass-bg-light: rgba(255, 255, 255, 0.8);
+  --tabs-glass-border-light: rgba(0, 0, 0, 0.1);
+  --tabs-text-light: #1f2937;
+  --tabs-text-secondary-light: #6b7280;
+  --tabs-shadow-light: 0 4px 16px rgba(0, 0, 0, 0.1);
+  
+  /* Dark Mode Colors */
+  --tabs-primary-dark: #667eea;
+  --tabs-secondary-dark: #764ba2;
+  --tabs-glass-bg-dark: rgba(30, 41, 59, 0.6);
+  --tabs-glass-border-dark: rgba(255, 255, 255, 0.1);
+  --tabs-text-dark: #f1f5f9;
+  --tabs-text-secondary-dark: rgba(255, 255, 255, 0.6);
+  --tabs-shadow-dark: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================================================
+   TABS CONTAINER
+============================================================================ */
+
+.universal-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  height: 100%;
+}
+
+/* ============================================================================
+   TABS NAVIGATION
+============================================================================ */
+
+.tabs-nav-container {
+  position: relative;
+  width: 100%;
+  background: var(--tabs-glass-bg-light);
+  backdrop-filter: blur(20px);
+  border-radius: 12px;
+  border: 1px solid var(--tabs-glass-border-light);
+  padding: 0.5rem;
+  box-shadow: var(--tabs-shadow-light);
+  overflow: hidden;
+}
+
+/* Dark Mode Navigation */
+[data-theme="dark"] .tabs-nav-container {
+  background: var(--tabs-glass-bg-dark);
+  border-color: var(--tabs-glass-border-dark);
+  box-shadow: var(--tabs-shadow-dark);
+}
+
+.tabs-nav {
+  position: relative;
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tabs-nav::-webkit-scrollbar {
+  display: none;
+}
+
+/* ============================================================================
+   TAB BUTTON - LIGHT MODE
+============================================================================ */
+
+.tab-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--tabs-text-secondary-light);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+  min-width: fit-content;
+}
+
+.tab-btn:hover:not(.disabled) {
+  color: var(--tabs-primary-light);
+  background: rgba(102, 126, 234, 0.1);
+  transform: translateY(-2px);
+}
+
+.tab-btn.active {
+  color: var(--tabs-primary-light);
+  font-weight: 700;
+}
+
+.tab-btn.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  position: relative;
+}
+
+.tab-btn.disabled::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+  border-radius: 8px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+/* ============================================================================
+   TAB BUTTON - DARK MODE
+============================================================================ */
+
+[data-theme="dark"] .tab-btn {
+  color: var(--tabs-text-secondary-dark);
+}
+
+[data-theme="dark"] .tab-btn:hover:not(.disabled) {
+  color: var(--tabs-text-dark);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .tab-btn.active {
+  color: white;
+}
+
+/* ============================================================================
+   TAB ELEMENTS (Icon, Label, Badge, Check)
+============================================================================ */
+
+.tab-icon {
+  font-size: 1.125rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+}
+
+.tab-btn:hover:not(.disabled) .tab-icon {
+  transform: scale(1.1);
+}
+
+.tab-btn.active .tab-icon {
+  animation: iconPulse 2s ease-in-out infinite;
+}
+
+.tab-label {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.tab-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  background: linear-gradient(135deg, var(--tabs-primary-light), var(--tabs-secondary-light));
+  border-radius: 10px;
+  font-size: 0.688rem;
+  font-weight: 700;
+  color: white;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+[data-theme="dark"] .tab-badge {
+  background: linear-gradient(135deg, var(--tabs-primary-dark), var(--tabs-secondary-dark));
+}
+
+.tab-check {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 1.25rem;
+  height: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-radius: 50%;
+  font-size: 0.75rem;
+  color: white;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+  z-index: 2;
+  animation: checkAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================================================
+   TAB INDICATOR - LIGHT MODE
+============================================================================ */
+
+.tab-indicator {
+  position: absolute;
+  bottom: 0.5rem;
+  height: calc(100% - 1rem);
+  background: linear-gradient(135deg,
+    rgba(102, 126, 234, 0.2),
+    rgba(118, 75, 162, 0.2)
+  );
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  box-shadow:
+    0 0 20px rgba(102, 126, 234, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.tab-indicator::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg,
+    rgba(102, 126, 234, 0.1),
+    rgba(118, 75, 162, 0.1)
+  );
+  border-radius: 8px;
+  animation: gradientShift 3s ease-in-out infinite;
+}
+
+/* Dark Mode Indicator */
+[data-theme="dark"] .tab-indicator {
+  background: linear-gradient(135deg,
+    rgba(102, 126, 234, 0.3),
+    rgba(118, 75, 162, 0.3)
+  );
+  border-color: rgba(102, 126, 234, 0.4);
+  box-shadow:
+    0 0 20px rgba(102, 126, 234, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================================================
+   TABS CONTENT - LIGHT MODE
+============================================================================ */
+
+.tabs-content {
+  flex: 1;
+  background: var(--tabs-glass-bg-light);
+  backdrop-filter: blur(20px);
+  border-radius: 12px;
+  border: 1px solid var(--tabs-glass-border-light);
+  padding: 1.5rem;
+  box-shadow: var(--tabs-shadow-light);
+  overflow: auto;
+  animation: contentFadeIn 0.4s ease;
+}
+
+/* Dark Mode Content */
+[data-theme="dark"] .tabs-content {
+  background: var(--tabs-glass-bg-dark);
+  border-color: var(--tabs-glass-border-dark);
+  box-shadow: var(--tabs-shadow-dark);
+}
+
+.tabs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--tabs-text-secondary-light);
+  text-align: center;
+}
+
+[data-theme="dark"] .tabs-empty {
+  color: var(--tabs-text-secondary-dark);
+}
+
+.tabs-empty .empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  animation: float 3s ease-in-out infinite;
+}
+
+.tabs-empty p {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* ============================================================================
+   ANIMATIONS
+============================================================================ */
+
+@keyframes contentFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes iconPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes badgePulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.6);
+  }
+}
+
+@keyframes checkAppear {
+  from {
+    opacity: 0;
+    transform: scale(0) rotate(-180deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes gradientShift {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE
+============================================================================ */
+
+@media (max-width: 768px) {
+  .tabs-nav-container {
+    padding: 0.375rem;
+  }
+
+  .tab-btn {
+    padding: 0.625rem 1rem;
+    font-size: 0.813rem;
+    gap: 0.375rem;
+  }
+
+  .tab-icon {
+    font-size: 1rem;
+  }
+
+  .tabs-content {
+    padding: 1rem;
+  }
+}
+   
+@keyframes iconPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}       
+/* ===============================================
+   🎨 UNIVERSAL TABS - PREMIUM THEMED SYSTEM
+   =============================================== */
+
+.universal-tabs-container {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 8px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.universal-tabs-wrapper {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.universal-tabs-wrapper::-webkit-scrollbar {
+  height: 4px;
+}
+
+.universal-tabs-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.universal-tabs-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+/* ===============================================
+   🔘 TAB BASE STYLES
+   =============================================== */
+
+.universal-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 24px;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.universal-tab::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 3px;
+  background: currentColor;
+  border-radius: 3px 3px 0 0;
+  transform: translateX(-50%);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.universal-tab:hover {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  transform: translateY(-2px);
+}
+
+.universal-tab:hover::before {
+  width: 60%;
+}
+
+/* ===============================================
+   ✨ ACTIVE TAB STATES
+   =============================================== */
+
+.universal-tab.active {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: currentColor;
+  color: #fff;
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 20px currentColor,
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.universal-tab.active::before {
+  width: 100%;
+  box-shadow: 0 0 12px currentColor;
+  animation: shimmer-slide 2s ease-in-out infinite;
+}
+
+/* ===============================================
+   🎭 TAB ICON & BADGE
+   =============================================== */
+
+.universal-tab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  transition: all 0.3s ease;
+}
+
+.universal-tab.active .universal-tab-icon {
+  animation: icon-pulse 1.5s ease-in-out infinite;
+}
+
+.universal-tab-label {
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.universal-tab-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  background: currentColor;
+  color: #0f172a;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  animation: badge-bounce 2s ease-in-out infinite;
+}
+
+/* ===============================================
+   🌈 THEME COLOR DEFINITIONS
+   =============================================== */
+
+/* 👤 Purple Theme - Profile */
+.universal-tab[data-theme="profile"] {
+  --tab-color: #a78bfa;
+  --tab-glow: rgba(167, 139, 250, 0.4);
+}
+
+/* 🛂 Blue Theme - Passport */
+.universal-tab[data-theme="passport"] {
+  --tab-color: #60a5fa;
+  --tab-glow: rgba(96, 165, 250, 0.4);
+}
+
+/* 📁 Magenta Theme - Documents */
+.universal-tab[data-theme="documents"] {
+  --tab-color: #ec4899;
+  --tab-glow: rgba(236, 72, 153, 0.4);
+}
+
+/* 💼 Teal Theme - Job Placements */
+.universal-tab[data-theme="job"] {
+  --tab-color: #2dd4bf;
+  --tab-glow: rgba(45, 212, 191, 0.4);
+}
+
+/* ✈️ Sky Blue Theme - Visa */
+.universal-tab[data-theme="visa"] {
+  --tab-color: #38bdf8;
+  --tab-glow: rgba(56, 189, 248, 0.4);
+}
+
+/* 💰 Orange/Gold Theme - Finance */
+.universal-tab[data-theme="finance"] {
+  --tab-color: #fb923c;
+  --tab-glow: rgba(251, 146, 60, 0.4);
+}
+
+/* 🏥 Green Theme - Medical */
+.universal-tab[data-theme="medical"] {
+  --tab-color: #34d399;
+  --tab-glow: rgba(52, 211, 153, 0.4);
+}
+
+/* 📋 Purple/Blue Theme - Interview */
+.universal-tab[data-theme="interview"] {
+  --tab-color: #818cf8;
+  --tab-glow: rgba(129, 140, 248, 0.4);
+}
+
+/* 🎫 Cyan Theme - Travel */
+.universal-tab[data-theme="travel"] {
+  --tab-color: #22d3ee;
+  --tab-glow: rgba(34, 211, 238, 0.4);
+}
+
+/* 📄 Amber Theme - Offer Letter */
+.universal-tab[data-theme="offer"] {
+  --tab-color: #fbbf24;
+  --tab-glow: rgba(251, 191, 36, 0.4);
+}
+
+/* 🗑️ Red Theme - Recycle Bin */
+.universal-tab[data-theme="recycle"] {
+  --tab-color: #f87171;
+  --tab-glow: rgba(248, 113, 113, 0.4);
+}
+
+/* 👥 Indigo Theme - Candidates */
+.universal-tab[data-theme="candidates"] {
+  --tab-color: #6366f1;
+  --tab-glow: rgba(99, 102, 241, 0.4);
+}
+
+/* 🏢 Slate Theme - Employers */
+.universal-tab[data-theme="employers"] {
+  --tab-color: #94a3b8;
+  --tab-glow: rgba(148, 163, 184, 0.4);
+}
+
+/* Apply theme colors */
+.universal-tab[data-theme] {
+  color: var(--tab-color);
+}
+
+.universal-tab[data-theme].active {
+  border-color: var(--tab-color);
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 20px var(--tab-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.universal-tab[data-theme].active::before {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--tab-color),
+    transparent
+  );
+}
+
+/* ===============================================
+   ✨ ANIMATIONS
+   =============================================== */
+
+@keyframes shimmer-slide {
+  0%, 100% {
+    transform: translateX(-50%) scaleX(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(-50%) scaleX(1.2);
+    opacity: 0.7;
+  }
+}
+
+@keyframes icon-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+@keyframes badge-bounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* ===============================================
+   📱 RESPONSIVE DESIGN
+   =============================================== */
+
+@media (max-width: 768px) {
+  .universal-tab {
+    padding: 12px 18px;
+    font-size: 13px;
+  }
+  
+  .universal-tab-icon {
+    font-size: 18px;
+  }
+  
+  .universal-tab-badge {
+    min-width: 20px;
+    height: 20px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .universal-tabs-container {
+    padding: 6px;
+  }
+  
+  .universal-tab {
+    padding: 10px 14px;
+    font-size: 12px;
+  }
+  
+  .universal-tab-label {
+    display: none;
+  }
+  
+  .universal-tab-icon {
+    font-size: 20px;
+  }
+}
+/* ===============================================
+   🎨 RECYCLE BIN - UNIVERSAL TABS THEME
+   Add this to the bottom of UniversalTabs.css
+   =============================================== */
+
+/* 📑 Violet Theme - Required Docs */
+.universal-tab[data-theme="required-docs"] {
+  --tab-color: #c084fc;
+  --tab-glow: rgba(192, 132, 252, 0.4);
+}
+
+/* 🔄 Lime Theme - Movements */
+.universal-tab[data-theme="movements"] {
+  --tab-color: #84cc16;
+  --tab-glow: rgba(132, 204, 22, 0.4);
+}
+
+/* Apply theme colors to all themed tabs */
+.universal-tab[data-theme] {
+  color: var(--tab-color);
+}
+
+.universal-tab[data-theme].active {
+  border-color: var(--tab-color);
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 20px var(--tab-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.universal-tab[data-theme].active::before {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--tab-color),
+    transparent
+  );
+}
+
+/* Disabled tab state */
+.universal-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.universal-tab:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* Base tab styles */
+.universal-tabs-container {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 8px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.universal-tabs-wrapper {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  padding-bottom: 2px;
+}
+
+.universal-tabs-wrapper::-webkit-scrollbar {
+  height: 4px;
+}
+
+.universal-tabs-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.universal-tabs-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.universal-tabs-wrapper::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.universal-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 24px;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none;
+}
+
+.universal-tab::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 3px;
+  background: currentColor;
+  border-radius: 3px 3px 0 0;
+  transform: translateX(-50%);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width;
+}
+
+.universal-tab:hover:not(:disabled) {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  transform: translateY(-2px);
+}
+
+.universal-tab:hover:not(:disabled)::before {
+  width: 60%;
+}
+
+.universal-tab.active {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: currentColor;
+  color: #fff;
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 20px currentColor,
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.universal-tab.active::before {
+  width: 100%;
+  box-shadow: 0 0 12px currentColor;
+  animation: shimmer-slide 2s ease-in-out infinite;
+}
+
+.universal-tab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  line-height: 1;
+  transition: all 0.3s ease;
+  will-change: transform;
+}
+
+.universal-tab:hover:not(:disabled) .universal-tab-icon {
+  transform: scale(1.05);
+}
+
+.universal-tab.active .universal-tab-icon {
+  animation: icon-pulse 1.5s ease-in-out infinite;
+}
+
+.universal-tab-label {
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  line-height: 1.2;
+}
+
+.universal-tab-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  background: currentColor;
+  color: #0f172a;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  animation: badge-bounce 2s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes shimmer-slide {
+  0%, 100% {
+    transform: translateX(-50%) scaleX(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(-50%) scaleX(1.2);
+    opacity: 0.7;
+  }
+}
+
+@keyframes icon-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+@keyframes badge-bounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .universal-tabs-container {
+    padding: 6px;
+    margin-bottom: 20px;
+  }
+
+  .universal-tab {
+    padding: 12px 18px;
+    font-size: 13px;
+    gap: 8px;
+  }
+  
+  .universal-tab-icon {
+    font-size: 18px;
+  }
+  
+  .universal-tab-badge {
+    min-width: 20px;
+    height: 20px;
+    font-size: 10px;
+    padding: 0 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .universal-tabs-container {
+    padding: 4px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+  }
+  
+  .universal-tabs-wrapper {
+    gap: 4px;
+  }
+
+  .universal-tab {
+    padding: 10px 12px;
+    font-size: 12px;
+    gap: 6px;
+  }
+  
+  .universal-tab-label {
+    display: none;
+  }
+  
+  .universal-tab-icon {
+    font-size: 20px;
+  }
+
+  .universal-tab-badge {
+    min-width: 18px;
+    height: 18px;
+    font-size: 9px;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .universal-tab,
+  .universal-tab::before,
+  .universal-tab-icon,
+  .universal-tab-badge {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .universal-tabs-container {
+    border: 2px solid currentColor;
+  }
+
+  .universal-tab {
+    border: 2px solid currentColor;
+  }
+
+  .universal-tab.active {
+    background: currentColor;
+    color: black;
+  }
+}

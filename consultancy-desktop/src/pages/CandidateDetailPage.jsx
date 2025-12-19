@@ -13,12 +13,12 @@ import {
   FiArrowLeft,
   FiDownload,
   FiAlertTriangle,
-  FiMessageSquare, // ✅ Already imported
+  FiMessageSquare,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 
 import "../css/CandidateDetailPage.css";
-import Tabs from "../components/Tabs";
+import UniversalTabs from "../components/common/UniversalTabs"; // ✅ Import UniversalTabs
 import CandidateFinance from "../components/candidate-detail/CandidateFinance";
 import CandidateVisa from "../components/candidate-detail/CandidateVisa";
 import CandidateJobs from "../components/candidate-detail/CandidateJobs";
@@ -58,6 +58,8 @@ function CandidateDetailPage({ user, flags }) {
 
   const initialTab = searchParams.get("tab") || "profile";
 
+  // ... (keep all your existing functions: fetchDetails, loadGranularPermissions, etc.)
+
   // 1. Fetch Candidate Details
   const fetchDetails = useCallback(async () => {
     setLoading(true);
@@ -75,7 +77,6 @@ function CandidateDetailPage({ user, flags }) {
   useEffect(() => {
     const loadGranularPermissions = async () => {
       if (user.role === "super_admin") {
-        // Super Admin has all tab permissions
         const allPerms = {
           tab_profile: true,
           tab_passport: true,
@@ -93,7 +94,6 @@ function CandidateDetailPage({ user, flags }) {
         setGranularPermissions(allPerms);
         setGranularPermsLoaded(true);
       } else {
-        // Admin or Staff - fetch from database
         const res = await window.electronAPI.getUserGranularPermissions({
           userId: user.id,
         });
@@ -179,7 +179,6 @@ function CandidateDetailPage({ user, flags }) {
   };
 
   const handleSave = async () => {
-    // Clean passport number
     const cleanedData = {
       ...formData,
       passportNo: formData.passportNo
@@ -187,12 +186,10 @@ function CandidateDetailPage({ user, flags }) {
         : formData.passportNo,
     };
 
-    console.log("Sending to IPC:", { user, id, data: cleanedData });
-
     const res = await window.electronAPI.updateCandidateText({
       user,
       id,
-      data: cleanedData, // ✅ Make sure this is structured correctly
+      data: cleanedData,
     });
 
     if (res.success) {
@@ -200,7 +197,6 @@ function CandidateDetailPage({ user, flags }) {
       setIsEditing(false);
       fetchDetails();
     } else {
-      console.error("Save failed:", res);
       toast.error(res.error || "Failed to save changes");
     }
   };
@@ -257,13 +253,11 @@ function CandidateDetailPage({ user, flags }) {
 
   // --- GRANULAR PERMISSION CHECKER ---
   const canAccessTab = (permissionKey) => {
-    // Profile tab is always visible
     if (permissionKey === "tab_profile") return true;
-
-    // Check granular permissions
     return granularPermissions[permissionKey] === true;
   };
 
+  // --- TAB CONTENT COMPONENTS ---
   const ProfileTabContent = (
     <div className="profile-tab-content">
       <div className="detail-card" style={{ border: "none", margin: 0 }}>
@@ -360,16 +354,10 @@ function CandidateDetailPage({ user, flags }) {
                     e.stopPropagation();
 
                     const phone = formData.contact.replace(/\D/g, "");
-                    console.log("🔵 WhatsApp button clicked!");
-                    console.log("🔵 user:", user);
-                    console.log("🔵 candidateId:", id);
-                    console.log("🔵 phone:", phone);
 
                     try {
-                      // Open WhatsApp
                       window.open(`https://wa.me/${phone}`, "_blank");
 
-                      // Log communication
                       const result = await window.electronAPI.logCommunication({
                         user: user,
                         candidateId: id,
@@ -377,15 +365,12 @@ function CandidateDetailPage({ user, flags }) {
                         details: `Opened WhatsApp chat with +${phone}`,
                       });
 
-                      console.log("🟢 logCommunication result:", result);
-
                       if (result.success) {
                         toast.success("✅ WhatsApp opened and logged");
                       } else {
                         toast.error("Failed to log: " + result.error);
                       }
                     } catch (err) {
-                      console.error("❌ WhatsApp error:", err);
                       toast.error("Error: " + err.message);
                     }
                   }}
@@ -533,36 +518,34 @@ function CandidateDetailPage({ user, flags }) {
     </div>
   );
 
-  // --- DYNAMIC TAB FILTERING WITH GRANULAR PERMISSIONS ---
-  const tabConfig = [
+  // ✅ CONVERT TO UNIVERSAL TABS FORMAT
+  const universalTabs = [
     {
       key: "profile",
-      title: "👤 Profile",
-      icon: <FiUser />,
+      label: "Profile",
+      icon: "👤",
       content: ProfileTabContent,
       permKey: "tab_profile",
     },
-
     {
       key: "passport",
-      title: "🛂 Passport Tracking",
-      icon: <FiPackage />,
-      content: <CandidatePassport candidateId={id} documents={documents} />,
+      label: "Passport Tracking",
+      icon: "🛂",
+      content: <CandidatePassport candidateId={id} candidateData={candidate} />,
       permKey: "tab_passport",
     },
-
     {
       key: "documents",
-      title: `📁 Documents (${documents.length})`,
-      icon: <FiFileText />,
+      label: "Documents",
+      icon: "📁",
+      badge: documents.length > 0 ? `${documents.length}` : null,
       content: DocumentTabContent,
       permKey: "tab_documents",
     },
-
     {
       key: "jobs",
-      title: "💼 Job Placements",
-      icon: <FiClipboard />,
+      label: "Job Placements",
+      icon: "💼",
       content: (
         <CandidateJobs
           user={user}
@@ -572,67 +555,59 @@ function CandidateDetailPage({ user, flags }) {
       ),
       permKey: "tab_job_placements",
     },
-
     {
       key: "visa",
-      title: "✈️ Visa Tracking",
-      icon: <FiPackage />,
+      label: "Visa Tracking",
+      icon: "✈️",
       content: <CandidateVisa user={user} candidateId={id} />,
       permKey: "tab_visa_tracking",
     },
-
     {
       key: "finance",
-      title: "💰 Financial Tracking",
-      icon: <FiDollarSign />,
+      label: "Financial Tracking",
+      icon: "💰",
       content: <CandidateFinance user={user} candidateId={id} flags={flags} />,
       permKey: "tab_financial",
     },
-
     {
       key: "medical",
-      title: "🏥 Medical",
-      icon: <FiUsers />,
+      label: "Medical",
+      icon: "🏥",
       content: <CandidateMedical user={user} candidateId={id} />,
       permKey: "tab_medical",
     },
-
     {
       key: "interview",
-      title: "📋 Interview/Schedule",
-      icon: <FiCalendar />,
+      label: "Interview/Schedule",
+      icon: "📋",
       content: <CandidateInterview user={user} candidateId={id} />,
       permKey: "tab_interview",
     },
-
     {
       key: "travel",
-      title: "🧳 Travel/Tickets",
-      icon: <FiSend />,
+      label: "Travel/Tickets",
+      icon: "🧳",
       content: <CandidateTravel user={user} candidateId={id} />,
       permKey: "tab_travel",
     },
-
     {
       key: "offer",
-      title: "📜 Offer Letter",
-      icon: <FiFileText />,
+      label: "Offer Letter",
+      icon: "📜",
       content: OfferLetterTabContent,
       permKey: "tab_offer_letter",
     },
-
     {
       key: "history",
-      title: "🕐 History",
-      icon: <FiClock />,
+      label: "History",
+      icon: "🕐",
       content: <CandidateHistory candidateId={id} />,
       permKey: "tab_history",
     },
-
     {
       key: "communications",
-      title: "💬 Comms Log",
-      icon: <FiMessageSquare />,
+      label: "Comms Log",
+      icon: "💬",
       content: <CommunicationHistory candidateId={id} />,
       permKey: "tab_comms_log",
     },
@@ -651,13 +626,12 @@ function CandidateDetailPage({ user, flags }) {
         }}
       >
         <button
-  onClick={() => navigate("/search")}
-  className="back-to-search-btn"
->
-  <FiArrowLeft size={16} />
-  <span>Back to Search</span>
-</button>
-
+          onClick={() => navigate("/search")}
+          className="back-to-search-btn"
+        >
+          <FiArrowLeft size={16} />
+          <span>Back to Search</span>
+        </button>
 
         <div style={{ textAlign: "right" }}>
           <h1
@@ -700,7 +674,8 @@ function CandidateDetailPage({ user, flags }) {
         </div>
       </div>
 
-      <Tabs tabs={tabConfig} defaultActiveTab={initialTab} />
+      {/* ✅ USE UNIVERSAL TABS */}
+      <UniversalTabs tabs={universalTabs} defaultActiveTab={initialTab} />
     </div>
   );
 }

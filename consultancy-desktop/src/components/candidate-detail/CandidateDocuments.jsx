@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import "../../css/CandidateDocuments.css";
-import Tabs from "./Document/Tabs";
+import UniversalTabs from "../common/UniversalTabs"; 
 import DocumentChecker from "./DocumentChecker";
 import DocumentList from "../DocumentList";
 import DocumentUploader from "../DocumentUploader";
@@ -115,62 +115,70 @@ function CandidateDocuments({ user, candidateId, documents, onDocumentsUpdate })
     }
   };
 
-  // Tab configuration
+ // Tab configuration
   const tabs = [
     {
       key: "view-all",
-      label: `📁 View All ${totalFiles > 0 ? `(${totalFiles})` : ""}`,
+      label: "View All",
+      icon: "📁",
+      badge: totalFiles > 0 ? `${totalFiles}` : null,
       content: (
-        <div className="candocs-tab-content candocs-viewall-grid">
+        <div className="candocs-viewall-grid">
           <DocumentList
             groupedDocuments={groupedDocuments}
-            documentCategories={documentCategories}
-            onChangeCategory={handleChangeCategory}
             onView={handleView}
+            onChangeCategory={handleChangeCategory}
             onDelete={handleDeleteDocument}
+            documentCategories={documentCategories}
           />
         </div>
       ),
     },
     {
       key: "status-check",
-      label: `📊 Status Check ${totalFiles > 0 ? `(${checkedFiles}/${mandatoryCategories.length})` : ""}`,
+      label: "Status Check",
+      icon: "✅",
+      badge: checkedFiles > 0 ? `${checkedFiles}/${mandatoryCategories.length}` : null,
       content: (
-        <div className="candocs-tab-content candocs-checker-layout">
-          <DocumentChecker candidateDocuments={documents} />
+        <div className="candocs-checker-layout">
+          <DocumentChecker
+            documents={documents}
+            mandatoryCategories={mandatoryCategories}
+          />
         </div>
       ),
     },
     {
       key: "upload",
-      label: "📤 Upload",
+      label: "Upload",
+      icon: "📤",
       content: (
-        <div className="candocs-tab-content candocs-upload-layout">
+        <div className="candocs-upload-layout">
           <DocumentUploader
             user={user}
             candidateId={candidateId}
-            documentCategories={documentCategories}
             onUploaded={handleUploaded}
-            readFileAsBuffer={readFileAsBuffer}
+            documentCategories={documentCategories}
           />
         </div>
       ),
     },
   ];
 
+
   return (
-    <div className="candocs-root">
-      <Tabs defaultActiveTab="view-all" tabs={tabs} />
+    <div className="candidate-documents-container">
+      <UniversalTabs defaultActiveTab="view-all" tabs={tabs} />
       
       {viewerDoc && (
         <DocumentViewer
           doc={viewerDoc}
           onClose={() => setViewerDoc(null)}
-          onOpenExternal={openFileExternally}
         />
       )}
     </div>
   );
 }
+
 
 export default CandidateDocuments;

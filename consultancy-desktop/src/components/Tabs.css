@@ -1,0 +1,367 @@
+/* ===============================================
+   🎨 CUSTOM TABS - PREMIUM DARK THEME
+   =============================================== */
+
+.custom-tabs-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 0;
+}
+
+/* ===============================================
+   📑 TABS HEADER (Navigation)
+   =============================================== */
+
+.tabs-header {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  scroll-behavior: smooth;
+  position: relative;
+}
+
+/* Custom Scrollbar Styling */
+.tabs-header::-webkit-scrollbar {
+  height: 4px;
+}
+
+.tabs-header::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tabs-header::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.tabs-header::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ===============================================
+   🔘 TAB BUTTONS
+   =============================================== */
+
+.tab-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 24px;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none;
+  flex-shrink: 0;
+}
+
+/* Bottom line indicator */
+.tab-btn::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #667eea,
+    transparent
+  );
+  border-radius: 3px 3px 0 0;
+  transform: translateX(-50%);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width;
+}
+
+/* Hover State */
+.tab-btn:hover {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(102, 126, 234, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  transform: translateY(-2px);
+}
+
+.tab-btn:hover::before {
+  width: 60%;
+}
+
+/* Active State */
+.tab-btn.active {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: #667eea;
+  color: #fff;
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(102, 126, 234, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  font-weight: 600;
+}
+
+.tab-btn.active::before {
+  width: 100%;
+  box-shadow: 0 0 12px #667eea;
+  animation: shimmer-slide 2s ease-in-out infinite;
+}
+
+/* Icon Styling */
+.tab-btn > svg,
+.tab-btn > i,
+.tab-btn > span:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  line-height: 1;
+  transition: all 0.3s ease;
+}
+
+.tab-btn:hover > svg,
+.tab-btn:hover > i,
+.tab-btn:hover > span:first-child {
+  transform: scale(1.05);
+}
+
+.tab-btn.active > svg,
+.tab-btn.active > i,
+.tab-btn.active > span:first-child {
+  animation: icon-pulse 1.5s ease-in-out infinite;
+}
+
+/* Focus State (Accessibility) */
+.tab-btn:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* ===============================================
+   📄 TABS CONTENT (Body)
+   =============================================== */
+
+.tabs-content {
+  flex: 1;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 24px;
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  overflow: auto;
+  animation: contentFadeIn 0.4s ease;
+  min-height: 200px;
+}
+
+.tabs-content > p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+  padding: 40px 20px;
+}
+
+/* ===============================================
+   ✨ ANIMATIONS
+   =============================================== */
+
+@keyframes shimmer-slide {
+  0%, 100% {
+    transform: translateX(-50%) scaleX(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(-50%) scaleX(1.2);
+    opacity: 0.7;
+  }
+}
+
+@keyframes icon-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+@keyframes contentFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===============================================
+   📱 RESPONSIVE DESIGN
+   =============================================== */
+
+@media (max-width: 768px) {
+  .custom-tabs-container {
+    gap: 16px;
+  }
+
+  .tabs-header {
+    padding: 6px;
+  }
+
+  .tab-btn {
+    padding: 12px 18px;
+    font-size: 13px;
+    gap: 8px;
+  }
+
+  .tab-btn > svg,
+  .tab-btn > i,
+  .tab-btn > span:first-child {
+    font-size: 18px;
+  }
+
+  .tabs-content {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .custom-tabs-container {
+    gap: 12px;
+  }
+
+  .tabs-header {
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .tab-btn {
+    padding: 10px 14px;
+    font-size: 12px;
+    gap: 6px;
+  }
+
+  .tab-btn > svg,
+  .tab-btn > i,
+  .tab-btn > span:first-child {
+    font-size: 16px;
+  }
+
+  .tabs-content {
+    padding: 16px;
+    min-height: 150px;
+  }
+}
+
+/* ===============================================
+   ♿ ACCESSIBILITY
+   =============================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-btn,
+  .tab-btn::before,
+  .tabs-content {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .tabs-header {
+    scroll-behavior: auto;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .custom-tabs-container {
+    border: 2px solid currentColor;
+  }
+
+  .tabs-header {
+    border: 2px solid currentColor;
+  }
+
+  .tab-btn {
+    border: 2px solid currentColor;
+  }
+
+  .tab-btn.active {
+    background: #667eea;
+    color: white;
+    border-color: white;
+  }
+
+  .tabs-content {
+    border: 2px solid currentColor;
+  }
+}
+
+/* ===============================================
+   🎨 LIGHT MODE (Optional)
+   =============================================== */
+
+
+[data-theme="light"] .tabs-header {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+[data-theme="light"] .tab-btn {
+  background: rgba(241, 245, 249, 0.5);
+  border-color: rgba(0, 0, 0, 0.05);
+  color: rgba(15, 23, 42, 0.7);
+}
+
+[data-theme="light"] .tab-btn:hover {
+  background: rgba(241, 245, 249, 0.9);
+  border-color: rgba(102, 126, 234, 0.3);
+  color: rgba(15, 23, 42, 0.9);
+}
+
+[data-theme="light"] .tab-btn.active {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #667eea;
+  color: #667eea;
+  box-shadow: 
+    0 8px 24px rgba(102, 126, 234, 0.2),
+    0 0 20px rgba(102, 126, 234, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+[data-theme="light"] .tabs-content {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+[data-theme="light"] .tabs-content > p {
+  color: rgba(15, 23, 42, 0.6);
+}

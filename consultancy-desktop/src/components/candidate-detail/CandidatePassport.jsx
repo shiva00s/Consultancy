@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiDownload, FiUpload, FiClock, FiCheckCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import Tabs from "./Passport/Tabs";
+import UniversalTabs from "../common/UniversalTabs"; 
 import useAuthStore from '../../store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
 import PassportReceiveForm from './PassportReceiveForm';
@@ -109,7 +109,7 @@ function CandidatePassport({ candidateId, candidateData }) {
     fetchMovements();
   };
 
-  // Define tabs with enhanced styling
+ // Define tabs
   const tabs = [
     {
       key: 'receive',
@@ -117,27 +117,19 @@ function CandidatePassport({ candidateId, candidateData }) {
       icon: '📥',
       disabled: existingMovements.receive,
       content: existingMovements.receive ? (
-        <div className="tab-completed-state">
-          <div className="completed-icon">
-            <FiCheckCircle />
-          </div>
-          <h3>✓ Passport Received</h3>
+        <div className="movement-completed-message">
+          <FiCheckCircle size={48} color="#10b981" />
+          <h3>Completed</h3>
           <p>This passport receive entry has been completed and recorded.</p>
-          <button 
-            className="btn-view-history"
-            onClick={() => setActiveTab('history')}
-          >
-            <FiClock /> View History
-          </button>
         </div>
       ) : (
         <PassportReceiveForm
           candidateId={candidateId}
-          user={user}
+          candidateData={candidateData}
           staffList={staffList}
           onSuccess={handleMovementAdded}
         />
-      )
+      ),
     },
     {
       key: 'send',
@@ -145,81 +137,51 @@ function CandidatePassport({ candidateId, candidateData }) {
       icon: '📤',
       disabled: existingMovements.send,
       content: existingMovements.send ? (
-        <div className="tab-completed-state">
-          <div className="completed-icon">
-            <FiCheckCircle />
-          </div>
-          <h3>✓ Passport Sent</h3>
+        <div className="movement-completed-message">
+          <FiCheckCircle size={48} color="#10b981" />
+          <h3>Completed</h3>
           <p>This passport send entry has been completed and recorded.</p>
-          <button 
-            className="btn-view-history"
-            onClick={() => setActiveTab('history')}
-          >
-            <FiClock /> View History
-          </button>
         </div>
       ) : (
         <PassportSendForm
           candidateId={candidateId}
-          user={user}
+          candidateData={candidateData}
           staffList={staffList}
           onSuccess={handleMovementAdded}
         />
-      )
+      ),
     },
     {
       key: 'history',
       label: 'History',
       icon: '📜',
-      badge: movements.length > 0 ? movements.length : null,
+      badge: movements.length > 0 ? `${movements.length}` : null,
       content: (
         <PassportHistoryTimeline
           movements={movements}
-          user={user}
           onMovementDeleted={handleMovementDeleted}
         />
-      )
-    }
+      ),
+    },
   ];
 
   if (loading) {
     return (
-      <div className="passport-loading">
-        <div className="loading-spinner" />
+      <div className="passport-loading-container">
+        <FiClock size={48} className="loading-spinner" />
         <p>Loading passport tracking data...</p>
       </div>
     );
   }
 
   return (
-    <div className="candidate-passport-container">
-      
-            <div className="info-badges">
-              {candidateData?.passportNo && (
-                <span className="info-badge">
-                  🛂 {candidateData.passportNo}
-                </span>
-              )}
-              {existingMovements.receive && (
-                <span className="status-badge received">
-                  📥 Received
-                </span>
-              )}
-              {existingMovements.send && (
-                <span className="status-badge sent">
-                  📤 Sent
-                </span>
-              )}
-            
-      </div>
-
-      {/* Tabs */}
-      <Tabs
-        defaultActiveTab={activeTab}
+   
+      <UniversalTabs 
+        defaultActiveTab={activeTab} 
         tabs={tabs}
         onTabChange={setActiveTab}
       />
-    </div>
+   
   );
 }
 
