@@ -556,3 +556,18 @@
     padding: 18px;
   }
 }
+/* ===== Unified background for candidate passport area ===== */
+
+
+/* Light mode */
+body[data-theme="light"] .candidate-passport-container {
+  background: #f8fafc; /* same feel as the rest of light UI */
+}
+
+/* History strip: no extra band, just inherit */
+body[data-theme="dark"] .passport-timeline,
+body[data-theme="light"] .passport-timeline {
+  background: transparent;
+}
+
+/* Timeline cards keep their existing light/dark styles from PassportTimeline.css */

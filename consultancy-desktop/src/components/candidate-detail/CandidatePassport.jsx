@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiDownload, FiUpload, FiClock } from 'react-icons/fi';
+import { FiDownload, FiUpload, FiClock, FiCheckCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import Tabs from "./Tabs";
+import Tabs from "./Passport/Tabs";
 import useAuthStore from '../../store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
 import PassportReceiveForm from './PassportReceiveForm';
@@ -9,20 +9,16 @@ import PassportSendForm from './PassportSendForm';
 import PassportHistoryTimeline from './PassportHistoryTimeline';
 import '../../css/passport-tracking/PassportTracking.css';
 
-
 function CandidatePassport({ candidateId, candidateData }) {
   const { user } = useAuthStore(useShallow((state) => ({ user: state.user })));
   const [activeTab, setActiveTab] = useState('receive');
   const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [staffList, setStaffList] = useState([]);
-  
-  // ✅ Track which movements exist
   const [existingMovements, setExistingMovements] = useState({
     receive: false,
     send: false,
   });
-
 
   // Fetch staff list
   useEffect(() => {
@@ -30,12 +26,10 @@ function CandidatePassport({ candidateId, candidateData }) {
       try {
         if (window.electronAPI?.getUsers) {
           const result = await window.electronAPI.getUsers({ user });
-          
           if (result.success && result.data) {
             const names = result.data
               .map(u => u.fullName || u.file_name || u.name)
               .filter(Boolean);
-            
             setStaffList(names);
           } else {
             if (user?.fullName) {
@@ -53,34 +47,30 @@ function CandidatePassport({ candidateId, candidateData }) {
         }
       }
     };
-    
+
     fetchStaff();
   }, [user]);
 
-
-  // ✅ Fetch movements with movement type check
+  // Fetch movements
   const fetchMovements = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await window.electronAPI.getPassportMovements({ 
-        candidateId, 
-        user 
-      });
+      const res = await window.electronAPI.getPassportMovements({ candidateId, user });
       
       if (res.success) {
         const data = res.data || [];
         setMovements(data);
 
-
-        // ✅ Check which movements exist based on type
+        // Check which movements exist
         const hasReceive = data.some((m) => m.type === 'RECEIVE');
         const hasSend = data.some((m) => m.type === 'SEND');
+        
+        setExistingMovements({
+          receive: hasReceive,
+          send: hasSend
+        });
 
-
-        setExistingMovements({ receive: hasReceive, send: hasSend });
-
-
-        // Auto-select available tab
+        // Auto-select appropriate tab
         if (hasReceive && !hasSend) {
           setActiveTab('send');
         } else if (!hasReceive && hasSend) {
@@ -102,146 +92,135 @@ function CandidatePassport({ candidateId, candidateData }) {
     }
   }, [candidateId, user]);
 
-
   useEffect(() => {
     fetchMovements();
   }, [fetchMovements]);
 
-
-  // ✅ Handle tab click with disabled check
-  const handleTabClick = (tab) => {
-    // History is always clickable
-    if (tab === 'history') {
-      setActiveTab(tab);
-      return;
-    }
-
-
-    // Don't allow clicking disabled tabs
-    if (tab === 'receive' && existingMovements.receive) return;
-    if (tab === 'send' && existingMovements.send) return;
-
-
-    setActiveTab(tab);
-  };
-
-
-  // ✅ Handle successful form submission
+  // Handle successful form submission
   const handleMovementAdded = (newMovement) => {
-    toast.success('Movement recorded successfully');
-    
-    // Refresh movements list
+    toast.success('✅ Movement recorded successfully');
     setTimeout(() => {
       fetchMovements();
     }, 300);
   };
 
-
-  // ✅ Handle movement deletion (called from timeline)
+  // Handle movement deletion
   const handleMovementDeleted = () => {
-    // Refresh the movements list after deletion
     fetchMovements();
   };
 
+  // Define tabs with enhanced styling
+  const tabs = [
+    {
+      key: 'receive',
+      label: 'Receive Passport',
+      icon: '📥',
+      disabled: existingMovements.receive,
+      content: existingMovements.receive ? (
+        <div className="tab-completed-state">
+          <div className="completed-icon">
+            <FiCheckCircle />
+          </div>
+          <h3>✓ Passport Received</h3>
+          <p>This passport receive entry has been completed and recorded.</p>
+          <button 
+            className="btn-view-history"
+            onClick={() => setActiveTab('history')}
+          >
+            <FiClock /> View History
+          </button>
+        </div>
+      ) : (
+        <PassportReceiveForm
+          candidateId={candidateId}
+          user={user}
+          staffList={staffList}
+          onSuccess={handleMovementAdded}
+        />
+      )
+    },
+    {
+      key: 'send',
+      label: 'Send Passport',
+      icon: '📤',
+      disabled: existingMovements.send,
+      content: existingMovements.send ? (
+        <div className="tab-completed-state">
+          <div className="completed-icon">
+            <FiCheckCircle />
+          </div>
+          <h3>✓ Passport Sent</h3>
+          <p>This passport send entry has been completed and recorded.</p>
+          <button 
+            className="btn-view-history"
+            onClick={() => setActiveTab('history')}
+          >
+            <FiClock /> View History
+          </button>
+        </div>
+      ) : (
+        <PassportSendForm
+          candidateId={candidateId}
+          user={user}
+          staffList={staffList}
+          onSuccess={handleMovementAdded}
+        />
+      )
+    },
+    {
+      key: 'history',
+      label: 'History',
+      icon: '📜',
+      badge: movements.length > 0 ? movements.length : null,
+      content: (
+        <PassportHistoryTimeline
+          movements={movements}
+          user={user}
+          onMovementDeleted={handleMovementDeleted}
+        />
+      )
+    }
+  ];
 
   if (loading) {
     return (
-      <div style={{ 
-        padding: '2rem', 
-        textAlign: 'center', 
-        color: 'rgba(255, 255, 255, 0.7)' 
-      }}>
-        Loading passport movements...
+      <div className="passport-loading">
+        <div className="loading-spinner" />
+        <p>Loading passport tracking data...</p>
       </div>
     );
   }
 
-
   return (
-    <div className="passport-tracking-content">
+    <div className="candidate-passport-container">
+      
+            <div className="info-badges">
+              {candidateData?.passportNo && (
+                <span className="info-badge">
+                  🛂 {candidateData.passportNo}
+                </span>
+              )}
+              {existingMovements.receive && (
+                <span className="status-badge received">
+                  📥 Received
+                </span>
+              )}
+              {existingMovements.send && (
+                <span className="status-badge sent">
+                  📤 Sent
+                </span>
+              )}
+            
+      </div>
+
       {/* Tabs */}
-      <div className="passport-tabs">
-        <button 
-          className={`tab-btn ${activeTab === 'receive' ? 'active' : ''}`}
-          onClick={() => handleTabClick('receive')}
-          disabled={existingMovements.receive}
-        >
-          <FiDownload />
-          Receive
-          {existingMovements.receive && <span className="badge-completed">✓</span>}
-        </button>
-        
-        <button 
-          className={`tab-btn ${activeTab === 'send' ? 'active' : ''}`}
-          onClick={() => handleTabClick('send')}
-          disabled={existingMovements.send}
-        >
-          <FiUpload />
-          Send
-          {existingMovements.send && <span className="badge-completed">✓</span>}
-        </button>
-        
-        <button 
-          className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => handleTabClick('history')}
-        >
-          <FiClock />
-          History
-          {movements.length > 0 && (
-            <span className="badge">{movements.length}</span>
-          )}
-        </button>
-      </div>
-
-
-      {/* Tab Content */}
-      <div className="tab-content">
-        {/* Receive Form */}
-        {activeTab === 'receive' && !existingMovements.receive && (
-          <PassportReceiveForm
-            candidateId={candidateId}
-            user={user}
-            staffList={staffList}
-            onSuccess={handleMovementAdded}
-          />
-        )}
-
-
-        {/* Send Form */}
-        {activeTab === 'send' && !existingMovements.send && (
-          <PassportSendForm
-            candidateId={candidateId}
-            user={user}
-            staffList={staffList}
-            onSuccess={handleMovementAdded}
-          />
-        )}
-
-
-        {/* History Timeline */}
-        {activeTab === 'history' && (
-          <PassportHistoryTimeline
-            movements={movements}
-            user={user}
-            onMovementDeleted={handleMovementDeleted}
-          />
-        )}
-
-
-        {/* Show message if tab is already completed */}
-        {((activeTab === 'receive' && existingMovements.receive) ||
-          (activeTab === 'send' && existingMovements.send)) && (
-          <div className="message-already-exists">
-            <p className="text-lg">✓ Entry Already Recorded</p>
-            <p className="text-sm">
-              This passport {activeTab} entry has been completed.
-            </p>
-          </div>
-        )}
-      </div>
+      <Tabs
+        defaultActiveTab={activeTab}
+        tabs={tabs}
+        onTabChange={setActiveTab}
+      />
     </div>
   );
 }
-
 
 export default CandidatePassport;

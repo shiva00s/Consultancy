@@ -130,3 +130,46 @@
   transition: transform 0.2s ease;
 }
 
+/* HARD OVERRIDE: make tabs bar same as page background in dark mode */
+body[data-theme="dark"] .tabs-header {
+  background: #020617 !important;   /* or #111827 to match your layout */
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Make inner row transparent too */
+body[data-theme="dark"] .tabs-inner {
+  background: transparent !important;
+}
+
+/* Active tab: only soft border, no extra background strip */
+body[data-theme="dark"] .tab-btn {
+  background: transparent !important;
+}
+
+body[data-theme="dark"] .tab-btn.active {
+  background: #111827 !important;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+}
+
+/* Content panel also without blue */
+body[data-theme="dark"] .tabs-content {
+  background: #020617 !important;
+  border-color: rgba(30, 41, 59, 0.9);
+}
+/* Dark mode – align history background with page background */
+body[data-theme="dark"] .candidate-passport-container {
+  background: #020617; /* or #0b1120 if you prefer slightly lighter */
+}
+
+/* History area wrapper (the grey band behind the cards) */
+body[data-theme="dark"] .passport-timeline {
+  background: transparent;       /* remove extra lighter band */
+}
+
+/* Each history card stays on a darker glass surface */
+body[data-theme="dark"] .timeline-card {
+  background: rgba(15, 23, 42, 0.96);
+  border-color: rgba(15, 23, 42, 0.9);
+}

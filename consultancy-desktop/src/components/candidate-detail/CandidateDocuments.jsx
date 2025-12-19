@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import "../../css/CandidateDocuments.css";
-import Tabs from "./Tabs";
+import Tabs from "./Document/Tabs";
 import DocumentChecker from "./DocumentChecker";
 import DocumentList from "../DocumentList";
 import DocumentUploader from "../DocumentUploader";

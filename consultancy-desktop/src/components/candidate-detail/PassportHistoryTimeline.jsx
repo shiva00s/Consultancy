@@ -1,25 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  FiPackage, FiMapPin, FiUser, FiCalendar, 
-  FiTruck, FiFileText, FiImage, FiX, FiChevronDown,
-  FiChevronUp, FiPhone, FiClock, FiTrash2 
+  FiPackage, FiMapPin, FiUser, FiCalendar, FiTruck, FiFileText, 
+  FiImage, FiX, FiChevronDown, FiChevronUp, FiPhone, FiClock, 
+  FiTrash2, FiDownload, FiZoomIn, FiMaximize2, FiMinimize2 ,FiUserCheck 
 } from 'react-icons/fi';
 import PassportPhotoGallery from './PassportPhotoGallery';
-import ConfirmDialog from '../../components/ConfirmDialog'; 
+import ConfirmDialog from '../../components/ConfirmDialog';
 import '../../css/passport-tracking/PassportTimeline.css';
 import toast from 'react-hot-toast';
-
 
 function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
   const [expandedMovement, setExpandedMovement] = useState(null);
   const [photoGalleryMovement, setPhotoGalleryMovement] = useState(null);
   const [movementPreviews, setMovementPreviews] = useState({});
   const [deletingId, setDeletingId] = useState(null);
-
-  const [deleteDialog, setDeleteDialog] = useState({
-    open: false,
-    movementId: null
-  });
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, movementId: null });
+  const [lightboxImage, setLightboxImage] = useState(null);
+  const [lightboxImages, setLightboxImages] = useState([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // Fetch photo previews for all movements
   useEffect(() => {
@@ -33,10 +31,15 @@ function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
           });
           
           if (res.success && res.data && res.data.length > 0) {
-            const firstPhoto = res.data[0];
-            // ✅ FIX: Add data URL prefix with MIME type
+            // Store all photos for this movement
             previews[movement.id] = {
-              dataUrl: `data:${firstPhoto.file_type};base64,${firstPhoto.file_data}`,
+              photos: res.data.map(photo => ({
+                id: photo.id,
+                dataUrl: `data:${photo.file_type};base64,${photo.file_data}`,
+                fileName: photo.file_name,
+                fileType: photo.file_type,
+                uploadedAt: photo.uploaded_at
+              })),
               totalCount: res.data.length
             };
           }
@@ -63,7 +66,6 @@ function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
     });
   };
 
-  // Time formatting
   const formatTime = (dateString) => {
     if (!dateString) return 'Invalid Time';
     const date = new Date(dateString);
@@ -79,27 +81,21 @@ function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
     setExpandedMovement(expandedMovement === movementId ? null : movementId);
   };
 
-  // ✅ OPEN DELETE DIALOG
   const handleDeleteClick = (movementId) => {
-    setDeleteDialog({
-      open: true,
-      movementId
-    });
+    setDeleteDialog({ open: true, movementId });
   };
 
-  // ✅ CONFIRM DELETE
   const handleDeleteConfirm = async () => {
     const movementId = deleteDialog.movementId;
     setDeleteDialog({ open: false, movementId: null });
     setDeletingId(movementId);
 
     try {
-      // ✅ FIX: Pass 'id' instead of 'movementId'
-      const res = await window.electronAPI.deletePassportMovement({ 
-        id: movementId,  // ⬅️ Changed from 'movementId' to 'id'
-        user 
+      const res = await window.electronAPI.deletePassportMovement({
+        id: movementId,
+        user
       });
-      
+
       if (res.success) {
         toast.success('Movement deleted successfully');
         if (onMovementDeleted) onMovementDeleted();
@@ -114,231 +110,261 @@ function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
     }
   };
 
-  // ✅ CANCEL DELETE
   const handleDeleteCancel = () => {
     setDeleteDialog({ open: false, movementId: null });
   };
 
+  // ✨ NEW: Open lightbox with all images
+  const openLightbox = (movementId, imageIndex = 0) => {
+    const preview = movementPreviews[movementId];
+    if (preview && preview.photos) {
+      setLightboxImages(preview.photos);
+      setCurrentImageIndex(imageIndex);
+      setLightboxImage(preview.photos[imageIndex].dataUrl);
+    }
+  };
+
+  // ✨ NEW: Navigate lightbox
+  const navigateLightbox = (direction) => {
+    const newIndex = direction === 'next' 
+      ? (currentImageIndex + 1) % lightboxImages.length
+      : (currentImageIndex - 1 + lightboxImages.length) % lightboxImages.length;
+    
+    setCurrentImageIndex(newIndex);
+    setLightboxImage(lightboxImages[newIndex].dataUrl);
+  };
+
+  // ✨ NEW: Download image
+  const downloadImage = (dataUrl, fileName) => {
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = fileName || 'passport-image.jpg';
+    link.click();
+    toast.success('Image downloaded');
+  };
+
+  // ✨ NEW: Close lightbox
+  const closeLightbox = () => {
+    setLightboxImage(null);
+    setLightboxImages([]);
+    setCurrentImageIndex(0);
+  };
+
   if (!movements || movements.length === 0) {
     return (
-      <div className="no-movements">
-        <FiPackage size={48} />
-        <p>No passport movements recorded yet</p>
+      <div className="passport-timeline-empty">
+        <div className="empty-icon">📋</div>
+        <h3>No passport movements recorded yet</h3>
+        <p>Start by recording a passport receive or send entry</p>
       </div>
     );
   }
 
   return (
-    <div className="passport-timeline-container">
-      {/* ✅ Custom Confirm Dialog */}
-      <ConfirmDialog
-        open={deleteDialog.open}
-        title="Delete Passport Movement"
-        message="Are you sure you want to delete this passport movement? This action cannot be undone."
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
-        onConfirm={handleDeleteConfirm}
-        onCancel={handleDeleteCancel}
-      />
-
-      <div className="timeline-roadmap">
+    <>
+      <div className="passport-timeline">
         {movements.map((movement, index) => {
-          const isReceive = movement.type === 'RECEIVE';
           const isExpanded = expandedMovement === movement.id;
           const preview = movementPreviews[movement.id];
+          const isDeleting = deletingId === movement.id;
 
           return (
-            <div key={movement.id} className="timeline-milestone">
-              {/* Connection Line */}
-              {index < movements.length - 1 && (
-                <div className="timeline-connector"></div>
-              )}
-
-              {/* Milestone Marker */}
-              <div className={`milestone-marker ${isReceive ? 'receive' : 'send'}`}>
-                {isReceive ? (
-                  <FiPackage className="marker-icon" />
-                ) : (
-                  <FiMapPin className="marker-icon" />
-                )}
+            <div 
+              key={movement.id} 
+              className={`timeline-item ${movement.type.toLowerCase()} ${isDeleting ? 'deleting' : ''}`}
+              style={{ animationDelay: `${index * 0.05}s` }}
+            >
+              {/* Timeline connector */}
+              <div className="timeline-connector">
+                <div className="timeline-dot">
+                  {movement.type === 'RECEIVE' ? '📥' : '📤'}
+                </div>
+                {index < movements.length - 1 && <div className="timeline-line" />}
               </div>
 
-              {/* Milestone Card */}
-              <div className={`milestone-card ${isReceive ? 'receive' : 'send'}`}>
-                {/* Card Header */}
-                <div className="card-header">
+              {/* Movement card */}
+              <div className="timeline-card glass-card">
+                {/* Header */}
+                <div className="timeline-header">
                   <div className="header-left">
-                    <span className={`action-badge ${isReceive ? 'receive' : 'send'}`}>
-                      {isReceive ? '📥 RECEIVED' : '📤 SENT'}
+                    <span className={`movement-badge ${movement.type.toLowerCase()}`}>
+                      {movement.type === 'RECEIVE' ? '📥 Received' : '📤 Sent'}
                     </span>
-                    <span className="date-badge">
-                      <FiCalendar /> {formatDate(movement.date)}
-                    </span>
-                    <span className="time-badge">
-                      <FiClock /> {formatTime(movement.created_at)}
-                    </span>
+                    <div className="header-info">
+                      <FiCalendar className="icon" />
+                      <span className="date">{formatDate(movement.date)}</span>
+                      <FiClock className="icon" />
+                      <span className="time">{formatTime(movement.created_at)}</span>
+                    </div>
                   </div>
-
-                  {/* ✅ Action Buttons Group */}
+                  
                   <div className="header-actions">
-                    {/* Delete Button */}
+                    {preview && preview.totalCount > 0 && (
+                      <button 
+                        className="btn-icon photo-indicator"
+                        onClick={() => openLightbox(movement.id, 0)}
+                        title={`${preview.totalCount} photo(s)`}
+                      >
+                        <FiImage />
+                        <span className="photo-count">{preview.totalCount}</span>
+                      </button>
+                    )}
+                    
                     <button
-                      onClick={() => handleDeleteClick(movement.id)}
-                      className="delete-btn"
-                      disabled={deletingId === movement.id}
-                      title="Delete Movement"
-                    >
-                      {deletingId === movement.id ? (
-                        <span style={{ fontSize: '0.8rem' }}>...</span>
-                      ) : (
-                        <FiTrash2 />
-                      )}
-                    </button>
-
-                    {/* Expand Button */}
-                    <button
+                      className="btn-icon btn-expand"
                       onClick={() => toggleExpand(movement.id)}
-                      className="expand-btn"
-                      title={isExpanded ? 'Collapse' : 'Expand Details'}
+                      title={isExpanded ? 'Collapse' : 'Expand'}
                     >
                       {isExpanded ? <FiChevronUp /> : <FiChevronDown />}
                     </button>
+                    
+                    <button
+                      className="btn-icon btn-delete"
+                      onClick={() => handleDeleteClick(movement.id)}
+                      title="Delete movement"
+                      disabled={isDeleting}
+                    >
+                      <FiTrash2 />
+                    </button>
                   </div>
                 </div>
 
-                {/* Photo Preview Section */}
-                {preview ? (
-                  <div 
-                    className="movement-photo-preview"
-                    onClick={() => setPhotoGalleryMovement(movement.id)}
-                  >
-                    <img 
-                      src={preview.dataUrl}
-                      alt="Passport preview"
-                      className="preview-image"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.parentElement.innerHTML = `
-                          <div class="movement-photo-empty">
-                            <svg class="empty-photo-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                              <circle cx="8.5" cy="8.5" r="1.5"/>
-                              <polyline points="21 15 16 10 5 21"/>
-                            </svg>
-                            <span>Failed to load image</span>
-                          </div>
-                        `;
-                      }}
-                    />
-                    <div className="photo-preview-overlay">
-                      <FiImage className="overlay-icon" />
-                      <span className="photo-count">
-                        {preview.totalCount} {preview.totalCount === 1 ? 'Photo' : 'Photos'}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="movement-photo-empty">
-                    <FiImage className="empty-photo-icon" />
-                    <span>No photos attached</span>
-                  </div>
-                )}
-
-                {/* Card Body - Quick Info */}
-                <div className="card-quick-info">
-                  <div className="info-grid">
-                    {/* WHO */}
-                    <div className="info-item">
-                      <span className="info-label">
-                        <FiUser /> {isReceive ? 'From' : 'To'}
-                      </span>
-                      <span className="info-value">
-                        {isReceive 
-                          ? movement.received_from 
-                          : (movement.send_to_name || movement.send_to)}
-                      </span>
-                    </div>
-
-                    {/* HOW */}
-                    <div className="info-item">
-                      <span className="info-label">
-                        <FiTruck /> Method
-                      </span>
-                      <span className="info-value">
-                        {movement.method === 'By Hand' ? '✋ By Hand' : '🚚 By Courier'}
-                      </span>
-                    </div>
-
-                    {/* BY WHOM */}
-                    <div className="info-item">
-                      <span className="info-label">
-                        <FiUser /> {isReceive ? 'Received By' : 'Sent By'}
-                      </span>
-                      <span className="info-value">
-                        {isReceive ? movement.received_by : movement.sent_by}
-                      </span>
-                    </div>
-
-                    {/* PHOTOS BUTTON */}
-                    {preview && (
+                {/* Quick info */}
+                <div className="timeline-quick-info">
+                  {movement.type === 'RECEIVE' ? (
+                    <>
                       <div className="info-item">
-                        <button
-                          onClick={() => setPhotoGalleryMovement(movement.id)}
-                          className="view-photos-btn"
-                        >
-                          <FiImage /> View All Photos
-                        </button>
+                        <FiUser className="icon" />
+                        <span>From: <strong>{movement.received_from}</strong></span>
+                      </div>
+                      <div className="info-item">
+                        <FiUserCheck className="icon" />
+                        <span>By: <strong>{movement.received_by}</strong></span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="info-item">
+                        <FiMapPin className="icon" />
+                        <span>To: <strong>{movement.send_to}</strong></span>
+                      </div>
+                      {movement.send_to_name && (
+                        <div className="info-item">
+                          <FiUser className="icon" />
+                          <span>Name: <strong>{movement.send_to_name}</strong></span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  
+                  <div className="info-item">
+                    <FiTruck className="icon" />
+                    <span>Method: <strong>{movement.method}</strong></span>
+                  </div>
+
+                  {movement.courier_number && (
+                    <div className="info-item">
+                      <FiPackage className="icon" />
+                      <span>Tracking: <strong>{movement.courier_number}</strong></span>
+                    </div>
+                  )}
+                </div>
+
+                {/* ✨ NEW: Photo thumbnails grid */}
+                {preview && preview.photos && preview.photos.length > 0 && (
+                  <div className="timeline-photos-grid">
+                    {preview.photos.slice(0, 4).map((photo, idx) => (
+                      <div 
+                        key={photo.id} 
+                        className="photo-thumbnail"
+                        onClick={() => openLightbox(movement.id, idx)}
+                      >
+                        <img src={photo.dataUrl} alt={photo.fileName} />
+                        <div className="photo-overlay">
+                          <FiZoomIn />
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {preview.photos.length > 4 && (
+                      <div 
+                        className="photo-thumbnail more-photos"
+                        onClick={() => openLightbox(movement.id, 4)}
+                      >
+                        <span>+{preview.photos.length - 4}</span>
+                        <div className="photo-overlay">
+                          <FiImage />
+                        </div>
                       </div>
                     )}
                   </div>
-                </div>
+                )}
 
-                {/* Expanded Details */}
+                {/* Expanded details */}
                 {isExpanded && (
-                  <div className="card-expanded-details">
+                  <div className="timeline-details">
                     <div className="details-grid">
-                      {/* Courier Number */}
+                      {movement.type === 'RECEIVE' ? (
+                        <>
+                          <div className="detail-item">
+                            <label>Received From</label>
+                            <value>{movement.received_from || 'N/A'}</value>
+                          </div>
+                          <div className="detail-item">
+                            <label>Received By</label>
+                            <value>{movement.received_by || 'N/A'}</value>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="detail-item">
+                            <label>Sent To</label>
+                            <value>{movement.send_to || 'N/A'}</value>
+                          </div>
+                          <div className="detail-item">
+                            <label>Contact Person</label>
+                            <value>{movement.send_to_name || 'N/A'}</value>
+                          </div>
+                          <div className="detail-item">
+                            <label>Contact Number</label>
+                            <value>{movement.send_to_contact || 'N/A'}</value>
+                          </div>
+                          <div className="detail-item">
+                            <label>Sent By</label>
+                            <value>{movement.sent_by || 'N/A'}</value>
+                          </div>
+                        </>
+                      )}
+                      
+                      <div className="detail-item">
+                        <label>Delivery Method</label>
+                        <value>{movement.method || 'N/A'}</value>
+                      </div>
+                      
                       {movement.courier_number && (
-                        <div className="detail-row">
-                          <span className="detail-label">
-                            <FiTruck /> Courier Number
-                          </span>
-                          <span className="detail-value">{movement.courier_number}</span>
+                        <div className="detail-item">
+                          <label>Courier/Tracking Number</label>
+                          <value>{movement.courier_number}</value>
                         </div>
                       )}
-
-                      {/* Contact (for SEND only) */}
-                      {!isReceive && movement.send_to_contact && (
-                        <div className="detail-row">
-                          <span className="detail-label">
-                            <FiPhone /> Contact Number
-                          </span>
-                          <span className="detail-value">{movement.send_to_contact}</span>
-                        </div>
-                      )}
-
-                      {/* Notes */}
-                      {movement.notes && (
-                        <div className="detail-row full-width">
-                          <span className="detail-label">
-                            <FiFileText /> Notes
-                          </span>
-                          <p className="detail-value notes">{movement.notes}</p>
-                        </div>
-                      )}
-
-                      {/* Metadata */}
-                      <div className="metadata-row">
-                        <span className="metadata-item">
-                          📅 Recorded: {formatDate(movement.created_at)} at {formatTime(movement.created_at)}
-                        </span>
-                        {movement.created_by && (
-                          <span className="metadata-item">
-                            👤 By: {movement.created_by}
-                          </span>
-                        )}
+                      
+                      <div className="detail-item">
+                        <label>Date</label>
+                        <value>{formatDate(movement.date)}</value>
+                      </div>
+                      
+                      <div className="detail-item">
+                        <label>Recorded By</label>
+                        <value>{movement.created_by || 'Unknown'}</value>
                       </div>
                     </div>
+
+                    {movement.notes && (
+                      <div className="detail-notes">
+                        <label><FiFileText /> Notes</label>
+                        <p>{movement.notes}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -347,25 +373,101 @@ function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
         })}
       </div>
 
-      {/* Photo Gallery Modal */}
-      {photoGalleryMovement && (
-        <div className="photo-gallery-modal">
-          <div className="modal-overlay" onClick={() => setPhotoGalleryMovement(null)}></div>
-          <div className="modal-content">
-            <button
-              onClick={() => setPhotoGalleryMovement(null)}
-              className="modal-close-btn"
-            >
+      {/* ✨ NEW: Lightbox Modal */}
+      {lightboxImage && (
+        <div className="lightbox-modal" onClick={closeLightbox}>
+          <div className="lightbox-overlay" />
+          
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            {/* Close button */}
+            <button className="lightbox-close" onClick={closeLightbox}>
               <FiX />
             </button>
-            <PassportPhotoGallery 
-              movementId={photoGalleryMovement} 
-              user={user}
-            />
+
+            {/* Image info */}
+            <div className="lightbox-header">
+              <div className="image-info">
+                <span className="image-counter">
+                  {currentImageIndex + 1} / {lightboxImages.length}
+                </span>
+                <span className="image-name">
+                  {lightboxImages[currentImageIndex]?.fileName}
+                </span>
+              </div>
+              
+              <button 
+                className="btn-download"
+                onClick={() => downloadImage(
+                  lightboxImages[currentImageIndex].dataUrl,
+                  lightboxImages[currentImageIndex].fileName
+                )}
+              >
+                <FiDownload /> Download
+              </button>
+            </div>
+
+            {/* Main image */}
+            <div className="lightbox-image-container">
+              <img 
+                src={lightboxImage} 
+                alt="Preview" 
+                className="lightbox-image"
+              />
+            </div>
+
+            {/* Navigation */}
+            {lightboxImages.length > 1 && (
+              <>
+                <button 
+                  className="lightbox-nav lightbox-prev"
+                  onClick={() => navigateLightbox('prev')}
+                >
+                  ‹
+                </button>
+                <button 
+                  className="lightbox-nav lightbox-next"
+                  onClick={() => navigateLightbox('next')}
+                >
+                  ›
+                </button>
+              </>
+            )}
+
+            {/* Thumbnails */}
+            {lightboxImages.length > 1 && (
+              <div className="lightbox-thumbnails">
+                {lightboxImages.map((img, idx) => (
+                  <div
+                    key={img.id}
+                    className={`lightbox-thumb ${idx === currentImageIndex ? 'active' : ''}`}
+                    onClick={() => {
+                      setCurrentImageIndex(idx);
+                      setLightboxImage(img.dataUrl);
+                    }}
+                  >
+                    <img src={img.dataUrl} alt={`Thumbnail ${idx + 1}`} />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
-    </div>
+
+      {/* Delete confirmation dialog */}
+      {deleteDialog.open && (
+        <ConfirmDialog
+          isOpen={deleteDialog.open}
+          title="Delete Movement?"
+          message="This will move the passport movement to the recycle bin. You can restore it later if needed."
+          onConfirm={handleDeleteConfirm}
+          onCancel={handleDeleteCancel}
+          confirmText="Delete"
+          cancelText="Cancel"
+          type="danger"
+        />
+      )}
+    </>
   );
 }
 
