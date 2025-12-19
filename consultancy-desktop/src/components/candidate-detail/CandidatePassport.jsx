@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiDownload, FiUpload, FiClock } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import Tabs from "./Tabs";
 import useAuthStore from '../../store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
 import PassportReceiveForm from './PassportReceiveForm';
