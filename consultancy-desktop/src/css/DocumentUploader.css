@@ -543,3 +543,62 @@
     justify-content: center;
   }
 }
+/* FILE LIST WITH DELETE BUTTONS */
+.du-files-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  transition: all 0.2s ease;
+}
+
+.du-files-list li:hover {
+  background: rgba(15, 23, 42, 0.9);
+  transform: translateX(2px);
+}
+
+.du-file-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+
+.du-file-name {
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.du-file-size {
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+/* INDIVIDUAL DELETE BUTTON */
+.du-file-delete-btn {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: #ef4444;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.du-file-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  transform: scale(1.05);
+}
+
+.du-file-delete-btn:active {
+  transform: scale(0.95);
+}

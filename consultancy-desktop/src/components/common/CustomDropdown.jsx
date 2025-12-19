@@ -3,15 +3,13 @@ import ReactDOM from 'react-dom';
 import { FiChevronDown } from 'react-icons/fi';
 import './CustomDropdown.css';
 
-function CustomDropdown({
-  value,
-  onChange,
-  options = [],
+function CustomDropdown({ 
+  value, 
+  onChange, 
+  options = [], 
   placeholder = "Select or type...",
   name,
-  allowCustom = true,
-  disabled = false,
-  emptyMessage = "No options available"
+  allowCustom = true 
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,19 +17,12 @@ function CustomDropdown({
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Support both string arrays and object arrays with {value, label}
-  const normalizedOptions = options.map(opt => {
-    if (typeof opt === 'string') {
-      return { value: opt, label: opt };
-    }
-    return opt; // Already an object with value & label
-  });
-
-  const filteredOptions = normalizedOptions.filter(opt =>
-    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+  // ✅ Filter options based on search term
+  const filteredOptions = options.filter(opt =>
+    opt.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Calculate dropdown position
+  // ✅ Calculate dropdown position dynamically
   useEffect(() => {
     if (isOpen && inputRef.current) {
       const rect = inputRef.current.getBoundingClientRect();
@@ -43,14 +34,11 @@ function CustomDropdown({
     }
   }, [isOpen]);
 
+  // ✅ Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target) &&
-        inputRef.current &&
-        !inputRef.current.contains(event.target)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
+          inputRef.current && !inputRef.current.contains(event.target)) {
         setIsOpen(false);
         setSearchTerm('');
       }
@@ -60,87 +48,88 @@ function CustomDropdown({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelect = (optionValue) => {
-    onChange({ target: { name, value: optionValue } });
+  // ✅ Handle option selection
+  const handleSelect = (option) => {
+    onChange({ target: { name, value: option } });
     setIsOpen(false);
     setSearchTerm('');
   };
 
+  // ✅ Handle manual input changes
   const handleInputChange = (e) => {
     const newValue = e.target.value;
     setSearchTerm(newValue);
     setIsOpen(true);
-
+    
     if (allowCustom) {
       onChange({ target: { name, value: newValue } });
     }
   };
 
+  // ✅ Open dropdown on input click
   const handleInputClick = () => {
-    if (!disabled) {
-      setIsOpen(true);
-    }
+    setIsOpen(true);
   };
 
-  // Find the display label for the current value
-  const getDisplayValue = () => {
-    if (isOpen) return searchTerm;
-    if (!value) return '';
-    
-    const selectedOption = normalizedOptions.find(opt => opt.value === value || opt.value === String(value));
-    return selectedOption ? selectedOption.label : value;
-  };
+  // ✅ Display value logic: show search term while typing, otherwise show selected value
+  const displayValue = isOpen ? searchTerm : value;
 
-  const displayValue = getDisplayValue();
-
-  // Dropdown menu component
+  // ✅ Dropdown menu component
   const dropdownMenu = isOpen && (
-    <div
+    <div 
       ref={dropdownRef}
-      className="custom-dropdown-menu"
+      className="custom-dropdown-menu-portal"
       style={{
         position: 'absolute',
         top: `${dropdownPosition.top}px`,
         left: `${dropdownPosition.left}px`,
         width: `${dropdownPosition.width}px`,
-        zIndex: 10000,
+        zIndex: 99999,
       }}
     >
-      {filteredOptions.length === 0 ? (
-        <div className="custom-dropdown-empty">{emptyMessage}</div>
-      ) : (
-        filteredOptions.map((opt, index) => (
+      {filteredOptions.length > 0 ? (
+        filteredOptions.map((option, idx) => (
           <div
-            key={index}
-            className="custom-dropdown-option"
-            onClick={() => handleSelect(opt.value)}
+            key={idx}
+            className={`custom-dropdown-item ${value === option ? 'selected' : ''}`}
+            onClick={() => handleSelect(option)}
           >
-            {opt.label}
+            {option}
           </div>
         ))
+      ) : (
+        <div className="custom-dropdown-empty">
+          {allowCustom && searchTerm ? (
+            <span>Type to add "{searchTerm}"</span>
+          ) : (
+            <span>No options found</span>
+          )}
+        </div>
       )}
     </div>
   );
 
   return (
-    <div className="custom-dropdown-container">
+    <div className="custom-dropdown">
       <div className="custom-dropdown-input-wrapper">
         <input
           ref={inputRef}
           type="text"
+          className="custom-dropdown-input"
           value={displayValue}
           onChange={handleInputChange}
           onClick={handleInputClick}
           placeholder={placeholder}
-          disabled={disabled}
-          className="custom-dropdown-input"
+          autoComplete="off"
         />
-        <FiChevronDown
-          className={`custom-dropdown-icon ${isOpen ? 'rotate' : ''}`}
-          onClick={handleInputClick}
+        <FiChevronDown 
+          className={`custom-dropdown-arrow ${isOpen ? 'open' : ''}`}
+          onClick={() => setIsOpen(!isOpen)}
         />
       </div>
-      {ReactDOM.createPortal(dropdownMenu, document.body)}
+
+      {/* ✅ Render dropdown menu in document body using portal */}
+      {dropdownMenu && ReactDOM.createPortal(dropdownMenu, document.body)}
     </div>
   );
 }

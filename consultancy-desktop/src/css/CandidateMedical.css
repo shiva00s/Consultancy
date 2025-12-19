@@ -1,6 +1,6 @@
 /* ============================================
    CANDIDATE MEDICAL STYLES
-   Premium Modern Design with Enhanced Visuals
+   Premium Modern Design with Inline Edit
    ============================================ */
 
 .medical-tracking-content {
@@ -33,6 +33,15 @@
   animation: slideInUp 0.4s ease-out forwards;
 }
 
+/* Editing Mode */
+.medical-item.editing-mode {
+  flex-direction: column;
+  align-items: stretch;
+  background: var(--bg-input);
+  border-color: #4CAF50;
+  box-shadow: 0 6px 24px rgba(76, 175, 80, 0.2);
+}
+
 .medical-item:nth-child(1) { animation-delay: 0.05s; }
 .medical-item:nth-child(2) { animation-delay: 0.1s; }
 .medical-item:nth-child(3) { animation-delay: 0.15s; }
@@ -47,16 +56,17 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    #4CAF50 50%, 
+  background: linear-gradient(90deg,
+    transparent 0%,
+    #4CAF50 50%,
     transparent 100%
   );
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
-.medical-item:hover::before {
+.medical-item:hover::before,
+.medical-item.editing-mode::before {
   opacity: 1;
 }
 
@@ -65,6 +75,10 @@
   border-color: #4CAF50;
   box-shadow: 0 6px 24px rgba(76, 175, 80, 0.15);
   transform: translateY(-4px);
+}
+
+.medical-item.editing-mode:hover {
+  transform: none;
 }
 
 /* Medical Icon - Enhanced with gradient */
@@ -123,6 +137,17 @@
   color: var(--text-secondary);
   margin: 0.3rem 0;
   line-height: 1.5;
+}
+
+.medical-item .item-details .file-link {
+  color: #4CAF50;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.medical-item .item-details .file-link:hover {
+  color: #388E3C;
 }
 
 .medical-item .item-details small {
@@ -241,9 +266,155 @@
   background: linear-gradient(135deg, var(--danger-color), #d32f2f);
 }
 
+/* ============================================
+   INLINE EDIT STYLES - Premium Design
+   ============================================ */
+
+.inline-edit-container {
+  width: 100%;
+  animation: expandEdit 0.3s ease-out;
+}
+
+@keyframes expandEdit {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.edit-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.edit-field-full {
+  grid-column: 1 / -1;
+}
+
+.edit-field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.edit-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.edit-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+  background: var(--bg-input);
+}
+
+.edit-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+textarea.edit-input {
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+}
+
+/* Custom File Input for Inline Edit */
+.file-input-label-small {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: none;
+}
+
+.file-input-label-small:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+/* Edit Actions */
+.edit-actions {
+  display: flex;
+  gap: 0.8rem;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.btn-save,
+.btn-cancel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-save {
+  background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.btn-save:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(76, 175, 80, 0.5);
+}
+
+.btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-cancel {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1.5px solid var(--border-color);
+}
+
+.btn-cancel:hover {
+  background: var(--bg-input);
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
 /* Empty State - Enhanced */
-.medical-list:empty::after {
-  content: 'ℹ️ No medical records found.';
+.empty-state {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -434,15 +605,6 @@
   }
 }
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
   .medical-item {
@@ -475,6 +637,20 @@
   .medical-list {
     gap: 1rem;
   }
+
+  .edit-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .edit-actions {
+    flex-direction: column;
+  }
+
+  .btn-save,
+  .btn-cancel {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 480px) {
@@ -494,27 +670,13 @@
     align-items: stretch;
   }
 
-  .file-input-label {
+  .file-input-label,
+  .file-input-label-small {
     text-align: center;
     justify-content: center;
   }
 
   .file-name-display {
     text-align: center;
-  }
-}
-
-/* Dark mode enhancements (if applicable) */
-@media (prefers-color-scheme: dark) {
-  .medical-item {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  }
-
-  .medical-item:hover {
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
-  }
-
-  .medical-item .item-icon {
-    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
   }
 }

@@ -10,6 +10,7 @@
   padding: 24px;
   background: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: visible !important; 
 }
 
 [data-theme="dark"] .passport-form-container {
@@ -184,6 +185,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow: visible !important;
 }
 
 .form-group.full-width {
