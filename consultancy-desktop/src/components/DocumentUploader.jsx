@@ -1,113 +1,115 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FiUploadCloud, FiFilePlus, FiTrash2 } from "react-icons/fi";
 import ConfirmDialog from "./common/ConfirmDialog";
 import "../css/DocumentUploader.css";
 
-function DocumentUploader({
-  user,
-  candidateId,
-  documentCategories,
-  onUploaded,
-}) {
-  const [uploadCategory, setUploadCategory] = useState("📂 Uncategorized");
+// Emoji mapping for categories (MATCHES DocumentChecker.jsx)
+const categoryEmojiMap = {
+  "Aadhar Card": "🆔",
+  "Driving License": "🚗",
+  "Education Certificate": "🎓",
+  "Experience Letter": "💼",
+  "Medical Certificate": "🏥",
+  "Offer Letter": "📋",
+  "Pan Card": "💳",
+  "Passport": "🛂",
+  "Photograph": "📸",
+  "Resume": "📄",
+  "Visa": "✈️",
+  "Uncategorized": "📂",
+};
+
+// 🔧 Clean category name (remove emojis)
+const cleanCategoryName = (category) => {
+  if (!category) return "";
+  return category
+    .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
+    .replace(/[\u{2600}-\u{26FF}]/gu, '')
+    .replace(/[\u{2700}-\u{27BF}]/gu, '')
+    .replace(/[\u{FE00}-\u{FE0F}]/gu, '')
+    .replace(/[\u{1F900}-\u{1F9FF}]/gu, '')
+    .replace(/[\u{1F300}-\u{1F5FF}]/gu, '')
+    .replace(/[\u{1F600}-\u{1F64F}]/gu, '')
+    .replace(/[\u{1F680}-\u{1F6FF}]/gu, '')
+    .trim();
+};
+
+// Helper to add emoji to category
+const addEmojiToCategory = (category) => {
+  const clean = cleanCategoryName(category);
+  const emoji = categoryEmojiMap[clean] || "📄";
+  return `${emoji} ${clean}`;
+};
+
+function DocumentUploader({ user, candidateId, onUploaded }) {
+  const [uploadCategory, setUploadCategory] = useState("Uncategorized");
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, index: null });
+  
+  // ✅ DYNAMIC: Fetch categories from DocumentRequirementManager
+  const [requiredDocs, setRequiredDocs] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  
   const fileInputRef = useRef(null);
   const dropRef = useRef(null);
 
-  // ✅ Smart auto-categorization based on filename
+  // ✅ FETCH REQUIRED DOCUMENTS FROM MANAGER ON MOUNT
+  useEffect(() => {
+    const fetchCategories = async () => {
+      setLoadingCategories(true);
+      try {
+        const res = await window.electronAPI.getRequiredDocuments();
+        if (res.success) {
+          setRequiredDocs(res.data || []);
+        } else {
+          console.error("Failed to fetch categories:", res.error);
+          setRequiredDocs([]);
+        }
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+        setRequiredDocs([]);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // ✅ BUILD DROPDOWN OPTIONS (Clean category names only)
+  const documentCategories = [
+    "Uncategorized",
+    ...requiredDocs.map(doc => cleanCategoryName(doc.name))
+  ];
+
+  // ✅ AUTO-CATEGORIZATION: Smart filename detection
   const detectCategory = (fileName) => {
     const name = fileName.toLowerCase();
 
-    // Resume/CV patterns
-    if (
-      name.includes("resume") ||
-      name.includes("cv") ||
-      name.includes("curriculum") ||
-      name.includes("vitae")
-    ) {
-      return "📄 Resume/CV";
+    // Map keywords to category names (MATCHES Manager list)
+    const categoryKeywords = {
+      "Passport": ["passport"],
+      "Resume": ["resume", "cv", "curriculum", "vitae"],
+      "Photograph": ["photo", "photograph", "passport_photo", "passport_size"],
+      "Education Certificate": ["certificate", "degree", "diploma", "transcript", "marksheet", "education"],
+      "Experience Letter": ["experience", "employment"],
+      "Offer Letter": ["offer_letter", "offerletter", "appointment"],
+      "Visa": ["visa", "travel", "immigration", "entry_permit"],
+      "Aadhar Card": ["aadhar", "aadhaar"],
+      "Pan Card": ["pan"],
+      "Medical Certificate": ["medical", "health", "report", "test", "prescription", "lab", "xray", "scan"],
+      "Driving License": ["driver", "license", "dl"],
+    };
+
+    // Check each category for matching keywords
+    for (const [category, keywords] of Object.entries(categoryKeywords)) {
+      if (keywords.some(keyword => name.includes(keyword))) {
+        return category;
+      }
     }
 
-    // Education Certificate patterns
-    if (
-      name.includes("certificate") ||
-      name.includes("degree") ||
-      name.includes("diploma") ||
-      name.includes("transcript") ||
-      name.includes("marksheet") ||
-      name.includes("education")
-    ) {
-      return "🎓 Education Certificate";
-    }
-
-    // ID Proof patterns
-    if (
-      name.includes("passport") ||
-      name.includes("aadhar") ||
-      name.includes("aadhaar") ||
-      name.includes("pan") ||
-      name.includes("driver") ||
-      name.includes("license") ||
-      name.includes("id_proof") ||
-      name.includes("idproof") ||
-      name.includes("national_id")
-    ) {
-      return "🆔 ID Proof";
-    }
-
-    // Passport Photo patterns
-    if (
-      name.includes("photo") ||
-      name.includes("passport_photo") ||
-      name.includes("passport_size") ||
-      name.includes("photograph")
-    ) {
-      return "📸 Passport Photos";
-    }
-
-    // Visa Document patterns
-    if (
-      name.includes("visa") ||
-      name.includes("travel") ||
-      name.includes("immigration") ||
-      name.includes("entry_permit")
-    ) {
-      return "✈️ Visa Documents";
-    }
-
-    // Employment Records patterns
-    if (
-      name.includes("employment") ||
-      name.includes("experience") ||
-      name.includes("offer_letter") ||
-      name.includes("offerletter") ||
-      name.includes("appointment") ||
-      name.includes("salary") ||
-      name.includes("payslip") ||
-      name.includes("relieving") ||
-      name.includes("service")
-    ) {
-      return "💼 Employment Records";
-    }
-
-    // Medical Reports patterns
-    if (
-      name.includes("medical") ||
-      name.includes("health") ||
-      name.includes("report") ||
-      name.includes("test") ||
-      name.includes("prescription") ||
-      name.includes("lab") ||
-      name.includes("xray") ||
-      name.includes("scan")
-    ) {
-      return "🏥 Medical Reports";
-    }
-
-    // Default to Uncategorized
-    return "📂 Uncategorized";
+    return "Uncategorized";
   };
 
   // ✅ Read file as buffer
@@ -187,7 +189,7 @@ function DocumentUploader({
           buffer: Array.from(buffer),
           // ✅ Use auto-detected category if uploadCategory is "Uncategorized"
           category:
-            uploadCategory === "📂 Uncategorized"
+            uploadCategory === "Uncategorized"
               ? autoCategory
               : uploadCategory,
         };
@@ -207,7 +209,7 @@ function DocumentUploader({
 
       onUploaded(res.newDocs);
       setFiles([]);
-      setUploadCategory("📂 Uncategorized");
+      setUploadCategory("Uncategorized");
       if (fileInputRef.current) fileInputRef.current.value = null;
     } catch (err) {
       console.error("Upload error:", err);
@@ -224,12 +226,12 @@ function DocumentUploader({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  // ✅ Show detected category for each file
+  // ✅ Show detected category for each file (with emoji)
   const getFileCategory = (fileName) => {
-    if (uploadCategory !== "📂 Uncategorized") {
-      return uploadCategory;
+    if (uploadCategory !== "Uncategorized") {
+      return addEmojiToCategory(uploadCategory);
     }
-    return detectCategory(fileName);
+    return addEmojiToCategory(detectCategory(fileName));
   };
 
   return (
@@ -262,26 +264,32 @@ function DocumentUploader({
       <div className="du-body">
         <div className="du-field">
           <label>📂 Override Category (Optional)</label>
-          <select
-            value={uploadCategory}
-            onChange={(e) => setUploadCategory(e.target.value)}
-          >
-            {documentCategories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-          <small
-            style={{
-              color: "#94a3b8",
-              fontSize: "0.85rem",
-              marginTop: "4px",
-              display: "block",
-            }}
-          >
-            💡 Leave as "Uncategorized" for automatic detection
-          </small>
+          {loadingCategories ? (
+            <p style={{ color: "#94a3b8", fontSize: "0.9rem" }}>⏳ Loading categories...</p>
+          ) : (
+            <>
+              <select
+                value={uploadCategory}
+                onChange={(e) => setUploadCategory(e.target.value)}
+              >
+                {documentCategories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {addEmojiToCategory(cat)}
+                  </option>
+                ))}
+              </select>
+              <small
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "0.85rem",
+                  marginTop: "4px",
+                  display: "block",
+                }}
+              >
+                💡 Leave as "Uncategorized" for automatic detection
+              </small>
+            </>
+          )}
         </div>
 
         <div
@@ -294,7 +302,7 @@ function DocumentUploader({
         >
           <FiUploadCloud className="du-drop-icon" />
           <div className="du-drop-text">
-            <span>🎯 Drag &amp; drop files here</span>
+            <span>🎯 Drag & drop files here</span>
             <small>💡 or click to browse from your computer</small>
           </div>
           <input

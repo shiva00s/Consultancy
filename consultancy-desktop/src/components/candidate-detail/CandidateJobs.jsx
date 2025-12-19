@@ -1,7 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiClipboard, FiPlus, FiTrash2, FiServer, FiBriefcase } from 'react-icons/fi';
+import { 
+  FiClipboard, 
+  FiPlus, 
+  FiTrash2, 
+  FiServer, 
+  FiBriefcase,
+  FiCheck,
+  FiX,
+  FiAlertCircle
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import '../../css/CandidateJobs.css';
+import ConfirmDialog from '../common/ConfirmDialog';
 
 function CandidateJobs({ user, candidateId, onJobAssigned }) {
   const [placements, setPlacements] = useState([]);
@@ -9,6 +19,7 @@ function CandidateJobs({ user, candidateId, onJobAssigned }) {
   const [selectedJobId, setSelectedJobId] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, placementId: null, jobName: '' });
 
   const fetchPlacements = useCallback(async () => {
     setLoading(true);
@@ -16,7 +27,6 @@ function CandidateJobs({ user, candidateId, onJobAssigned }) {
       const res = await window.electronAPI.getCandidatePlacements({
         candidateId,
       });
-      
       if (res.success) {
         const validPlacements = (res.data || []).filter(p => 
           p && p.positionTitle && p.companyName
@@ -55,7 +65,7 @@ function CandidateJobs({ user, candidateId, onJobAssigned }) {
     setIsAssigning(true);
     try {
       const res = await window.electronAPI.assignCandidateToJob({
-        user, 
+        user,
         candidateId,
         jobId: parseInt(selectedJobId, 10),
       });
@@ -65,7 +75,6 @@ function CandidateJobs({ user, candidateId, onJobAssigned }) {
         await fetchUnassignedJobs();
         setSelectedJobId('');
         toast.success('✅ Job assigned successfully!');
-        
         if (onJobAssigned) {
           onJobAssigned(res.data?.jobId);
         }
@@ -80,144 +89,201 @@ function CandidateJobs({ user, candidateId, onJobAssigned }) {
     }
   };
 
-  const handleRemovePlacement = async (placementId, jobName) => {
-    if (window.confirm(`⚠️ Are you sure you want to remove the placement for "${jobName}"? It will be moved to the Recycle Bin.`)) {
-      try {
-        const res = await window.electronAPI.removeCandidateFromJob({
-          user,
-          placementId,
-        });
-        
-        if (res.success) {
-          await fetchPlacements();
-          await fetchUnassignedJobs();
-          toast.success('✅ Job assignment removed (soft-deleted).');
-        } else {
-          toast.error(res.error || '❌ Failed to remove placement');
-        }
-      } catch (err) {
-        console.error('Error removing placement:', err);
-        toast.error('❌ Failed to remove placement');
+  const handleRemovePlacement = (placementId, jobName) => {
+    setConfirmDialog({
+      isOpen: true,
+      placementId,
+      jobName
+    });
+  };
+
+  const confirmRemove = async () => {
+    const { placementId } = confirmDialog;
+    
+    try {
+      const res = await window.electronAPI.removeCandidateFromJob({
+        user,
+        placementId,
+      });
+      
+      if (res.success) {
+        await fetchPlacements();
+        await fetchUnassignedJobs();
+        toast.success('✅ Job assignment removed successfully');
+      } else {
+        toast.error(res.error || '❌ Failed to remove placement');
       }
+    } catch (err) {
+      console.error('Error removing placement:', err);
+      toast.error('❌ Failed to remove placement');
+    } finally {
+      setConfirmDialog({ isOpen: false, placementId: null, jobName: '' });
     }
   };
-  
+
+  const cancelRemove = () => {
+    setConfirmDialog({ isOpen: false, placementId: null, jobName: '' });
+  };
+
   const getStatusBadgeClass = (status) => {
     switch(status) {
-      case 'Assigned': return 'badge-cyan';
-      case 'Interviewing': return 'badge-blue';
-      case 'Placed': return 'badge-green';
-      case 'Rejected': return 'badge-red';
-      default: return 'badge-grey';
+      case 'Assigned':
+        return 'badge-cyan';
+      case 'Interviewing':
+        return 'badge-blue';
+      case 'Placed':
+        return 'badge-green';
+      case 'Rejected':
+        return 'badge-red';
+      default:
+        return 'badge-grey';
+    }
+  };
+
+  const getStatusEmoji = (status) => {
+    switch(status) {
+      case 'Assigned':
+        return '📋';
+      case 'Interviewing':
+        return '🎤';
+      case 'Placed':
+        return '✅';
+      case 'Rejected':
+        return '❌';
+      default:
+        return '⏳';
     }
   };
 
   if (loading) {
     return (
-      <div style={{ 
-        textAlign: 'center', 
-        padding: '2rem', 
-        color: 'var(--text-secondary)' 
-      }}>
-        ⏳ Loading job placements...
+      <div className="job-placement-content">
+        <div style={{ textAlign: 'center', padding: '3rem' }}>
+          <div className="loading-spinner">⏳ Loading job placements...</div>
+        </div>
       </div>
     );
   }
 
   return (
-
-
-    <div className="job-placement-content module-vertical-stack">
-      {/* Active Job Placements */}
-
-      {/* Assign Job Form */}
-      <div className="form-container module-form-card">
+    <div className="job-placement-content">
+      {/* Assign New Job Section */}
+      <div className="form-container">
         <h3>
-          <FiPlus /> ➕ Assign Candidate to Job Order
+          <FiPlus className="section-icon" />
+          <span>💼 Assign New Job</span>
         </h3>
-        <form 
-          onSubmit={handleAssignJob} 
-          className="assign-job-form" 
-          style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}
-        >
-          <div className="form-group" style={{ flexGrow: 1, marginBottom: 0 }}>
-            <label>📋 Available Job Orders</label>
+        <form onSubmit={handleAssignJob} className="assign-job-form">
+          <div className="form-group">
+            <label htmlFor="jobSelect">
+              🎯 Select Job Order
+            </label>
             <select
+              id="jobSelect"
               value={selectedJobId}
               onChange={(e) => setSelectedJobId(e.target.value)}
-              disabled={isAssigning}
+              disabled={isAssigning || unassignedJobs.length === 0}
+              required
             >
-              <option value="">-- Select a job to assign --</option>
-              {unassignedJobs.length === 0 && (
-                <option disabled>❌ No available jobs</option>
-              )}
+              <option value="">
+                {unassignedJobs.length === 0 ? '📭 No available jobs' : '🔽 Choose a job...'}
+              </option>
               {unassignedJobs.map((job) => (
                 <option key={job.id} value={job.id}>
-                  🏢 {job.companyName || 'Unknown'} - 💼 {job.positionTitle || 'Unknown'} 
-                  {job.country ? ` 🌍 (${job.country})` : ''}
+                  🏢 {job.companyName} - {job.positionTitle}
                 </option>
               ))}
             </select>
           </div>
-          <button
-            type="submit"
-            className="btn"
+          <button 
+            type="submit" 
+            className="btn btn-assign"
             disabled={isAssigning || !selectedJobId}
-            style={{ minWidth: '120px', minHeight: '36px' }}
           >
-            {isAssigning ? '⏳ Assigning...' : '✅ Assign Job'}
+            {isAssigning ? (
+              <>
+                <span className="spinner-icon">⏳</span>
+                <span>Assigning...</span>
+              </>
+            ) : (
+              <>
+                <FiPlus />
+                <span>Assign Job</span>
+              </>
+            )}
           </button>
         </form>
       </div>
-      <div className="list-container module-list-card">
+
+      {/* Current Job Placements */}
+      <div className="list-container">
         <h3>
-          <FiClipboard /> 💼 Active Job Placements ({placements.length})
+          <FiBriefcase className="section-icon" />
+          <span>📊 Current Job Assignments ({placements.length})</span>
         </h3>
-        <div className="module-list">
-          {placements.length === 0 ? (
-            <p style={{ 
-              textAlign: 'center', 
-              color: 'var(--text-secondary)',
-              padding: '2rem' 
-            }}>
-              ℹ️ This candidate is not assigned to any active job orders.
-            </p>
-          ) : (
-            placements.map((p) => (
-              <div className="module-list-item" key={p.placementId}>
+        
+        {placements.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">📋</div>
+            <p>No active job assignments</p>
+            <span>This candidate is not assigned to any job orders yet</span>
+          </div>
+        ) : (
+          <div className="module-list">
+            {placements.map((p) => (
+              <div key={p.id} className="module-list-item">
                 <div className="item-icon">
                   <FiBriefcase />
                 </div>
+                
                 <div className="item-details">
-                  <h4>💼 {p.positionTitle || 'Unknown Position'}</h4>
+                  <h4>💼 {p.positionTitle}</h4>
                   <p>
-                    <FiServer style={{ marginRight: '5px' }}/> 
-                    🏢 {p.companyName || 'Unknown Company'} 
-                    {p.country ? ` 🌍 (${p.country})` : ''}
+                    <span>🏢</span>
+                    <strong>{p.companyName}</strong>
                   </p>
+                  {p.assignedDate && (
+                    <p className="date-info">
+                      <span>📅</span>
+                      <span>Assigned: {new Date(p.assignedDate).toLocaleDateString()}</span>
+                    </p>
+                  )}
                 </div>
+
                 <div className="item-status">
-                  <span className={`status-badge ${getStatusBadgeClass(p.placementStatus)}`}>
-                    📊 {p.placementStatus || 'Unknown'}
+                  <span className={`status-badge ${getStatusBadgeClass(p.status)}`}>
+                    <span>{getStatusEmoji(p.status)}</span>
+                    <span>{p.status || 'Assigned'}</span>
                   </span>
                 </div>
+
                 <div className="item-actions">
                   <button
                     type="button"
-                    className="icon-btn"
+                    onClick={() => handleRemovePlacement(p.id, `${p.positionTitle} at ${p.companyName}`)}
                     title="Remove Assignment"
-                    onClick={() => handleRemovePlacement(p.placementId, p.positionTitle || 'this job')}
+                    className="btn-remove"
                   >
                     <FiTrash2 />
                   </button>
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title="🗑️ Remove Job Assignment"
+        message={`Are you sure you want to remove the job assignment "${confirmDialog.jobName}"? This action will move it to the Recycle Bin.`}
+        onConfirm={confirmRemove}
+        onCancel={cancelRemove}
+        confirmText="Remove"
+        cancelText="Cancel"
+        isDanger={true}
+      />
     </div>
   );
 }

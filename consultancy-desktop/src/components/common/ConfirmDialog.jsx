@@ -1,56 +1,60 @@
 import React from 'react';
+import { FiX, FiAlertTriangle, FiCheck } from 'react-icons/fi';
 import './ConfirmDialog.css';
 
 function ConfirmDialog({ 
-  open,                    // Keep backward compatibility
-  isOpen,                  // New prop
+  isOpen,
+  open, // Support both isOpen and open props
   title, 
   message, 
-  confirmLabel = 'Delete', 
-  confirmText,             // Alias
-  cancelLabel = 'Cancel',
-  cancelText,              // Alias
   onConfirm, 
   onCancel,
-  type = 'danger'          // New prop (currently unused)
+  confirmText,
+  confirmLabel, // Support both confirmText and confirmLabel
+  cancelText,
+  cancelLabel, // Support both cancelText and cancelLabel
+  isDanger = false
 }) {
-  const isDialogOpen = isOpen !== undefined ? isOpen : open;
-  const confirmButtonText = confirmText || confirmLabel;
-  const cancelButtonText = cancelText || cancelLabel;
+  // Support both prop naming conventions
+  const isDialogOpen = isOpen || open;
+  const confirmButtonText = confirmText || confirmLabel || 'Confirm';
+  const cancelButtonText = cancelText || cancelLabel || 'Cancel';
 
-  
-  if (!open) return null;
-
-  const handleBackdropClick = (e) => {
-    if (e.target.classList.contains('confirm-backdrop')) {
-      onCancel && onCancel();
-    }
-  };
+  if (!isDialogOpen) return null;
 
   return (
-    <div className="confirm-backdrop" onClick={handleBackdropClick}>
-      <div className="confirm-card" role="dialog" aria-modal="true">
-        <h3 className="confirm-title">
-          <span className="emoji-inline" aria-hidden="true">
-            ⚠️
-          </span>
-          {title}
-        </h3>
-        <p className="confirm-message">{message}</p>
-        <div className="confirm-actions">
-          <button
-            type="button"
-            className="btn-outline"
-            onClick={onCancel}
-          >
-            {cancelLabel}
+    <div className="confirm-overlay" onClick={onCancel}>
+      <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="confirm-header">
+          <div className={`confirm-icon ${isDanger ? 'danger' : 'info'}`}>
+            <FiAlertTriangle />
+          </div>
+          <button className="close-btn" onClick={onCancel} type="button">
+            <FiX />
           </button>
-          <button
+        </div>
+        
+        <div className="confirm-body">
+          <h3>{title}</h3>
+          <p>{message}</p>
+        </div>
+        
+        <div className="confirm-actions">
+          <button 
+            className="btn btn-cancel"
+            onClick={onCancel}
             type="button"
-            className="btn-danger"
-            onClick={onConfirm}
           >
-            {confirmLabel}
+            <FiX />
+            <span>{cancelButtonText}</span>
+          </button>
+          <button 
+            className={`btn ${isDanger ? 'btn-danger' : 'btn-confirm'}`}
+            onClick={onConfirm}
+            type="button"
+          >
+            <FiCheck />
+            <span>{confirmButtonText}</span>
           </button>
         </div>
       </div>

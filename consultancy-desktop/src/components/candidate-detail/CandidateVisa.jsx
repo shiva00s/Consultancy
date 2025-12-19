@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FiPackage, FiTrash2, FiPlus, FiEdit2, FiUser, FiCheck, FiX } from 'react-icons/fi';
+import React, { useState, useEffect, useCallback } from 'react';
+import { FiPackage, FiTrash2, FiPlus, FiEdit2, FiCheck, FiX, FiGlobe, FiCalendar, FiUser, FiMapPin, FiInfo } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import '../../css/CandidateVisa.css';
 
@@ -26,39 +26,60 @@ const initialVisaForm = {
   agent_contact: '',
 };
 
+// 🎯 Enhanced Confirm Dialog Component
+const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText, type = 'danger' }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="confirm-overlay" onClick={onClose}>
+      <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className={`confirm-icon ${type}`}>
+          {type === 'danger' ? '🗑️' : type === 'warning' ? '⚠️' : 'ℹ️'}
+        </div>
+        <h3 className="confirm-title">{title}</h3>
+        <p className="confirm-message">{message}</p>
+        <div className="confirm-actions">
+          <button className="btn-confirm-cancel" onClick={onClose}>
+            <FiX /> Cancel
+          </button>
+          <button className={`btn-confirm-${type}`} onClick={onConfirm}>
+            <FiCheck /> {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function CandidateVisa({ user, candidateId }) {
   const [visaEntries, setVisaEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [visaForm, setVisaForm] = useState(initialVisaForm);
   const [isSavingVisa, setIsSaving] = useState(false);
-  const [editingId, setEditingId] = useState(null); // Track which entry is being edited
-  const [editForm, setEditForm] = useState({}); // Form data for editing
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
   const [autoFillData, setAutoFillData] = useState(null);
   const [isLoadingAutoFill, setIsLoadingAutoFill] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, visaId: null });
 
   // Fetch auto-fill data from candidate profile and job placements
   const fetchAutoFillData = useCallback(async () => {
     setIsLoadingAutoFill(true);
     try {
-      // Get candidate profile data
       const candidateRes = await window.electronAPI.getCandidateById({ candidateId });
       if (!candidateRes.success) {
         console.error('Failed to fetch candidate data:', candidateRes.error);
         setIsLoadingAutoFill(false);
         return;
       }
-      const candidateData = candidateRes.data;
 
-      // Get active job placements for this candidate
+      const candidateData = candidateRes.data;
       const jobPlacementsRes = await window.electronAPI.getCandidateJobPlacements({ candidateId });
       let jobData = null;
+
       if (jobPlacementsRes.success && jobPlacementsRes.data?.length > 0) {
-        // Get the most recent active job placement
-        const activeJob =
-          jobPlacementsRes.data.find((j) => j.placementStatus === 'Assigned') ||
-          jobPlacementsRes.data[0];
+        const activeJob = jobPlacementsRes.data.find((j) => j.placementStatus === 'Assigned') || jobPlacementsRes.data[0];
         if (activeJob && activeJob.jobId) {
-          // Get detailed job order information
           const jobOrderRes = await window.electronAPI.getJobOrderById({ jobId: activeJob.jobId });
           if (jobOrderRes.success) {
             jobData = jobOrderRes.data;
@@ -66,7 +87,6 @@ function CandidateVisa({ user, candidateId }) {
         }
       }
 
-      // Prepare combined position field (Profile + Job Position)
       const profilePosition = candidateData.position_applying_for || '';
       const jobPosition = jobData?.positionTitle || '';
       let positionCombined = '';
@@ -76,7 +96,6 @@ function CandidateVisa({ user, candidateId }) {
         positionCombined = profilePosition || jobPosition || '';
       }
 
-      // Set auto-fill data
       setAutoFillData({
         position: positionCombined,
         country: jobData?.country || '',
@@ -89,12 +108,10 @@ function CandidateVisa({ user, candidateId }) {
     }
   }, [candidateId]);
 
-  // Fetch auto-fill data on component mount
   useEffect(() => {
     fetchAutoFillData();
   }, [fetchAutoFillData]);
 
-  // Auto-fill form when autoFillData is loaded
   useEffect(() => {
     if (autoFillData && !isLoadingAutoFill) {
       setVisaForm((prev) => ({
@@ -122,7 +139,6 @@ function CandidateVisa({ user, candidateId }) {
     setVisaForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // === INLINE EDIT HANDLERS ===
   const startEdit = (entry) => {
     setEditingId(entry.id);
     setEditForm({
@@ -202,14 +218,13 @@ function CandidateVisa({ user, candidateId }) {
 
       if (res.success) {
         setVisaEntries((prev) => [res.data, ...prev]);
-        // Reset form but keep auto-filled data
         setVisaForm({
           ...initialVisaForm,
           position: autoFillData?.position || '',
           country: autoFillData?.country || '',
           passport_number: autoFillData?.passport_number || '',
         });
-        toast.success('✅ Visa entry added successfully.', { id: toastId });
+        toast.success('✅ Visa entry added successfully!', { id: toastId });
       } else {
         const errorMessage =
           res.errors && Object.values(res.errors).join(', ')
@@ -225,298 +240,240 @@ function CandidateVisa({ user, candidateId }) {
   };
 
   const handleDeleteVisaEntry = async (visaId) => {
-    if (window.confirm('⚠️ Are you sure you want to move this visa entry to the Recycle Bin?')) {
-      const res = await window.electronAPI.deleteVisaEntry({ user, id: visaId });
-      if (res.success) {
-        setVisaEntries((prev) => prev.filter((v) => v.id !== visaId));
-        toast.success('✅ Visa entry moved to Recycle Bin.');
-      } else {
-        toast.error('❌ ' + res.error);
-      }
+    setConfirmDialog({ isOpen: true, visaId });
+  };
+
+  const confirmDelete = async () => {
+    const { visaId } = confirmDialog;
+    setConfirmDialog({ isOpen: false, visaId: null });
+
+    const res = await window.electronAPI.deleteVisaEntry({ user, id: visaId });
+    if (res.success) {
+      setVisaEntries((prev) => prev.filter((v) => v.id !== visaId));
+      toast.success('✅ Visa entry moved to Recycle Bin.');
+    } else {
+      toast.error('❌ ' + res.error);
     }
   };
 
   const getStatusBadgeClass = (status) => {
     switch (status) {
-      case 'Approved':
-        return 'badge-green';
-      case 'Rejected':
-        return 'badge-red';
-      case 'Cancelled':
-        return 'badge-grey';
-      case 'Submitted':
-        return 'badge-cyan';
-      case 'In Progress':
-        return 'badge-blue';
-      default:
-        return 'badge-yellow';
+      case 'Approved': return 'badge-green';
+      case 'Rejected': return 'badge-red';
+      case 'Cancelled': return 'badge-grey';
+      case 'Submitted': return 'badge-cyan';
+      case 'In Progress': return 'badge-blue';
+      default: return 'badge-yellow';
     }
   };
 
-  if (loading)
-    return (
-      <div className="visa-tracking-content">
-        <p>⏳ Loading visa tracking...</p>
-      </div>
-    );
+  const getStatusEmoji = (status) => {
+    switch (status) {
+      case 'Approved': return '✅';
+      case 'Rejected': return '❌';
+      case 'Cancelled': return '🚫';
+      case 'Submitted': return '📤';
+      case 'Biometrics Done': return '👆';
+      case 'In Progress': return '⏳';
+      default: return '📋';
+    }
+  };
+
+  if (loading) return (
+    <div className="visa-tracking-content">
+      <div className="loading-state">⏳ Loading visa tracking...</div>
+    </div>
+  );
 
   return (
     <div className="visa-tracking-content">
-      {/* Add Visa Entry Form */}
+      {/* 🎨 Add New Visa Entry Form */}
       <div className="detail-card visa-form-container">
         <h3>
-          <FiPlus /> Add New Visa Entry
+          <FiPlus /> ✈️ Add New Visa Entry
         </h3>
         <form onSubmit={handleAddVisaEntry} className="visa-form form-grid">
-          <div className="form-group">
-            <label htmlFor="country">Country *</label>
+          <div className="form-field">
+            <label>🌍 Country *</label>
             <input
               type="text"
-              id="country"
               name="country"
               value={visaForm.country}
               onChange={handleVisaFormChange}
-              placeholder="e.g., Saudi Arabia"
-              style={
-                autoFillData?.country
-                  ? { background: 'rgba(var(--primary-rgb), 0.08)' }
-                  : {}
-              }
+              placeholder="e.g., USA, Canada, UAE"
               required
+              style={{
+                backgroundColor: autoFillData?.country ? 'rgba(var(--primary-rgb), 0.05)' : undefined,
+              }}
             />
           </div>
-          <div className="form-group">
-            <label htmlFor="visa_type">Visa Type</label>
+
+          <div className="form-field">
+            <label>📄 Visa Type</label>
             <input
               type="text"
-              id="visa_type"
               name="visa_type"
               value={visaForm.visa_type}
               onChange={handleVisaFormChange}
-              placeholder="e.g., Work Visa"
+              placeholder="e.g., Work Visa, Tourist"
             />
           </div>
-          <div className="form-group">
-            <label htmlFor="application_date">Application Date *</label>
+
+          <div className="form-field">
+            <label>📅 Application Date *</label>
             <input
               type="date"
-              id="application_date"
               name="application_date"
               value={visaForm.application_date}
               onChange={handleVisaFormChange}
               required
             />
           </div>
-          <div className="form-group">
-            <label htmlFor="travel_date">Travel Date</label>
+
+          <div className="form-field">
+            <label>📊 Status</label>
+            <select name="status" value={visaForm.status} onChange={handleVisaFormChange}>
+              {visaStatusOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {getStatusEmoji(opt)} {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-field">
+            <label>💼 Position</label>
+            <input
+              type="text"
+              name="position"
+              value={visaForm.position}
+              onChange={handleVisaFormChange}
+              placeholder="Job position"
+              style={{
+                backgroundColor: autoFillData?.position ? 'rgba(var(--primary-rgb), 0.05)' : undefined,
+              }}
+            />
+          </div>
+
+          <div className="form-field">
+            <label>🛂 Passport Number</label>
+            <input
+              type="text"
+              name="passport_number"
+              value={visaForm.passport_number}
+              onChange={handleVisaFormChange}
+              placeholder="Passport number"
+              style={{
+                backgroundColor: autoFillData?.passport_number ? 'rgba(var(--primary-rgb), 0.05)' : undefined,
+              }}
+            />
+          </div>
+
+          <div className="form-field">
+            <label>✈️ Travel Date</label>
             <input
               type="date"
-              id="travel_date"
               name="travel_date"
               value={visaForm.travel_date}
               onChange={handleVisaFormChange}
             />
           </div>
-          <div className="form-group">
-            <label htmlFor="status">Status</label>
-            <select
-              id="status"
-              name="status"
-              value={visaForm.status}
-              onChange={handleVisaFormChange}
-            >
-              {visaStatusOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
+
+          <div className="form-field">
+            <label>👤 Contact Type</label>
+            <select name="contact_type" value={visaForm.contact_type} onChange={handleVisaFormChange}>
+              <option value="Direct Candidate">📱 Direct Candidate</option>
+              <option value="Agency">🏢 Agency</option>
+              <option value="Referral">🤝 Referral</option>
             </select>
           </div>
-          <div className="form-group">
-            <label htmlFor="position">Position</label>
+
+          <div className="form-field full-width">
+            <label>📞 Agent Contact</label>
             <input
               type="text"
-              id="position"
-              name="position"
-              value={visaForm.position}
-              onChange={handleVisaFormChange}
-              placeholder="e.g., Software Engineer"
-              style={
-                autoFillData?.position
-                  ? { background: 'rgba(var(--primary-rgb), 0.08)' }
-                  : {}
-              }
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="passport_number">Passport Number</label>
-            <input
-              type="text"
-              id="passport_number"
-              name="passport_number"
-              value={visaForm.passport_number}
-              onChange={handleVisaFormChange}
-              placeholder="e.g., P1234567"
-              style={
-                autoFillData?.passport_number
-                  ? { background: 'rgba(var(--primary-rgb), 0.08)' }
-                  : {}
-              }
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="contact_type">Contact Type</label>
-            <select
-              id="contact_type"
-              name="contact_type"
-              value={visaForm.contact_type}
-              onChange={handleVisaFormChange}
-            >
-              <option value="Direct Candidate">Direct Candidate</option>
-              <option value="Agency">Agency</option>
-              <option value="Referral">Referral</option>
-            </select>
-          </div>
-          <div className="form-group form-group-full">
-            <label htmlFor="agent_contact">Agent Contact</label>
-            <input
-              type="text"
-              id="agent_contact"
               name="agent_contact"
               value={visaForm.agent_contact}
               onChange={handleVisaFormChange}
-              placeholder="Agent name/contact info"
+              placeholder="Agent name or contact details"
             />
           </div>
-          <div className="form-group form-group-full">
-            <label htmlFor="notes">Notes</label>
+
+          <div className="form-field full-width">
+            <label>📝 Notes</label>
             <textarea
-              id="notes"
               name="notes"
               value={visaForm.notes}
               onChange={handleVisaFormChange}
-              rows="2"
-              placeholder="Additional notes..."
+              placeholder="Additional notes or comments..."
+              rows={3}
             />
           </div>
-          <button
-            type="submit"
-            className="btn-full-width"
-            disabled={isSavingVisa}
-            style={{ gridColumn: '1 / -1' }}
-          >
-            {isSavingVisa ? '⏳ Saving...' : <><FiPlus /> Add Visa Entry</>}
+
+          <button type="submit" disabled={isSavingVisa} className="btn-full-width">
+            <FiPlus /> {isSavingVisa ? '⏳ Adding...' : '✨ Add Visa Entry'}
           </button>
         </form>
       </div>
 
-      {/* Visa Tracking History */}
+      {/* 📋 Visa Tracking History */}
       <div className="visa-list-container">
         <h3>
-          <FiPackage /> Visa Tracking History
+          <FiPackage /> 📋 Visa Tracking History
         </h3>
         <div className="visa-list">
           {visaEntries.length === 0 ? (
-            <p className="empty-state">ℹ️ No visa tracking entries found.</p>
+            <div className="empty-state">
+              <FiInfo size={48} />
+              <p>ℹ️ No visa tracking entries found.</p>
+            </div>
           ) : (
             visaEntries.map((entry) => {
               const isEditing = editingId === entry.id;
 
               return (
-                <div
-                  key={entry.id}
-                  className={`module-list-item ${isEditing ? 'editing-mode' : ''}`}
-                >
-                  {!isEditing ? (
-                    // VIEW MODE
-                    <>
-                      <div className="item-icon">
-                        <FiPackage />
-                      </div>
-                      <div className="item-details">
-                        <strong>
-                          {entry.country} - {entry.visa_type || 'Visa'}
-                        </strong>
-                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                          <span>📅 Applied: {entry.application_date}</span>
-                          {entry.travel_date && <span>✈️ Travel: {entry.travel_date}</span>}
-                        </div>
-                        <p>
-                          💼 Position: {entry.position || 'N/A'} | 🛂 Passport:{' '}
-                          {entry.passport_number || 'N/A'}
-                        </p>
-                        {entry.agent_contact && (
-                          <p style={{ color: 'var(--primary-color)' }}>
-                            <FiUser /> Agent: {entry.agent_contact}
-                          </p>
-                        )}
-                        {entry.notes && <p>📝 Notes: {entry.notes}</p>}
-                      </div>
-                      <div className="item-status">
-                        <span className={`status-badge ${getStatusBadgeClass(entry.status)}`}>
-                          {entry.status}
-                        </span>
-                      </div>
-                      <div className="item-actions">
-                        <button onClick={() => startEdit(entry)} title="Edit Entry">
-                          <FiEdit2 />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteVisaEntry(entry.id)}
-                          title="Delete Entry"
-                        >
-                          <FiTrash2 />
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    // EDIT MODE
+                <div key={entry.id} className={`module-list-item ${isEditing ? 'editing-mode' : ''}`}>
+                  {isEditing ? (
+                    // 🎯 INLINE EDIT MODE
                     <div className="inline-edit-container">
                       <div className="edit-form-grid">
                         <div className="edit-field">
-                          <label>Country *</label>
+                          <label>🌍 Country *</label>
                           <input
                             type="text"
                             name="country"
                             value={editForm.country}
                             onChange={handleEditFormChange}
                             className="edit-input"
-                            placeholder="e.g., Saudi Arabia"
+                            required
                           />
                         </div>
+
                         <div className="edit-field">
-                          <label>Visa Type</label>
+                          <label>📄 Visa Type</label>
                           <input
                             type="text"
                             name="visa_type"
                             value={editForm.visa_type}
                             onChange={handleEditFormChange}
                             className="edit-input"
-                            placeholder="e.g., Work Visa"
                           />
                         </div>
+
                         <div className="edit-field">
-                          <label>Application Date *</label>
+                          <label>📅 Application Date *</label>
                           <input
                             type="date"
                             name="application_date"
                             value={editForm.application_date}
                             onChange={handleEditFormChange}
                             className="edit-input"
+                            required
                           />
                         </div>
+
                         <div className="edit-field">
-                          <label>Travel Date</label>
-                          <input
-                            type="date"
-                            name="travel_date"
-                            value={editForm.travel_date}
-                            onChange={handleEditFormChange}
-                            className="edit-input"
-                          />
-                        </div>
-                        <div className="edit-field">
-                          <label>Status</label>
+                          <label>📊 Status</label>
                           <select
                             name="status"
                             value={editForm.status}
@@ -525,86 +482,137 @@ function CandidateVisa({ user, candidateId }) {
                           >
                             {visaStatusOptions.map((opt) => (
                               <option key={opt} value={opt}>
-                                {opt}
+                                {getStatusEmoji(opt)} {opt}
                               </option>
                             ))}
                           </select>
                         </div>
+
                         <div className="edit-field">
-                          <label>Position</label>
+                          <label>💼 Position</label>
                           <input
                             type="text"
                             name="position"
                             value={editForm.position}
                             onChange={handleEditFormChange}
                             className="edit-input"
-                            placeholder="e.g., Software Engineer"
                           />
                         </div>
+
                         <div className="edit-field">
-                          <label>Passport Number</label>
+                          <label>🛂 Passport Number</label>
                           <input
                             type="text"
                             name="passport_number"
                             value={editForm.passport_number}
                             onChange={handleEditFormChange}
                             className="edit-input"
-                            placeholder="e.g., P1234567"
                           />
                         </div>
+
                         <div className="edit-field">
-                          <label>Contact Type</label>
+                          <label>✈️ Travel Date</label>
+                          <input
+                            type="date"
+                            name="travel_date"
+                            value={editForm.travel_date}
+                            onChange={handleEditFormChange}
+                            className="edit-input"
+                          />
+                        </div>
+
+                        <div className="edit-field">
+                          <label>👤 Contact Type</label>
                           <select
                             name="contact_type"
                             value={editForm.contact_type}
                             onChange={handleEditFormChange}
                             className="edit-input"
                           >
-                            <option value="Direct Candidate">Direct Candidate</option>
-                            <option value="Agency">Agency</option>
-                            <option value="Referral">Referral</option>
+                            <option value="Direct Candidate">📱 Direct Candidate</option>
+                            <option value="Agency">🏢 Agency</option>
+                            <option value="Referral">🤝 Referral</option>
                           </select>
                         </div>
+
                         <div className="edit-field edit-field-full">
-                          <label>Agent Contact</label>
+                          <label>📞 Agent Contact</label>
                           <input
                             type="text"
                             name="agent_contact"
                             value={editForm.agent_contact}
                             onChange={handleEditFormChange}
                             className="edit-input"
-                            placeholder="Agent name/contact info"
                           />
                         </div>
+
                         <div className="edit-field edit-field-full">
-                          <label>Notes</label>
+                          <label>📝 Notes</label>
                           <textarea
                             name="notes"
                             value={editForm.notes}
                             onChange={handleEditFormChange}
                             className="edit-input"
-                            rows="3"
-                            placeholder="Additional notes..."
+                            rows={3}
                           />
                         </div>
                       </div>
+
                       <div className="edit-actions">
                         <button
-                          onClick={() => saveEdit(entry.id)}
                           className="btn-save"
+                          onClick={() => saveEdit(entry.id)}
                           disabled={isSavingVisa}
                         >
-                          <FiCheck /> {isSavingVisa ? 'Saving...' : 'Save'}
+                          <FiCheck /> {isSavingVisa ? '⏳ Saving...' : '💾 Save Changes'}
                         </button>
-                        <button
-                          onClick={cancelEdit}
-                          className="btn-cancel"
-                          disabled={isSavingVisa}
-                        >
-                          <FiX /> Cancel
+                        <button className="btn-cancel" onClick={cancelEdit}>
+                          <FiX /> ❌ Cancel
                         </button>
                       </div>
                     </div>
+                  ) : (
+                    // 🎯 DISPLAY MODE
+                    <>
+                      <div className="item-icon">
+                        <FiGlobe />
+                      </div>
+                      <div className="item-details">
+                        <strong>
+                          🌍 {entry.country} {entry.visa_type && `• 📄 ${entry.visa_type}`}
+                        </strong>
+                        <p>
+                          📅 Applied: {new Date(entry.application_date).toLocaleDateString()} 
+                          {entry.travel_date && ` • ✈️ Travel: ${new Date(entry.travel_date).toLocaleDateString()}`}
+                        </p>
+                        <p>
+                          💼 Position: {entry.position || 'N/A'} | 🛂 Passport: {entry.passport_number || 'N/A'}
+                        </p>
+                        {entry.agent_contact && (
+                          <p style={{ color: 'var(--primary-color)', fontWeight: '600' }}>
+                            📞 Agent: {entry.agent_contact}
+                          </p>
+                        )}
+                        {entry.notes && (
+                          <p>
+                            <small>📝 Notes: {entry.notes}</small>
+                          </p>
+                        )}
+                      </div>
+                      <div className="item-status">
+                        <span className={`status-badge ${getStatusBadgeClass(entry.status)}`}>
+                          {getStatusEmoji(entry.status)} {entry.status}
+                        </span>
+                      </div>
+                      <div className="item-actions">
+                        <button onClick={() => startEdit(entry)} title="Edit Entry">
+                          <FiEdit2 />
+                        </button>
+                        <button onClick={() => handleDeleteVisaEntry(entry.id)} title="Delete Entry">
+                          <FiTrash2 />
+                        </button>
+                      </div>
+                    </>
                   )}
                 </div>
               );
@@ -612,6 +620,17 @@ function CandidateVisa({ user, candidateId }) {
           )}
         </div>
       </div>
+
+      {/* 🎯 Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, visaId: null })}
+        onConfirm={confirmDelete}
+        title="🗑️ Delete Visa Entry"
+        message="Are you sure you want to move this visa entry to the Recycle Bin? You can restore it later if needed."
+        confirmText="Yes, Delete"
+        type="danger"
+      />
     </div>
   );
 }

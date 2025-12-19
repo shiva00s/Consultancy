@@ -1,6 +1,6 @@
 /* ============================================
    CANDIDATE JOBS STYLES
-   Premium Modern Design with Job Placement Theme
+   Premium Modern Design with Rich Emojis
    ============================================ */
 
 .job-placement-content {
@@ -9,7 +9,191 @@
   padding: 0;
 }
 
-/* Job Placements List - Enhanced */
+/* Form Container - Premium Styling */
+.job-placement-content .form-container {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
+  border-radius: 16px;
+  padding: 2rem;
+  border: 1px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.job-placement-content .form-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #9C27B0, #E91E63, #FF9800, #9C27B0);
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}
+
+.job-placement-content .form-container h3 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 1.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.job-placement-content .form-container h3 .section-icon {
+  color: #9C27B0;
+  font-size: 1.5rem;
+}
+
+/* Assign Job Form */
+.assign-job-form {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.assign-job-form .form-group {
+  flex-grow: 1;
+  margin-bottom: 0;
+}
+
+.assign-job-form .form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.assign-job-form select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.assign-job-form select:focus {
+  outline: none;
+  border-color: #9C27B0;
+  box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.15);
+  transform: translateY(-1px);
+}
+
+.assign-job-form select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--bg-secondary);
+}
+
+/* Buttons - Modern Premium Style */
+.assign-job-form .btn {
+  background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%);
+  color: white;
+  border: none;
+  padding: 12px 28px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 140px;
+  min-height: 48px;
+  box-shadow: 0 4px 16px rgba(156, 39, 176, 0.3);
+}
+
+.assign-job-form .btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.assign-job-form .btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(156, 39, 176, 0.4);
+}
+
+.assign-job-form .btn:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+.assign-job-form .btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.assign-job-form .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.assign-job-form .btn .spinner-icon {
+  animation: spin 1s linear infinite;
+}
+
+/* List Container */
+.job-placement-content .list-container {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-bottom: 2rem;
+}
+
+.job-placement-content .list-container h3 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 1.5rem 0;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.job-placement-content .list-container h3 .section-icon {
+  color: #9C27B0;
+  font-size: 1.5rem;
+}
+
+.job-placement-content .list-container h3::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100px;
+  height: 2px;
+  background: linear-gradient(90deg, #9C27B0, transparent);
+  transition: width 0.3s ease;
+}
+
+.job-placement-content .list-container h3:hover::after {
+  width: 200px;
+}
+
+/* Job Placements List */
 .job-placement-content .module-list {
   display: grid;
   gap: 1.2rem;
@@ -20,17 +204,18 @@
 /* Job Placement Item - Premium Card Design */
 .job-placement-content .module-list-item {
   background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 1.2rem;
+  border: 2px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.5rem;
   display: flex;
-  gap: 1.2rem;
+  gap: 1.5rem;
   align-items: center;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
   opacity: 0;
   animation: slideInUp 0.4s ease-out forwards;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
 }
 
 .job-placement-content .module-list-item:nth-child(1) { animation-delay: 0.05s; }
@@ -46,10 +231,10 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    #9C27B0 50%, 
+  height: 4px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    #9C27B0 50%,
     transparent 100%
   );
   opacity: 0;
@@ -63,24 +248,24 @@
 .job-placement-content .module-list-item:hover {
   background: var(--bg-input);
   border-color: #9C27B0;
-  box-shadow: 0 6px 24px rgba(156, 39, 176, 0.15);
+  box-shadow: 0 8px 32px rgba(156, 39, 176, 0.2);
   transform: translateY(-4px);
 }
 
-/* Job Icon - Enhanced with gradient */
+/* Job Icon */
 .job-placement-content .item-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
   background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   color: white;
-  font-size: 1.4rem;
+  font-size: 1.6rem;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(156, 39, 176, 0.3);
+  box-shadow: 0 4px 16px rgba(156, 39, 176, 0.4);
   position: relative;
   overflow: hidden;
 }
@@ -89,45 +274,57 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), transparent);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
 .job-placement-content .module-list-item:hover .item-icon {
   transform: rotate(5deg) scale(1.1);
-  box-shadow: 0 6px 20px rgba(156, 39, 176, 0.5);
+  box-shadow: 0 6px 24px rgba(156, 39, 176, 0.6);
 }
 
 .job-placement-content .module-list-item:hover .item-icon::before {
   opacity: 1;
 }
 
-/* Job Details - Enhanced Typography */
+/* Job Details */
 .job-placement-content .item-details {
   flex-grow: 1;
   min-width: 0;
 }
 
 .job-placement-content .item-details h4 {
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 1.15rem;
+  font-weight: 700;
   color: var(--text-primary);
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.6rem 0;
   line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .job-placement-content .item-details p {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: var(--text-secondary);
-  margin: 0;
-  line-height: 1.5;
+  margin: 0 0 0.4rem 0;
+  line-height: 1.6;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
-/* Status Badge - Enhanced with colors */
+.job-placement-content .item-details p:last-child {
+  margin-bottom: 0;
+}
+
+.job-placement-content .item-details .date-info {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Status Badge */
 .job-placement-content .item-status {
   flex-shrink: 0;
 }
@@ -135,71 +332,68 @@
 .status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 24px;
+  font-size: 0.9rem;
+  font-weight: 700;
   transition: all 0.2s ease;
-  border: 1px solid transparent;
+  border: 2px solid transparent;
   white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 }
 
 .badge-cyan {
   background: linear-gradient(135deg, #00BCD4 0%, #0097A7 100%);
   color: white;
-  box-shadow: 0 2px 8px rgba(0, 188, 212, 0.3);
 }
 
 .badge-blue {
   background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
   color: white;
-  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
 }
 
 .badge-green {
   background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
   color: white;
-  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
 }
 
 .badge-red {
   background: linear-gradient(135deg, #F44336 0%, #D32F2F 100%);
   color: white;
-  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
 }
 
 .badge-grey {
   background: linear-gradient(135deg, #9E9E9E 0%, #757575 100%);
   color: white;
-  box-shadow: 0 2px 8px rgba(158, 158, 158, 0.3);
 }
 
 .job-placement-content .module-list-item:hover .status-badge {
   transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
 /* Job Actions */
 .job-placement-content .item-actions {
   display: flex;
-  gap: 0.6rem;
+  gap: 0.8rem;
   align-items: center;
   flex-shrink: 0;
 }
 
 .job-placement-content .item-actions button {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  border: 2px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   color: var(--text-secondary);
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   position: relative;
   overflow: hidden;
 }
@@ -222,7 +416,7 @@
 .job-placement-content .item-actions button:hover {
   border-color: var(--danger-color);
   color: white;
-  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+  box-shadow: 0 4px 16px rgba(244, 67, 54, 0.4);
   transform: translateY(-2px);
 }
 
@@ -234,186 +428,50 @@
   transform: translateY(0);
 }
 
-/* Empty State - Enhanced */
-.job-placement-content .module-list:empty::after {
-  content: 'ℹ️ This candidate is not assigned to any active job orders.';
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 20px;
+/* Empty State */
+.empty-state {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
+  border-radius: 16px;
+  padding: 4rem 2rem;
   text-align: center;
-  color: var(--text-secondary);
-  font-size: 1rem;
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
-  border-radius: 12px;
   border: 2px dashed var(--border-color);
+  animation: fadeIn 0.5s ease-out;
 }
 
-/* Form Container - Premium styling */
-.job-placement-content .form-container {
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
-  border-radius: 12px;
-  padding: 1.5rem;
-  border: 1px solid var(--border-color);
-  position: relative;
-  overflow: hidden;
+.empty-state .empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  animation: float 3s ease-in-out infinite;
 }
 
-.job-placement-content .form-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #9C27B0, #E91E63, #9C27B0);
-  background-size: 200% 100%;
-  animation: shimmer 3s linear infinite;
+.empty-state p {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem 0;
 }
 
-.job-placement-content .form-container h3 {
+.empty-state span {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+/* Loading State */
+.job-placement-content .loading-spinner {
   font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 1.5rem 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* Assign Job Form - Enhanced */
-.assign-job-form {
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
-}
-
-.assign-job-form .form-group {
-  flex-grow: 1;
-  margin-bottom: 0;
-}
-
-.assign-job-form .form-group label {
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 500;
-  color: var(--text-primary);
-  font-size: 0.9rem;
-}
-
-.assign-job-form select {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font-size: 0.9rem;
-  transition: all 0.3s ease;
-}
-
-.assign-job-form select:focus {
-  outline: none;
-  border-color: #9C27B0;
-  box-shadow: 0 0 0 3px rgba(156, 39, 176, 0.15);
-}
-
-.assign-job-form select:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* Submit Button - Enhanced */
-.assign-job-form .btn {
-  background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-width: 120px;
-  min-height: 38px;
-}
-
-.assign-job-form .btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.assign-job-form .btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(156, 39, 176, 0.4);
-}
-
-.assign-job-form .btn:hover:not(:disabled)::before {
-  opacity: 1;
-}
-
-.assign-job-form .btn:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.assign-job-form .btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* List Container - Enhanced header */
-.job-placement-content .list-container {
-  background: transparent;
-  border: none;
-  padding: 0;
-  border-radius: 0;
-  margin-bottom: 2rem;
-}
-
-.job-placement-content .list-container h3 {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 1.5rem 0;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  position: relative;
-}
-
-.job-placement-content .list-container h3::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  width: 80px;
-  height: 2px;
-  background: linear-gradient(90deg, #9C27B0, transparent);
-  transition: width 0.3s ease;
-}
-
-.job-placement-content .list-container h3:hover::after {
-  width: 150px;
+  gap: 12px;
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
 /* Animations */
 @keyframes slideInUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
@@ -439,33 +497,37 @@
   }
 }
 
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
-  .job-placement-content .module-list-item {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 1rem;
-  }
-
-  .job-placement-content .item-icon {
-    width: 42px;
-    height: 42px;
-    font-size: 1.2rem;
-  }
-
-  .job-placement-content .item-status {
-    width: 100%;
-    margin-top: 0.5rem;
-  }
-
-  .job-placement-content .item-actions {
-    width: 100%;
-    justify-content: flex-end;
-    margin-top: 0.5rem;
-  }
-
   .job-placement-content .form-container {
-    padding: 1.2rem;
+    padding: 1.5rem;
   }
 
   .assign-job-form {
@@ -476,40 +538,59 @@
   .assign-job-form .btn {
     width: 100%;
   }
+
+  .job-placement-content .module-list-item {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.2rem;
+  }
+
+  .job-placement-content .item-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 1.4rem;
+  }
+
+  .job-placement-content .item-status {
+    width: 100%;
+    margin-top: 0.8rem;
+  }
+
+  .job-placement-content .item-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 0.8rem;
+  }
 }
 
 @media (max-width: 480px) {
   .job-placement-content .item-actions button {
-    width: 34px;
-    height: 34px;
-    font-size: 1rem;
+    width: 40px;
+    height: 40px;
+    font-size: 1.1rem;
   }
 
   .status-badge {
-    padding: 5px 12px;
-    font-size: 0.8rem;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+  }
+
+  .empty-state .empty-icon {
+    font-size: 3rem;
   }
 }
 
-/* Dark mode enhancements (if applicable) */
+/* Dark Mode Enhancements */
 @media (prefers-color-scheme: dark) {
   .job-placement-content .module-list-item {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
   }
 
   .job-placement-content .module-list-item:hover {
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   }
 
   .job-placement-content .item-icon {
-    box-shadow: 0 4px 12px rgba(156, 39, 176, 0.4);
+    box-shadow: 0 4px 16px rgba(156, 39, 176, 0.5);
   }
-}
-
-/* Loading State */
-.job-placement-content > div[style*="textAlign: center"] {
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
-  border-radius: 12px;
-  padding: 3rem !important;
-  border: 2px dashed var(--border-color);
 }

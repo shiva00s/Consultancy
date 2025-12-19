@@ -4,6 +4,7 @@ import { formatCurrency } from '../../utils/format';
 import toast from 'react-hot-toast';
 import '../../css/CandidateFinance.css';
 import useAuthStore from '../../store/useAuthStore';
+import ConfirmDialog from '../common/ConfirmDialog';
 
 const initialPaymentForm = {
   description: '',
@@ -26,6 +27,14 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
   const [editForm, setEditForm] = useState({
     amountToAdd: '',
     manualStatus: '',
+  });
+
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null,
   });
 
   const isFinanceEnabled =
@@ -66,7 +75,7 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
   const handleAddPayment = async (e) => {
     e.preventDefault();
     if (!isFinanceEnabled) {
-      toast.error('❌ Permission denied: Financial Tracking is disabled for your role.');
+      toast.error('🔒 Permission denied: Financial Tracking is disabled for your role.');
       return;
     }
 
@@ -77,12 +86,10 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
       toast.error('⚠️ Description is required.');
       return;
     }
-
     if (isNaN(total_amount) || total_amount <= 0) {
       toast.error('⚠️ Total Amount Due must be a positive number.');
       return;
     }
-
     if (isNaN(amount_paid) || amount_paid < 0) {
       toast.error('⚠️ Amount Paid must be a valid positive number.');
       return;
@@ -109,15 +116,11 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
     };
 
     try {
-      const res = await window.electronAPI.addPayment({
-        user: authUser,
-        data,
-      });
-
+      const res = await window.electronAPI.addPayment({ user: authUser, data });
       if (res.success) {
         setPayments((prev) => [res.data, ...prev]);
         setPaymentForm(initialPaymentForm);
-        toast.success('✅ Payment record added successfully.', { id: toastId });
+        toast.success('✅ Payment record added successfully!', { id: toastId });
 
         if (paymentForm.due_date && calculatedStatus !== 'Paid') {
           try {
@@ -126,9 +129,7 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
               candidateId,
               module: 'finance',
               title: '💰 Payment due',
-              message: `${paymentForm.description} for ${
-                candidateName || 'candidate'
-              } is due on ${paymentForm.due_date}`,
+              message: `${paymentForm.description} for ${candidateName || 'candidate'} is due on ${paymentForm.due_date}`,
               remindAt: new Date(paymentForm.due_date).toISOString(),
             });
           } catch (err) {
@@ -150,7 +151,7 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
   // START INLINE EDIT
   const handleEditClick = (payment) => {
     if (!isFinanceEnabled) {
-      toast.error('❌ Permission denied: Financial Tracking is disabled for your role.');
+      toast.error('🔒 Permission denied: Financial Tracking is disabled for your role.');
       return;
     }
     setEditingId(payment.id);
@@ -167,12 +168,11 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
 
   const handleSaveEdit = async (payment) => {
     if (!isFinanceEnabled) {
-      toast.error('❌ Permission denied: Financial Tracking is disabled for your role.');
+      toast.error('🔒 Permission denied: Financial Tracking is disabled for your role.');
       return;
     }
 
     const addedAmount = parseFloat(editForm.amountToAdd) || 0;
-
     if (addedAmount < 0) {
       toast.error('❌ New payment amount cannot be negative.');
       return;
@@ -180,7 +180,6 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
 
     const currentAmountPaid = parseFloat(payment.amount_paid) || 0;
     const totalAmountDue = parseFloat(payment.total_amount) || 0;
-
     let updatedAmount = currentAmountPaid + addedAmount;
     let calculatedStatus = editForm.manualStatus;
 
@@ -202,7 +201,6 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
     }
 
     const toastId = toast.loading('⏳ Updating payment record...');
-
     try {
       const res = await window.electronAPI.updatePayment({
         user: authUser,
@@ -210,14 +208,13 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
         amount_paid: updatedAmount,
         status: calculatedStatus,
       });
-
       if (res.success) {
         setPayments((prev) =>
           prev.map((p) => (p.id === payment.id ? res.data : p))
         );
         setEditingId(null);
         setEditForm({ amountToAdd: '', manualStatus: '' });
-        toast.success('✅ Payment record updated successfully.', { id: toastId });
+        toast.success('✅ Payment record updated successfully!', { id: toastId });
       } else {
         console.error('Update payment error:', res.error);
         toast.error('❌ ' + (res.error || 'Failed to update payment.'), { id: toastId });
@@ -229,35 +226,38 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
   };
   // END INLINE EDIT
 
-  const handleDeletePayment = async (paymentId, description) => {
+  const handleDeletePayment = (paymentId, description) => {
     if (!isFinanceEnabled) {
-      toast.error('❌ Permission denied: Financial Tracking is disabled for your role.');
+      toast.error('🔒 Permission denied: Financial Tracking is disabled for your role.');
       return;
     }
 
-    if (
-      window.confirm(
-        `⚠️ Are you sure you want to move the payment "${description}" to the Recycle Bin?`
-      )
-    ) {
-      try {
-        const res = await window.electronAPI.deletePayment({
-          user: authUser,
-          id: paymentId,
-        });
-
-        if (res.success) {
-          setPayments((prev) => prev.filter((p) => p.id !== paymentId));
-          toast.success('✅ Payment record moved to Recycle Bin.');
-        } else {
-          console.error('Delete payment error:', res.error);
-          toast.error('❌ ' + (res.error || 'Failed to delete payment'));
+    setConfirmDialog({
+      isOpen: true,
+      title: '⚠️ Move to Recycle Bin?',
+      message: `Are you sure you want to move the payment "${description}" to the Recycle Bin?`,
+      onConfirm: async () => {
+        const toastId = toast.loading('⏳ Deleting payment record...');
+        try {
+          const res = await window.electronAPI.deletePayment({
+            user: authUser,
+            id: paymentId,
+          });
+          
+          if (res.success) {
+            setPayments((prev) => prev.filter((p) => p.id !== paymentId));
+            toast.success('✅ Payment record moved to Recycle Bin.', { id: toastId });
+          } else {
+            console.error('Delete payment error:', res.error);
+            toast.error('❌ ' + (res.error || 'Failed to delete payment'), { id: toastId });
+          }
+        } catch (err) {
+          console.error('deletePayment error:', err);
+          toast.error('❌ Failed to delete payment', { id: toastId });
         }
-      } catch (err) {
-        console.error('deletePayment error:', err);
-        toast.error('❌ Failed to delete payment');
-      }
-    }
+        setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null });
+      },
+    });
   };
 
   const getStatusBadgeClass = (status) => {
@@ -277,99 +277,107 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
   if (loading) {
     return (
       <div className="financial-content">
-        <p>⏳ Loading payment records...</p>
+        <div className="loading-message">
+          <FiDollarSign size={48} />
+          <p>⏳ Loading payment records...</p>
+        </div>
       </div>
     );
   }
 
   if (!isFinanceEnabled) {
     return (
-      <div className="financial-content" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-        <FiLock size={64} style={{ color: 'var(--danger-color)', marginBottom: '1rem' }} />
-        <h3>❌ You do not have permission to view or manage financial records.</h3>
-        <p>
-          Current role: <strong>{authUser?.role}</strong>
-        </p>
+      <div className="financial-content">
+        <div className="permission-denied-box">
+          <FiLock size={48} />
+          <h3>🔒 Access Restricted</h3>
+          <p>You don't have permission to view financial records.</p>
+          <p>
+            Current role: <strong>{authUser?.role}</strong>
+          </p>
+        </div>
       </div>
     );
   }
 
-  const totalDue = payments.reduce((sum, p) => sum + (p.total_amount || 0), 0);
-  const totalPaid = payments.reduce((sum, p) => sum + (p.amount_paid || 0), 0);
-  const totalBalance = totalDue - totalPaid;
+  // Calculate totals
+  const totalInvoiced = payments.reduce((sum, p) => sum + p.total_amount, 0);
+  const totalPaid = payments.reduce((sum, p) => sum + p.amount_paid, 0);
+  const totalDue = totalInvoiced - totalPaid;
 
   return (
     <div className="financial-content">
-      {/* Financial Summary Bar */}
+      {/* FINANCIAL SUMMARY BAR */}
       <div className="financial-summary-bar">
         <div className="finance-summary-inline">
           <div className="summary-icon">
             <FiDollarSign />
           </div>
-          <span className="summary-title">Financial Summary</span>
+          <span className="summary-title">💰 Financial Overview</span>
           <span className="summary-divider">|</span>
-          <div className="summary-item blue-text">
-            💰 <strong>{formatCurrency(totalDue)}</strong> Total Due
+          <div className="summary-item">
+            <small>📊 Total Invoiced:</small>
+            <strong className="blue-text">{formatCurrency(totalInvoiced)}</strong>
           </div>
-          <div className="summary-item green-text">
-            ✅ <strong>{formatCurrency(totalPaid)}</strong> Paid
+          <span className="summary-divider">|</span>
+          <div className="summary-item">
+            <small>✅ Total Paid:</small>
+            <strong className="green-text">{formatCurrency(totalPaid)}</strong>
           </div>
-          <div className="summary-item red-text">
-            ⚖️ <strong>{formatCurrency(totalBalance)}</strong> Balance
+          <span className="summary-divider">|</span>
+          <div className="summary-item">
+            <small>⚖️ Total Due:</small>
+            <strong className={totalDue > 0 ? 'red-text' : 'green-text'}>
+              {formatCurrency(totalDue > 0 ? totalDue : 0)}
+            </strong>
           </div>
         </div>
       </div>
 
-      {/* Add Payment Form */}
+      {/* ADD PAYMENT FORM */}
       <div className="payment-form-container">
         <h3>
-          <FiPlus /> Add New Payment Record
+          <FiPlus /> ➕ Add New Payment Record
         </h3>
-        <form onSubmit={handleAddPayment} className="finance-form form-grid">
+        <form className="finance-form form-grid" onSubmit={handleAddPayment}>
           <div className="form-group">
-            <label htmlFor="description">Description *</label>
+            <label>📝 Description *</label>
             <input
               type="text"
-              id="description"
               name="description"
+              placeholder="e.g., Visa Processing Fee 💼"
               value={paymentForm.description}
               onChange={handlePaymentFormChange}
-              placeholder="e.g., Visa Fee, Medical Fee"
               required
             />
           </div>
           <div className="form-group">
-            <label htmlFor="total_amount">Total Amount Due *</label>
+            <label>💵 Total Amount Due *</label>
             <input
               type="number"
-              id="total_amount"
               name="total_amount"
+              placeholder="0.00"
+              step="0.01"
               value={paymentForm.total_amount}
               onChange={handlePaymentFormChange}
-              placeholder="0.00"
-              step="0.01"
-              min="0"
               required
             />
           </div>
           <div className="form-group">
-            <label htmlFor="amount_paid">Amount Paid</label>
+            <label>✅ Amount Paid (Initial)</label>
             <input
               type="number"
-              id="amount_paid"
               name="amount_paid"
-              value={paymentForm.amount_paid}
-              onChange={handlePaymentFormChange}
               placeholder="0.00"
               step="0.01"
-              min="0"
+              value={paymentForm.amount_paid}
+              onChange={handlePaymentFormChange}
             />
           </div>
           <div className="form-group">
-            <label htmlFor="due_date">Due Date</label>
+            <label>📅 Due Date</label>
             <input
               type="date"
-              id="due_date"
               name="due_date"
               value={paymentForm.due_date}
               onChange={handlePaymentFormChange}
@@ -379,69 +387,131 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
             type="submit"
             className="btn-full-width"
             disabled={isSavingPayment}
-            style={{ gridColumn: '1 / -1' }}
+            style={{ gridColumn: 'span 2' }}
           >
-            {isSavingPayment ? '⏳ Saving...' : <><FiPlus /> Add Payment Record</>}
+            <FiPlus />
+            {isSavingPayment ? '⏳ Adding...' : '➕ Add Payment Record'}
           </button>
         </form>
       </div>
 
-      {/* Payment History */}
+      {/* PAYMENT HISTORY LIST */}
       <div className="payment-list-container">
         <h3>
-          <FiDollarSign /> Payment History
+          <FiDollarSign /> 📜 Payment History
         </h3>
-        <div className="payment-list">
-          {payments.length === 0 ? (
-            <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-              ℹ️ No payment records found.
-            </p>
-          ) : (
-            payments.map((p) => {
+        {!payments || payments.length === 0 ? (
+          <div className="empty-message">
+            <p>ℹ️ No payment records found.</p>
+          </div>
+        ) : (
+          <div className="payment-list">
+            {payments.map((p) => {
               const isOverdue =
-                p.due_date && new Date(p.due_date) < new Date() && p.status !== 'Paid';
+                p.due_date &&
+                new Date(p.due_date) < new Date() &&
+                p.status !== 'Paid';
               const balance = p.total_amount - p.amount_paid;
               const isEditing = editingId === p.id;
 
               // Calculate projected paid for inline edit
-              const projectedPaid = 
-                parseFloat(p.amount_paid) + parseFloat(editForm.amountToAdd || 0);
-              const isOverpaying = 
-                editForm.amountToAdd && 
-                projectedPaid > p.total_amount && 
+              const projectedPaid =
+                parseFloat(p.amount_paid) +
+                parseFloat(editForm.amountToAdd || 0);
+              const isOverpaying =
+                editForm.amountToAdd &&
+                projectedPaid > p.total_amount &&
                 editForm.manualStatus !== 'Refunded';
 
               return (
                 <div
                   key={p.id}
-                  className={`payment-item ${isOverdue ? 'overdue' : ''} ${isEditing ? 'editing-mode' : ''}`}
+                  className={`payment-item ${isOverdue ? 'overdue' : ''} ${
+                    isEditing ? 'editing-mode' : ''
+                  }`}
                 >
-                  {isEditing ? (
-                    // INLINE EDIT MODE
+                  {!isEditing ? (
+                    <>
+                      <div className="payment-item-details">
+                        <h4>📋 {p.description}</h4>
+                        <p>
+                          💰 <strong>Total:</strong> {formatCurrency(p.total_amount)} |{' '}
+                          <strong>Paid:</strong> {formatCurrency(p.amount_paid)} |{' '}
+                          <strong>Balance:</strong>{' '}
+                          <span
+                            className={balance > 0 ? 'text-danger' : 'text-success'}
+                          >
+                            {formatCurrency(balance)}
+                          </span>
+                        </p>
+                        <p>
+                          📅 <strong>Due:</strong> {p.due_date || 'N/A'}
+                          {isOverdue && (
+                            <span className="overdue-badge"> ⚠️ OVERDUE</span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="payment-item-status">
+                        <span className={`status-badge ${getStatusBadgeClass(p.status)}`}>
+                          {p.status === 'Paid' && '✅'}
+                          {p.status === 'Partial' && '⏳'}
+                          {p.status === 'Pending' && '⏰'}
+                          {p.status === 'Refunded' && '↩️'} {p.status}
+                        </span>
+                      </div>
+                      <div className="payment-item-actions">
+                        <button
+                          type="button"
+                          onClick={() => handleEditClick(p)}
+                          title="Edit Payment"
+                        >
+                          <FiEdit2 />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePayment(p.id, p.description)}
+                          title="Delete Payment"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </div>
+                    </>
+                  ) : (
                     <div className="inline-edit-container">
                       <div className="edit-summary-box">
                         <p>
-                          💰 Total Invoiced:{' '}
+                          📋 <strong>{p.description}</strong>
+                        </p>
+                        <p>
+                          💰 <strong>Total Invoiced:</strong>{' '}
                           <strong>{formatCurrency(p.total_amount)}</strong>
                         </p>
                         <p>
-                          ✅ Currently Paid:{' '}
+                          ✅ <strong>Currently Paid:</strong>{' '}
                           <strong>{formatCurrency(p.amount_paid)}</strong>
                         </p>
                         <p>
-                          ⚖️ Amount Due:{' '}
-                          <strong style={{ color: balance > 0 ? 'var(--danger-color)' : 'var(--success-color)' }}>
+                          ⚖️ <strong>Amount Due:</strong>{' '}
+                          <strong
+                            style={{
+                              color:
+                                balance > 0
+                                  ? 'var(--danger-color)'
+                                  : 'var(--success-color)',
+                            }}
+                          >
                             {formatCurrency(balance > 0 ? balance : 0)}
                           </strong>
                         </p>
                       </div>
-
                       <div className="edit-form-grid">
                         <div className="edit-field">
-                          <label>💵 Amount to Add Now</label>
+                          <label>💳 Add Payment Amount</label>
                           <input
                             type="number"
                             className="edit-input"
+                            placeholder="Enter amount to add (e.g., 500.00)"
+                            step="0.01"
                             value={editForm.amountToAdd}
                             onChange={(e) =>
                               setEditForm((prev) => ({
@@ -449,23 +519,20 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
                                 amountToAdd: e.target.value,
                               }))
                             }
-                            placeholder="0.00"
-                            step="0.01"
-                            min="0"
                           />
-                          {editForm.amountToAdd && (
-                            <small style={{ 
-                              color: isOverpaying ? 'var(--danger-color)' : 'var(--success-color)',
-                              fontWeight: 600 
-                            }}>
-                              📊 Projected Paid: {formatCurrency(projectedPaid)}
-                              {isOverpaying && ' ⚠️ (Will be capped)'}
+                          {isOverpaying && (
+                            <small style={{ color: 'var(--danger-color)' }}>
+                              ⚠️ Exceeds total due!
+                            </small>
+                          )}
+                          {editForm.amountToAdd && !isOverpaying && (
+                            <small style={{ color: 'var(--success-color)' }}>
+                              ✅ New total: {formatCurrency(projectedPaid)}
                             </small>
                           )}
                         </div>
-
                         <div className="edit-field">
-                          <label>🏷️ Manual Status Override</label>
+                          <label>📊 Payment Status</label>
                           <select
                             className="edit-input"
                             value={editForm.manualStatus}
@@ -478,73 +545,46 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
                           >
                             {paymentStatusOptions.map((status) => (
                               <option key={status} value={status}>
+                                {status === 'Paid' && '✅ '}
+                                {status === 'Partial' && '⏳ '}
+                                {status === 'Pending' && '⏰ '}
+                                {status === 'Refunded' && '↩️ '}
                                 {status}
                               </option>
                             ))}
                           </select>
                         </div>
                       </div>
-
                       <div className="edit-actions">
                         <button
                           className="btn-save"
                           onClick={() => handleSaveEdit(p)}
                         >
-                          <FiSave /> Save Payment Update
+                          <FiSave /> 💾 Save Changes
                         </button>
-                        <button
-                          className="btn-cancel"
-                          onClick={handleCancelEdit}
-                        >
-                          <FiX /> Cancel
+                        <button className="btn-cancel" onClick={handleCancelEdit}>
+                          <FiX /> ❌ Cancel
                         </button>
                       </div>
                     </div>
-                  ) : (
-                    // NORMAL VIEW MODE
-                    <>
-                      <div className="payment-item-details">
-                        <h4>{p.description}</h4>
-                        <p>
-                          💰 Total: <strong>{formatCurrency(p.total_amount)}</strong> | Paid:{' '}
-                          <strong>{formatCurrency(p.amount_paid)}</strong> | Balance:{' '}
-                          <strong className={balance > 0 ? 'text-danger' : 'text-success'}>
-                            {formatCurrency(balance)}
-                          </strong>
-                        </p>
-                        <p>
-                          📅 Due: {p.due_date || 'N/A'}
-                          {isOverdue && (
-                            <span style={{ color: 'var(--danger-color)', marginLeft: '8px' }}>
-                              ⚠️ OVERDUE
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                      <div className="payment-item-status">
-                        <span className={`status-badge ${getStatusBadgeClass(p.status)}`}>
-                          {p.status}
-                        </span>
-                      </div>
-                      <div className="payment-item-actions">
-                        <button onClick={() => handleEditClick(p)} title="Update Payment">
-                          <FiEdit2 />
-                        </button>
-                        <button
-                          onClick={() => handleDeletePayment(p.id, p.description)}
-                          title="Delete Payment"
-                        >
-                          <FiTrash2 />
-                        </button>
-                      </div>
-                    </>
                   )}
                 </div>
               );
-            })
-          )}
-        </div>
+            })}
+          </div>
+        )}
       </div>
+
+      {/* CONFIRM DIALOG */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() =>
+          setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null })
+        }
+      />
     </div>
   );
 }

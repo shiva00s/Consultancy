@@ -680,3 +680,68 @@ textarea.edit-input {
     text-align: center;
   }
 }
+/* ===== FILE INPUT STYLING ===== */
+.form-group input[type="file"] {
+  display: none; /* Hide default file input */
+}
+
+.file-input-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.file-input-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%);
+  color: white;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  box-shadow: 0 4px 12px rgba(156, 39, 176, 0.3);
+  justify-content: center;
+}
+
+.file-input-label:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(156, 39, 176, 0.5);
+  background: linear-gradient(135deg, #AB47BC 0%, #8E24AA 100%);
+}
+
+.file-input-label:active {
+  transform: translateY(0);
+}
+
+.file-input-label svg {
+  font-size: 1.1rem;
+}
+
+.file-name-display {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-name-display svg {
+  color: #9C27B0;
+  flex-shrink: 0;
+}
+
+.file-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

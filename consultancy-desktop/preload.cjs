@@ -347,7 +347,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ==========================================================================
   // 🔧 SYSTEM UTILITIES
   // ==========================================================================
-  
+  getFileUrl: async (data) => ipcRenderer.invoke('get-file-url', data),
+
   // Dialogs
   showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
   showOpenDialog: (options) => ipcRenderer.invoke('show-open-dialog', options),

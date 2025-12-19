@@ -3041,6 +3041,15 @@ ipcMain.handle('readTextFile', async (event, { filePath, maxLength = 500 }) => {
   }
 });
 
-
+ipcMain.handle('get-file-url', async (event, { path: filePath }) => {
+  try {
+    // Convert absolute path to file:// URL
+    const fileUrl = `file://${path.resolve(filePath)}`;
+    return { success: true, fileUrl };
+  } catch (error) {
+    console.error('get-file-url error:', error);
+    return { success: false, error: error.message };
+  }
+});
 
     module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase,startReminderScheduler  };

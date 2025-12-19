@@ -1,5 +1,5 @@
 /* ========================================
-   FINANCE TAB - PREMIUM GOLD THEME
+   FINANCE TAB - ADAPTIVE THEME
    ======================================== */
 
 .financial-content {
@@ -12,7 +12,9 @@
 
 /* === FINANCIAL SUMMARY BAR === */
 .financial-summary-bar {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background: linear-gradient(135deg, 
+    var(--bg-secondary) 0%, 
+    var(--bg-input) 100%);
   border-radius: 16px;
   padding: 1.5rem 2rem;
   box-shadow: 0 8px 32px rgba(255, 215, 0, 0.15);
@@ -111,6 +113,11 @@
   transition: all 0.3s ease;
 }
 
+.form-group input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
 .form-group input:focus {
   outline: none;
   border-color: #FFD700;
@@ -191,7 +198,9 @@
 
 .payment-item.overdue {
   border-color: var(--danger-color);
-  background: linear-gradient(135deg, rgba(239, 83, 80, 0.05) 0%, var(--bg-input) 100%);
+  background: linear-gradient(135deg, 
+    rgba(239, 83, 80, 0.05) 0%, 
+    var(--bg-input) 100%);
 }
 
 .payment-item-details h4 {
@@ -270,6 +279,12 @@
   transform: scale(1.1);
 }
 
+.payment-item-actions button:last-child:hover {
+  background: #EF5350;
+  color: white;
+  border-color: #EF5350;
+}
+
 /* ============================================
    INLINE EDIT STYLES - Finance Premium Design
    ============================================ */
@@ -302,7 +317,9 @@
 }
 
 .edit-summary-box {
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.05) 0%, rgba(255, 215, 0, 0.02) 100%);
+  background: linear-gradient(135deg, 
+    rgba(255, 215, 0, 0.05) 0%, 
+    rgba(255, 215, 0, 0.02) 100%);
   border: 1.5px solid rgba(255, 215, 0, 0.2);
   border-radius: 10px;
   padding: 1rem;
