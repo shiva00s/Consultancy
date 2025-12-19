@@ -42,6 +42,7 @@ function CandidatePassport({ candidateId, candidateData }) {
           }
         }
       } catch (error) {
+        console.error('Error fetching staff:', error);
         if (user?.fullName) {
           setStaffList([user.fullName]);
         }
@@ -61,9 +62,9 @@ function CandidatePassport({ candidateId, candidateData }) {
         const data = res.data || [];
         setMovements(data);
 
-        // Check which movements exist
-        const hasReceive = data.some((m) => m.type === 'RECEIVE');
-        const hasSend = data.some((m) => m.type === 'SEND');
+        // Check which movements exist (only non-deleted ones)
+        const hasReceive = data.some((m) => m.type === 'RECEIVE' && !m.isdeleted);
+        const hasSend = data.some((m) => m.type === 'SEND' && !m.isdeleted);
         
         setExistingMovements({
           receive: hasReceive,
@@ -77,16 +78,21 @@ function CandidatePassport({ candidateId, candidateData }) {
           setActiveTab('receive');
         } else if (hasReceive && hasSend) {
           setActiveTab('history');
+        } else {
+          // No movements yet, default to receive
+          setActiveTab('receive');
         }
       } else {
         console.error('Failed to fetch movements:', res.error);
         toast.error(res.error || 'Failed to fetch movements');
         setMovements([]);
+        setExistingMovements({ receive: false, send: false });
       }
     } catch (error) {
       console.error('Error fetching movements:', error);
       toast.error('Failed to load movements');
       setMovements([]);
+      setExistingMovements({ receive: false, send: false });
     } finally {
       setLoading(false);
     }
@@ -96,7 +102,7 @@ function CandidatePassport({ candidateId, candidateData }) {
     fetchMovements();
   }, [fetchMovements]);
 
-  // Handle successful form submission
+  // Handle successful form submission (add)
   const handleMovementAdded = (newMovement) => {
     toast.success('✅ Movement recorded successfully');
     setTimeout(() => {
@@ -106,10 +112,13 @@ function CandidatePassport({ candidateId, candidateData }) {
 
   // Handle movement deletion
   const handleMovementDeleted = () => {
-    fetchMovements();
+    toast.success('🗑️ Movement deleted successfully');
+    setTimeout(() => {
+      fetchMovements();
+    }, 300);
   };
 
- // Define tabs
+  // Define tabs
   const tabs = [
     {
       key: 'receive',
@@ -121,12 +130,14 @@ function CandidatePassport({ candidateId, candidateData }) {
           <FiCheckCircle size={48} color="#10b981" />
           <h3>Completed</h3>
           <p>This passport receive entry has been completed and recorded.</p>
+          <small>If you need to modify, delete it from History first.</small>
         </div>
       ) : (
         <PassportReceiveForm
           candidateId={candidateId}
           candidateData={candidateData}
           staffList={staffList}
+          user={user}
           onSuccess={handleMovementAdded}
         />
       ),
@@ -141,12 +152,14 @@ function CandidatePassport({ candidateId, candidateData }) {
           <FiCheckCircle size={48} color="#10b981" />
           <h3>Completed</h3>
           <p>This passport send entry has been completed and recorded.</p>
+          <small>If you need to modify, delete it from History first.</small>
         </div>
       ) : (
         <PassportSendForm
           candidateId={candidateId}
           candidateData={candidateData}
           staffList={staffList}
+          user={user}
           onSuccess={handleMovementAdded}
         />
       ),
@@ -155,10 +168,11 @@ function CandidatePassport({ candidateId, candidateData }) {
       key: 'history',
       label: 'History',
       icon: '📜',
-      badge: movements.length > 0 ? `${movements.length}` : null,
+      badge: movements.length > 0 ? movements.length : null,
       content: (
         <PassportHistoryTimeline
           movements={movements}
+          user={user}
           onMovementDeleted={handleMovementDeleted}
         />
       ),
@@ -175,13 +189,11 @@ function CandidatePassport({ candidateId, candidateData }) {
   }
 
   return (
-   
-      <UniversalTabs 
-        defaultActiveTab={activeTab} 
-        tabs={tabs}
-        onTabChange={setActiveTab}
-      />
-   
+    <UniversalTabs 
+      defaultActiveTab={activeTab} 
+      tabs={tabs}
+      onTabChange={setActiveTab}
+    />
   );
 }
 
