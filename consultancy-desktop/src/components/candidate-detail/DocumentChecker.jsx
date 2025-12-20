@@ -1,105 +1,103 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "../../css/DocumentChecker.css";
-import { FiAlertTriangle, FiCheckCircle, FiRefreshCw } from "react-icons/fi";
+import {
+  FiAlertTriangle,
+  FiCheckCircle,
+  FiRefreshCw,
+} from "react-icons/fi";
 
-// Emoji mapping for all categories
-const categoryEmojiMap = {
+/* ===============================
+   🧠 CATEGORY → EMOJI MAP
+   =============================== */
+const emojiMap = {
   "Aadhar Card": "🆔",
-  "Driving License": "🚗",
-  "Education Certificate": "🎓",
-  "Experience Letter": "💼",
-  "Medical": "🏥",
-  "Medical Certificate": "🏥",
-  "Offer Letter": "📋",
   "Pan Card": "💳",
   "Passport": "🛂",
-  "Photograph": "📸",
+  "Visa": "✈️",
+  "Education Certificate": "🎓",
+  "Experience Letter": "💼",
+  "Offer Letter": "📋",
   "Resume": "📄",
-  "Travel": "✈️",
-  "Uncategorized": "📂",
-  "Visa": "✈️"
+  "Photograph": "📸",
+  "Medical Certificate": "🏥",
+  "Driving License": "🚗",
+  Uncategorized: "📂",
 };
 
-// Helper function to add emoji to category
-const addEmojiToCategory = (category) => {
-  const cleanCategory = cleanCategoryName(category);
-  const emoji = categoryEmojiMap[cleanCategory] || "📄";
-  return `${emoji} ${cleanCategory}`;
-};
-
-// 🔧 Robust emoji removal function
-const cleanCategoryName = (category) => {
-  if (!category) return "";
-  return category
-    .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
-    .replace(/[\u{2600}-\u{26FF}]/gu, '')
-    .replace(/[\u{2700}-\u{27BF}]/gu, '')
-    .replace(/[\u{FE00}-\u{FE0F}]/gu, '')
-    .replace(/[\u{1F900}-\u{1F9FF}]/gu, '')
-    .replace(/[\u{1F300}-\u{1F5FF}]/gu, '')
-    .replace(/[\u{1F600}-\u{1F64F}]/gu, '')
-    .replace(/[\u{1F680}-\u{1F6FF}]/gu, '')
+/* ===============================
+   🔧 CLEAN CATEGORY NAME
+   =============================== */
+const cleanCategory = (value = "") =>
+  value
+    .replace(/[\u{1F000}-\u{1FFFF}]/gu, "")
+    .replace(/[\u{2600}-\u{27BF}]/gu, "")
     .trim();
-};
 
-function DocumentChecker({ candidateDocuments, user }) {
-  // ✅ DYNAMIC STATE - Fetch from DocumentRequirementManager
+/* ===============================
+   MAIN COMPONENT
+   =============================== */
+function DocumentChecker({ candidateDocuments = [], user }) {
   const [requiredDocs, setRequiredDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // ✅ FETCH REQUIRED DOCUMENTS DYNAMICALLY
-  const fetchRequiredDocuments = async () => {
+  /* ===============================
+     🔄 FETCH REQUIRED DOCS
+     =============================== */
+  const fetchRequiredDocs = async () => {
     setLoading(true);
     try {
       const res = await window.electronAPI.getRequiredDocuments();
-      if (res.success) {
+      if (res?.success) {
         setRequiredDocs(res.data || []);
       } else {
-        console.error("Failed to fetch requirements:", res.error);
         setRequiredDocs([]);
       }
-    } catch (error) {
-      console.error("Error fetching requirements:", error);
+    } catch {
       setRequiredDocs([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ FETCH ON MOUNT
   useEffect(() => {
-    fetchRequiredDocuments();
+    fetchRequiredDocs();
   }, []);
 
-  // ✅ REFRESH BUTTON HANDLER
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchRequiredDocuments();
+    await fetchRequiredDocs();
     setRefreshing(false);
   };
 
-  // ✅ COMPUTE UPLOADED AND MISSING CATEGORIES
-  const { uploadedCategories, missingMandatory } = useMemo(() => {
-    const uploadedSet = new Set(
-      (candidateDocuments || [])
-        .map((d) => cleanCategoryName(d.category || "Uncategorized"))
+  /* ===============================
+     🧮 COMPUTED STATUS
+     =============================== */
+  const { uploadedSet, missingList } = useMemo(() => {
+    const uploaded = new Set(
+      candidateDocuments
+        .map((d) => cleanCategory(d.category || "Uncategorized"))
         .filter(Boolean)
     );
 
-    // Extract category names from required documents
-    const mandatory = requiredDocs.map(doc => cleanCategoryName(doc.name));
-    const missing = mandatory.filter((cat) => !uploadedSet.has(cat));
+    const required = requiredDocs.map((r) =>
+      cleanCategory(r.name || "")
+    );
+
+    const missing = required.filter((r) => !uploaded.has(r));
 
     return {
-      uploadedCategories: Array.from(uploadedSet),
-      missingMandatory: missing,
+      uploadedSet: uploaded,
+      missingList: missing,
     };
   }, [candidateDocuments, requiredDocs]);
 
-  const hasMissing = missingMandatory.length > 0;
+  const allDone =
+    requiredDocs.length > 0 && missingList.length === 0;
 
-  // ✅ LOADING STATE
+  /* ===============================
+     ⏳ LOADING STATE
+     =============================== */
   if (loading) {
     return (
       <div className="dchk-card">
@@ -108,7 +106,7 @@ function DocumentChecker({ candidateDocuments, user }) {
             <FiRefreshCw className="spin-animation" />
             <div>
               <h3>📋 Document Checker</h3>
-              <p>⏳ Loading requirements from manager...</p>
+              <p>⏳ Loading required documents…</p>
             </div>
           </div>
         </div>
@@ -116,7 +114,9 @@ function DocumentChecker({ candidateDocuments, user }) {
     );
   }
 
-  // ✅ NO REQUIREMENTS CONFIGURED YET
+  /* ===============================
+     🚫 NO REQUIREMENTS SET
+     =============================== */
   if (requiredDocs.length === 0) {
     return (
       <div className="dchk-card">
@@ -125,99 +125,119 @@ function DocumentChecker({ candidateDocuments, user }) {
             <span className="dchk-emoji">⚙️</span>
             <div>
               <h3>📋 Document Checker</h3>
-              <p>⚡ Real-time validation against Document Requirement Manager</p>
+              <p>
+                No required documents configured yet
+              </p>
             </div>
           </div>
+
           <button
             className="refresh-btn"
             onClick={handleRefresh}
             disabled={refreshing}
-            title="Refresh requirements"
+            title="Refresh"
           >
-            <FiRefreshCw className={refreshing ? "spin-animation" : ""} />
+            <FiRefreshCw
+              className={refreshing ? "spin-animation" : ""}
+            />
           </button>
         </div>
-        
-        <div className="empty-requirements-state">
-          <p className="empty-icon">📂</p>
-          <p className="empty-title">No Requirements Configured</p>
-          <p className="empty-desc">
-            Go to <strong>Document Requirement Manager</strong> tab to set up mandatory documents for candidates.
-          </p>
+
+        <div className="dchk-none">
+          📂 Go to <strong>Document Requirement Manager</strong>{" "}
+          and configure mandatory documents.
         </div>
       </div>
     );
   }
 
-  // ✅ MAIN CHECKER VIEW
+  /* ===============================
+     ✅ MAIN RENDER
+     =============================== */
   return (
     <div className="dchk-card">
+      {/* HEADER */}
       <div className="dchk-header">
         <div className="dchk-title">
-          <span className="dchk-emoji">📋</span>
+          <span className="dchk-emoji">🧠</span>
           <div>
-            <h3>Document Checker</h3>
-            <p>⚡ Instant overview of mandatory ({requiredDocs.length}) and uploaded categories</p>
+            <h3>📋 Document Checker</h3>
+            <p>
+              Auto-validated against Requirement Manager
+            </p>
           </div>
         </div>
+
         <button
           className="refresh-btn"
           onClick={handleRefresh}
           disabled={refreshing}
-          title="Refresh requirements from manager"
+          title="Refresh"
         >
-          <FiRefreshCw className={refreshing ? "spin-animation" : ""} />
+          <FiRefreshCw
+            className={refreshing ? "spin-animation" : ""}
+          />
         </button>
       </div>
 
-      {/* ✅ STATUS BANNER */}
-      <div className={`dchk-banner ${hasMissing ? "dchk-banner-danger" : "dchk-banner-ok"}`}>
-        {hasMissing ? (
-          <>
-            <FiAlertTriangle />
-            <span>⚠️ {missingMandatory.length} required document(s) missing</span>
-          </>
-        ) : (
-          <>
-            <FiCheckCircle />
-            <span>✅ All {requiredDocs.length} required documents are uploaded!</span>
-          </>
-        )}
-      </div>
+      {/* STATUS BANNER */}
+      {allDone ? (
+        <div className="dchk-banner dchk-banner-ok">
+          <FiCheckCircle />
+          🎉 All required documents uploaded successfully!
+        </div>
+      ) : (
+        <div className="dchk-banner dchk-banner-danger">
+          <FiAlertTriangle />
+          ⚠️ {missingList.length} required document(s)
+          missing
+        </div>
+      )}
 
-      {/* ✅ GRID LAYOUT */}
+      {/* GRID */}
       <div className="dchk-grid">
-        {/* LEFT COLUMN - UPLOADED CATEGORIES */}
+        {/* REQUIRED */}
         <div className="dchk-col">
-          <h4>✅ Uploaded Categories ({uploadedCategories.length})</h4>
-          {uploadedCategories.length === 0 ? (
-            <p className="dchk-none">
-              📥 No uploads yet. Start by adding documents below ⬇️
-            </p>
-          ) : (
-            <p className="dchk-cats">
-              {uploadedCategories.map(addEmojiToCategory).join(" • ")}
-            </p>
-          )}
+          <h4>📌 Required Documents</h4>
+          <ul className="dchk-list">
+            {requiredDocs.map((doc) => {
+              const name = cleanCategory(doc.name);
+              const emoji = emojiMap[name] || "📄";
+              const isMissing = missingList.includes(name);
+
+              return (
+                <li
+                  key={doc.id}
+                  style={{
+                    borderLeftColor: isMissing
+                      ? "#ef4444"
+                      : "#22c55e",
+                  }}
+                >
+                  {emoji} {name}{" "}
+                  {isMissing ? "❌" : "✅"}
+                </li>
+              );
+            })}
+          </ul>
         </div>
 
-        {/* RIGHT COLUMN - MISSING MANDATORY */}
+        {/* UPLOADED */}
         <div className="dchk-col">
-          <h4>
-            {hasMissing
-              ? `⚠️ Missing Mandatory (${missingMandatory.length}/${requiredDocs.length})`
-              : `✅ All Required Complete (${requiredDocs.length}/${requiredDocs.length})`}
-          </h4>
-          {!hasMissing ? (
-            <p className="dchk-none" style={{ borderColor: "#22c55e", color: "#86efac" }}>
-              🎉 No missing items. Great job!
+          <h4>📤 Uploaded Categories</h4>
+
+          {uploadedSet.size === 0 ? (
+            <p className="dchk-none">
+              📭 No documents uploaded yet
             </p>
           ) : (
-            <ul className="dchk-list">
-              {missingMandatory.map((cat) => (
-                <li key={cat}>{addEmojiToCategory(cat)}</li>
+            <div className="dchk-cats">
+              {[...uploadedSet].map((cat) => (
+                <div key={cat}>
+                  {emojiMap[cat] || "📄"} {cat}
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </div>
       </div>

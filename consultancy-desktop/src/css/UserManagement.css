@@ -1,14 +1,21 @@
+/* ========================================
+   💎 USER MANAGEMENT - PREMIUM EDITION
+   ======================================== */
+
 .user-management-shell {
   padding: 1.6rem 1.7rem;
 }
 
-/* header */
-
+/* ========================================
+   HEADER
+   ======================================== */
 .user-management-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.3rem;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .user-management-title {
@@ -21,25 +28,60 @@
 }
 
 .user-management-title-emoji {
-  font-size: 1.2rem;
+  font-size: 1.3rem;
 }
 
 .user-management-sub {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
   font-size: 0.84rem;
   color: var(--text-secondary);
 }
 
-/* add form – 1 row, 4 columns (Username | Password | Role | Button) */
+.user-management-sub span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 
+/* CHANGE PASSWORD BUTTON */
+.change-password-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.change-password-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5);
+}
+
+html[data-theme='light'] .change-password-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+/* ========================================
+   ADD USER FORM
+   ======================================== */
 .user-add-section h2 {
   font-size: 1rem;
   margin-bottom: 0.8rem;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .user-add-form {
@@ -51,6 +93,22 @@
 
 .user-add-form .form-group {
   margin-bottom: 0;
+}
+
+.user-add-form label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.user-add-form .required {
+  color: #ef4444;
+  font-weight: 700;
+  margin-left: 2px;
 }
 
 .user-add-button-cell {
@@ -73,15 +131,40 @@
   border: 0;
 }
 
-/* inputs inside this block inherit global settings forms from SettingsPage */
-
 .user-add-form input,
 .user-add-form select {
   min-height: 46px;
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  transition: all 0.2s;
 }
 
-/* list section */
+html[data-theme='light'] .user-add-form input,
+html[data-theme='light'] .user-add-form select {
+  background: #f9fafb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
 
+.user-add-form input:focus,
+.user-add-form select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+  outline: none;
+}
+
+.user-add-form input:disabled,
+.user-add-form select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ========================================
+   USER LIST
+   ======================================== */
 .user-list-section {
   margin-top: 2rem;
 }
@@ -90,18 +173,19 @@
   font-size: 0.95rem;
   margin-bottom: 0.9rem;
   color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
 }
-
-/* one row, 3 columns for chips */
 
 .user-row-3cols {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 14px;
 }
 
-/* user chip – soft glass look */
-
+/* USER CHIP – PREMIUM GLASSMORPHISM */
 .user-chip {
   display: flex;
   justify-content: space-between;
@@ -112,14 +196,22 @@
   border: 1px solid rgba(148, 163, 184, 0.35);
   box-shadow: 0 14px 30px rgba(15, 23, 42, 0.75);
   backdrop-filter: blur(14px);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
-
-/* light theme chip tweak */
 
 html[data-theme='light'] .user-chip {
   background: color-mix(in srgb, #ffffff 88%, #e5e7eb 12%);
   box-shadow: 0 12px 26px rgba(15, 23, 42, 0.1);
   border-color: rgba(148, 163, 184, 0.4);
+}
+
+.user-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.9);
+}
+
+html[data-theme='light'] .user-chip:hover {
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.15);
 }
 
 .user-chip-main {
@@ -153,8 +245,6 @@ html[data-theme='light'] .user-chip {
   box-shadow: 0 8px 18px rgba(37, 99, 235, 0.7);
 }
 
-/* light avatar */
-
 html[data-theme='light'] .user-avatar-pill {
   background: radial-gradient(circle at top, #38bdf8, #93c5fd);
   color: #0f172a;
@@ -172,8 +262,14 @@ html[data-theme='light'] .user-avatar-pill {
   letter-spacing: 0.04em;
 }
 
-/* actions */
+html[data-theme='light'] .user-role-pill {
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+}
 
+/* ========================================
+   USER ACTIONS
+   ======================================== */
 .user-chip-actions {
   display: inline-flex;
   gap: 6px;
@@ -191,9 +287,8 @@ html[data-theme='light'] .user-avatar-pill {
   cursor: pointer;
   color: var(--text-secondary);
   transition: all 0.18s ease;
+  font-size: 0.9rem;
 }
-
-/* light buttons */
 
 html[data-theme='light'] .user-chip-actions .doc-btn {
   background-color: #f8fafc;
@@ -207,24 +302,177 @@ html[data-theme='light'] .user-chip-actions .doc-btn {
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.7);
 }
 
+html[data-theme='light'] .user-chip-actions .doc-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
 .user-chip-actions .doc-btn.delete:hover:not(:disabled) {
   background-color: var(--danger-color);
   color: #ffffff;
   border-color: var(--danger-color);
 }
 
-/* empty */
+.user-chip-actions .doc-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
+/* ========================================
+   EMPTY STATE
+   ======================================== */
 .user-empty-state {
   padding: 1.2rem;
   border-radius: 12px;
   border: 1px dashed var(--border-color);
   color: var(--text-secondary);
   font-size: 0.9rem;
+  text-align: center;
 }
 
-/* responsive */
+/* ========================================
+   DELETE CONFIRM DIALOG - PREMIUM
+   ======================================== */
+.premium-confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease-out;
+}
 
+.premium-confirm-dialog {
+  background: linear-gradient(135deg, #1a1d2e 0%, #0f1117 100%);
+  border-radius: 20px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(148, 163, 184, 0.2);
+  padding: 32px;
+  max-width: 440px;
+  width: 90%;
+  text-align: center;
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html[data-theme='light'] .premium-confirm-dialog {
+  background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(148, 163, 184, 0.3);
+}
+
+.premium-confirm-dialog .confirm-icon {
+  font-size: 3.5rem;
+  margin-bottom: 16px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.premium-confirm-dialog h3 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.premium-confirm-dialog p {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.premium-confirm-dialog .confirm-warning {
+  color: #fbbf24;
+  font-weight: 600;
+  margin-top: 12px;
+}
+
+.premium-confirm-dialog .confirm-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.premium-confirm-dialog .btn-cancel,
+.premium-confirm-dialog .btn-danger {
+  flex: 1;
+  padding: 13px 18px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.premium-confirm-dialog .btn-cancel {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
+}
+
+html[data-theme='light'] .premium-confirm-dialog .btn-cancel {
+  background: #f3f4f6;
+}
+
+.premium-confirm-dialog .btn-cancel:hover {
+  background: var(--bg-secondary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.premium-confirm-dialog .btn-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+}
+
+.premium-confirm-dialog .btn-danger:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.5);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
 @media (max-width: 1100px) {
   .user-add-form {
     grid-template-columns: 1fr 1fr;
@@ -235,39 +483,23 @@ html[data-theme='light'] .user-chip-actions .doc-btn {
   .user-add-form {
     grid-template-columns: 1fr;
   }
-}
 
-@media (max-width: 1000px) {
   .user-row-3cols {
     grid-template-columns: 1fr;
   }
-}
-/* smaller, emoji-friendly subtitle under main title */
-.user-management-sub span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+
+  .user-management-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
-/* highlight headings with emojis a bit more */
-.user-add-section h2,
-.user-list-section h3 {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
+@media (max-width: 600px) {
+  .premium-confirm-dialog {
+    padding: 24px;
+  }
 
-/* make role pill subtly colorful */
-html[data-theme='light'] .user-role-pill {
-  background: rgba(59, 130, 246, 0.12);
-  color: #1d4ed8;
-}
-
-html[data-theme='dark'] .user-role-pill {
-  background: rgba(148, 163, 184, 0.25);
-}
-
-/* ensure emoji buttons look centered */
-.user-chip-actions .doc-btn {
-  font-size: 0.9rem;
+  .premium-confirm-dialog .confirm-actions {
+    flex-direction: column;
+  }
 }

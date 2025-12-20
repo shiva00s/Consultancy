@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiUserPlus, FiLock, FiTrash2, FiUsers } from 'react-icons/fi';
+import { FiUserPlus, FiLock, FiTrash2, FiUsers, FiKey } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import ResetPasswordModal from '../modals/ResetPasswordModal';
+import ChangePasswordModal from '../modals/ChangePasswordModal';
 import PermissionPopup from '../PermissionPopup';
 import useAuthStore from '../../store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
 import '../../css/UserManagement.css';
 
 const roleOptions = [
-  { value: 'staff', label: 'Staff (Data Entry)' },
-  { value: 'admin', label: 'Admin (Manager/Delegated)' },
+  { value: 'staff', label: '👤 Staff (Data Entry)' },
+  { value: 'admin', label: '👨‍💼 Admin (Manager/Delegated)' },
   // { value: 'super_admin', label: 'Super Admin (System Owner)' },
 ];
 
@@ -22,6 +23,8 @@ function UserManagement({ currentUser }) {
   const [isSaving, setIsSaving] = useState(false);
   const [resettingUser, setResettingUser] = useState(null);
   const [permissionTarget, setPermissionTarget] = useState(null);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState(null);
 
   const { featureFlags } = useAuthStore(
     useShallow((state) => ({ featureFlags: state.featureFlags }))
@@ -42,7 +45,7 @@ function UserManagement({ currentUser }) {
       );
       setUsers(filteredUsers);
     } else {
-      toast.error(res.error || 'Failed to fetch users.');
+      toast.error(res.error || '❌ Failed to fetch users');
     }
     setLoading(false);
   }, [currentUser.id, isSuperAdmin]);
@@ -58,7 +61,7 @@ function UserManagement({ currentUser }) {
     e.preventDefault();
 
     if (!form.username || !form.password) {
-      return toast.error('Fields required');
+      return toast.error('⚠️ All fields required');
     }
 
     setIsSaving(true);
@@ -77,9 +80,9 @@ function UserManagement({ currentUser }) {
     if (res.success) {
       setUsers((prev) => [...prev, res.data]);
       setForm(initialUserForm);
-      toast.success(`User ${res.data.username} added!`);
+      toast.success(`✅ User ${res.data.username} added successfully!`);
     } else {
-      toast.error(res.error);
+      toast.error(`❌ ${res.error}`);
     }
 
     setIsSaving(false);
@@ -87,24 +90,27 @@ function UserManagement({ currentUser }) {
 
   const handleDeleteUser = async (userId, username) => {
     if (!isSuperAdmin) {
-      toast.error('Only Super Admin can delete users.');
+      toast.error('🚫 Only Super Admin can delete users');
       return;
     }
-    if (!window.confirm(`Permanently delete user: ${username}?`)) return;
+
     const res = await window.electronAPI.deleteUser({
       user: currentUser,
       idToDelete: userId,
     });
+
     if (res.success) {
       setUsers((prev) => prev.filter((u) => u.id !== userId));
-      toast.success('User deleted.');
+      toast.success(`🗑️ User ${username} deleted successfully`);
+      setDeleteConfirmUser(null);
     } else {
-      toast.error(res.error);
+      toast.error(`❌ ${res.error}`);
     }
   };
 
   return (
     <div className="settings-section-card user-management-shell">
+      {/* RESET PASSWORD MODAL */}
       {resettingUser && (
         <ResetPasswordModal
           currentUser={currentUser}
@@ -114,6 +120,20 @@ function UserManagement({ currentUser }) {
         />
       )}
 
+      {/* CHANGE PASSWORD MODAL (for current user) */}
+      {showChangePasswordModal && (
+        <ChangePasswordModal
+          user={currentUser}
+          onClose={() => setShowChangePasswordModal(false)}
+          onPasswordChange={() => {
+            setShowChangePasswordModal(false);
+            toast.success('✅ Password changed! Please login again');
+            setTimeout(() => window.location.reload(), 1500);
+          }}
+        />
+      )}
+
+      {/* PERMISSION POPUP */}
       {permissionTarget && (
         <PermissionPopup
           user={currentUser}
@@ -126,28 +146,69 @@ function UserManagement({ currentUser }) {
         />
       )}
 
+      {/* DELETE CONFIRM DIALOG */}
+      {deleteConfirmUser && (
+        <div className="premium-confirm-overlay">
+          <div className="premium-confirm-dialog">
+            <div className="confirm-icon">🗑️</div>
+            <h3>Delete User</h3>
+            <p>
+              Are you sure you want to permanently delete{' '}
+              <strong>{deleteConfirmUser.username}</strong>?
+            </p>
+            <p className="confirm-warning">⚠️ This action cannot be undone!</p>
+            <div className="confirm-actions">
+              <button
+                className="btn-cancel"
+                onClick={() => setDeleteConfirmUser(null)}
+              >
+                ❌ Cancel
+              </button>
+              <button
+                className="btn-danger"
+                onClick={() =>
+                  handleDeleteUser(deleteConfirmUser.id, deleteConfirmUser.username)
+                }
+              >
+                🗑️ Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HEADER */}
       <div className="user-management-header">
         <div className="user-management-title">
           <span className="user-management-title-emoji">👥</span>
           <span>Users & Roles</span>
         </div>
         <div className="user-management-sub">
-          <FiUsers />
-          <span>Manage who can log in and what they can do.</span>
+          <span>
+            <FiUsers />
+            Manage who can log in and what they can do
+          </span>
+          <button
+            className="change-password-btn"
+            onClick={() => setShowChangePasswordModal(true)}
+            title="🔑 Change My Password"
+          >
+            <FiKey /> 🔑
+          </button>
         </div>
       </div>
 
+      {/* ADD USER SECTION */}
       <div className="user-add-section">
         <h2>
-          <FiUsers /> Add New User
+          ➕ Add New User
         </h2>
 
-        <form
-          onSubmit={handleSubmit}
-          className="form-grid user-add-form"
-        >
+        <form onSubmit={handleSubmit} className="form-grid user-add-form">
           <div className="form-group">
-            <label>Username</label>
+            <label>
+              👤 Username <span className="required">*</span>
+            </label>
             <input
               name="username"
               value={form.username}
@@ -157,7 +218,9 @@ function UserManagement({ currentUser }) {
             />
           </div>
           <div className="form-group">
-            <label>Password</label>
+            <label>
+              🔒 Password <span className="required">*</span>
+            </label>
             <input
               type="password"
               name="password"
@@ -168,7 +231,9 @@ function UserManagement({ currentUser }) {
             />
           </div>
           <div className="form-group">
-            <label>Role</label>
+            <label>
+              🎭 Role <span className="required">*</span>
+            </label>
             <select
               name="role"
               value={form.role}
@@ -190,67 +255,72 @@ function UserManagement({ currentUser }) {
               className="btn btn-primary btn-full-width"
               disabled={!isSuperAdmin || isSaving}
             >
-              <FiUserPlus /> {isSaving ? 'Adding…' : 'Add User'}
+              <FiUserPlus /> {isSaving ? '⏳ Adding…' : '✅ Add User'}
             </button>
           </div>
         </form>
       </div>
 
-      {/* Existing Users – single row, 3 columns of chips */}
+      {/* EXISTING USERS LIST */}
       <div className="user-list-section">
-        <h3>Existing Users ({users.length})</h3>
+        <h3>📋 Existing Users ({users.length})</h3>
         {loading ? (
-          <p>Loading...</p>
+          <div className="user-empty-state">⏳ Loading users...</div>
         ) : users.length === 0 ? (
           <div className="user-empty-state">
-            No users created yet.
+            📭 No users created yet. Add a new user above.
           </div>
         ) : (
           <div className="user-row-3cols">
-            {users.slice(0, 3).map((user) => (
+            {users.map((user) => (
               <div key={user.id} className="user-chip">
                 <div className="user-chip-main">
                   <div className="user-avatar-pill">
-                    {user.username?.[0]?.toUpperCase() || 'U'}
+                    {user.username?.[0]?.toUpperCase() || '?'}
                   </div>
                   <div className="user-chip-text">
                     <div className="user-name-row">
-                      {user.username}
+                      <strong>{user.username}</strong>
                     </div>
                     <span className="user-role-pill">
-                      {user.role.replace('_', ' ').toUpperCase()}
+                      {user.role === 'admin'
+                        ? '👨‍💼 ADMIN'
+                        : user.role === 'staff'
+                        ? '👤 STAFF'
+                        : user.role.replace('_', ' ').toUpperCase()}
                     </span>
                   </div>
                 </div>
 
                 <div className="user-chip-actions">
+                  {/* PERMISSION BUTTON */}
                   {(isSuperAdmin || isAdmin) &&
                     user.role !== 'super_admin' &&
-                    (isSuperAdmin ||
-                      (isAdmin && user.role === 'staff')) && (
+                    (isSuperAdmin || (isAdmin && user.role === 'staff')) && (
                       <button
                         className="doc-btn view"
                         onClick={() => setPermissionTarget(user)}
-                        title="Set Permissions"
+                        title="🔑 Set Permissions"
                       >
                         🔐
                       </button>
                     )}
 
+                  {/* RESET PASSWORD BUTTON */}
                   <button
                     className="doc-btn view"
                     onClick={() => setResettingUser(user)}
-                    title="Reset Password"
+                    title="🔒 Reset Password"
                     disabled={!isSuperAdmin}
                   >
                     <FiLock />
                   </button>
+
+                  {/* DELETE BUTTON */}
                   <button
                     className="doc-btn delete"
-                    onClick={() =>
-                      handleDeleteUser(user.id, user.username)
-                    }
-                    title="Delete User"
+                    onClick={() => setDeleteConfirmUser(user)}
+                    title="🗑️ Delete User"
                     disabled={!isSuperAdmin}
                   >
                     <FiTrash2 />

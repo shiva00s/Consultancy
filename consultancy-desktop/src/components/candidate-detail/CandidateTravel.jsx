@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { FiSend, FiPlus, FiTrash2, FiDownload, FiMapPin, FiEdit2 } from 'react-icons/fi';
+import { FiSend, FiPlus, FiTrash2, FiDownload, FiMapPin, FiEdit2, FiSave, FiX } from 'react-icons/fi';
 import { readFileAsBuffer } from '../../utils/file';
 import toast from 'react-hot-toast';
+import ConfirmDialog from '../common/ConfirmDialog';
 import '../../css/CandidateTravel.css';
-
-import TravelEditModal from '../modals/TravelEditModal';
 
 const initialTravelForm = {
   pnr: '',
@@ -20,7 +19,9 @@ function CandidateTravel({ user, candidateId, candidateName }) {
   const [loading, setLoading] = useState(true);
   const [travelForm, setTravelForm] = useState(initialTravelForm);
   const [isSaving, setIsSaving] = useState(false);
-  const [editingTravel, setEditingTravel] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editData, setEditData] = useState({});
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, travelId: null });
   const fileInputRef = useRef(null);
 
   const fetchTravelTracking = useCallback(async () => {
@@ -48,12 +49,7 @@ function CandidateTravel({ user, candidateId, candidateName }) {
 
   const handleAddEntry = async (e) => {
     e.preventDefault();
-
-    if (
-      !travelForm.travel_date ||
-      !travelForm.departure_city ||
-      !travelForm.arrival_city
-    ) {
+    if (!travelForm.travel_date || !travelForm.departure_city || !travelForm.arrival_city) {
       toast.error('⚠️ Travel Date, Departure, and Arrival cities are required.');
       return;
     }
@@ -72,13 +68,11 @@ function CandidateTravel({ user, candidateId, candidateName }) {
           buffer: buffer,
           category: 'Travel',
         };
-
         const docRes = await window.electronAPI.addDocuments({
           user,
           candidateId,
           files: [fileData],
         });
-
         if (docRes.success && docRes.newDocs.length > 0) {
           ticket_file_path = docRes.newDocs[0].filePath;
         } else {
@@ -93,23 +87,19 @@ function CandidateTravel({ user, candidateId, candidateName }) {
       };
 
       const res = await window.electronAPI.addTravelEntry({ user, data });
-
       if (res.success) {
         setTravelEntries((prev) => [res.data, ...prev]);
         setTravelForm(initialTravelForm);
         if (fileInputRef.current) fileInputRef.current.value = null;
         toast.success('✅ Travel entry saved successfully!', { id: toastId });
 
-        // 🔔 create reminder for this travel
         try {
           await window.electronAPI.createReminder({
             userId: user.id,
             candidateId,
             module: 'travel',
             title: '🧳 Travel scheduled',
-            message: `${candidateName || 'Candidate'} traveling from ${
-              travelForm.departure_city
-            } to ${travelForm.arrival_city} on ${travelForm.travel_date}`,
+            message: `${candidateName || 'Candidate'} traveling from ${travelForm.departure_city} to ${travelForm.arrival_city} on ${travelForm.travel_date}`,
             remindAt: new Date(travelForm.travel_date).toISOString(),
           });
         } catch (err) {
@@ -126,198 +116,306 @@ function CandidateTravel({ user, candidateId, candidateName }) {
     }
   };
 
-  const handleUpdateTravel = (updatedTravelData) => {
-    setTravelEntries((prev) =>
-      prev.map((t) => (t.id === updatedTravelData.id ? updatedTravelData : t))
-    );
-    setEditingTravel(null);
-    // Toast handled inside modal
+  // ===== INLINE EDIT FUNCTIONS =====
+  const startEdit = (entry) => {
+    setEditingId(entry.id);
+    setEditData({
+      pnr: entry.pnr || '',
+      travel_date: entry.travel_date || '',
+      departure_city: entry.departure_city || '',
+      arrival_city: entry.arrival_city || '',
+      notes: entry.notes || '',
+    });
   };
 
-  const handleDeleteEntry = async (id) => {
-    if (
-      window.confirm(
-        '⚠️ Are you sure you want to move this travel entry to the Recycle Bin?'
-      )
-    ) {
-      const res = await window.electronAPI.deleteTravelEntry({ user, id });
-      if (res.success) {
-        setTravelEntries((prev) => prev.filter((e) => e.id !== id));
-        toast.success('✅ Travel entry moved to Recycle Bin.');
-      } else {
-        toast.error('❌ ' + (res.error || 'Failed to delete travel entry'));
-      }
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditData({});
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const saveEdit = async (id) => {
+    if (!editData.travel_date || !editData.departure_city || !editData.arrival_city) {
+      toast.error('⚠️ Travel Date, Departure, and Arrival are required.');
+      return;
     }
+
+    const toastId = toast.loading('💾 Updating travel entry...');
+    const res = await window.electronAPI.updateTravelEntry({
+      user,
+      id,
+      data: editData,
+    });
+
+    if (res.success) {
+      setTravelEntries((prev) => prev.map((t) => (t.id === id ? res.data : t)));
+      setEditingId(null);
+      setEditData({});
+      toast.success('✅ Travel entry updated!', { id: toastId });
+    } else {
+      toast.error('❌ ' + (res.error || 'Update failed'), { id: toastId });
+    }
+  };
+
+  // ===== DELETE WITH CONFIRM DIALOG =====
+  const handleDeleteClick = (id) => {
+    setConfirmDialog({ isOpen: true, travelId: id });
+  };
+
+  const confirmDelete = async () => {
+    const id = confirmDialog.travelId;
+    setConfirmDialog({ isOpen: false, travelId: null });
+
+    const res = await window.electronAPI.deleteTravelEntry({ user, id });
+    if (res.success) {
+      setTravelEntries((prev) => prev.filter((e) => e.id !== id));
+      toast.success('✅ Travel entry moved to Recycle Bin.');
+    } else {
+      toast.error('❌ ' + (res.error || 'Failed to delete travel entry'));
+    }
+  };
+
+  const cancelDelete = () => {
+    setConfirmDialog({ isOpen: false, travelId: null });
   };
 
   const openFile = (filePath) => {
     window.electronAPI.openFileExternally({ path: filePath });
   };
 
-  if (loading) return <p>⏳ Loading travel tracking...</p>;
+  if (loading) return <div className="loading-state">⏳ Loading travel tracking...</div>;
 
   return (
-    <div className="travel-tracking-content module-vertical-stack">
-      {editingTravel && (
-        <TravelEditModal
-          user={user}
-          travel={editingTravel}
-          onClose={() => setEditingTravel(null)}
-          onSave={handleUpdateTravel}
-        />
-      )}
-
-      <div className="form-container module-form-card">
-        <h3>
-          <FiPlus /> ➕ Add New Travel/Ticket Record
-        </h3>
-        <form
-          onSubmit={handleAddEntry}
-          className="form-grid"
-          style={{ gridTemplateColumns: '1fr 1fr 1fr' }}
-        >
-          <div className="form-group">
-            <label>📅 Travel Date (Required)</label>
-            <input
-              type="date"
-              name="travel_date"
-              value={travelForm.travel_date}
-              onChange={handleFormChange}
-            />
-          </div>
-          <div className="form-group">
-            <label>🎫 PNR / Ticket No. (Optional)</label>
-            <input
-              type="text"
-              name="pnr"
-              value={travelForm.pnr}
-              onChange={handleFormChange}
-            />
-          </div>
-          <div className="form-group">
-            <label>📄 Upload Ticket Document (Optional)</label>
-            <div className="custom-file-input">
+    <div className="travel-tracking-content">
+      {/* ===== ADD FORM ===== */}
+      <div className="form-container">
+        <h3>✈️ Add Travel Entry</h3>
+        <form onSubmit={handleAddEntry} className="travel-form">
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="pnr">🎫 PNR Number</label>
               <input
-                type="file"
-                id="travel-file-input"
-                name="ticket_file"
-                onChange={handleFileChange}
-                ref={fileInputRef}
+                type="text"
+                id="pnr"
+                name="pnr"
+                placeholder="Enter PNR"
+                value={travelForm.pnr}
+                onChange={handleFormChange}
               />
-              <label
-                htmlFor="travel-file-input"
-                className="file-input-label btn btn-no-hover"
-              >
-                📎 Choose File
-              </label>
-              <span className="file-name-display">
-                {travelForm.ticket_file
-                  ? travelForm.ticket_file.name
-                  : 'No file chosen'}
-              </span>
+            </div>
+            <div className="form-group">
+              <label htmlFor="travel_date">📅 Travel Date *</label>
+              <input
+                type="date"
+                id="travel_date"
+                name="travel_date"
+                value={travelForm.travel_date}
+                onChange={handleFormChange}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="departure_city">🛫 Departure City *</label>
+              <input
+                type="text"
+                id="departure_city"
+                name="departure_city"
+                placeholder="From"
+                value={travelForm.departure_city}
+                onChange={handleFormChange}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="arrival_city">🛬 Arrival City *</label>
+              <input
+                type="text"
+                id="arrival_city"
+                name="arrival_city"
+                placeholder="To"
+                value={travelForm.arrival_city}
+                onChange={handleFormChange}
+                required
+              />
             </div>
           </div>
 
           <div className="form-group">
-            <label>🛫 Departure City (Required)</label>
+            <label htmlFor="ticket_file">📎 Ticket File</label>
             <input
-              type="text"
-              name="departure_city"
-              value={travelForm.departure_city}
-              onChange={handleFormChange}
+              type="file"
+              id="ticket_file"
+              name="ticket_file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
             />
-          </div>
-          <div className="form-group">
-            <label>🛬 Arrival City (Required)</label>
-            <input
-              type="text"
-              name="arrival_city"
-              value={travelForm.arrival_city}
-              onChange={handleFormChange}
-            />
-          </div>
-          <div className="form-group">
-            <label>📝 Notes</label>
-            <textarea
-              name="notes"
-              value={travelForm.notes}
-              onChange={handleFormChange}
-              rows="2"
-            ></textarea>
           </div>
 
-          <button
-            type="submit"
-            className="btn btn-full-width"
-            disabled={isSaving}
-            style={{ gridColumn: '1 / -1' }}
-          >
-            {isSaving ? '⏳ Saving...' : '✅ Save Travel Entry'}
+          <div className="form-group">
+            <label htmlFor="notes">📝 Notes</label>
+            <textarea
+              id="notes"
+              name="notes"
+              placeholder="Additional notes"
+              rows="3"
+              value={travelForm.notes}
+              onChange={handleFormChange}
+            />
+          </div>
+
+          <button type="submit" className="btn-full-width" disabled={isSaving}>
+            <FiPlus /> {isSaving ? 'Saving...' : 'Add Travel Entry'}
           </button>
         </form>
       </div>
 
-      <div className="list-container module-list-card">
-        <h3>
-          <FiSend /> 🧳 Scheduled Travel History ({travelEntries.length})
-        </h3>
-        <div className="module-list travel-list">
-          {travelEntries.length === 0 ? (
-            <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-              ℹ️ No travel records found.
-            </p>
-          ) : (
-            travelEntries.map((entry) => (
-              <div className="travel-item module-list-item" key={entry.id}>
+      {/* ===== TRAVEL LIST ===== */}
+      <div className="list-container">
+        <h3>🗂️ Travel History</h3>
+        {travelEntries.length === 0 ? (
+          <p className="empty-state">ℹ️ No travel records found.</p>
+        ) : (
+          <div className="travel-list">
+            {travelEntries.map((entry) => (
+              <div key={entry.id} className="travel-item">
                 <div className="item-icon">
                   <FiMapPin />
                 </div>
-                <div className="item-details">
-                  <strong>
-                    🛫 {entry.departure_city} ✈️ 🛬 {entry.arrival_city}
-                  </strong>
-                  <p className="mt-1">
-                    📅 Date: {entry.travel_date} | 🎫 PNR: {entry.pnr || 'N/A'}
-                  </p>
-                  {entry.notes && (
-                    <p className="mt-1">
-                      <small>📝 Notes: {entry.notes}</small>
-                    </p>
-                  )}
-                </div>
+
+                {editingId === entry.id ? (
+                  // ===== INLINE EDIT MODE =====
+                  <div className="item-details edit-mode">
+                    <div className="edit-row">
+                      <div className="edit-field">
+                        <label>🎫 PNR</label>
+                        <input
+                          type="text"
+                          name="pnr"
+                          value={editData.pnr}
+                          onChange={handleEditChange}
+                          placeholder="PNR"
+                        />
+                      </div>
+                      <div className="edit-field">
+                        <label>📅 Travel Date *</label>
+                        <input
+                          type="date"
+                          name="travel_date"
+                          value={editData.travel_date}
+                          onChange={handleEditChange}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="edit-row">
+                      <div className="edit-field">
+                        <label>🛫 Departure *</label>
+                        <input
+                          type="text"
+                          name="departure_city"
+                          value={editData.departure_city}
+                          onChange={handleEditChange}
+                          placeholder="From"
+                          required
+                        />
+                      </div>
+                      <div className="edit-field">
+                        <label>🛬 Arrival *</label>
+                        <input
+                          type="text"
+                          name="arrival_city"
+                          value={editData.arrival_city}
+                          onChange={handleEditChange}
+                          placeholder="To"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="edit-field-full">
+                      <label>📝 Notes</label>
+                      <textarea
+                        name="notes"
+                        value={editData.notes}
+                        onChange={handleEditChange}
+                        placeholder="Notes"
+                        rows="2"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  // ===== VIEW MODE =====
+                  <div className="item-details">
+                    <strong>
+                      {entry.departure_city} → {entry.arrival_city}
+                    </strong>
+                    <p>📅 Date: {entry.travel_date} | 🎫 PNR: {entry.pnr || 'N/A'}</p>
+                    {entry.notes && <p>📝 Notes: {entry.notes}</p>}
+                    {entry.ticket_file_path && (
+                      <small>
+                        📎{' '}
+                        <span
+                          className="file-link"
+                          onClick={() => openFile(entry.ticket_file_path)}
+                        >
+                          View Ticket
+                        </span>
+                      </small>
+                    )}
+                  </div>
+                )}
+
                 <div className="item-actions">
-                  <button
-                    type="button"
-                    className="doc-btn view"
-                    title="Edit Entry"
-                    onClick={() => setEditingTravel(entry)}
-                  >
-                    <FiEdit2 />
-                  </button>
-                  {entry.ticket_file_path && (
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      title="View Ticket Document"
-                      onClick={() => openFile(entry.ticket_file_path)}
-                    >
-                      <FiDownload />
-                    </button>
+                  {editingId === entry.id ? (
+                    <>
+                      <button
+                        className="btn-save"
+                        onClick={() => saveEdit(entry.id)}
+                        title="Save"
+                      >
+                        <FiSave /> Save
+                      </button>
+                      <button
+                        className="btn-cancel"
+                        onClick={cancelEdit}
+                        title="Cancel"
+                      >
+                        <FiX /> Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => startEdit(entry)} title="Edit">
+                        <FiEdit2 />
+                      </button>
+                      <button onClick={() => handleDeleteClick(entry.id)} title="Delete">
+                        <FiTrash2 />
+                      </button>
+                    </>
                   )}
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    title="Move to Recycle Bin"
-                    onClick={() => handleDeleteEntry(entry.id)}
-                  >
-                    <FiTrash2 />
-                  </button>
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* ===== CONFIRM DIALOG ===== */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title="🗑️ Delete Travel Entry"
+        message="Are you sure you want to move this travel entry to the Recycle Bin?"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+      />
     </div>
   );
 }

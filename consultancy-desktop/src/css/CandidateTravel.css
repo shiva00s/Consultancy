@@ -1,6 +1,6 @@
 /* ============================================
    CANDIDATE TRAVEL STYLES
-   Premium Modern Design with Enhanced Visuals
+   Premium Modern Design with Inline Edit
    ============================================ */
 
 .travel-tracking-content {
@@ -9,209 +9,7 @@
   padding: 0;
 }
 
-/* Travel List Container - Enhanced */
-.travel-list {
-  display: grid;
-  gap: 1.2rem;
-  padding: 0;
-  margin: 0;
-}
-
-/* Travel Item - Premium Card Design */
-.travel-item {
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 1.2rem;
-  display: flex;
-  gap: 1.2rem;
-  align-items: center;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-  opacity: 0;
-  animation: slideInUp 0.4s ease-out forwards;
-}
-
-.travel-item:nth-child(1) { animation-delay: 0.05s; }
-.travel-item:nth-child(2) { animation-delay: 0.1s; }
-.travel-item:nth-child(3) { animation-delay: 0.15s; }
-.travel-item:nth-child(4) { animation-delay: 0.2s; }
-.travel-item:nth-child(5) { animation-delay: 0.25s; }
-
-/* Top accent line */
-.travel-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    var(--primary-color) 50%, 
-    transparent 100%
-  );
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.travel-item:hover::before {
-  opacity: 1;
-}
-
-.travel-item:hover {
-  background: var(--bg-input);
-  border-color: var(--primary-color);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
-  transform: translateY(-4px);
-}
-
-/* Travel Icon - Enhanced with gradient background */
-.travel-item .item-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: white;
-  font-size: 1.4rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
-  position: relative;
-  overflow: hidden;
-}
-
-.travel-item .item-icon::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.travel-item:hover .item-icon {
-  transform: rotate(5deg) scale(1.1);
-  box-shadow: 0 6px 20px rgba(33, 150, 243, 0.5);
-}
-
-.travel-item:hover .item-icon::before {
-  opacity: 1;
-}
-
-/* Travel Details - Enhanced Typography */
-.travel-item .item-details {
-  flex-grow: 1;
-  min-width: 0;
-}
-
-.travel-item .item-details strong {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  display: block;
-  margin-bottom: 0.5rem;
-  line-height: 1.4;
-}
-
-.travel-item .item-details p {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  margin: 0.3rem 0;
-  line-height: 1.5;
-}
-
-.travel-item .item-details small {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  opacity: 0.85;
-}
-
-/* Travel Actions - Enhanced Button Group */
-.travel-item .item-actions {
-  display: flex;
-  gap: 0.6rem;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.travel-item .item-actions button {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  color: var(--text-secondary);
-  font-size: 1.1rem;
-  position: relative;
-  overflow: hidden;
-}
-
-.travel-item .item-actions button::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--primary-color), #2196F3);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.travel-item .item-actions button svg {
-  position: relative;
-  z-index: 1;
-}
-
-.travel-item .item-actions button:hover {
-  border-color: var(--primary-color);
-  color: white;
-  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
-  transform: translateY(-2px);
-}
-
-.travel-item .item-actions button:hover::before {
-  opacity: 1;
-}
-
-.travel-item .item-actions button:active {
-  transform: translateY(0);
-}
-
-/* Delete button - Red accent */
-.travel-item .item-actions button:last-child:hover {
-  border-color: var(--danger-color);
-  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
-}
-
-.travel-item .item-actions button:last-child:hover::before {
-  background: linear-gradient(135deg, var(--danger-color), #d32f2f);
-}
-
-/* Empty State - Enhanced */
-.travel-list:empty::after {
-  content: 'ℹ️ No travel records found.';
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 20px;
-  text-align: center;
-  color: var(--text-secondary);
-  font-size: 1rem;
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
-  border-radius: 12px;
-  border: 2px dashed var(--border-color);
-}
-
-/* Form Container - Premium styling */
+/* ===== FORM CONTAINER ===== */
 .travel-tracking-content .form-container {
   background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
   border-radius: 12px;
@@ -244,15 +42,92 @@
   gap: 10px;
 }
 
-/* List Container - Enhanced header */
-.travel-tracking-content .list-container {
-  background: transparent;
-  border: none;
-  padding: 0;
-  border-radius: 0;
+/* ===== FORM STYLES ===== */
+.travel-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.travel-tracking-content .list-container h3 {
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-group input,
+.form-group textarea {
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+/* ===== SUBMIT BUTTON ===== */
+.btn-full-width {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #2196F3 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-full-width:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+}
+
+.btn-full-width:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ===== LIST CONTAINER ===== */
+.list-container {
+  background: transparent;
+  padding: 0;
+}
+
+.list-container h3 {
   font-size: 1.2rem;
   font-weight: 600;
   color: var(--text-primary);
@@ -265,7 +140,7 @@
   position: relative;
 }
 
-.travel-tracking-content .list-container h3::after {
+.list-container h3::after {
   content: '';
   position: absolute;
   bottom: -2px;
@@ -276,110 +151,253 @@
   transition: width 0.3s ease;
 }
 
-.travel-tracking-content .list-container h3:hover::after {
+.list-container h3:hover::after {
   width: 150px;
 }
 
-/* Custom File Input - Premium styling */
-.custom-file-input {
+/* ===== TRAVEL LIST ===== */
+.travel-list {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.travel-item {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.2rem;
   display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.custom-file-input input[type="file"] {
-  display: none;
-}
-
-.file-input-label {
-  padding: 8px 16px;
-  background: linear-gradient(135deg, var(--primary-color) 0%, #2196F3 100%);
-  color: white;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 0.9rem;
-  font-weight: 500;
-  border: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.file-input-label:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
-}
-
-.file-name-display {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex-grow: 1;
-}
-
-/* Submit Button - Enhanced */
-.travel-tracking-content .btn-full-width {
-  background: linear-gradient(135deg, var(--primary-color) 0%, #2196F3 100%);
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
+  gap: 1.2rem;
+  align-items: flex-start;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+}
+
+.travel-item:hover {
+  background: var(--bg-input);
+  border-color: var(--primary-color);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-4px);
+}
+
+/* ===== ITEM ICON ===== */
+.travel-item .item-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  flex-shrink: 0;
+  color: white;
+  font-size: 1.4rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
 }
 
-.travel-tracking-content .btn-full-width::before {
+.travel-item:hover .item-icon {
+  transform: rotate(5deg) scale(1.1);
+  box-shadow: 0 6px 20px rgba(33, 150, 243, 0.5);
+}
+
+/* ===== ITEM DETAILS (VIEW MODE) ===== */
+.item-details {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.item-details strong {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.item-details p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 0.3rem 0;
+}
+
+.item-details small {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  opacity: 0.85;
+}
+
+.file-link {
+  color: var(--primary-color);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.file-link:hover {
+  color: #1976D2;
+}
+
+/* ===== INLINE EDIT MODE ===== */
+.item-details.edit-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  width: 100%;
+}
+
+.edit-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.8rem;
+}
+
+.edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.edit-field-full {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.edit-field label,
+.edit-field-full label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.edit-field input,
+.edit-field textarea,
+.edit-field-full textarea {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: border-color 0.3s ease;
+}
+
+.edit-field input:focus,
+.edit-field textarea:focus,
+.edit-field-full textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+/* ===== ITEM ACTIONS ===== */
+.item-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+
+.item-actions button {
+  min-width: 80px;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  position: relative;
+  overflow: hidden;
+}
+
+.item-actions button::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--primary-color), #2196F3);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
-.travel-tracking-content .btn-full-width:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+.item-actions button svg {
+  position: relative;
+  z-index: 1;
 }
 
-.travel-tracking-content .btn-full-width:hover::before {
+.item-actions button:hover {
+  border-color: var(--primary-color);
+  color: white;
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+  transform: translateY(-2px);
+}
+
+.item-actions button:hover::before {
   opacity: 1;
 }
 
-.travel-tracking-content .btn-full-width:active {
-  transform: translateY(0);
+/* Save/Cancel specific */
+.btn-save {
+  background: linear-gradient(135deg, #4CAF50, #45a049) !important;
 }
 
-.travel-tracking-content .btn-full-width:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
+.btn-save::before {
+  background: linear-gradient(135deg, #45a049, #388e3c) !important;
 }
 
-/* Animations */
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.btn-save:hover {
+  border-color: #4CAF50 !important;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3) !important;
 }
 
+.btn-cancel {
+  background: var(--bg-secondary) !important;
+}
+
+.btn-cancel:hover {
+  border-color: var(--text-secondary) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Delete button */
+.item-actions button:last-child:hover {
+  border-color: var(--danger-color);
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+}
+
+.item-actions button:last-child:hover::before {
+  background: linear-gradient(135deg, var(--danger-color), #d32f2f);
+}
+
+/* ===== EMPTY STATE ===== */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
+  border-radius: 12px;
+  border: 2px dashed var(--border-color);
+}
+
+/* ===== LOADING STATE ===== */
+.loading-state {
+  text-align: center;
+  padding: 60px 20px;
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}
+
+/* ===== ANIMATIONS ===== */
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -389,77 +407,20 @@
   }
 }
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-/* Responsive Design */
+/* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .travel-item {
     flex-direction: column;
-    align-items: flex-start;
     padding: 1rem;
   }
 
-  .travel-item .item-icon {
-    width: 42px;
-    height: 42px;
-    font-size: 1.2rem;
-  }
-
-  .travel-item .item-actions {
+  .item-actions {
     width: 100%;
     justify-content: flex-end;
-    margin-top: 0.5rem;
   }
 
-  .travel-tracking-content .form-container {
-    padding: 1.2rem;
-  }
-
-  .travel-list {
-    gap: 1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .travel-item .item-actions button {
-    width: 34px;
-    height: 34px;
-    font-size: 1rem;
-  }
-
-  .custom-file-input {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .file-input-label {
-    text-align: center;
-    justify-content: center;
-  }
-
-  .file-name-display {
-    text-align: center;
-  }
-}
-
-/* Dark mode enhancements (if applicable) */
-@media (prefers-color-scheme: dark) {
-  .travel-item {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  }
-
-  .travel-item:hover {
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
-  }
-
-  .travel-item .item-icon {
-    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+  .form-row,
+  .edit-row {
+    grid-template-columns: 1fr;
   }
 }
