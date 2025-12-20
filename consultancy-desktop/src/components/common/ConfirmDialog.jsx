@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import { FiX } from "react-icons/fi";
 import "./ConfirmDialog.css";
 
@@ -55,6 +55,22 @@ function ConfirmDialog({
   // Determine visibility
   const visible = isOpen || open;
 
+  // Ref for the dialog so we can focus/scroll it into view when opened
+  const dialogRef = useRef(null);
+
+  useEffect(() => {
+    if (visible && dialogRef.current) {
+      try {
+        // Focus for accessibility and to bring into view
+        dialogRef.current.focus({ preventScroll: true });
+        // Ensure dialog is visible in the current scrolling context
+        dialogRef.current.scrollIntoView({ block: 'center', behavior: 'auto' });
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [visible]);
+
   // Determine danger mode
   const dangerMode = isDanger || type === "danger" || type === "warning";
 
@@ -74,12 +90,14 @@ function ConfirmDialog({
       role="presentation"
     >
       <div
+        ref={dialogRef}
         className="confirm-dialog"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
         aria-describedby="confirm-dialog-description"
+        tabIndex={-1}
       >
         {/* HEADER */}
         <div className="confirm-header">

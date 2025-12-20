@@ -8,8 +8,12 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiDownload,
+  FiEdit,
+  FiSave,
+  FiAlertCircle,
 } from "react-icons/fi";
 import "../css/DocumentList.css";
+import ConfirmDialog from './common/ConfirmDialog';
 
 const categoryEmojis = {
   Passport: "🛂",
@@ -32,10 +36,16 @@ function DocumentList({
   onChangeCategory,
   onView,
   onDelete,
+  onRename,
 }) {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageCache, setImageCache] = useState({});
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editingValue, setEditingValue] = useState('');
+  const [localNames, setLocalNames] = useState({});
 
   const hasDocuments =
     groupedDocuments && Object.keys(groupedDocuments).length > 0;
@@ -154,8 +164,8 @@ function DocumentList({
                             {isImage ? <FiCamera /> : <FiFileText />}
                           </div>
                           <div className="doclist-text">
-                            <span className="doclist-name" title={doc.fileName}>
-                              {doc.fileName}
+                            <span className="doclist-name" title={localNames[doc.id] || doc.fileName}>
+                              {localNames[doc.id] || doc.fileName}
                             </span>
                             <span className="doclist-meta">
                               {doc.fileType || "Unknown type"}
@@ -181,6 +191,18 @@ function DocumentList({
                           <div className="doclist-actions">
                             <button
                               type="button"
+                              className="doclist-btn"
+                              title="Rename"
+                              onClick={() => {
+                                setEditingId(doc.id);
+                                setEditingValue(localNames[doc.id] || doc.fileName);
+                              }}
+                            >
+                              <FiEdit />
+                            </button>
+
+                            <button
+                              type="button"
                               className="doclist-btn doclist-btn-primary"
                               title={isImage ? "View in Gallery" : "View"}
                               onClick={() =>
@@ -189,11 +211,15 @@ function DocumentList({
                             >
                               <FiEye />
                             </button>
+
                             <button
                               type="button"
                               className="doclist-btn doclist-btn-danger"
                               title="Delete"
-                              onClick={() => onDelete(doc.id, doc.fileName)}
+                              onClick={() => {
+                                setConfirmTarget({ id: doc.id, name: localNames[doc.id] || doc.fileName });
+                                setConfirmOpen(true);
+                              }}
                             >
                               <FiTrash2 />
                             </button>
@@ -277,6 +303,73 @@ function DocumentList({
                   <span>{img.fileName.substring(0, 15)}...</span>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title={confirmTarget ? `Delete ${confirmTarget.name}?` : 'Delete Document?'}
+        message={confirmTarget ? `Are you sure you want to permanently delete "${confirmTarget.name}"? This action cannot be undone. 🗑️` : 'Are you sure?'}
+        isDanger={true}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmIcon="🗑️"
+        cancelIcon="❌"
+        onConfirm={async () => {
+          if (confirmTarget) {
+            await onDelete(confirmTarget.id, confirmTarget.name);
+          }
+          setConfirmOpen(false);
+          setConfirmTarget(null);
+        }}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setConfirmTarget(null);
+        }}
+      />
+
+      {/* Inline rename input overlay (keeps existing API intact) */}
+      {editingId && (
+        <div className="doclist-inline-edit" aria-hidden={false}>
+          <div className="doclist-inline-box">
+            <input
+              type="text"
+              value={editingValue}
+              onChange={(e) => setEditingValue(e.target.value)}
+              className="doclist-inline-input"
+            />
+            <div className="doclist-inline-actions">
+              <button
+                className="doclist-btn doclist-btn-primary"
+                onClick={async () => {
+                  const id = editingId;
+                  const newName = editingValue.trim();
+                  if (onRename && typeof onRename === 'function') {
+                    await onRename(id, newName);
+                  } else {
+                    // local only fallback
+                    setLocalNames((prev) => ({ ...prev, [id]: newName }));
+                  }
+                  setEditingId(null);
+                  setEditingValue('');
+                }}
+                title="Save"
+              >
+                <FiSave />
+              </button>
+              <button
+                className="doclist-btn"
+                onClick={() => {
+                  setEditingId(null);
+                  setEditingValue('');
+                }}
+                title="Cancel"
+              >
+                <FiX />
+              </button>
             </div>
           </div>
         </div>

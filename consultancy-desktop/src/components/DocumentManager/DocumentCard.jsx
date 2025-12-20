@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FiEye, FiDownload, FiTrash2, FiCheckCircle, FiAlertCircle, FiXCircle, FiFile } from 'react-icons/fi';
 import './DocumentCard.css';
+import ConfirmDialog from '../common/ConfirmDialog';
 
 const DocumentCard = ({
   document,
@@ -64,19 +65,36 @@ const DocumentCard = ({
   // Handle delete
   const handleDelete = (e) => {
     e.stopPropagation();
-    onDelete(document.id);
+    // open confirm dialog instead of native confirm
+    setConfirmAction({ type: 'delete' });
+    setConfirmOpen(true);
   };
 
   // Handle verification actions
   const handleVerifyAction = (e, status) => {
     e.stopPropagation();
-    const reason = status === 'rejected' ? prompt('Enter rejection reason:') : null;
-    if (status === 'rejected' && !reason) return;
-    onVerify(document.id, status, reason);
+    if (status === 'rejected') {
+      // start confirm -> then collect reason
+      setPendingVerifyStatus('rejected');
+      setConfirmAction({ type: 'reject' });
+      setConfirmOpen(true);
+      return;
+    }
+    onVerify(document.id, status, null);
   };
+
+  // local confirm state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+
+  // reject reason flow
+  const [pendingVerifyStatus, setPendingVerifyStatus] = useState(null);
+  const [rejectReasonOpen, setRejectReasonOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
 
   if (viewMode === 'list') {
     return (
+      <>
       <div
         className={`document-card list-view ${statusInfo.class}`}
         style={{
@@ -151,11 +169,85 @@ const DocumentCard = ({
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title={confirmAction?.type === 'delete' ? 'Delete Document' : 'Confirm Action'}
+        message={
+          confirmAction?.type === 'delete'
+            ? `Delete "${document.name}"? This cannot be undone.`
+            : `Confirm action for "${document.name}"?`
+        }
+        isDanger={confirmAction?.type === 'delete' || confirmAction?.type === 'reject'}
+        onConfirm={() => {
+          if (confirmAction?.type === 'delete') {
+            onDelete(document.id);
+            setConfirmOpen(false);
+            setConfirmAction(null);
+          } else if (confirmAction?.type === 'reject') {
+            setConfirmOpen(false);
+            setRejectReasonOpen(true);
+          } else {
+            setConfirmOpen(false);
+            setConfirmAction(null);
+          }
+        }}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setConfirmAction(null);
+        }}
+        confirmText={confirmAction?.type === 'delete' ? 'Delete' : 'Confirm'}
+        cancelText="Cancel"
+      />
+
+      {rejectReasonOpen && (
+        <div className="confirm-overlay" onClick={() => setRejectReasonOpen(false)}>
+          <div className="confirm-dialog" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="confirm-header">
+              <div className="confirm-icon danger">⚠️</div>
+              <button className="close-btn" onClick={() => setRejectReasonOpen(false)} type="button" title="Close">
+                <FiXCircle />
+              </button>
+            </div>
+            <div className="confirm-body">
+              <h3>Provide rejection reason</h3>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Enter rejection reason..."
+                rows={4}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div className="confirm-actions">
+              <button className="btn btn-cancel" onClick={() => setRejectReasonOpen(false)} type="button">Cancel</button>
+              <button
+                className="btn btn-danger"
+                onClick={() => {
+                  if (!rejectReason.trim()) return;
+                  onVerify(document.id, 'rejected', rejectReason.trim());
+                  setRejectReasonOpen(false);
+                  setRejectReason('');
+                  setPendingVerifyStatus(null);
+                  setConfirmAction(null);
+                }}
+                type="button"
+                disabled={!rejectReason.trim()}
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      </>
     );
   }
 
   // Grid View
   return (
+    <>
     <div
       className={`document-card grid-view ${statusInfo.class}`}
       style={{
@@ -193,7 +285,80 @@ const DocumentCard = ({
             </div>
             <span className="file-type">{document.type?.split('/')[1]?.toUpperCase()}</span>
           </div>
-        )}
+
+          <ConfirmDialog
+            isOpen={confirmOpen}
+            title={confirmAction?.type === 'delete' ? 'Delete Document' : 'Confirm Action'}
+            message={
+              confirmAction?.type === 'delete'
+                ? `Delete "${document.name}"? This cannot be undone.`
+                : `Confirm action for "${document.name}"?`
+            }
+            isDanger={confirmAction?.type === 'delete' || confirmAction?.type === 'reject'}
+            onConfirm={() => {
+              if (confirmAction?.type === 'delete') {
+                onDelete(document.id);
+                setConfirmOpen(false);
+                setConfirmAction(null);
+              } else if (confirmAction?.type === 'reject') {
+                setConfirmOpen(false);
+                setRejectReasonOpen(true);
+              } else {
+                setConfirmOpen(false);
+                setConfirmAction(null);
+              }
+            }}
+            onCancel={() => {
+              setConfirmOpen(false);
+              setConfirmAction(null);
+            }}
+            confirmText={confirmAction?.type === 'delete' ? 'Delete' : 'Confirm'}
+            cancelText="Cancel"
+          />
+
+          {rejectReasonOpen && (
+            <div className="confirm-overlay" onClick={() => setRejectReasonOpen(false)}>
+              <div className="confirm-dialog" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+                <div className="confirm-header">
+                  <div className="confirm-icon danger">⚠️</div>
+                  <button className="close-btn" onClick={() => setRejectReasonOpen(false)} type="button" title="Close">
+                    <FiXCircle />
+                  </button>
+                </div>
+                <div className="confirm-body">
+                  <h3>Provide rejection reason</h3>
+                  <textarea
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Enter rejection reason..."
+                    rows={4}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div className="confirm-actions">
+                  <button className="btn btn-cancel" onClick={() => setRejectReasonOpen(false)} type="button">Cancel</button>
+                  <button
+                    className="btn btn-danger"
+                    onClick={() => {
+                      if (!rejectReason.trim()) return;
+                      onVerify(document.id, 'rejected', rejectReason.trim());
+                      setRejectReasonOpen(false);
+                      setRejectReason('');
+                      setPendingVerifyStatus(null);
+                      setConfirmAction(null);
+                    }}
+                    type="button"
+                    disabled={!rejectReason.trim()}
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          </>
+        );
 
         {/* Hover Overlay */}
         <div className={`card-overlay ${isHovered ? 'visible' : ''}`}>
@@ -264,3 +429,4 @@ const DocumentCard = ({
 };
 
 export default DocumentCard;
+

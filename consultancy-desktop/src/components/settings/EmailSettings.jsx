@@ -8,6 +8,7 @@ import {
   FiZap,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import useAuthStore from '../../store/useAuthStore';
 import '../../css/Emailsettings.css';
 
 function EmailSettings({ user }) {
@@ -93,11 +94,16 @@ function EmailSettings({ user }) {
 
     setSaving(true);
     try {
-      const res = await window.electronAPI.saveSmtpSettings(payload);
+      const authUser = useAuthStore.getState().user;
+      const res = await window.electronAPI.saveSmtpSettings({ user: authUser, config: payload.config });
       if (res?.success) {
         toast.success('✅ Email settings saved successfully!');
       } else {
-        toast.error(res?.error || 'Failed to save settings');
+        if (res?.error === 'AUTH_REQUIRED' || res?.error?.includes?.('AUTH_REQUIRED')) {
+          toast.error('Authentication required. Please log in again.');
+        } else {
+          toast.error(res?.error || 'Failed to save settings');
+        }
       }
     } catch (err) {
       console.error('Save error:', err);
@@ -115,14 +121,16 @@ function EmailSettings({ user }) {
     setTesting(true);
     const toastId = toast.loading('Testing email connection...');
     try {
-      const res = await window.electronAPI.testSmtpConnection(payload);
+      const authUser = useAuthStore.getState().user;
+      const res = await window.electronAPI.testSmtpConnection({ user: authUser, config: payload.config });
       if (res?.success) {
         toast.success('✅ Connection successful!', { id: toastId });
       } else {
-        toast.error(
-          `❌ Connection failed: ${res?.error || 'Unknown error'}`,
-          { id: toastId }
-        );
+        if (res?.error === 'AUTH_REQUIRED' || res?.error?.includes?.('AUTH_REQUIRED')) {
+          toast.error('❌ Connection failed: Authentication required. Please log in again.', { id: toastId });
+        } else {
+          toast.error(`❌ Connection failed: ${res?.error || 'Unknown error'}`, { id: toastId });
+        }
       }
     } catch (err) {
       console.error('Test error:', err);

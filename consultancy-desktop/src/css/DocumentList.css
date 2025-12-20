@@ -235,6 +235,44 @@
   gap: 0.5rem;
 }
 
+/* ===== INLINE RENAME OVERLAY ===== */
+.doclist-inline-edit {
+  position: fixed;
+  left: 50%;
+  top: 20%;
+  transform: translateX(-50%);
+  z-index: 11000;
+  width: 540px;
+  max-width: calc(100% - 32px);
+  pointer-events: auto;
+}
+
+.doclist-inline-box {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 8px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+.doclist-inline-input {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 0.95rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.doclist-inline-actions {
+  display: flex;
+  gap: 6px;
+}
+
 .doclist-btn {
   width: 36px;
   height: 36px;

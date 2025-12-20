@@ -7,6 +7,7 @@ import {
   FiRotateCcw,FiAlertCircle ,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import useAuthStore from '../../store/useAuthStore';
 import ConfirmDialog from '../common/ConfirmDialog';
 import '../../css/OfferTemplateManager.css';
 
@@ -143,15 +144,32 @@ function OfferTemplateManager({ user }) {
     setLoading(true);
     
     try {
+      // Determine current user (prop takes precedence, otherwise global store)
+      const authUser = useAuthStore.getState().user;
+      const currentUser = user || authUser || null;
+
       // Load regardless of user, as template is global
-      const res = await window.electronAPI.readOfferTemplate();
-      
-      if (res.success && res.data) {
+      if (!window.electronAPI || typeof window.electronAPI.readOfferTemplate !== 'function') {
+        // Not running in Electron environment - fallback to default
+        setTemplateContent(DEFAULT_TEMPLATE);
+        setLoading(false);
+        return;
+      }
+
+      const res = await window.electronAPI.readOfferTemplate({ user: currentUser });
+
+      if (res && res.success && res.data) {
         setTemplateContent(res.data);
-      } else if (res.error === 'Template file not found.') {
+      } else if (res && res.error === 'Template file not found.') {
+        setTemplateContent(DEFAULT_TEMPLATE);
+      } else if (res && res.error) {
+        if (res.error === 'AUTH_REQUIRED') {
+          toast.error('Authentication required. Please log in again.');
+        } else {
+          toast.error(res.error || 'Failed to load template.');
+        }
         setTemplateContent(DEFAULT_TEMPLATE);
       } else {
-        toast.error(res.error || 'Failed to load template.');
         setTemplateContent(DEFAULT_TEMPLATE);
       }
     } catch (error) {
@@ -168,11 +186,7 @@ function OfferTemplateManager({ user }) {
   }, []);
 
   const handleSave = async () => {
-    if (!user || !user.id) {
-      toast.error('You must be logged in to save the template.');
-      return;
-    }
-
+    // Template is global; allow saving even if `user` prop is not provided. Use auth store user if needed.
     setConfirmDialog({
       isOpen: true,
       type: 'save',
@@ -205,15 +219,22 @@ function OfferTemplateManager({ user }) {
     if (confirmDialog.type === 'save') {
       setSaving(true);
       try {
+        const authUser = useAuthStore.getState().user;
+        const currentUser = user || authUser || null;
+
         const res = await window.electronAPI.writeOfferTemplate({
-          user,
+          user: currentUser,
           content: templateContent,
         });
         
         if (res.success) {
           toast.success('✅ Template saved successfully!');
         } else {
-          toast.error(res.error || 'Failed to save template.');
+          if (res.error === 'AUTH_REQUIRED') {
+            toast.error('Authentication required. Please log in again.');
+          } else {
+            toast.error(res.error || 'Failed to save template.');
+          }
         }
       } catch (err) {
         console.error('Save error:', err);

@@ -156,7 +156,9 @@
 
 .template-textarea {
   width: 100%;
-  min-height: calc(718px - 250px); /* Optimized for 1366x768 content area */
+  min-height: 520px; /* increased height for better editing */
+  height: 60vh; /* responsive height */
+  max-height: calc(100vh - 240px);
   padding: 1rem;
   font-size: 13px;
   color: var(--text-primary);
