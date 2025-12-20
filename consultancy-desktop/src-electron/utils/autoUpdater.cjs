@@ -11,7 +11,7 @@ try {
   hasElectronUpdater = false;
 }
 
-const { dialog } = require('electron');
+const { dialog, ipcMain } = require('electron');
 
 class AutoUpdater {
   constructor(mainWindow) {
@@ -74,40 +74,33 @@ class AutoUpdater {
 
   showUpdateAvailableDialog(info) {
     if (!this.mainWindow) return;
-
-    dialog.showMessageBox(this.mainWindow, {
-      type: 'info',
-      title: 'Update Available',
-      message: `A new version (${info.version}) is available!`,
-      detail: `Release notes:\n${info.releaseNotes || 'No release notes available'}`,
-      buttons: ['Download Update', 'Later'],
-      defaultId: 0,
-      cancelId: 1
-    }).then((result) => {
-      if (result.response === 0 && autoUpdater) {
-        autoUpdater.downloadUpdate();
-        this.sendStatusToWindow('Downloading update...');
-      }
-    });
+    // Send event to renderer to show in-app update prompt (avoid native dialog)
+    this.mainWindow.webContents.send('auto-updater:available', info);
   }
 
   showUpdateDownloadedDialog(info) {
     if (!this.mainWindow) return;
-
-    dialog.showMessageBox(this.mainWindow, {
-      type: 'info',
-      title: 'Update Ready',
-      message: 'Update downloaded successfully!',
-      detail: `Version ${info.version} has been downloaded. Restart to install.`,
-      buttons: ['Restart Now', 'Later'],
-      defaultId: 0,
-      cancelId: 1
-    }).then((result) => {
-      if (result.response === 0 && autoUpdater) {
-        autoUpdater.quitAndInstall(false, true);
-      }
-    });
+    // Notify renderer - handle restart/install from renderer to avoid native dialog
+    this.mainWindow.webContents.send('auto-updater:downloaded', info);
   }
+
+  // Allow renderer to request updater actions back to main (download or install)
+  ipcMain.handle('auto-updater-action', async (event, { action }) => {
+    try {
+      if (!autoUpdater) return { success: false, error: 'Auto-updater not available' };
+      if (action === 'download') {
+        autoUpdater.downloadUpdate();
+        return { success: true };
+      }
+      if (action === 'install') {
+        autoUpdater.quitAndInstall(false, true);
+        return { success: true };
+      }
+      return { success: false, error: 'Unknown action' };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
 
   sendStatusToWindow(text) {
     console.log(text);

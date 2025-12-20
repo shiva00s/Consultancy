@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiCloud, FiUpload, FiDownload, FiRefreshCw, FiSettings } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import '../css/CloudSync.css';
+import ConfirmDialog from '../components/common/ConfirmDialog';
 
 const CloudSyncPage = () => {
   const [provider, setProvider] = useState(null);
@@ -104,13 +105,18 @@ const CloudSyncPage = () => {
   };
 
   const handleRestoreBackup = async (fileId) => {
-    if (!confirm('Are you sure? This will replace all current data with the backup.')) {
-      return;
-    }
+    setConfirmFileId(fileId);
+    setConfirmOpen(true);
+  };
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmFileId, setConfirmFileId] = useState(null);
+
+  const performRestore = async () => {
+    if (!confirmFileId) return;
     setLoading(true);
     try {
-      const result = await window.api.restoreBackup(fileId);
+      const result = await window.api.restoreBackup(confirmFileId);
       if (result.success) {
         toast.success('Backup restored! Please restart the application.');
       }
@@ -119,6 +125,8 @@ const CloudSyncPage = () => {
       toast.error('Failed to restore backup');
     } finally {
       setLoading(false);
+      setConfirmOpen(false);
+      setConfirmFileId(null);
     }
   };
 
@@ -348,6 +356,16 @@ const CloudSyncPage = () => {
           </div>
         )}
       </div>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title="Restore Backup"
+        message="Are you sure? This will replace all current data with the backup."
+        isDanger={true}
+        confirmText="Restore"
+        cancelText="Cancel"
+        onConfirm={performRestore}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   );
 };

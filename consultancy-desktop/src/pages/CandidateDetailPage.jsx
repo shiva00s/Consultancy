@@ -30,6 +30,7 @@ import CandidateHistory from "../components/candidate-detail/CandidateHistory";
 import CandidateDocuments from "../components/candidate-detail/CandidateDocuments";
 import CandidatePassport from "../components/candidate-detail/CandidatePassport";
 import CommunicationHistory from "../components/candidate-detail/CommunicationHistory";
+import ConfirmDialog from "../components/common/ConfirmDialog";
 
 const statusOptions = [
   "New",
@@ -202,21 +203,21 @@ function CandidateDetailPage({ user, flags }) {
   };
 
   const handleDeleteCandidate = async () => {
-    if (
-      window.confirm(
-        "⚠️ Are you sure you want to move this candidate to the Recycle Bin?",
-      )
-    ) {
-      const res = await window.electronAPI.deleteCandidate({ user, id });
-      if (res.success) {
-        navigate("/search");
-        toast.success(
-          `🗑️ Candidate ${details.candidate.name} moved to Recycle Bin.`,
-        );
-      } else {
-        toast.error(res.error);
-      }
+    // open confirm dialog instead of native confirm
+    setDeleteConfirmOpen(true);
+  };
+
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  const performDeleteCandidate = async () => {
+    const res = await window.electronAPI.deleteCandidate({ user, id });
+    if (res.success) {
+      navigate("/search");
+      toast.success(`🗑️ Candidate ${details.candidate.name} moved to Recycle Bin.`);
+    } else {
+      toast.error(res.error);
     }
+    setDeleteConfirmOpen(false);
   };
 
   const handleExportDocuments = async () => {
@@ -676,6 +677,16 @@ function CandidateDetailPage({ user, flags }) {
 
       {/* ✅ USE UNIVERSAL TABS */}
       <UniversalTabs tabs={universalTabs} defaultActiveTab={initialTab} />
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        title="Move Candidate to Recycle Bin"
+        message={`⚠️ Move candidate ${candidate.name} to Recycle Bin? This will move all linked records.`}
+        isDanger={true}
+        confirmText="Move to Recycle Bin"
+        cancelText="Cancel"
+        onConfirm={performDeleteCandidate}
+        onCancel={() => setDeleteConfirmOpen(false)}
+      />
     </div>
   );
 }

@@ -219,49 +219,13 @@ app.post('/api/documents/:candidateId', upload.single('document'), async (req, r
     }
 });
 
-const handleDelete = async () => {
-    Alert.alert(
-        "Confirm Deletion",
-        "Are you sure you want to delete this candidate? This action is queued for soft-deletion.",
-        [
-            { text: "Cancel", style: "cancel" },
-            { 
-                text: "Delete", 
-                style: "destructive", 
-                onPress: async () => {
-                    setLoading(true);
-                    try {
-                        if (networkStatus === 'online') {
-                            // --- A. ONLINE MODE: Attempt immediate sync (DELETE) ---
-                            const res = await api.delete(`/candidates/${id}`);
-                            if (res.data.success) {
-                                Alert.alert("Deleted", "Candidate deleted and synced.");
-                                router.replace('/(tabs)'); // Redirect to list
-                            } else {
-                                throw new Error(res.data.error || "Server failed to delete.");
-                            }
-                        } else {
-                            // --- B. OFFLINE MODE: Queue for later sync (DELETE) ---
-                            const localId = `delete-${id}`;
-                            addToQueue({
-                                localId: localId,
-                                payload: { candidate_id: id },
-                                endpoint: `/candidates/${id}`,
-                                method: 'DELETE',
-                            });
-                            Alert.alert("Queued", "Deletion queued and will sync when online.");
-                            router.replace('/(tabs)');
-                        }
-                    } catch (error) { // Removed : any
-                        Alert.alert("Error", error.message || "Failed to process deletion.");
-                    } finally {
-                        setLoading(false);
-                    }
-                }
-            }
-        ]
-    );
-};
+// NOTE: The following mobile-style interactive alert/queueing code was removed from the server
+// to avoid client-side/native dialog calls being executed in the Node server process.
+// If you require a deletion endpoint with immediate or queued behavior, implement it
+// as a dedicated API route and invoke it from the renderer process. Retaining the
+// mobile Alert.alert calls in the server caused unexpected behavior and potential
+// native dialogs. This block is intentionally a no-op on the server.
+// (Original mobile logic is intentionally removed.)
 
 // --- START SERVER ---
 function startServer() {

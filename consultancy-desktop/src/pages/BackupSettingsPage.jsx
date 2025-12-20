@@ -6,6 +6,7 @@ import { LoadingSpinner } from '../components/LoadingSpinner';
 import useAuthStore from '../store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
 import '../css/BackupSettings.css';
+import ConfirmDialog from '../components/common/ConfirmDialog';
 
 function BackupSettingsPage() {
   const { user } = useAuthStore(useShallow((state) => ({ user: state.user })));
@@ -75,59 +76,58 @@ function BackupSettingsPage() {
   };
 
   const handleRestoreBackup = async (backup) => {
-    const confirmed = window.confirm(
-      `⚠️ WARNING: This will restore the database from backup.\n\n` +
-      `Backup: ${backup.name}\n` +
-      `Created: ${backup.created.toLocaleString()}\n` +
-      `Size: ${backup.sizeFormatted}\n\n` +
-      `Current data will be replaced. This action cannot be undone.\n\n` +
-      `Do you want to continue?`
-    );
-
-    if (!confirmed) return;
-
-    setIsRestoring(true);
-    const toastId = toast.loading('Restoring backup...');
-
-    try {
-      const result = await backupManager.restoreBackup(backup.path);
-      
-      toast.success(
-        `Backup restored successfully!\n${result.recordsRestored} records restored.\n\nPlease restart the application.`,
-        { id: toastId, duration: 8000 }
-      );
-
-      // Prompt for application restart
-      setTimeout(() => {
-        const shouldRestart = window.confirm(
-          'Database has been restored. The application needs to restart.\n\nRestart now?'
-        );
-        if (shouldRestart) {
-          window.electronAPI.restartApplication();
-        }
-      }, 2000);
-    } catch (error) {
-      console.error('Restore error:', error);
-      toast.error(`Failed to restore backup: ${error.message}`, { id: toastId });
-    } finally {
-      setIsRestoring(false);
-    }
+    setConfirmPayload({ type: 'restore', backup });
+    setConfirmOpen(true);
   };
 
   const handleDeleteBackup = async (backup) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete this backup?\n\n${backup.name}\n\nThis action cannot be undone.`
-    );
+    setConfirmPayload({ type: 'delete', backup });
+    setConfirmOpen(true);
+  };
 
-    if (!confirmed) return;
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmPayload, setConfirmPayload] = useState(null);
 
-    try {
-      await backupManager.deleteBackup(backup.path);
-      toast.success('Backup deleted successfully');
-      await loadBackups();
-    } catch (error) {
-      console.error('Delete error:', error);
-      toast.error(`Failed to delete backup: ${error.message}`);
+  const performConfirmAction = async () => {
+    if (!confirmPayload) return;
+    const { type, backup } = confirmPayload;
+    if (type === 'restore') {
+      setIsRestoring(true);
+      const toastId = toast.loading('Restoring backup...');
+      try {
+        const result = await backupManager.restoreBackup(backup.path);
+        toast.success(
+          `Backup restored successfully!\n${result.recordsRestored} records restored.\n\nPlease restart the application.`,
+          { id: toastId, duration: 8000 }
+        );
+
+        // ask for restart using confirm dialog
+        setTimeout(() => {
+          setConfirmPayload({ type: 'restart' });
+          setConfirmOpen(true);
+        }, 2000);
+      } catch (error) {
+        console.error('Restore error:', error);
+        toast.error(`Failed to restore backup: ${error.message}`, { id: toastId });
+      } finally {
+        setIsRestoring(false);
+        setConfirmOpen(false);
+        setConfirmPayload(null);
+      }
+    } else if (type === 'delete') {
+      try {
+        await backupManager.deleteBackup(backup.path);
+        toast.success('Backup deleted successfully');
+        await loadBackups();
+      } catch (error) {
+        console.error('Delete error:', error);
+        toast.error(`Failed to delete backup: ${error.message}`);
+      } finally {
+        setConfirmOpen(false);
+        setConfirmPayload(null);
+      }
+    } else if (type === 'restart') {
+      window.electronAPI.restartApplication();
     }
   };
 
@@ -397,6 +397,25 @@ function BackupSettingsPage() {
           Restoring a backup will replace all current data and cannot be undone.
         </div>
       </div>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title={confirmPayload?.type === 'restore' ? 'Restore Backup' : confirmPayload?.type === 'delete' ? 'Delete Backup' : 'Confirm Action'}
+        message={
+          confirmPayload?.type === 'restore'
+            ? `⚠️ This will restore backup ${confirmPayload.backup?.name}. Current data will be replaced. Continue?`
+            : confirmPayload?.type === 'delete'
+            ? `Are you sure you want to delete backup ${confirmPayload.backup?.name}? This cannot be undone.`
+            : 'Are you sure?'
+        }
+        isDanger={confirmPayload?.type === 'restore' || confirmPayload?.type === 'delete'}
+        confirmText={confirmPayload?.type === 'delete' ? 'Delete' : confirmPayload?.type === 'restore' ? 'Restore' : 'Confirm'}
+        cancelText="Cancel"
+        onConfirm={performConfirmAction}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setConfirmPayload(null);
+        }}
+      />
     </div>
   );
 }

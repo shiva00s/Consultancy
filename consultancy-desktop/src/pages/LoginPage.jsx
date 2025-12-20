@@ -4,6 +4,8 @@
 import React, { useState } from 'react';
 import { FiBriefcase } from 'react-icons/fi';
 import '../css/LoginPage.css';
+import ConfirmDialog from '../components/common/ConfirmDialog';
+import toast from 'react-hot-toast';
 
 function LoginPage({ onLogin }) {
   const [username, setUsername] = useState('');
@@ -48,20 +50,24 @@ function LoginPage({ onLogin }) {
 
   // ⚠️ DEVELOPMENT ONLY - Hidden reset function
   const handleResetActivation = async () => {
-    if (!window.confirm('⚠️ Reset activation status? This will reload the app.')) {
-      return;
-    }
-    
+    setResetConfirmOpen(true);
+  };
+
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+
+  const performResetActivation = async () => {
     try {
       const result = await window.electronAPI.resetActivationStatus();
       if (result?.success) {
-        alert('✅ Activation reset! Reloading...');
+        toast.success('✅ Activation reset! Reloading...');
         window.location.reload();
       } else {
-        alert('❌ Reset failed: ' + (result?.error || 'Unknown error'));
+        toast.error('❌ Reset failed: ' + (result?.error || 'Unknown error'));
       }
     } catch (err) {
-      alert('❌ Error: ' + err.message);
+      toast.error('❌ Error: ' + err.message);
+    } finally {
+      setResetConfirmOpen(false);
     }
   };
 
@@ -129,6 +135,16 @@ function LoginPage({ onLogin }) {
             🔧 Reset Activation
           </button>
         )}
+        <ConfirmDialog
+          isOpen={resetConfirmOpen}
+          title="Reset Activation"
+          message="⚠️ Reset activation status? This will reload the app."
+          isDanger={true}
+          confirmText="Reset"
+          cancelText="Cancel"
+          onConfirm={performResetActivation}
+          onCancel={() => setResetConfirmOpen(false)}
+        />
       </div>
     </div>
   );

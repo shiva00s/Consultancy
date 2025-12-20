@@ -7,36 +7,18 @@ import {
 } from "react-icons/fi";
 
 /* ===============================
-   🧠 CATEGORY → EMOJI MAP
-   =============================== */
-const emojiMap = {
-  "Aadhar Card": "🆔",
-  "Pan Card": "💳",
-  "Passport": "🛂",
-  "Visa": "✈️",
-  "Education Certificate": "🎓",
-  "Experience Letter": "💼",
-  "Offer Letter": "📋",
-  "Resume": "📄",
-  "Photograph": "📸",
-  "Medical Certificate": "🏥",
-  "Driving License": "🚗",
-  Uncategorized: "📂",
-};
-
-/* ===============================
-   🔧 CLEAN CATEGORY NAME
-   =============================== */
-const cleanCategory = (value = "") =>
-  value
-    .replace(/[\u{1F000}-\u{1FFFF}]/gu, "")
-    .replace(/[\u{2600}-\u{27BF}]/gu, "")
-    .trim();
+  🧠 CATEGORY → EMOJI MAP
+  =============================== */
+import { CATEGORY_EMOJIS, cleanCategory as cleanCategoryUtil } from '../../utils/documentCategories';
+const emojiMap = CATEGORY_EMOJIS;
+const cleanCategory = cleanCategoryUtil;
 
 /* ===============================
    MAIN COMPONENT
    =============================== */
-function DocumentChecker({ candidateDocuments = [], user }) {
+function DocumentChecker({ candidateDocuments = [], documents = [], user, requiredDocsProp = null }) {
+  // Accept either `candidateDocuments` or `documents` (parent may pass either prop name)
+  const docs = (candidateDocuments && candidateDocuments.length ? candidateDocuments : documents) || [];
   const [requiredDocs, setRequiredDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -61,8 +43,13 @@ function DocumentChecker({ candidateDocuments = [], user }) {
   };
 
   useEffect(() => {
+    if (requiredDocsProp && Array.isArray(requiredDocsProp)) {
+      setRequiredDocs(requiredDocsProp);
+      setLoading(false);
+      return;
+    }
     fetchRequiredDocs();
-  }, []);
+  }, [requiredDocsProp]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -75,14 +62,12 @@ function DocumentChecker({ candidateDocuments = [], user }) {
      =============================== */
   const { uploadedSet, missingList } = useMemo(() => {
     const uploaded = new Set(
-      candidateDocuments
+      docs
         .map((d) => cleanCategory(d.category || "Uncategorized"))
         .filter(Boolean)
     );
 
-    const required = requiredDocs.map((r) =>
-      cleanCategory(r.name || "")
-    );
+    const required = requiredDocs.map((r) => cleanCategory(r.name || ""));
 
     const missing = required.filter((r) => !uploaded.has(r));
 
@@ -90,7 +75,7 @@ function DocumentChecker({ candidateDocuments = [], user }) {
       uploadedSet: uploaded,
       missingList: missing,
     };
-  }, [candidateDocuments, requiredDocs]);
+  }, [docs, requiredDocs]);
 
   const allDone =
     requiredDocs.length > 0 && missingList.length === 0;

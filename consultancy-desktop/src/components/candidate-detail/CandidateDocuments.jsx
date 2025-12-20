@@ -4,8 +4,9 @@ import UniversalTabs from "../common/UniversalTabs";
 import DocumentChecker from "./DocumentChecker";
 import DocumentList from "../DocumentList";
 import DocumentUploader from "../DocumentUploader";
+import { DOCUMENT_CATEGORIES } from "../../utils/documentCategories";
 import DocumentViewer from "../DocumentViewer";
-import { readFileAsBuffer } from "../../utils/file";
+import ConfirmDialog from "../common/ConfirmDialog";
 
 const documentCategories = [
   "📂 Uncategorized",
@@ -22,44 +23,56 @@ const documentCategories = [
   "🚗 Driving License",
 ];
 
-const mandatoryCategories = [
-  "Aadhar Card",
-  "Education Certificate",
-  "Offer Letter",
-  "Pan Card",
-  "Visa",
-];
+
 
 function CandidateDocuments({ user, candidateId, documents, onDocumentsUpdate }) {
   const [viewerDoc, setViewerDoc] = useState(null);
+  const [requiredDocs, setRequiredDocs] = useState([]);
+  const [loadingReqs, setLoadingReqs] = useState(true);
 
   const groupedDocuments = useMemo(() => {
     if (!documents) return {};
+    const cleanCategoryName = (value = "") =>
+      String(value)
+        .replace(/\s+/g, " ")
+        .replace(/^[\u{1F000}-\u{1FFFF}]\s*/u, "")
+        .replace(/[\u{1F000}-\u{1FFFF}]/gu, "")
+        .replace(/[\u{2600}-\u{27BF}]/gu, "")
+        .replace(/[\u{2700}-\u{27BF}]/gu, "")
+        .trim();
+
     return documents.reduce((acc, doc) => {
-      const cat = doc.category || "📂 Uncategorized";
+      const cat = cleanCategoryName(doc.category || "Uncategorized") || "Uncategorized";
       if (!acc[cat]) acc[cat] = [];
-      acc[cat].push(doc);
+      acc[cat].push({ ...doc, category: cat });
       return acc;
     }, {});
   }, [documents]);
 
   // Calculate counts
   const totalFiles = documents?.length || 0;
+  const cleanCategoryName = (value = "") =>
+    String(value)
+      .replace(/\s+/g, " ")
+      .replace(/^[\u{1F000}-\u{1FFFF}]\s*/u, "")
+      .replace(/[\u{1F000}-\u{1FFFF}]/gu, "")
+      .replace(/[\u{2600}-\u{27BF}]/gu, "")
+      .replace(/[\u{2700}-\u{27BF}]/gu, "")
+      .trim();
+
   const checkedFiles = useMemo(() => {
     if (!documents) return 0;
     const uploadedSet = new Set(
       documents
-        .map((d) => {
-          const cat = d.category || "Uncategorized";
-          return cat.replace(/^[\u{1F000}-\u{1F9FF}]\s*/u, '').trim();
-        })
+        .map((d) => cleanCategoryName(d.category || "Uncategorized"))
         .filter(Boolean)
     );
-    const checkedCount = mandatoryCategories.filter((cat) =>
-      uploadedSet.has(cat)
-    ).length;
+
+    const requiredNames = (requiredDocs || []).map((r) => cleanCategoryName(r.name || "") ).filter(Boolean);
+
+    const checkedCount = requiredNames.filter((cat) => uploadedSet.has(cat)).length;
     return checkedCount;
-  }, [documents]);
+  }, [documents, requiredDocs]);
 
   const handleChangeCategory = async (docId, newCategory) => {
     try {
@@ -77,29 +90,59 @@ function CandidateDocuments({ user, candidateId, documents, onDocumentsUpdate })
   };
 
   const handleDeleteDocument = async (docId, fileName) => {
-    if (
-      !window.confirm(
-        `⚠️ Are you sure you want to move "${fileName}" to the Recycle Bin?`
-      )
-    ) {
-      return;
-    }
+    // open confirm dialog instead of native confirm
+    setConfirmTarget({ docId, fileName });
+    setConfirmOpen(true);
+  };
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState(null);
+
+  const performDelete = async () => {
+    if (!confirmTarget) return;
+    const { docId } = confirmTarget;
     try {
-      const res = await window.electronAPI.deleteDocument({
-        user,
-        docId,
-      });
+      const res = await window.electronAPI.deleteDocument({ user, docId });
       if (res.success) {
         onDocumentsUpdate([], docId);
       }
     } catch (err) {
-      console.error("delete doc error", err);
+      console.error('delete doc error', err);
+    } finally {
+      setConfirmOpen(false);
+      setConfirmTarget(null);
     }
   };
 
   const handleUploaded = (newDocs) => {
     onDocumentsUpdate(newDocs);
   };
+
+  // Fetch required documents from manager so header badges are accurate
+  React.useEffect(() => {
+    let mounted = true;
+    const fetchReqs = async () => {
+      setLoadingReqs(true);
+      try {
+        const res = await window.electronAPI.getRequiredDocuments();
+        if (res?.success) {
+          if (mounted) setRequiredDocs(res.data || []);
+        } else {
+          if (mounted) setRequiredDocs([]);
+        }
+      } catch (err) {
+        if (mounted) setRequiredDocs([]);
+      } finally {
+        if (mounted) setLoadingReqs(false);
+      }
+    };
+
+    fetchReqs();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const openFileExternally = (filePath) => {
     window.electronAPI.openFileExternally({ path: filePath });
@@ -129,7 +172,7 @@ function CandidateDocuments({ user, candidateId, documents, onDocumentsUpdate })
             onView={handleView}
             onChangeCategory={handleChangeCategory}
             onDelete={handleDeleteDocument}
-            documentCategories={documentCategories}
+            documentCategories={DOCUMENT_CATEGORIES}
           />
         </div>
       ),
@@ -138,12 +181,12 @@ function CandidateDocuments({ user, candidateId, documents, onDocumentsUpdate })
       key: "status-check",
       label: "Status Check",
       icon: "✅",
-      badge: checkedFiles > 0 ? `${checkedFiles}/${mandatoryCategories.length}` : null,
+          badge: (requiredDocs.length > 0 && checkedFiles >= 0) ? `${checkedFiles}/${requiredDocs.length}` : null,
       content: (
         <div className="candocs-checker-layout">
           <DocumentChecker
             documents={documents}
-            mandatoryCategories={mandatoryCategories}
+            requiredDocsProp={requiredDocs}
           />
         </div>
       ),
@@ -158,7 +201,7 @@ function CandidateDocuments({ user, candidateId, documents, onDocumentsUpdate })
             user={user}
             candidateId={candidateId}
             onUploaded={handleUploaded}
-            documentCategories={documentCategories}
+            documentCategories={DOCUMENT_CATEGORIES}
           />
         </div>
       ),
@@ -176,6 +219,24 @@ function CandidateDocuments({ user, candidateId, documents, onDocumentsUpdate })
           onClose={() => setViewerDoc(null)}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title="Move to Recycle Bin"
+        message={
+          confirmTarget
+            ? `⚠️ Move "${confirmTarget.fileName}" to Recycle Bin? This can be restored later.`
+            : 'Are you sure?'
+        }
+        isDanger={true}
+        confirmText="Move to Recycle Bin"
+        cancelText="Cancel"
+        onConfirm={performDelete}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setConfirmTarget(null);
+        }}
+      />
     </div>
   );
 }

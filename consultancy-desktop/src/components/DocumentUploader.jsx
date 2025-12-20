@@ -1,45 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FiUploadCloud, FiFilePlus, FiTrash2 } from "react-icons/fi";
 import ConfirmDialog from "./common/ConfirmDialog";
+import toast from 'react-hot-toast';
 import "../css/DocumentUploader.css";
-
-// Emoji mapping for categories (MATCHES DocumentChecker.jsx)
-const categoryEmojiMap = {
-  "Aadhar Card": "🆔",
-  "Driving License": "🚗",
-  "Education Certificate": "🎓",
-  "Experience Letter": "💼",
-  "Medical Certificate": "🏥",
-  "Offer Letter": "📋",
-  "Pan Card": "💳",
-  "Passport": "🛂",
-  "Photograph": "📸",
-  "Resume": "📄",
-  "Visa": "✈️",
-  "Uncategorized": "📂",
-};
-
-// 🔧 Clean category name (remove emojis)
-const cleanCategoryName = (category) => {
-  if (!category) return "";
-  return category
-    .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
-    .replace(/[\u{2600}-\u{26FF}]/gu, '')
-    .replace(/[\u{2700}-\u{27BF}]/gu, '')
-    .replace(/[\u{FE00}-\u{FE0F}]/gu, '')
-    .replace(/[\u{1F900}-\u{1F9FF}]/gu, '')
-    .replace(/[\u{1F300}-\u{1F5FF}]/gu, '')
-    .replace(/[\u{1F600}-\u{1F64F}]/gu, '')
-    .replace(/[\u{1F680}-\u{1F6FF}]/gu, '')
-    .trim();
-};
-
-// Helper to add emoji to category
-const addEmojiToCategory = (category) => {
-  const clean = cleanCategoryName(category);
-  const emoji = categoryEmojiMap[clean] || "📄";
-  return `${emoji} ${clean}`;
-};
+import { cleanCategory, addEmojiToCategory, DOCUMENT_CATEGORIES } from "../utils/documentCategories";
 
 function DocumentUploader({ user, candidateId, onUploaded }) {
   const [uploadCategory, setUploadCategory] = useState("Uncategorized");
@@ -79,8 +43,11 @@ function DocumentUploader({ user, candidateId, onUploaded }) {
 
   // ✅ BUILD DROPDOWN OPTIONS (Clean category names only)
   const documentCategories = [
-    "Uncategorized",
-    ...requiredDocs.map(doc => cleanCategoryName(doc.name))
+    ...new Set([
+      'Uncategorized',
+      ...requiredDocs.map(doc => cleanCategory(doc.name)),
+      ...DOCUMENT_CATEGORIES,
+    ])
   ];
 
   // ✅ AUTO-CATEGORIZATION: Smart filename detection
@@ -213,7 +180,7 @@ function DocumentUploader({ user, candidateId, onUploaded }) {
       if (fileInputRef.current) fileInputRef.current.value = null;
     } catch (err) {
       console.error("Upload error:", err);
-      alert(`Upload failed: ${err.message}`);
+      toast.error(`Upload failed: ${err.message}`);
     } finally {
       setIsUploading(false);
     }

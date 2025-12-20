@@ -90,7 +90,7 @@ function ReportsPage() {
   };
 
   const handleExport = () => {
-    alert('Export not implemented yet.');
+    toast('Export not implemented yet.');
   };
 
   if (loading && !stats) {

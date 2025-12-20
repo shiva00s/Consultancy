@@ -6,12 +6,7 @@ const getDatabase = require('../database.cjs');
 const { dbGet, dbRun } = require('./dbHelpers.cjs');
 const { mapErrorToFriendly } = require('./utils.cjs');
 
-const documentCategories = [
-  'Uncategorized', 'Passport', 'Resume', 'Photograph', 
-  'Education Certificate', 'Experience Letter', 'Offer Letter', 
-  'Visa', 'Aadhar Card', 'Pan Card', 'Medical Certificate', 
-  'Driving License'
-];
+const { DOCUMENT_CATEGORIES: documentCategories } = require('../../utils/documentCategories.cjs');
 
 /**
  * Update document category (CandidateDocuments.jsx → updateDocumentCategory)

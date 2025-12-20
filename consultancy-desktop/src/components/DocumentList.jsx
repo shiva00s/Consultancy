@@ -14,21 +14,12 @@ import {
 } from "react-icons/fi";
 import "../css/DocumentList.css";
 import ConfirmDialog from './common/ConfirmDialog';
-
-const categoryEmojis = {
-  Passport: "🛂",
-  Resume: "📄",
-  Photograph: "🖼️",
-  "Education Certificate": "🎓",
-  "Experience Letter": "🏢",
-  "Offer Letter": "📜",
-  Visa: "✈️",
-  "Aadhar Card": "🪪",
-  "Pan Card": "💳",
-  "Medical Certificate": "🏥",
-  "Driving License": "🚘",
-  Uncategorized: "📁",
-};
+import {
+  cleanCategory,
+  addEmojiToCategory,
+  CATEGORY_EMOJIS,
+  DOCUMENT_CATEGORIES,
+} from "../utils/documentCategories";
 
 function DocumentList({
   groupedDocuments,
@@ -139,14 +130,15 @@ function DocumentList({
         <div className="doclist-grid">
           {Object.keys(groupedDocuments).map((category) => {
             const docs = groupedDocuments[category];
-            const emoji = categoryEmojis[category] || "📁";
+            const cleanedCategory = cleanCategory(category);
+            const emoji = CATEGORY_EMOJIS[cleanedCategory] || "📁";
 
             return (
               <section key={category} className="doclist-category">
                 <header className="doclist-category-header">
                   <span className="doclist-category-emoji">{emoji}</span>
                   <div>
-                    <h4>{category}</h4>
+                    <h4>{addEmojiToCategory(cleanedCategory)}</h4>
                     <small>
                       {docs.length} file{docs.length > 1 ? "s" : ""}
                     </small>
@@ -176,16 +168,19 @@ function DocumentList({
                         <div className="doclist-controls">
                           <select
                             className="doclist-select"
-                            value={doc.category}
+                            value={cleanCategory(doc.category)}
                             onChange={(e) =>
-                              onChangeCategory(doc.id, e.target.value)
+                              onChangeCategory(doc.id, cleanCategory(e.target.value))
                             }
                           >
-                            {documentCategories.map((cat) => (
-                              <option key={cat} value={cat}>
-                                {cat}
-                              </option>
-                            ))}
+                            {DOCUMENT_CATEGORIES.map((cat) => {
+                              const clean = cleanCategory(cat);
+                              return (
+                                <option key={clean} value={clean}>
+                                  {addEmojiToCategory(clean)}
+                                </option>
+                              );
+                            })}
                           </select>
 
                           <div className="doclist-actions">

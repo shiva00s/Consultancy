@@ -45,14 +45,17 @@ function registerDocumentHandlers() {
   /**
    * Open file picker dialog
    */
+  const { safeShowOpenDialog } = require('../utils/dialogHelpers.cjs');
+
   ipcMain.handle('open-file-dialog', async (event, options) => {
-    const result = await dialog.showOpenDialog({
+    const result = await safeShowOpenDialog(null, {
       properties: ['openFile'],
       filters: options?.filters || [
         { name: 'All Files', extensions: ['*'] },
         { name: 'Documents', extensions: ['pdf', 'doc', 'docx'] },
         { name: 'Images', extensions: ['jpg', 'jpeg', 'png'] }
-      ]
+      ],
+      bypassNative: options?.bypassNative
     });
 
     if (result.canceled) {

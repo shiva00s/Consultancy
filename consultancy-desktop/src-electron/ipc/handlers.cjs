@@ -213,7 +213,27 @@ async function backupDatabaseHandler(event, { user, destinationPath }) {
 }
 
 async function showSaveDialogHandler(event, options) {
-  return await dialog.showSaveDialog(BrowserWindow.getFocusedWindow(), options);
+  return await safeShowSaveDialog(BrowserWindow.getFocusedWindow(), options);
+}
+
+// Safe wrappers that allow renderer to request bypassing native dialogs
+async function safeShowSaveDialog(win, options = {}) {
+  // If renderer requests bypass (app-level UI will supply path), honor it
+  if (options && options.bypassNative) {
+    // Choose provided path or fall back to Downloads/defaultName
+    const defaultName = options.defaultPath || options.defaultName || `export-${Date.now()}`;
+    const fallbackPath = path.join(app.getPath('downloads'), defaultName);
+    return { canceled: false, filePath: fallbackPath };
+  }
+  return await dialog.showSaveDialog(win, options);
+}
+
+async function safeShowOpenDialog(win, options = {}) {
+  if (options && options.bypassNative) {
+    // When bypassing, return an empty selection (renderer should provide path)
+    return { canceled: false, filePaths: [] };
+  }
+  return await dialog.showOpenDialog(win, options);
 }
 
 
@@ -250,12 +270,12 @@ ipcMain.handle('showSaveDialog', showSaveDialogHandler);
 
 ipcMain.handle('show-save-dialog', async (event, options) => {
   const win = BrowserWindow.fromWebContents(event.sender);
-  return await dialog.showSaveDialog(win, options);
+  return await safeShowSaveDialog(win, options);
 });
 
 ipcMain.handle('show-open-dialog', async (event, options) => {
   const win = BrowserWindow.fromWebContents(event.sender);
-  return await dialog.showOpenDialog(win, options);
+  return await safeShowOpenDialog(win, options);
 });
 
 ipcMain.handle('backup-database', async (event, { user, destinationPath }) => {
@@ -906,7 +926,7 @@ ipcMain.handle('add-documents', async (event, { user, candidateId, files }) => {
 });
 // ====================================================================
     ipcMain.handle('update-document-category', async (event, { user, docId, category }) => {
-        const result = await queries.updateDocumentCategory(docId, category);
+      const result = await queries.updateDocumentCategory(docId, category);
         if (result.success) {
             logAction(user, 'update_doc_category', 'candidates', result.candidateId, `Candidate: ${result.candidateId}, File: ${result.fileName}, New Category: ${category}`);
         }
@@ -1614,7 +1634,7 @@ ipcMain.handle('write-offer-template', async (event, payload = {}) => {
             const date = new Date().toISOString().slice(0, 10);
        
             const defaultFileName = `Candidate_Offer_Letter_${date}.pdf`;
-            const saveDialogResult = await dialog.showSaveDialog(win, {
+            const saveDialogResult = await safeShowSaveDialog(win, {
                 
                 title: 'Save Generated Offer Letter as PDF',
                 defaultPath: defaultFileName,
@@ -1961,7 +1981,7 @@ ipcMain.handle('readAbsoluteFileBuffer', async (event, { filePath }) => {
         ];
 
         try {
-            const saveDialogResult = await dialog.showSaveDialog(win, {
+            const saveDialogResult = await safeShowSaveDialog(win, {
        
             
                 title: 'Save Excel Import Template',
@@ -2011,7 +2031,7 @@ ipcMain.handle('readAbsoluteFileBuffer', async (event, { filePath }) => {
         });
 
         try {
-            const saveDialogResult = await dialog.showSaveDialog(win, {
+            const saveDialogResult = await safeShowSaveDialog(win, {
                 title: 'Save Import Error Report',
                 defaultPath: 'import_error_report.xlsx',
                 filters: [{ name: 'Excel Files', extensions: ['xlsx'] }],
@@ -2309,7 +2329,7 @@ ipcMain.handle('restore-database', async (event, { user }) => {
     if (user.role !== 'super_admin') return { success: false, error: 'Access Denied.' };
 
     const win = BrowserWindow.fromWebContents(event.sender);
-    const result = await dialog.showOpenDialog(win, {
+    const result = await safeShowOpenDialog(win, {
         title: 'Select Backup File',
         filters: [{ name: 'Zip Backup', extensions: ['zip'] }],
         properties: ['openFile']
