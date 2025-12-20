@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FiX, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import './ChangePasswordModal.css';
+import './ResetPasswordModal.css';
 
 function ChangePasswordModal({ user, onClose, onPasswordChange }) {
   const [oldPassword, setOldPassword] = useState('');

@@ -9,7 +9,7 @@ import {
   FiCheckSquare,
 } from 'react-icons/fi';
 import '../css/SettingsPage.css';
-
+import UniversalTabs from '../components/common/UniversalTabs';
 import UserManagement from '../components/settings/UserManagement';
 import DocumentRequirementManager from '../components/settings/DocumentRequirementManager';
 import EmailSettings from '../components/settings/EmailSettings';
@@ -62,133 +62,106 @@ function SettingsPage({ user }) {
   if (!user || loading) {
     return (
       <div className="settings-page-wrapper">
-        <div className="settings-page-loading-card">
-          <div className="settings-loading-spinner" />
+        <div className="loading-container">
           <p>Loading settings...</p>
         </div>
       </div>
     );
   }
 
-  const availableTabs = [];
+  // Build tabs array based on permissions
+  const tabs = [];
 
   if (userPermissions.settings_users) {
-    availableTabs.push({
-      id: 'users',
+    tabs.push({
+      key: 'users',
       label: 'Users',
-      icon: <FiUsers />,
-      component: <UserManagement currentUser={user} />,
+      icon: '👥',
+      content: <UserManagement currentUser={user} />,
     });
   }
 
   if (userPermissions.settings_required_docs) {
-    availableTabs.push({
-      id: 'doc_req',
+    tabs.push({
+      key: 'documents',
       label: 'Required Docs',
-      icon: <FiCheckSquare />,
-      component: <DocumentRequirementManager user={user} />,
+      icon: '📋',
+      content: <DocumentRequirementManager />,
     });
   }
 
   if (userPermissions.settings_email) {
-    availableTabs.push({
-      id: 'email',
+    tabs.push({
+      key: 'email',
       label: 'Email',
-      icon: <FiMail />,
-      component: <EmailSettings user={user} />,
+      icon: '📧',
+      content: <EmailSettings />,
     });
   }
 
   if (userPermissions.settings_templates) {
-    availableTabs.push({
-      id: 'templates',
+    tabs.push({
+      key: 'templates',
       label: 'Templates',
-      icon: <FiFileText />,
-      component: <OfferTemplateManager user={user} />,
+      icon: '📄',
+      content: <OfferTemplateManager />,
     });
   }
 
   if (userPermissions.settings_backup) {
-    availableTabs.push({
-      id: 'backup',
+    tabs.push({
+      key: 'backup',
       label: 'Backup',
-      icon: <FiDatabase />,
-      component: <BackupUtility user={user} />,
+      icon: '💾',
+      content: <BackupUtility />,
     });
   }
 
-  if (availableTabs.length === 0) {
+  if (tabs.length === 0) {
     return (
       <div className="settings-page-wrapper">
-        <div className="settings-top-bar elevated">
-          <div className="settings-title-area">
-            <h1>
-              <FiSettings /> Application Settings
-            </h1>
-            <span className="settings-subtitle">
-              Central place for managing users, documents, email and more.
-            </span>
-          </div>
-        </div>
-        <div className="settings-no-access-card">
-          <h2>No Settings Access</h2>
-          <p>
-            You don&apos;t have permission to access any settings tabs. Contact
-            your administrator.
-          </p>
+        <div className="no-access-message">
+          <h2>⚠️ No Access</h2>
+          <p>You don't have permission to access any settings tabs. Contact your administrator.</p>
         </div>
       </div>
     );
   }
 
-  if (!availableTabs.find(t => t.id === activeTab)) {
-    setActiveTab(availableTabs[0].id);
-  }
-
   return (
     <div className="settings-page-wrapper">
-      {/* HEADER */}
-      <div className="settings-top-bar elevated">
+      {/* Top Bar */}
+      <div className="settings-top-bar">
         <div className="settings-title-area">
-          <h1>
-            <FiSettings /> Application Settings
-          </h1>
-          
+          <FiSettings size={28} />
+          <h1>Settings</h1>
         </div>
         <button
-          className="btn btn-secondary btn-compact"
+          className="btn btn-primary btn-compact"
           onClick={() => setIsPasswordModalOpen(true)}
         >
-          <FiLock /> Change Password
+          <FiLock size={16} />
+          Change Password
         </button>
       </div>
 
-      {/* TABS */}
-      <div className="settings-tabs-row pill-bar">
-        {availableTabs.map(tab => (
-          <button
-            key={tab.id}
-            className={`settings-tab-item ${
-              activeTab === tab.id ? 'active' : ''
-            }`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            <span className="settings-tab-icon">{tab.icon}</span>
-            <span className="settings-tab-label">{tab.label}</span>
-          </button>
-        ))}
+      {/* Universal Tabs - Integrated */}
+      <div className="settings-tabs-container">
+        <UniversalTabs
+          defaultActiveTab={activeTab}
+          tabs={tabs}
+          onTabChange={(key) => setActiveTab(key)}
+        />
       </div>
 
-      {/* CONTENT */}
-      <div className="settings-content-area card-surface">
-        {availableTabs.find(t => t.id === activeTab)?.component}
-      </div>
-
+      {/* Change Password Modal */}
       {isPasswordModalOpen && (
         <ChangePasswordModal
           user={user}
           onClose={() => setIsPasswordModalOpen(false)}
-          onPasswordChange={() => window.location.reload()}
+          onPasswordChange={() => {
+            console.log('Password changed');
+          }}
         />
       )}
     </div>
