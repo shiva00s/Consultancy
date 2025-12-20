@@ -1,24 +1,33 @@
-/* =========================================================
-   DOCUMENT REQUIREMENT MANAGER - COMPACT DESIGN
-   1366×768 Optimized | Dark/Light Mode Ready
-   ========================================================= */
+/* DOCUMENT REQUIREMENT MANAGER - COMPACT MODERN UI */
 
-/* ========================================
-   SECTION CONTAINER
-   ======================================== */
-
+/* SECTION CONTAINER - Reduced padding */
 .doc-req-section {
-  margin-top: var(--space-xl);
-  padding-top: var(--space-lg);
-  border-top: 2px solid var(--border-color);
+  margin-top: var(--space-lg);
+  padding: var(--space-lg);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.03) 0%, rgba(168, 85, 247, 0.03) 100%);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
 }
 
-/* ========================================
-   HEADER
-   ======================================== */
+.doc-req-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
+}
 
+/* HEADER - Compact */
 .doc-req-header {
-  margin-bottom: var(--space-lg);
+  margin-bottom: var(--space-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
 }
 
 .doc-req-title {
@@ -28,7 +37,7 @@
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 0 0 var(--space-sm) 0;
+  margin: 0;
 }
 
 .doc-req-title svg {
@@ -40,161 +49,198 @@
 .doc-req-description {
   font-size: 0.8125rem;
   color: var(--text-secondary);
+  line-height: 1.4;
   margin: 0;
-  line-height: 1.5;
 }
 
 .doc-req-description strong {
   color: var(--primary);
-  font-weight: 700;
+  font-weight: 600;
 }
 
-/* ========================================
-   FORM - 3 COLUMN PATTERN (COMPACT)
-   ======================================== */
+.doc-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  min-width: 32px;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
 
+/* ADD FORM - Compact Horizontal Layout */
 .doc-req-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: var(--space-md);
+  display: flex;
   align-items: end;
-  margin-bottom: var(--space-lg);
-  
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
 }
 
 .doc-req-form .form-group {
+  flex: 1;
   margin-bottom: 0;
+  min-width: 0;
 }
 
 .doc-req-form label {
   display: block;
-  margin-bottom: 5px;
-  font-size: 0.8125rem;
+  margin-bottom: 4px;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
-/* Inputs - Compact */
 .doc-req-form .form-select,
 .doc-req-form .form-input {
   width: 100%;
-  min-height: 36px;
-  padding: 8px 12px;
-  
-  font-size: 0.8125rem;
-  
+  height: 36px;
+  padding: 6px 10px;
+  font-size: 0.875rem;
   background: var(--bg-input);
   color: var(--text-primary);
-  
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  font-weight: 500;
 }
 
 .doc-req-form .form-select:hover,
 .doc-req-form .form-input:hover {
-  border-color: var(--border-strong);
+  border-color: var(--primary);
 }
 
 .doc-req-form .form-select:focus,
 .doc-req-form .form-input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
-/* Add Button - Compact */
-.doc-req-form .btn-add {
-  min-width: 120px;
-  min-height: 36px;
-  
+/* ADD BUTTON - Compact */
+.btn-add {
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-sm);
-  
-  padding: 8px 16px;
-  
-  background: var(--primary);
+  gap: 6px;
+  padding: 0 16px;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
   color: white;
-  
   border: none;
-  border-radius: var(--radius-md);
-  
+  border-radius: var(--radius-sm);
   font-size: 0.8125rem;
   font-weight: 600;
-  
   cursor: pointer;
-  
   transition: all var(--transition-fast);
-  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.doc-req-form .btn-add:hover:not(:disabled) {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: var(--shadow-md);
+.btn-add:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
 }
 
-.doc-req-form .btn-add:active:not(:disabled) {
-  transform: translateY(0) scale(0.98);
+.btn-add:active:not(:disabled) {
+  transform: translateY(0);
 }
 
-.doc-req-form .btn-add:disabled {
-  opacity: 0.5;
+.btn-add:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
-  transform: none !important;
 }
 
-.doc-req-form .btn-add svg {
+.btn-add svg {
   width: 16px;
   height: 16px;
 }
 
-/* ========================================
-   DOCUMENT CARDS - GRID LAYOUT
-   ======================================== */
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* DOCUMENTS CARDS - Compact Grid */
 .doc-req-list {
-  margin-top: var(--space-lg);
+  margin-top: var(--space-md);
 }
 
 .doc-req-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-md);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-sm);
 }
 
 .doc-req-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-md);
-  
+  gap: var(--space-sm);
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  
-  padding: var(--space-md);
-  
+  padding: var(--space-sm) var(--space-md);
   transition: all var(--transition-fast);
-  box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+.doc-req-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: linear-gradient(180deg, #6366f1, #a855f7);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
 }
 
 .doc-req-card:hover {
   border-color: var(--primary);
   transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
 }
 
-/* Card Content */
+.doc-req-card:hover::before {
+  opacity: 1;
+}
+
+/* CARD CONTENT - Compact */
 .doc-card-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.doc-emoji {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.doc-info {
   flex: 1;
   min-width: 0;
 }
@@ -205,159 +251,281 @@
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 2px;
-  
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .doc-card-note {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 0.6875rem;
   color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  font-weight: 600;
 }
 
-/* Delete Button */
-.doc-delete-btn {
-  width: 32px;
-  height: 32px;
-  
+.required-icon {
+  width: 10px;
+  height: 10px;
+  color: var(--success);
+}
+
+/* INLINE EDIT MODE - Compact */
+.doc-edit-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.doc-edit-input-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.doc-edit-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 0;
+}
+
+.doc-edit-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.doc-btn-save,
+.doc-btn-cancel {
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.doc-btn-save {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+}
+
+.doc-btn-save:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.doc-btn-cancel {
+  background: rgba(107, 114, 128, 0.1);
+  color: var(--text-secondary);
+}
+
+.doc-btn-cancel:hover {
+  background: rgba(107, 114, 128, 0.2);
+  transform: scale(1.1);
+}
+
+.doc-btn-save svg,
+.doc-btn-cancel svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ACTION BUTTONS - Compact */
+.doc-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.doc-edit-btn,
+.doc-delete-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.doc-edit-btn {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--primary);
+}
+
+.doc-edit-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  transform: scale(1.1);
+}
+
+.doc-delete-btn {
   background: rgba(239, 68, 68, 0.1);
   color: var(--danger);
-  
-  border: none;
-  border-radius: var(--radius-md);
-  
-  cursor: pointer;
-  flex-shrink: 0;
-  
-  transition: all var(--transition-fast);
 }
 
 .doc-delete-btn:hover {
   background: rgba(239, 68, 68, 0.2);
-  transform: translateY(-2px) scale(1.08);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  transform: scale(1.1);
 }
 
+.doc-edit-btn svg,
 .doc-delete-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
-/* ========================================
-   EMPTY & LOADING STATES
-   ======================================== */
-
+/* LOADING & EMPTY STATES - Compact */
 .loading-text {
-  text-align: center;
-  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
   padding: var(--space-xl);
+  color: var(--text-secondary);
   font-size: 0.9375rem;
-  font-style: italic;
+  font-weight: 600;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(99, 102, 241, 0.2);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 .empty-state {
   text-align: center;
   padding: var(--space-xl);
-  
-  background: rgba(239, 68, 68, 0.05);
-  border: 1.5px dashed var(--danger);
-  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.05), rgba(251, 146, 60, 0.05));
+  border: 1px dashed var(--danger);
+  border-radius: var(--radius-md);
+}
+
+.empty-icon {
+  width: 36px;
+  height: 36px;
+  color: var(--danger);
+  margin: 0 auto var(--space-sm);
 }
 
 .empty-state p {
-  margin: 0;
+  margin: var(--space-sm) 0;
   color: var(--danger);
   font-size: 0.9375rem;
   font-weight: 600;
 }
 
-/* ========================================
-   RESPONSIVE - COMPACT BREAKPOINTS
-   ======================================== */
-
-/* Medium screens (1024px - 1366px) */
-@media (max-width: 1366px) {
-  .doc-req-cards {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.empty-hint {
+  color: var(--text-secondary) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  margin-top: var(--space-sm) !important;
 }
 
-/* Small laptops (768px - 1024px) */
+/* DARK MODE */
+[data-theme="dark"] .doc-req-section {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .doc-req-form {
+  background: var(--bg-tertiary);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .doc-req-card {
+  background: var(--bg-tertiary);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .empty-state {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(251, 146, 60, 0.1));
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* RESPONSIVE */
 @media (max-width: 1024px) {
   .doc-req-form {
-    grid-template-columns: 1fr;
-    gap: var(--space-md);
+    flex-wrap: wrap;
   }
   
-  .doc-req-form .btn-add {
-    width: 100%;
+  .doc-req-form .form-group {
+    flex: 1 1 calc(50% - var(--space-sm));
+    min-width: 200px;
   }
   
-  .doc-req-cards {
-    grid-template-columns: 1fr;
+  .btn-add {
+    flex: 1 1 100%;
   }
 }
 
-/* Tablets */
 @media (max-width: 768px) {
   .doc-req-section {
-    margin-top: var(--space-lg);
-    padding-top: var(--space-md);
+    padding: var(--space-md);
+  }
+  
+  .doc-req-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
   
   .doc-req-title {
     font-size: 1.125rem;
   }
   
-  .doc-req-description {
-    font-size: 0.75rem;
-  }
-  
   .doc-req-form {
-    padding: var(--space-md);
-  }
-}
-
-/* Mobile */
-@media (max-width: 640px) {
-  .doc-req-card {
     flex-direction: column;
-    align-items: flex-start;
+    padding: var(--space-sm);
   }
   
-  .doc-delete-btn {
-    align-self: flex-end;
+  .doc-req-form .form-group {
+    flex: 1 1 100%;
+  }
+  
+  .doc-req-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .doc-req-card {
+    flex-direction: row;
   }
 }
 
-/* ========================================
-   DARK MODE ENHANCEMENTS
-   ======================================== */
-
-[data-theme="dark"] .doc-req-title svg {
-  color: var(--primary-light);
+@media (max-width: 480px) {
+  .doc-req-card {
+    padding: var(--space-sm);
+  }
+  
+  .doc-emoji {
+    font-size: 20px;
+  }
+  
+  .doc-card-name {
+    font-size: 0.875rem;
+  }
 }
-
-[data-theme="dark"] .doc-req-form {
-  background: var(--bg-tertiary);
-}
-
-[data-theme="dark"] .doc-req-card:hover {
-  box-shadow: var(--shadow-lg);
-}
-
-[data-theme="dark"] .empty-state {
-  background: rgba(239, 68, 68, 0.08);
-}
-
-/* =========================================================
-   END - DOCUMENT REQUIREMENT MANAGER
-   ========================================================= */
