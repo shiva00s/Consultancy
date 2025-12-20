@@ -4,9 +4,10 @@ import {
   FiSave,
   FiAlertTriangle,
   FiRefreshCw,
-  FiRotateCcw,
+  FiRotateCcw,FiAlertCircle ,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import ConfirmDialog from '../common/ConfirmDialog';
 import '../../css/OfferTemplateManager.css';
 
 const DEFAULT_TEMPLATE = `<!DOCTYPE html>
@@ -134,76 +135,37 @@ const DEFAULT_TEMPLATE = `<!DOCTYPE html>
 
 function OfferTemplateManager({ user }) {
   const [templateContent, setTemplateContent] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false);
-  
-  const isMountedRef = useRef(false);
-  const hasInitialLoadRef = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, type: '', title: '', message: '' });
 
-  const fetchTemplate = useCallback(async () => {
-    if (!user || !user.id) {
-      setTemplateContent('');
-      setLoading(false);
-      setHasLoaded(false);
-      return;
-    }
-
+  const loadTemplate = async () => {
+    setLoading(true);
+    
     try {
-      setLoading(true);
-      const res = await window.electronAPI.readOfferTemplate({ user });
-
-      if (!res || res.success === false) {
-        if (res?.error === 'AUTH_REQUIRED') {
-          toast.error('Session expired. Please refresh the page.');
-        } else if (res?.error === 'ACCESS_DENIED') {
-          toast.error('You do not have permission to edit templates.');
-        } else if (res?.error === 'Template file not found.') {
-          setTemplateContent(DEFAULT_TEMPLATE);
-          setHasLoaded(true);
-          setLoading(false);
-          return;
-        } else {
-          toast.error(res?.error || 'Failed to load template.');
-        }
-        setTemplateContent('');
-        setHasLoaded(false);
-        setLoading(false);
-        return;
-      }
-
-      if (!res.data || res.data.trim() === '') {
+      // Load regardless of user, as template is global
+      const res = await window.electronAPI.readOfferTemplate();
+      
+      if (res.success && res.data) {
+        setTemplateContent(res.data);
+      } else if (res.error === 'Template file not found.') {
         setTemplateContent(DEFAULT_TEMPLATE);
       } else {
-        setTemplateContent(res.data);
+        toast.error(res.error || 'Failed to load template.');
+        setTemplateContent(DEFAULT_TEMPLATE);
       }
-      
-      setHasLoaded(true);
-    } catch (err) {
-      toast.error('Failed to load template.');
-      setTemplateContent('');
-      setHasLoaded(false);
+    } catch (error) {
+      console.error('Failed to load template:', error);
+      toast.error('Failed to load offer template.');
+      setTemplateContent(DEFAULT_TEMPLATE);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  };
 
   useEffect(() => {
-    isMountedRef.current = true;
-
-    if (user && user.id && !hasInitialLoadRef.current) {
-      hasInitialLoadRef.current = true;
-      fetchTemplate();
-    } else if (!user || !user.id) {
-      setTemplateContent('');
-      setHasLoaded(false);
-      hasInitialLoadRef.current = false;
-    }
-
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, [user?.id]);
+    loadTemplate();
+  }, []);
 
   const handleSave = async () => {
     if (!user || !user.id) {
@@ -211,125 +173,176 @@ function OfferTemplateManager({ user }) {
       return;
     }
 
-    try {
-      setIsSaving(true);
-      const res = await window.electronAPI.writeOfferTemplate({
-        user,
-        content: templateContent,
-      });
-
-      if (!res || res.success === false) {
-        if (res?.error === 'AUTH_REQUIRED') {
-          toast.error('Session expired. Please log in again.');
-        } else if (res?.error === 'ACCESS_DENIED') {
-          toast.error('You do not have permission to save templates.');
-        } else {
-          toast.error(res?.error || 'Failed to save template.');
-        }
-        return;
-      }
-
-      toast.success('✅ Offer Letter Template saved!');
-    } catch (err) {
-      toast.error('Unexpected error while saving.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleRestoreDefault = () => {
-    if (window.confirm('Overwrite current content with Factory Default template?')) {
-      setTemplateContent(DEFAULT_TEMPLATE);
-      toast.success('🔄 Factory Default Template loaded.');
-    }
+    setConfirmDialog({
+      isOpen: true,
+      type: 'save',
+      title: '💾 Save Template Changes?',
+      message: 'Are you sure you want to overwrite the current offer letter template?'
+    });
   };
 
   const handleRevert = () => {
-    if (window.confirm('Discard all unsaved changes?')) {
-      fetchTemplate();
+    setConfirmDialog({
+      isOpen: true,
+      type: 'revert',
+      title: '🔄 Revert Changes?',
+      message: 'Discard all unsaved changes and reload the saved template?'
+    });
+  };
+
+  const handleRestoreDefault = () => {
+    setConfirmDialog({
+      isOpen: true,
+      type: 'factory',
+      title: '🏭 Restore Factory Default?',
+      message: 'Overwrite current template with the original factory default? This cannot be undone.'
+    });
+  };
+
+  const handleConfirm = async () => {
+    setConfirmDialog({ isOpen: false, type: '', title: '', message: '' });
+    
+    if (confirmDialog.type === 'save') {
+      setSaving(true);
+      try {
+        const res = await window.electronAPI.writeOfferTemplate({
+          user,
+          content: templateContent,
+        });
+        
+        if (res.success) {
+          toast.success('✅ Template saved successfully!');
+        } else {
+          toast.error(res.error || 'Failed to save template.');
+        }
+      } catch (err) {
+        console.error('Save error:', err);
+        toast.error('Failed to save template.');
+      } finally {
+        setSaving(false);
+      }
+    } else if (confirmDialog.type === 'revert') {
+      await loadTemplate();
+      toast.success('🔄 Changes reverted successfully!');
+    } else if (confirmDialog.type === 'factory') {
+      setTemplateContent(DEFAULT_TEMPLATE);
+      toast.success('🏭 Factory default restored!');
     }
   };
 
-  if (!user || !user.id) {
+  const handleCancel = () => {
+    setConfirmDialog({ isOpen: false, type: '', title: '', message: '' });
+  };
+
+  if (loading) {
     return (
-      <div className="template-editor-section">
-        <div className="template-editor-header">
-          <h2 className="template-editor-title">
-            <FiFileText /> Offer Letter Template Editor
-          </h2>
-        </div>
-        <div className="template-auth-error">
-          <FiAlertTriangle size={24} />
-          <p>You must be logged in to load the offer template.</p>
-        </div>
+      <div className="template-loading">
+        <div className="loading-spinner"></div>
+        <p>⏳ Loading offer template...</p>
       </div>
     );
   }
 
   return (
-    <div className="template-editor-section">
-      <div className="template-editor-header">
-        <h2 className="template-editor-title">
-          <FiFileText /> Offer Letter Template Editor
-        </h2>
-        <p className="template-editor-description">
-          Edit the EJS template content below. Use variables like{' '}
-          <code className="variable-code">&lt;%= candidateName %&gt;</code> and{' '}
-          <code className="variable-code">&lt;%= monthlySalary %&gt;</code>. 
-          Saving overwrites the existing file on disk.
-        </p>
-      </div>
-
-      {loading ? (
-        <div className="template-loading-state">
-          <div className="spinner"></div>
-          <p>⏳ Loading template...</p>
-        </div>
-      ) : (
-        <>
-          <textarea
-            className="template-editor-textarea"
-            value={templateContent}
-            onChange={(e) => setTemplateContent(e.target.value)}
-            placeholder="Enter your EJS/HTML template here..."
-          />
-
-          <div className="template-editor-actions">
-            <button
-              className="btn btn-save"
-              onClick={handleSave}
-              disabled={isSaving || loading}
-            >
-              <FiSave /> {isSaving ? 'Saving...' : 'Save Changes'}
-            </button>
-            
-            <button
-              className="btn btn-secondary btn-revert"
-              onClick={handleRevert}
-              disabled={isSaving || loading || !hasLoaded}
-            >
-              <FiRefreshCw /> Revert Changes
-            </button>
-            
-            <button
-              className="btn btn-danger btn-default"
-              onClick={handleRestoreDefault}
-              disabled={isSaving || loading}
-            >
-              <FiRotateCcw /> Factory Default
-            </button>
-          </div>
-
-          <div className="template-warning-message">
-            <FiAlertTriangle className="warning-icon" />
-            <div className="warning-text">
-              <strong>WARNING:</strong> Editing raw EJS/HTML may cause PDF generation 
-              errors if syntax is invalid. Always test after making changes.
+    <>
+      <div className="template-container">
+        {/* Header */}
+        <div className="template-header">
+          <div className="header-content">
+            <div className="header-icon">
+              <FiFileText />
+            </div>
+            <div className="header-text">
+              <h2 className="header-title">
+                📝 Offer Letter Template Editor ✨
+                <span className="title-badge">PRO</span>
+              </h2>
+              <p className="header-description">
+                ✏️ Customize the EJS/HTML template below. Use placeholders like <code>&lt;%= candidateName %&gt;</code> and <code>&lt;%= monthlySalary %&gt;</code> for dynamic content. Save to update the template used for offer letters! 🚀
+              </p>
             </div>
           </div>
-        </>
-      )}
-    </div>
+        </div>
+
+        {/* Editor */}
+        <div className="template-editor">
+          <textarea
+            id="templateEditor"
+            value={templateContent}
+            onChange={(e) => setTemplateContent(e.target.value)}
+            placeholder="Enter your EJS/HTML template here... 📄"
+            className="template-textarea"
+          />
+        </div>
+
+        {/* Help Box */}
+        <div className="template-help">
+          <FiAlertCircle className="help-icon" />
+          <div className="help-content">
+            <strong>💡 Pro Tips:</strong>
+            <ul>
+              <li>Use EJS syntax for variables: <code>&lt;%= variable %&gt;</code> 📌</li>
+              <li>Available variables: candidateName, passportNo, positionTitle, companyName, employerCountry, monthlySalary, joiningDate, currentDate, acceptanceDate, contactPerson 🔑</li>
+              <li>Test PDF generation after changes to ensure no errors ⚠️</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="template-actions">
+          <button
+            className="btn-save"
+            onClick={handleSave}
+            disabled={saving || loading}
+          >
+            {saving ? (
+              <>
+                <div className="btn-spinner"></div>
+                Saving...
+              </>
+            ) : (
+              <>
+                <FiSave /> 💾 Save Changes
+              </>
+            )}
+          </button>
+
+          <button
+            className="btn-revert"
+            onClick={handleRevert}
+            disabled={saving || loading}
+          >
+            <FiRefreshCw /> 🔄 Revert Changes
+          </button>
+
+          <button
+            className="btn-factory"
+            onClick={handleRestoreDefault}
+            disabled={saving || loading}
+          >
+            <FiRotateCcw /> 🏭 Factory Default
+          </button>
+        </div>
+
+        {/* Warning */}
+        <div className="template-warning">
+          <FiAlertTriangle className="warning-icon" />
+          <div className="warning-text">
+            ⚠️ <strong>Caution:</strong> Invalid EJS/HTML may break PDF generation. Always preview after edits! 🛡️
+          </div>
+        </div>
+      </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+        confirmText="Confirm"
+        cancelText="Cancel"
+      />
+    </>
   );
 }
 

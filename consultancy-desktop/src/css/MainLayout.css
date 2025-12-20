@@ -869,9 +869,9 @@
 .sidebar-collapsed * {
   will-change: transform;
 }
-/* Remove toggle button */
+/* Toggle button visibility (restored so pin/unpin works) */
 .sidebar-toggle-btn {
-  display: none !important;
+  display: inline-flex !important;
 }
 .fab-notification-above-shortcut {
   position: fixed;

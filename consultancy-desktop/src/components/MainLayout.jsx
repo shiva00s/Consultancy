@@ -19,8 +19,15 @@ import useNotificationStore from '../store/useNotificationStore';
 
 
 const getInitialCollapseState = () => {
-  const storedState = localStorage.getItem('sidebarCollapsed');
-  return storedState ? JSON.parse(storedState) : false;
+  try {
+    const storedState = localStorage.getItem('sidebarCollapsed');
+    if (!storedState) return false;
+    const parsed = JSON.parse(storedState);
+    return typeof parsed === 'boolean' ? parsed : false;
+  } catch (err) {
+    console.warn('Error reading sidebarCollapsed from localStorage:', err);
+    return false;
+  }
 };
 
 

@@ -1,143 +1,34 @@
-/* ============================================
-   OFFER LETTER GENERATOR STYLES
-   Clean Professional Design with Orange Accent
-   ============================================ */
+/* ═══════════════════════════════════════════════════════════════════
+   📝 OFFER TEMPLATE EDITOR - PREMIUM MODERN DESIGN
+   Rich visuals, animations, glassmorphism, emojis support, dark/light modes
+   ═══════════════════════════════════════════════════════════════════ */
 
-.offer-letter-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0;
-}
-
-/* ============================================
-   JOB ASSIGNMENT SELECTOR - WITH ANIMATED BORDER
-   ============================================ */
-
-.offer-job-selector-container {
-  position: relative;
-  background: var(--card-background);
-  border: 2px solid transparent;
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  overflow: visible;
-  background-clip: padding-box;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-}
-
-/* 🌈 ANIMATED GRADIENT BORDER FOR SELECTOR  background: linear-gradient(
-    135deg,
-    #f59e0b 0%,
-    #f97316 25%,
-    #fb923c 50%,
-    #fbbf24 75%,
-    #f59e0b 100%
-  );*/
-.offer-job-selector-container::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
- 
-  background-size: 300% 300%;
-  animation: animatedBorder 4s ease infinite;
-  border-radius: 14px;
-  z-index: -1;
-}
-
-/* 💫 TOP SHIMMER LINE - GOLD/ORANGE */
-.offer-job-selector-container::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #f59e0b, #f97316, #fbbf24, #f97316, #f59e0b);
-  background-size: 200% auto;
-  animation: shimmerGold 3s linear infinite;
-  border-radius: 12px 12px 0 0;
-  z-index: 2;
-}
-
-.offer-job-selector-container h3 {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 1.2rem 0;
-}
-
-.offer-job-selector-container h3 svg {
-  color: #f59e0b;
-}
-
-.offer-job-select {
-  position: relative;
-  z-index: 1;
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   🎨 CONTAINER - GLASSMORPHISM PREMIUM
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.template-container {
+  max-width: 100%;
   width: 100%;
-  padding: 12px 16px;
-  font-size: 1rem;
-  color: var(--text-primary);
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  cursor: pointer;
-}
-
-.offer-job-select:focus {
-  outline: none;
-  border-color: #f59e0b;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
-}
-
-/* ============================================
-   OFFER LETTER FORM CONTAINER - WITH ANIMATED BORDER
-   ============================================ */
-
-.offer-form-container {
+  margin: 0 auto;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.02) 0%, rgba(249, 115, 22, 0.02) 100%), var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(245, 158, 11, 0.1), 0 4px 12px rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(10px);
   position: relative;
-  background: var(--card-background);
-  border: 2px solid transparent;
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  overflow: visible;
-  background-clip: padding-box;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  animation: fadeIn 0.5s ease-out;
+  transform-style: preserve-3d;
+  font-size: 13px; /* Body typography */
 }
 
-/* 🌈 ANIMATED GRADIENT BORDER FOR FORM background: linear-gradient(
-    135deg,
-    #f59e0b 0%,
-    #f97316 25%,
-    #fb923c 50%,
-    #fbbf24 75%,
-    #f59e0b 100%
-  );*/
-.offer-form-container::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
-  
-  background-size: 300% 300%;
-  animation: animatedBorder 4s ease infinite;
-  border-radius: 14px;
-  z-index: -1;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* 💫 TOP SHIMMER LINE FOR FORM */
-.offer-form-container::after {
+/* Animated Border Gradient */
+.template-container::before {
   content: '';
   position: absolute;
   top: 0;
@@ -145,635 +36,333 @@
   right: 0;
   height: 4px;
   background: linear-gradient(90deg, #f59e0b, #f97316, #fbbf24, #f97316, #f59e0b);
-  background-size: 200% auto;
-  animation: shimmerGold 3s linear infinite;
-  border-radius: 12px 12px 0 0;
-  z-index: 2;
+  background-size: 200% 100%;
+  animation: borderGradient 3s linear infinite;
+  z-index: 1;
 }
 
-.offer-form-container h3 {
-  position: relative;
-  z-index: 1;
+@keyframes borderGradient {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* Corner Emoji Accent */
+.template-container::after {
+  content: '📝';
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 24px;
+  opacity: 0.1;
+  pointer-events: none;
+  animation: floatAccent 3s ease-in-out infinite;
+}
+
+@keyframes floatAccent {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   💎 HEADER - PREMIUM GRADIENT WITH GLASS
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.template-header {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(249, 115, 22, 0.08) 100%);
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 1.5rem 0;
-}
-
-.offer-form-container h3 svg {
-  color: #f59e0b;
-}
-
-/* ============================================
-   FORM GRID LAYOUT
-   ============================================ */
-
-.offer-form-grid {
+  gap: 1rem;
   position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  animation: slideIn 0.6s ease-out;
+  backdrop-filter: blur(5px);
 }
 
-.offer-form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-30px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
-.offer-form-field label {
+.header-content {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  gap: 1rem;
+  flex: 1;
 }
 
-.offer-form-field label svg {
-  color: #f59e0b;
-  font-size: 1rem;
-}
-
-.offer-form-field input {
-  padding: 12px 16px;
-  font-size: 1rem;
-  color: var(--text-primary);
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-.offer-form-field input:focus {
-  outline: none;
-  border-color: #f59e0b;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
-}
-
-.offer-form-field input:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background: var(--bg-secondary);
-}
-
-/* ============================================
-   GENERATE BUTTON - ENHANCED
-   ============================================ */
-
-.offer-generate-btn {
-  position: relative;
-  z-index: 1;
-  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
-  color: white;
-  border: none;
-  padding: 14px 28px;
-  border-radius: 10px;
-  font-weight: 700;
-  font-size: 1.05rem;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
+.header-icon {
+  width: 42px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  border-radius: var(--radius-md);
+  color: white;
+  font-size: 20px;
+  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.4);
+  animation: iconPulse 2s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.header-text {
+  flex: 1;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 18px; /* Title typography */
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.title-badge {
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 11px; /* Label typography */
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+  animation: badgeShine 2s infinite;
+}
+
+@keyframes badgeShine {
+  0% { opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { opacity: 0.8; }
+}
+
+.header-description {
+  font-size: 13px; /* Body */
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+  line-height: 1.4;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ✏️ EDITOR - COMPACT, DENSE FOR 1366×768
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.template-editor {
+  padding: 1rem 1.75rem;
+}
+
+.template-textarea {
   width: 100%;
+  min-height: calc(718px - 250px); /* Optimized for 1366x768 content area */
+  padding: 1rem;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  resize: vertical;
+  transition: all 0.3s ease;
+  font-family: monospace;
 }
 
-.offer-generate-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), transparent);
-  opacity: 0;
-  transition: opacity 0.3s ease;
+.template-textarea:focus {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
 }
 
-.offer-generate-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   💡 HELP BOX - INFORMATIVE GLASS CARD
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.template-help {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 1.75rem;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(249, 115, 22, 0.08) 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
-.offer-generate-btn:hover::before {
-  opacity: 1;
+.help-icon {
+  color: #f59e0b;
+  font-size: 20px;
+  flex-shrink: 0;
 }
 
-.offer-generate-btn:active {
-  transform: translateY(0);
+.help-content ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style-type: disc;
 }
 
-.offer-generate-btn:disabled {
+.help-content code {
+  background: rgba(245, 158, 11, 0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #f59e0b;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   🔘 ACTIONS - PREMIUM BUTTONS WITH ANIMATIONS
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.template-actions {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 1.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.template-actions button {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.template-actions button:hover {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.template-actions button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
 }
 
-.offer-generate-btn svg {
-  font-size: 1.2rem;
-}
-
-.offer-generate-btn .spinning {
-  animation: spin 1s linear infinite;
-}
-
-/* ============================================
-   ALERT MESSAGE - NO JOB ASSIGNED
-   ============================================ */
-
-.offer-no-job-alert {
-  position: relative;
-  background: var(--card-background);
-  border: 2px solid transparent;
-  border-radius: 12px;
-  padding: 2rem;
-  text-align: center;
-  overflow: visible;
-  background-clip: padding-box;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-}
-
-/* 🌈 ANIMATED GRADIENT BORDER FOR ALERT */
-.offer-no-job-alert::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
-  background: linear-gradient(
-    135deg,
-    #f59e0b 0%,
-    #f97316 25%,
-    #fb923c 50%,
-    #fbbf24 75%,
-    #f59e0b 100%
-  );
-  background-size: 300% 300%;
-  animation: animatedBorder 4s ease infinite;
-  border-radius: 14px;
-  z-index: -1;
-}
-
-/* 💫 TOP SHIMMER LINE FOR ALERT */
-.offer-no-job-alert::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #f59e0b, #f97316, #fbbf24, #f97316, #f59e0b);
-  background-size: 200% auto;
-  animation: shimmerGold 3s linear infinite;
-  border-radius: 12px 12px 0 0;
-  z-index: 2;
-}
-
-.offer-no-job-alert-icon {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
-  color: white;
-  font-size: 2rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-}
-
-.offer-no-job-alert p {
-  position: relative;
-  z-index: 1;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-/* ============================================
-   ANIMATIONS
-   ============================================ */
-
-@keyframes animatedBorder {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-@keyframes shimmerGold {
-  0% {
-    background-position: 0% center;
-  }
-  100% {
-    background-position: 200% center;
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* ============================================
-   RESPONSIVE DESIGN
-   ============================================ */
-
-@media (max-width: 768px) {
-  .offer-form-grid {
-    grid-template-columns: 1fr;
-    gap: 1.2rem;
-  }
-
-  .offer-form-container {
-    padding: 1.2rem;
-  }
-
-  .offer-job-selector-container {
-    padding: 1.2rem;
-  }
-
-  .offer-generate-btn {
-    padding: 12px 24px;
-    font-size: 1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .offer-form-container h3,
-  .offer-job-selector-container h3 {
-    font-size: 1rem;
-  }
-
-  .offer-form-field label {
-    font-size: 0.9rem;
-  }
-
-  .offer-form-field input {
-    font-size: 0.95rem;
-    padding: 10px 14px;
-  }
-}
-
-/* Dark mode enhancements */
-@media (prefers-color-scheme: dark) {
-  .offer-job-selector-container,
-  .offer-form-container,
-  .offer-no-job-alert {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  }
-}
-/* ============================================
-   EXPANDED TEMPLATE EDITOR CONTAINER
-   ============================================ */
-
-.template-editor-container {
-  position: relative;
-  width: 100%;
-  max-width: 1200px;
-  margin: 2rem auto;
-  padding: 2.5rem;
-  background: var(--card-background);
-  border: 2px solid transparent;
-  border-radius: 16px;
-  overflow: visible;
-  background-clip: padding-box;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-}
-
-/* Template Textarea - EXPANDED HEIGHT */
-.template-editor-textarea,
-textarea[name="templateContent"],
-textarea#templateEditor {
-  width: 100% !important;
-  min-height: 600px !important;  /* 🔥 MUCH TALLER */
-  max-height: 100px !important;
-  padding: 24px;
-  font-family: 'Courier New', 'Monaco', monospace;
-  font-size: 0.95rem;
-  line-height: 1.8;
-  color: var(--text-primary);
-  background: var(--bg-input);
-  border: 2px solid var(--border-color);
-  border-radius: 12px;
-  resize: vertical;
-  transition: all 0.3s ease;
-  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
-  overflow-y: auto;
-}
-
-/* Focus State */
-.template-editor-textarea:focus,
-textarea[name="templateContent"]:focus,
-textarea#templateEditor:focus {
-  outline: none;
-  border-color: #f59e0b;
-  box-shadow: 
-    inset 0 2px 8px rgba(0, 0, 0, 0.05),
-    0 0 0 4px rgba(245, 158, 11, 0.15);
-  background: var(--card-background);
-}
-
-/* Header Section Above Textarea */
-.template-editor-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid rgba(245, 158, 11, 0.15);
-}
-
-.template-editor-header h3 {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.template-editor-header svg {
-  color: #f59e0b;
-  font-size: 1.5rem;
-}
-
-/* Help Text Below Textarea */
-.template-help-text {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin-top: 1.5rem;
-  padding: 16px 20px;
-  background: linear-gradient(135deg, 
-    rgba(245, 158, 11, 0.08) 0%, 
-    rgba(249, 115, 22, 0.08) 100%
-  );
-  border-left: 4px solid #f59e0b;
-  border-radius: 8px;
-  font-size: 0.92rem;
-  line-height: 1.6;
-  color: var(--text-secondary);
-}
-
-/* Variable Code Tags */
-.template-variable-tag,
-code {
-  display: inline-block;
-  padding: 3px 8px;
-  margin: 0 3px;
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #f59e0b;
-}
-
-/* Action Buttons */
-.template-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 2rem;
-  flex-wrap: wrap;
-}
-
-.template-btn {
-  flex: 1;
-  min-width: 160px;
-  padding: 14px 24px;
-  border: none;
-  border-radius: 10px;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.template-btn-save,
-button[type="submit"] {
+.btn-save {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
 }
 
-.template-btn-save:hover,
-button[type="submit"]:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
-}
-
-.template-btn-revert {
+.btn-revert {
   background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
   color: white;
 }
 
-.template-btn-revert:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(107, 114, 128, 0.4);
-}
-
-.template-btn-factory {
+.btn-factory {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: white;
 }
 
-.template-btn-factory:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+/* Button Spinner */
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
 }
 
-/* Warning Message */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ⚠️ WARNING - GLASS ALERT CARD
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 .template-warning {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 1.5rem;
-  padding: 14px 18px;
-  background: linear-gradient(135deg, 
-    rgba(239, 68, 68, 0.08) 0%, 
-    rgba(220, 38, 38, 0.08) 100%
-  );
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  border-left: 4px solid #ef4444;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #dc2626;
+  gap: 1rem;
+  padding: 1rem 1.75rem;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(220, 38, 38, 0.08) 100%);
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
-/* RESPONSIVE */
+.warning-icon {
+  color: #ef4444;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ⏳ LOADING STATE
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.template-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  height: calc(718px - 100px);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 1; }
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(245, 158, 11, 0.2);
+  border-top-color: #f59e0b;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.template-loading p {
+  font-size: 15px; /* Subhead */
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   🌙 DARK MODE ADJUSTMENTS
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+[data-theme='dark'] .template-container {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.03) 0%, rgba(249, 115, 22, 0.03) 100%), var(--bg-tertiary);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme='dark'] .template-header {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(249, 115, 22, 0.12) 100%);
+}
+
+[data-theme='dark'] .template-help {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(249, 115, 22, 0.12) 100%);
+}
+
+[data-theme='dark'] .template-textarea {
+  background: var(--bg-secondary);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   📱 RESPONSIVE OPTIMIZATIONS
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@media (max-width: 1366px) {
+  .template-container {
+    padding: 0.5rem;
+  }
+
+  .template-textarea {
+    min-height: calc(718px - 300px); /* Denser for smaller screens */
+  }
+}
+
 @media (max-width: 768px) {
-  .template-editor-container {
-    padding: 1.5rem;
-  }
-
-  .template-editor-textarea,
-  textarea[name="templateContent"],
-  textarea#templateEditor {
-    min-height: 450px !important;
-    padding: 18px;
-    font-size: 0.9rem;
-  }
-
   .template-actions {
     flex-direction: column;
   }
 
-  .template-btn {
-    min-width: 100%;
+  .template-actions button {
+    width: 100%;
   }
 }
 
-@media (max-width: 480px) {
-  .template-editor-textarea,
-  textarea[name="templateContent"],
-  textarea#templateEditor {
-    min-height: 400px !important;
-    font-size: 0.85rem;
-  }
-}
-
-/* Professional Action Buttons Styling */
-.action-buttons-container {
-  display: flex;
-  gap: 12px;
-  padding: 16px;
-  background: linear-gradient(to bottom, #1a1d2e, #0f1117);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.btn-save,
-.btn-revert,
-.btn-factory {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: 600;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  text-transform: none;
-  letter-spacing: 0.3px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-/* Save Changes Button - Green Success Theme */
-.btn-save {
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  color: #ffffff;
-}
-
-.btn-save:hover {
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
-  transform: translateY(-1px);
-}
-
-.btn-save:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(34, 197, 94, 0.3);
-}
-
-/* Revert Changes Button - Gray Neutral Theme */
-.btn-revert {
-  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
-  color: #ffffff;
-}
-
-.btn-revert:hover {
-  background: linear-gradient(135deg, #475569 0%, #334155 100%);
-  box-shadow: 0 4px 12px rgba(100, 116, 139, 0.4);
-  transform: translateY(-1px);
-}
-
-.btn-revert:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(100, 116, 139, 0.3);
-}
-
-/* Factory Default Button - Red Danger Theme */
-.btn-factory {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: #ffffff;
-}
-
-.btn-factory:hover {
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-  transform: translateY(-1px);
-}
-
-.btn-factory:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
-}
-
-/* Icon styling within buttons */
-.btn-save::before,
-.btn-revert::before,
-.btn-factory::before {
-  font-size: 16px;
-  line-height: 1;
-}
-
-/* Disabled state */
-.btn-save:disabled,
-.btn-revert:disabled,
-.btn-factory:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-/* Warning message styling */
-.warning-message {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: rgba(234, 179, 8, 0.1);
-  border-left: 3px solid #eab308;
-  border-radius: 4px;
-  color: #fbbf24;
-  font-size: 13px;
-  margin-top: 12px;
-}
-
-.warning-message::before {
-  content: "⚠";
-  font-size: 18px;
-}
+/* ═══════════════════════════════════════════════════════════════════
+   🎉 END - PREMIUM OFFER TEMPLATE EDITOR STYLING
+   ═══════════════════════════════════════════════════════════════════ */
