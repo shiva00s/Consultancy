@@ -7,6 +7,7 @@ import PermissionPopup from '../PermissionPopup';
 import useAuthStore from '../../store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
 import '../../css/UserManagement.css';
+import PERMISSION_KEYS from '../../config/permissionKeys';
 
 const roleOptions = [
   { value: 'staff', label: '👤 Staff (Data Entry)' },
@@ -33,6 +34,28 @@ function UserManagement({ currentUser }) {
   const isSuperAdmin = currentUser && currentUser.role === 'super_admin';
   const isAdmin = currentUser && currentUser.role === 'admin';
   const isManager = isSuperAdmin || isAdmin;
+  const [granularPerms, setGranularPerms] = React.useState({});
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchGranular = async () => {
+      if (!currentUser || !currentUser.id) return;
+      try {
+        const res = await window.electronAPI.getUserGranularPermissions({ userId: currentUser.id });
+        if (res && res.success) {
+          if (mounted) setGranularPerms(res.data || {});
+        }
+      } catch (e) {
+        console.error('Failed to load granular perms for user management:', e);
+      }
+    };
+    fetchGranular();
+    return () => { mounted = false; };
+  }, [currentUser]);
+
+  const hasUserAddPerm = !!granularPerms[PERMISSION_KEYS.USER_ADD] || !!granularPerms[PERMISSION_KEYS.USER_SET_PERMISSIONS];
+  const hasSettingsUsersPerm = !!granularPerms[PERMISSION_KEYS.SETTINGS_USERS];
+  const canManageUsers = isSuperAdmin || hasSettingsUsersPerm || hasUserAddPerm || (!!featureFlags && !!featureFlags.USER_MANAGEMENT);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -213,7 +236,7 @@ function UserManagement({ currentUser }) {
               name="username"
               value={form.username}
               onChange={handleFormChange}
-              disabled={!isSuperAdmin}
+              disabled={!canManageUsers}
               placeholder="Enter username"
             />
           </div>
@@ -226,7 +249,7 @@ function UserManagement({ currentUser }) {
               name="password"
               value={form.password}
               onChange={handleFormChange}
-              disabled={!isSuperAdmin}
+              disabled={!canManageUsers}
               placeholder="Enter password"
             />
           </div>
@@ -238,7 +261,7 @@ function UserManagement({ currentUser }) {
               name="role"
               value={form.role}
               onChange={handleFormChange}
-              disabled={!isSuperAdmin}
+              disabled={!canManageUsers}
             >
               {roleOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -253,7 +276,7 @@ function UserManagement({ currentUser }) {
             <button
               type="submit"
               className="btn btn-primary btn-full-width"
-              disabled={!isSuperAdmin || isSaving}
+              disabled={!canManageUsers || isSaving}
             >
               <FiUserPlus /> {isSaving ? '⏳ Adding…' : '✅ Add User'}
             </button>
@@ -294,7 +317,8 @@ function UserManagement({ currentUser }) {
 
                 <div className="user-chip-actions">
                   {/* PERMISSION BUTTON */}
-                  {(isSuperAdmin || isAdmin) &&
+                  {canManageUsers &&
+                    (isSuperAdmin || isAdmin) &&
                     user.role !== 'super_admin' &&
                     (isSuperAdmin || (isAdmin && user.role === 'staff')) && (
                       <button

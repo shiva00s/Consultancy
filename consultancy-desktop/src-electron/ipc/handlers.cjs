@@ -1598,7 +1598,14 @@ ipcMain.handle('read-offer-template', async (event, payload = {}) => {
       return { success: false, error: 'AUTH_REQUIRED' };
     }
 
-    guard(user).enforce(FEATURES.SETTINGS);
+    // Allow Super Admin always; for Admin/Staff check granular settings permission
+    if (user.role !== 'super_admin') {
+      // enforcePermissionOrDeny returns null when allowed, or an object {success:false,...} when denied
+      const deny = await enforcePermissionOrDeny(user, 'settings_templates');
+      if (deny) {
+        return { success: false, error: 'ACCESS_DENIED' };
+      }
+    }
 
     const templatePath = path.join(
       app.getAppPath(),

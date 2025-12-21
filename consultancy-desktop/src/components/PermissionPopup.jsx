@@ -118,25 +118,78 @@ function PermissionPopup({ user, targetUser, onClose, onSave }) {
 
   const expandAll = () => {
     const allExpanded = {};
-    Object.keys(PERMISSION_GROUPS).forEach((key) => {
+    DISPLAY_GROUP_KEYS.forEach((key) => {
       allExpanded[key] = true;
     });
-    setExpandedSections(allExpanded);
+    setExpandedSections((prev) => ({ ...prev, ...allExpanded }));
   };
 
   const collapseAll = () => {
     const allCollapsed = {};
-    Object.keys(PERMISSION_GROUPS).forEach((key) => {
+    DISPLAY_GROUP_KEYS.forEach((key) => {
       allCollapsed[key] = false;
     });
-    setExpandedSections(allCollapsed);
+    setExpandedSections((prev) => ({ ...prev, ...allCollapsed }));
   };
 
-  const enabledCount = Object.values(permissions).filter(Boolean).length;
-  const totalCount = Object.values(PERMISSION_GROUPS).reduce(
-    (sum, group) => sum + group.permissions.length,
-    0
-  );
+  // Only show these top-level groups in this popup (include management and system access)
+  const DISPLAY_GROUP_KEYS = ['CORE_MODULES', 'MANAGEMENT', 'TRACKING_TABS', 'SETTINGS_TABS', 'SYSTEM_ACCESS'];
+
+  // Helper to return the permission list we will actually show for a group
+  const getDisplayedPermsForGroup = (groupKey, group) => {
+    // CORE_MODULES: only main navigation entries (no visa board here)
+    if (groupKey === 'CORE_MODULES') {
+      return group.permissions.filter((p) =>
+        ['dashboard', 'candidate_search', 'add_candidate', 'bulk_import'].includes(p.key)
+      );
+    }
+
+    // MANAGEMENT: only Employers and Job Orders; include Visa Kanban pulled from Core if present
+    if (groupKey === 'MANAGEMENT') {
+      const base = group.permissions.filter((p) => ['employers', 'job_orders'].includes(p.key));
+      // Pull visa_board permission from CORE_MODULES if it's defined there
+      const corePerms = PERMISSION_GROUPS['CORE_MODULES']?.permissions || [];
+      const visaPerm = corePerms.find((p) => p.key === 'visa_board');
+      if (visaPerm && !base.find((p) => p.key === 'visa_board')) base.push(visaPerm);
+      return base;
+    }
+
+    // SETTINGS_TABS: show main settings pages, exclude mobile app
+    if (groupKey === 'SETTINGS_TABS') {
+      return group.permissions.filter((p) =>
+        [
+          'settings_users',
+          'settings_required_docs',
+          'settings_email',
+          'settings_templates',
+          'settings_backup',
+          'settings_feature_flags',
+        ].includes(p.key)
+      );
+    }
+
+    // SYSTEM_ACCESS: restrict to View Reports, Audit Log, WhatsApp Bulk, Recycle Bin
+    if (groupKey === 'SYSTEM_ACCESS') {
+      return group.permissions.filter((p) =>
+        ['system_reports', 'system_audit_log', 'system_whatsapp', 'system_recycle_bin'].includes(p.key)
+      );
+    }
+
+    return group.permissions;
+  };
+
+  // Build list of permissions we will render AFTER applying granter visibility (superadmin bypasses checks)
+  const displayedGroups = Object.entries(PERMISSION_GROUPS).filter(([k]) => DISPLAY_GROUP_KEYS.includes(k));
+
+  const visiblePermsFlat = displayedGroups.flatMap(([groupKey, group]) => {
+    const permsToShow = getDisplayedPermsForGroup(groupKey, group);
+    return permsToShow.filter((perm) => (isSuperAdmin ? true : Boolean(granterPermissions[perm.key])));
+  });
+
+  // Compute counts only for permissions actually visible to the granter
+  const displayedKeys = visiblePermsFlat.map((p) => p.key);
+  const enabledCount = displayedKeys.filter((k) => Boolean(permissions[k])).length;
+  const totalCount = displayedKeys.length;
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -181,8 +234,11 @@ function PermissionPopup({ user, targetUser, onClose, onSave }) {
               <span>
                 <strong>Permission Rules:</strong>
                 {isSuperAdmin
-                  ? " You can grant any permission (Super Admin)"
-                  : " You can only grant permissions that you possess (Admin)"}
+                  ? ' You can grant any permission (Super Admin)' 
+                  : ' You can only grant permissions that you possess (Admin)'}
+              </span>
+              <span style={{ display: 'block', marginTop: 8, color: 'var(--text-secondary)', fontSize: 12 }}>
+                Showing controls only for main navigation, candidate tabs, and core settings pages.
               </span>
             </div>
 
@@ -207,102 +263,107 @@ function PermissionPopup({ user, targetUser, onClose, onSave }) {
               </div>
             </div>
 
-            {/* ✅ PERMISSIONS GRID - 3 COLUMNS FOR SECTIONS */}
+            {/* ✅ PERMISSIONS GRID - SHOW ONLY MAIN MENUS + CANDIDATE TABS + SETTINGS */}
             <div className="perm-modal-body">
               <div className="perm-sections-grid">
-                {Object.entries(PERMISSION_GROUPS).map(([groupKey, group]) => {
-                  const visiblePermissions = group.permissions.filter((perm) => {
-                    if (isSuperAdmin) return true;
-                    return granterPermissions[perm.key] === true;
-                  });
+                {Object.entries(PERMISSION_GROUPS)
+                  .filter(([groupKey]) => DISPLAY_GROUP_KEYS.includes(groupKey))
+                  .map(([groupKey, group]) => {
+                    // Determine which permissions to show for this group (centralized)
+                    const permsToShow = getDisplayedPermsForGroup(groupKey, group);
 
-                  if (visiblePermissions.length === 0) return null;
+                    const visiblePermissions = permsToShow.filter((perm) => {
+                      if (isSuperAdmin) return true;
+                      return granterPermissions[perm.key] === true;
+                    });
 
-                  const isExpanded = expandedSections[groupKey];
-                  const enabledInGroup = visiblePermissions.filter(
-                    (perm) => permissions[perm.key] === true
-                  ).length;
-                  const allEnabled = enabledInGroup === visiblePermissions.length;
+                    if (visiblePermissions.length === 0) return null;
 
-                  return (
-                    <section key={groupKey} className="perm-section-card">
-                      {/* Section Header with Master Toggle */}
-                      <div className="perm-section-header-wrapper">
-                        <div
-                          className="perm-section-header clickable"
-                          onClick={() => toggleSection(groupKey)}
-                        >
-                          <div className="perm-section-title">
-                            {isExpanded ? (
-                              <FiChevronDown className="perm-chevron" />
-                            ) : (
-                              <FiChevronRight className="perm-chevron" />
-                            )}
-                            <h3>{group.title}</h3>
-                            <span className="perm-section-count">{visiblePermissions.length}</span>
+                    const isExpanded = expandedSections[groupKey];
+                    const enabledInGroup = visiblePermissions.filter(
+                      (perm) => permissions[perm.key] === true
+                    ).length;
+                    const allEnabled = enabledInGroup === visiblePermissions.length;
+
+                    return (
+                      <section key={groupKey} className="perm-section-card">
+                        {/* Section Header with Master Toggle */}
+                        <div className="perm-section-header-wrapper">
+                          <div
+                            className="perm-section-header clickable"
+                            onClick={() => toggleSection(groupKey)}
+                          >
+                            <div className="perm-section-title">
+                              {isExpanded ? (
+                                <FiChevronDown className="perm-chevron" />
+                              ) : (
+                                <FiChevronRight className="perm-chevron" />
+                              )}
+                              <h3>{group.title}</h3>
+                              <span className="perm-section-count">{visiblePermissions.length}</span>
+                            </div>
+                            <div className="perm-section-meta">
+                              <span className="perm-section-enabled">
+                                {enabledInGroup} / {visiblePermissions.length} enabled
+                              </span>
+                              {group.description && (
+                                <p className="perm-section-desc">{group.description}</p>
+                              )}
+                            </div>
                           </div>
-                          <div className="perm-section-meta">
-                            <span className="perm-section-enabled">
-                              {enabledInGroup} / {visiblePermissions.length} enabled
-                            </span>
-                            {group.description && (
-                              <p className="perm-section-desc">{group.description}</p>
-                            )}
-                          </div>
+
+                          {/* ✅ MASTER TOGGLE BUTTON */}
+                          <button
+                            type="button"
+                            className={`perm-master-toggle ${allEnabled ? 'on' : 'off'}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMasterToggle(groupKey, visiblePermissions);
+                            }}
+                            title={allEnabled ? 'Disable all' : 'Enable all'}
+                          >
+                            <span className="perm-toggle-knob" />
+                          </button>
                         </div>
 
-                        {/* ✅ MASTER TOGGLE BUTTON */}
-                        <button
-                          type="button"
-                          className={`perm-master-toggle ${allEnabled ? "on" : "off"}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleMasterToggle(groupKey, visiblePermissions);
-                          }}
-                          title={allEnabled ? "Disable all" : "Enable all"}
-                        >
-                          <span className="perm-toggle-knob" />
-                        </button>
-                      </div>
+                        {/* Collapsible Content - Sub-permissions in 3 columns */}
+                        {isExpanded && (
+                          <div className="perm-section-content perm-grid-3">
+                            {visiblePermissions.map((perm) => {
+                              const enabled = permissions[perm.key] === true;
+                              const canGrant = canGrantPermission(perm.key);
 
-                      {/* Collapsible Content - Sub-permissions in 3 columns */}
-                      {isExpanded && (
-                        <div className="perm-section-content perm-grid-3">
-                          {visiblePermissions.map((perm) => {
-                            const enabled = permissions[perm.key] === true;
-                            const canGrant = canGrantPermission(perm.key);
-
-                            return (
-                              <div
-                                key={perm.key}
-                                className={`perm-grid-item ${!canGrant ? "perm-item-disabled" : ""}`}
-                              >
-                                <div className="perm-item-content">
-                                  <span className="perm-icon">{perm.icon}</span>
-                                  <span className="perm-label" title={perm.description}>
-                                    {perm.label}
-                                  </span>
-                                </div>
-
-                                <button
-                                  type="button"
-                                  className={`perm-toggle-mini ${enabled ? "on" : "off"} ${
-                                    !canGrant ? "toggle-disabled" : ""
-                                  }`}
-                                  onClick={() => canGrant && handleToggle(perm.key)}
-                                  disabled={!canGrant}
-                                  title={enabled ? "Disable" : "Enable"}
+                              return (
+                                <div
+                                  key={perm.key}
+                                  className={`perm-grid-item ${!canGrant ? 'perm-item-disabled' : ''}`}
                                 >
-                                  <span className="perm-toggle-knob-mini" />
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </section>
-                  );
-                })}
+                                  <div className="perm-item-content">
+                                    <span className="perm-icon">{perm.icon}</span>
+                                    <span className="perm-label" title={perm.description}>
+                                      {perm.label}
+                                    </span>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    className={`perm-toggle-mini ${enabled ? 'on' : 'off'} ${
+                                      !canGrant ? 'toggle-disabled' : ''
+                                    }`}
+                                    onClick={() => canGrant && handleToggle(perm.key)}
+                                    disabled={!canGrant}
+                                    title={enabled ? 'Disable' : 'Enable'}
+                                  >
+                                    <span className="perm-toggle-knob-mini" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </section>
+                    );
+                  })}
               </div>
             </div>
 
