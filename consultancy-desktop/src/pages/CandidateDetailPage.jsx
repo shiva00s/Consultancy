@@ -48,6 +48,7 @@ function CandidateDetailPage({ user, flags }) {
 
   const [loading, setLoading] = useState(true);
   const [details, setDetails] = useState(null);
+  const [photoUrl, setPhotoUrl] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(null);
   const [placements, setPlacements] = useState([]);
@@ -127,6 +128,26 @@ function CandidateDetailPage({ user, flags }) {
     };
     fetchPlacements();
   }, [id, fetchDetails]);
+
+  // Load candidate photo once details are available
+  useEffect(() => {
+    const loadPhoto = async () => {
+      try {
+        const photoPath = details?.candidate?.photo_path || details?.candidate?.photoPath || null;
+        if (!photoPath) {
+          setPhotoUrl(null);
+          return;
+        }
+        const res = await window.electronAPI.getImageBase64({ filePath: photoPath });
+        if (res && res.success) setPhotoUrl(res.data);
+        else setPhotoUrl(null);
+      } catch (err) {
+        console.error('Failed to load candidate photo:', err);
+        setPhotoUrl(null);
+      }
+    };
+    loadPhoto();
+  }, [details]);
 
   useEffect(() => {
     if (!details || !user?.id) return;
@@ -244,6 +265,49 @@ function CandidateDetailPage({ user, flags }) {
 
     if (res.success) toast.success(`✅ Documents successfully exported!`);
     else toast.error(res.error || "Failed to create ZIP archive.");
+  };
+
+  // Upload / replace candidate photo by clicking the avatar
+  const handleUploadPhoto = async (e) => {
+    try {
+      const pick = await window.electronAPI.openFileDialog({
+        filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png'] }],
+      });
+
+      if (!pick || !pick.success) return;
+
+      toast.loading('⬆️ Uploading photo...', { id: 'photo-upload' });
+
+      const { fileBuffer, fileName, filePath } = pick;
+
+      const res = await window.electronAPI.uploadPhoto({
+        candidateId: id,
+        fileBuffer,
+        fileName,
+      });
+
+      toast.dismiss('photo-upload');
+
+      if (res && res.success) {
+        const absolutePath = res.photoPath || filePath;
+        const base = await window.electronAPI.getImageBase64({ filePath: absolutePath });
+        if (base && base.success) setPhotoUrl(base.data);
+
+        // update local details so UI reflects change immediately
+        setDetails((prev) => ({
+          ...prev,
+          candidate: { ...(prev?.candidate || {}), photo_path: absolutePath },
+        }));
+
+        toast.success('✅ Photo updated');
+      } else {
+        toast.error(res?.error || 'Failed to upload photo');
+      }
+    } catch (err) {
+      toast.dismiss('photo-upload');
+      console.error('Photo upload failed', err);
+      toast.error('Photo upload failed');
+    }
   };
 
   if (loading || !granularPermsLoaded)
@@ -642,7 +706,28 @@ function CandidateDetailPage({ user, flags }) {
               color: "var(--text-primary)",
             }}
           >
-            <FiUser style={{ marginRight: "10px", verticalAlign: "middle" }} />
+            {photoUrl ? (
+              <img
+                src={photoUrl}
+                alt="Candidate"
+                onClick={handleUploadPhoto}
+                title="Click to change photo"
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                  marginRight: 10,
+                  verticalAlign: "middle",
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.35)'
+                }}
+              />
+            ) : (
+              <div onClick={handleUploadPhoto} title="Click to add photo" style={{ display: 'inline-block', cursor: 'pointer', marginRight: 10 }}>
+                <FiUser style={{ marginRight: "10px", verticalAlign: "middle" }} />
+              </div>
+            )}
             👤 {formData?.name || candidate.name}
           </h1>
           <div

@@ -128,13 +128,14 @@ function registerDocumentHandlers() {
         'photos'
       );
 
-      // Update candidate photo path
+      // Update candidate photo path (store absolute path so renderer can load via getImageBase64)
       db.prepare('UPDATE candidates SET photo_path = ? WHERE id = ?')
-        .run(fileInfo.filename, candidateId);
+        .run(fileInfo.path, candidateId);
 
       return {
         success: true,
-        photoPath: fileInfo.filename
+        // return full absolute path for consistent rendering via getImageBase64
+        photoPath: fileInfo.path
       };
     } catch (error) {
       console.error('Failed to upload photo:', error);

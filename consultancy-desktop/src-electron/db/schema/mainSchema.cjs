@@ -354,7 +354,7 @@ function setupDatabaseSchema(dbInstance) {
         // 14. PASSPORT MOVEMENTS (NEW UNIFIED TABLE)
         // ========================================================================
 dbInstance.run(`
-          CREATE TABLE passport_movement_files (
+    CREATE TABLE IF NOT EXISTS passport_movement_files (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   movement_id INTEGER NOT NULL,
   file_name TEXT NOT NULL,
@@ -364,7 +364,7 @@ dbInstance.run(`
   FOREIGN KEY (movement_id) REFERENCES passport_movements(id) ON DELETE CASCADE
 );
 
-        `);
+  `);
 
         dbInstance.run(`
           CREATE TABLE IF NOT EXISTS passport_movements (

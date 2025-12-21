@@ -77,8 +77,8 @@ function CandidateListPage() {
   // Image Fetcher
   const fetchPhotos = async (candidates) => {
     const pathsToFetch = candidates
-      .filter((c) => c.photoPath && !photoCache[c.id])
-      .map((c) => ({ id: c.id, path: c.photoPath }));
+      .filter((c) => (c.photo_path || c.photoPath) && !photoCache[c.id])
+      .map((c) => ({ id: c.id, path: c.photo_path || c.photoPath }));
 
     if (pathsToFetch.length === 0) return;
 

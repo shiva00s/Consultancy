@@ -75,12 +75,40 @@
   color: #ffffff;
   box-shadow: 0 8px 20px rgba(59, 130, 246, 0.5);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .avatar-circle:hover {
   transform: scale(1.05);
   box-shadow: 0 12px 28px rgba(59, 130, 246, 0.7);
 }
+
+/* Avatar preview image fit and overlay */
+.avatar-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profile-upload-overlay {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  background: rgba(0,0,0,0.45);
+  color: white;
+  padding: 6px 8px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.profile-upload-overlay span { transform: translateY(1px); }
 
 .add-candidate-header h1 {
   margin: 0;

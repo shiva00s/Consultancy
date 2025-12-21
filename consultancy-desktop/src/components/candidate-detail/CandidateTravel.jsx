@@ -284,10 +284,15 @@ function CandidateTravel({ user, candidateId, candidateName }) {
         ) : (
           <div className="travel-list">
             {travelEntries.map((entry) => (
-              <div key={entry.id} className="travel-item">
+              <div
+                key={entry.id}
+                className={"travel-item" + (entry.isUpdated ? ' updated' : '')}
+              >
                 <div className="item-icon">
                   <FiMapPin />
                 </div>
+                <div className="sparkle" aria-hidden="true" />
+                {entry.status && <div className="status-badge">{entry.status}</div>}
 
                 {editingId === entry.id ? (
                   // ===== INLINE EDIT MODE =====

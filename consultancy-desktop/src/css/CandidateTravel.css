@@ -424,3 +424,121 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== ENHANCEMENTS: Emojis, compact mode, premium visuals ===== */
+
+/* Compact mode: reduce paddings, tighter spacing while keeping layout intact */
+.travel-tracking-content.compact {
+  max-width: 1100px;
+  padding: 0.25rem;
+}
+.travel-tracking-content.compact .form-container {
+  padding: 1rem;
+  border-radius: 10px;
+}
+.travel-tracking-content.compact .form-row,
+.travel-tracking-content.compact .edit-row {
+  gap: 0.6rem;
+}
+.travel-tracking-content.compact .travel-item {
+  padding: 0.9rem;
+  gap: 0.8rem;
+}
+.travel-tracking-content.compact .item-icon {
+  width: 42px;
+  height: 42px;
+  font-size: 1.1rem;
+}
+
+/* Decorative emoji markers for headings and items (non-intrusive)
+   They don't affect semantics and can be toggled by adding `.emoji` */
+.travel-tracking-content.emoji .list-container h3::before,
+.travel-tracking-content.emoji .form-container h3::before {
+  content: '✈️';
+  margin-right: 8px;
+  display: inline-block;
+  transform: translateY(-1px);
+}
+.travel-tracking-content.emoji .travel-item .item-icon::after {
+  content: '🧭';
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  font-size: 0.9rem;
+  transform-origin: center;
+  opacity: 0.95;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.12));
+}
+
+/* Premium sparkle highlight on hover */
+.travel-item .sparkle {
+  position: absolute;
+  pointer-events: none;
+  inset: 0;
+  background-image: radial-gradient(circle at 10% 10%, rgba(255,255,255,0.06), transparent 8%), radial-gradient(circle at 90% 80%, rgba(255,255,255,0.04), transparent 12%);
+  opacity: 0;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+  transform: scale(0.98);
+}
+.travel-item:hover .sparkle {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Micro-interaction: subtle pulse on `.item-icon` to draw attention for updates */
+@keyframes microPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+.travel-item.updated .item-icon {
+  animation: microPulse 1.6s ease-in-out 0s 1;
+}
+
+/* Floating badge for statuses */
+.travel-item .status-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: linear-gradient(135deg, rgba(0,0,0,0.08), rgba(255,255,255,0.02));
+  color: var(--text-primary);
+  padding: 6px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.04);
+}
+
+/* Dark/light theme tweaks using attribute on body (safe non-breaking selector) */
+body[data-theme="dark"] .travel-tracking-content .form-container,
+body[data-theme="dark"] .travel-item,
+body[data-theme="dark"] .empty-state {
+  box-shadow: none;
+  border-color: rgba(255,255,255,0.06);
+}
+
+body[data-theme="light"] .travel-tracking-content .form-container::before,
+body[data-theme="dark"] .travel-tracking-content .form-container::before {
+  /* ensure shimmer remains visible in both themes */
+  background: linear-gradient(90deg, var(--primary-color), #8AB4F8, var(--primary-color));
+}
+
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .travel-tracking-content .form-container::before,
+  .travel-item:hover,
+  .btn-full-width:hover,
+  .item-actions button:hover,
+  .travel-item.updated .item-icon {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Small utility helpers (non-intrusive) */
+.muted { color: var(--text-secondary) !important; }
+.caps { text-transform: uppercase; letter-spacing: 0.04em; }
+

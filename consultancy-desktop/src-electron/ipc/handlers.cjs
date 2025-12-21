@@ -811,53 +811,80 @@ ipcMain.handle('get-system-audit-log', async (event, args) => {
     });
 // ====================================================================
     ipcMain.handle('save-candidate-multi', async (event, { user, textData, files }) => {
-        // 1. Create candidate (this now includes duplicate checks)
-        const createResult = await queries.createCandidate(textData);
-        if (!createResult.success) {
-            return createResult; // Return the error (e.g., "Passport exists")
-        }
-        
-        const candidateId = createResult.id;
- 
-        logAction(user, 'create_candidate', 'candidates', candidateId, `Name: ${textData.name}`);
-
-        // 2. Handle file uploads (this part stays in handlers.cjs)
+        // Debug: log incoming payload for diagnosis
         try {
+          console.log('IPC save-candidate-multi received', { user: user && user.id ? user.id : user, textDataKeys: Object.keys(textData || {}), filesCount: Array.isArray(files) ? files.length : 0 });
+        } catch (e) { console.error('Failed logging save-candidate-multi args', e); }
+
+          // 1. Pre-save uploaded files to disk so we can attach a photo_path before creating candidate
+          try {
             const filesDir = path.join(app.getPath('userData'), 'candidate_files');
             if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true });
 
+            // Save files to disk first and collect metadata; do not insert into DB until we have candidateId
+            const savedFiles = [];
             if (files && files.length > 0) {
-          
-            const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
-            const fileOperations = files.map((file) => {
-                    const uniqueName = `${uuidv4()}${path.extname(file.name)}`;
-                    const newFilePath = path.join(filesDir, uniqueName);
-                    fs.writeFileSync(newFilePath, Buffer.from(file.buffer));
-                    
-       
-                    return new Promise((resolve, reject) => {
-                        db.run(
-                            sqlDoc,
-                            [candidateId, file.type, file.name, newFilePath, 'Uncategorized'],
-                            function (err) {
-                                if (err) reject(err);
-                                else {
- 
-                                    logAction(user, 'add_document', 'candidates', candidateId, `File: ${file.name}`);
-                                    resolve();
-                        
-                                }
-                            }
-                        );
-                    });
-                });
-            await Promise.all(fileOperations);
+              for (const file of files) {
+                const uniqueName = `${uuidv4()}${path.extname(file.name)}`;
+                const newFilePath = path.join(filesDir, uniqueName);
+                try {
+                  fs.writeFileSync(newFilePath, Buffer.from(file.buffer));
+                } catch (wErr) {
+                  console.error('Failed to write uploaded file to disk:', wErr, file.name);
+                  throw wErr;
+                }
+                const category = file.category || (file.isProfile ? 'Profile' : 'Uncategorized');
+                savedFiles.push({ originalName: file.name, fileType: file.type, filePath: newFilePath, category });
+              }
             }
+
+            // If a profile file was uploaded, attach its path to textData so createCandidate persists it
+            const profileFile = savedFiles.find(f => f.category === 'Profile');
+            if (profileFile) {
+              textData.photo_path = profileFile.filePath;
+            }
+
+            // 2. Create candidate (this now includes duplicate checks) - pass `user` and possibly photo_path
+            const createResult = await queries.createCandidate(user, textData);
+            if (!createResult.success) {
+              // cleanup any saved files because candidate creation failed
+              for (const f of savedFiles) {
+                try { fs.removeSync(f.filePath); } catch (e) {}
+              }
+              return createResult; // Return the error (e.g., "Passport exists")
+            }
+            const candidateId = createResult.id;
+            logAction(user, 'create_candidate', 'candidates', candidateId, `Name: ${textData.name}`);
+
+            // 3. Insert documents records for saved files
+            if (savedFiles.length > 0) {
+              const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
+              const fileOperations = savedFiles.map((f) => {
+                return new Promise((resolve, reject) => {
+                  db.run(sqlDoc, [candidateId, f.fileType, f.originalName, f.filePath, f.category], function (err) {
+                    if (err) return reject(err);
+                    try { logAction(user, 'add_document', 'candidates', candidateId, `File: ${f.originalName}`); } catch (e) {}
+                    resolve({ id: this.lastID, fileName: f.originalName, filePath: f.filePath, fileType: f.fileType, category: f.category });
+                  });
+                });
+              });
+              const newDocs = await Promise.all(fileOperations);
+
+              // Ensure candidate photo_path is set in DB (in case createCandidate didn't include it)
+              if (profileFile) {
+                try {
+                  db.run('UPDATE candidates SET photo_path = ? WHERE id = ?', [profileFile.filePath, candidateId]);
+                } catch (uErr) {
+                  console.error('Failed to set profile photo for candidate after insert:', uErr);
+                }
+              }
+            }
+
             return { success: true, id: candidateId };
-        } catch (error) {
-            console.error('Failed to save candidate files:', error);
+          } catch (error) {
+            console.error('Failed to save candidate files or create candidate:', error);
             return { success: false, error: error.message };
-        }
+          }
     });
 // ====================================================================
     // --- Candidate Search and Listing (Local SQLite Version) ---

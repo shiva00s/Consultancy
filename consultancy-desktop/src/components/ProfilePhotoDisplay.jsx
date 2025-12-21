@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiUser, FiEdit } from 'react-icons/fi';
+import toast from 'react-hot-toast';
 import '../css/ProfilePhotoDisplay.css';
 
 function ProfilePhotoDisplay({ candidateId, candidateName, editable = false }) {
@@ -16,9 +17,15 @@ function ProfilePhotoDisplay({ candidateId, candidateName, editable = false }) {
     
     setLoading(true);
     try {
-      const result = await window.electronAPI.getCandidatePhoto(candidateId);
-      if (result.success && result.photoPath) {
-        setPhotoUrl(result.photoPath);
+      const res = await window.electronAPI.getCandidateById({ candidateId });
+      if (res && res.success && res.data) {
+        const photoPath = res.data.photo_path || res.data.photoPath || res.data.photo || null;
+        if (photoPath) {
+          // request base64 for safe display (handles both absolute paths and stored filenames)
+          const imgRes = await window.electronAPI.getImageBase64({ filePath: photoPath });
+          if (imgRes && imgRes.success) setPhotoUrl(imgRes.data);
+          else setPhotoUrl(photoPath);
+        }
       }
     } catch (error) {
       console.error('Error loading photo:', error);
@@ -40,18 +47,21 @@ function ProfilePhotoDisplay({ candidateId, candidateName, editable = false }) {
     try {
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const result = await window.electronAPI.uploadCandidatePhoto({
-          candidateId,
-          fileBuffer: Array.from(new Uint8Array(reader.result)),
-          fileName: file.name
-        });
+          const result = await window.electronAPI.uploadPhoto({
+            candidateId,
+            fileBuffer: Array.from(new Uint8Array(reader.result)),
+            fileName: file.name
+          });
 
-        if (result.success) {
-          setPhotoUrl(result.photoPath);
-          toast.success('Photo updated successfully');
-        } else {
-          toast.error(result.error || 'Failed to upload photo');
-        }
+          if (result && result.success) {
+            // request base64 preview from returned path
+            const imgRes = await window.electronAPI.getImageBase64({ filePath: result.photoPath || result.photoPath });
+            if (imgRes && imgRes.success) setPhotoUrl(imgRes.data);
+            else setPhotoUrl(result.photoPath || null);
+            toast.success('Photo updated successfully');
+          } else {
+            toast.error(result?.error || 'Failed to upload photo');
+          }
         setUploading(false);
       };
       reader.readAsArrayBuffer(file);

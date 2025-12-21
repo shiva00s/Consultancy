@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { readFileAsBuffer } from '../utils/file';
 import { FiPlus, FiTrash2, FiUser, FiRefreshCw } from 'react-icons/fi';
+import ProfilePhotoDisplay from '../components/ProfilePhotoDisplay';
 import toast from 'react-hot-toast';
 import useAuthStore from '../store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -32,6 +33,7 @@ const initialTextData = {
 function AddCandidatePage() {
   const [textData, setTextData] = useState(initialTextData);
   const [files, setFiles] = useState([]);
+  const [profilePreview, setProfilePreview] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({});
   const [resetKey, setResetKey] = useState(0);
@@ -63,6 +65,9 @@ function AddCandidatePage() {
     setFiles([]);
     setErrors({});
     setResetKey(prev => prev + 1);
+    // clear profile preview and revoke object URL if any
+    if (profilePreview && profilePreview.startsWith('blob:')) URL.revokeObjectURL(profilePreview);
+    setProfilePreview(null);
     toast('Form fully reset ✨');
   };
 
@@ -137,6 +142,23 @@ function AddCandidatePage() {
     }
   };
 
+  const handleProfileFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Ensure at most one profile file in files list
+    setFiles((prev) => {
+      const filtered = prev.filter((f) => !f.isProfile);
+      const newFile = Object.assign(file, { isProfile: true });
+      return [newFile, ...filtered];
+    });
+
+    // create preview
+    const url = URL.createObjectURL(file);
+    setProfilePreview(url);
+    toast.success('Profile photo selected');
+  };
+
   const removeFile = (index) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
@@ -144,6 +166,28 @@ function AddCandidatePage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrors({});
+
+    // Client-side validation to match server rules and prevent unnecessary round-trips
+    const newErrors = {};
+    const cleanPassport = textData.passportNo ? textData.passportNo.trim().replace(/[^A-Z0-9]/gi, '').toUpperCase() : '';
+    if (!textData.name || !textData.name.toString().trim()) newErrors.name = 'Name is required.';
+    if (!textData.Position || !textData.Position.toString().trim()) newErrors.Position = 'Position is required.';
+    if (!cleanPassport) newErrors.passportNo = 'Passport No is required.';
+    else if (!/^[A-Z0-9]{6,15}$/.test(cleanPassport)) newErrors.passportNo = 'Passport No must be 6-15 letters or numbers.';
+
+    if (textData.aadhar && !/^\d{12}$/.test(textData.aadhar)) newErrors.aadhar = 'Aadhar must be exactly 12 digits.';
+    if (textData.contact && !/^\d{10}$/.test(textData.contact)) newErrors.contact = 'Contact must be exactly 10 digits.';
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      console.warn('AddCandidate - client validation failed', { newErrors, textData });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // update cleaned passport in payload
+    const payloadTextData = { ...textData, passportNo: cleanPassport };
+
     setIsSaving(true);
 
     try {
@@ -168,16 +212,22 @@ function AddCandidatePage() {
           name: file.name,
           type: fileType,
           buffer,
+          // preserve isProfile flag so main process can mark profile photo
+          isProfile: !!file.isProfile,
+          // include original path if present (scanned/mock files)
+          path: file.path || null,
         };
       });
 
       const fileData = await Promise.all(fileDataPromises);
 
+      console.log('Submitting candidate payload', { user: user?.id || user, payloadTextData, filesCount: fileData.length });
       const result = await window.electronAPI.saveCandidateMulti({
         user,
-        textData,
+        textData: payloadTextData,
         files: fileData,
       });
+      console.log('saveCandidateMulti result', result);
 
       if (result.success) {
         toast.success(`Candidate saved ✅ ID: ${result.id}`);
@@ -200,7 +250,16 @@ function AddCandidatePage() {
       <header className="add-candidate-header">
         <div className="header-left">
           <div className="avatar-circle">
-            <FiUser size={20} />
+            {profilePreview ? (
+              <img src={profilePreview} alt="Profile preview" className="avatar-preview" />
+            ) : (
+              <FiUser size={20} />
+            )}
+
+            <label htmlFor="profile-photo-input" className="profile-upload-overlay" title="Upload profile photo">
+              <span>📸</span>
+            </label>
+            <input id="profile-photo-input" type="file" accept="image/*" onChange={handleProfileFileChange} style={{ display: 'none' }} />
           </div>
           <div>
             <h1>New Candidate 🚀</h1>

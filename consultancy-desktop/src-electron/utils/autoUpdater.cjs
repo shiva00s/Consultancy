@@ -133,6 +133,4 @@ class AutoUpdater {
 }
 
 module.exports = { AutoUpdater, hasElectronUpdater };
-Buffer.from(fileBuffer),
-        fileName,
-        'resumes' 
+ 

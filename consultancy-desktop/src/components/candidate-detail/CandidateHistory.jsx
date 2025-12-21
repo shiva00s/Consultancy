@@ -107,23 +107,31 @@ function CandidateHistory({ candidateId }) {
   if (loading) return <p>⏳ Loading history...</p>;
   if (error) return <p style={{ color: 'var(--danger-color)' }}>❌ Error: {error}</p>;
 
-  return (
-    <div className="history-timeline-container">
-      {history.length === 0 ? (
-        <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-          ℹ️ No history found for this candidate.
-        </p>
-      ) : (
+ // inside return, replace just the inner part:
+
+return (
+  <div className="history-timeline-container">
+    {history.length === 0 ? (
+      <p className="history-empty-text">
+        ℹ️ No history found for this candidate.
+      </p>
+    ) : (
+      <div className="history-timeline-shell">
         <ul className="timeline-list">
-          {history.map((log) => (
-            <li className="timeline-item" key={log.id}>
+          {history.map((log, index) => (
+            <li
+              className="timeline-item"
+              key={log.id}
+              style={{ animationDelay: `${index * 40}ms` }}
+            >
               <div className="timeline-icon">
                 {getActionIcon(log.action)}
               </div>
               <div className="timeline-content">
                 <div className="timeline-header">
                   <strong>
-                    {getActionEmoji(log.action)} {log.action.replace(/_/g, ' ')}
+                    {getActionEmoji(log.action)}{' '}
+                    {log.action.replace(/_/g, ' ')}
                   </strong>
                   <span className="timeline-user">
                     <FiUser /> 👤 {log.username}
@@ -139,9 +147,11 @@ function CandidateHistory({ candidateId }) {
             </li>
           ))}
         </ul>
-      )}
-    </div>
-  );
+      </div>
+    )}
+  </div>
+);
+
 }
 
 export default CandidateHistory;

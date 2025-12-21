@@ -742,8 +742,15 @@ async function getDetailedReportList(user, filters = {}) {
 // 4. CANDIDATE MANAGEMENT
 // ====================================================================
 
-async function createCandidate(data) {
+async function createCandidate(arg1, arg2) {
   const db = getDatabase();
+  // Support both signatures: createCandidate(data) and createCandidate(user, data)
+  let user = null;
+  let data = arg1;
+  if (arg2 !== undefined) {
+    user = arg1;
+    data = arg2;
+  }
   const errors = {};
   const today = new Date().setHours(0, 0, 0, 0);
 
@@ -794,7 +801,7 @@ async function createCandidate(data) {
   try {
     let checkSql =
       "SELECT passportNo, aadhar FROM candidates WHERE (passportNo = ?";
-    const params = [data.passportNo];
+    const params = [cleanPassportNo];
 
     if (data.aadhar) {
       checkSql += " OR aadhar = ?";
@@ -803,8 +810,8 @@ async function createCandidate(data) {
     checkSql += ") AND isDeleted = 0";
     const existing = await dbGet(db, checkSql, params);
     if (existing) {
-      if (existing.passportNo === data.passportNo) {
-        errors.passportNo = `Passport No ${data.passportNo} already exists.`;
+      if (existing.passportNo === cleanPassportNo) {
+        errors.passportNo = `Passport No ${cleanPassportNo} already exists.`;
       }
       if (data.aadhar && existing.aadhar === data.aadhar) {
         errors.aadhar = `Aadhar No ${data.aadhar} already exists.`;
@@ -812,6 +819,20 @@ async function createCandidate(data) {
     }
 
     if (Object.keys(errors).length > 0) {
+      try {
+        console.warn('createCandidate validation failed', {
+          errors,
+          dataSnippet: {
+            name: data.name,
+            passportNo: data.passportNo,
+            cleanPassportNo: cleanPassportNo,
+            aadhar: data.aadhar,
+          },
+        });
+      } catch (e) {
+        // ignore logging errors
+      }
+
       return {
         success: false,
         error: mapErrorToFriendly("Validation failed"),
@@ -819,9 +840,10 @@ async function createCandidate(data) {
       };
     }
 
+    // Include photo_path so a profile photo (if already uploaded) can be persisted
     const sqlCandidate = `INSERT INTO candidates
-      (name, education, experience, dob, passportNo, passportExpiry, contact, aadhar, status, notes, Position)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      (name, education, experience, dob, passportNo, passportExpiry, contact, aadhar, status, notes, photo_path, Position)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     const paramsCandidate = [
       data.name,
       data.education,
@@ -833,6 +855,7 @@ async function createCandidate(data) {
       data.aadhar,
       data.status || "New",
       data.notes || "",
+      data.photo_path || null,
       data.Position,
     ];
     const result = await dbRun(db, sqlCandidate, paramsCandidate);
