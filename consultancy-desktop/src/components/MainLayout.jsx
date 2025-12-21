@@ -6,6 +6,7 @@ import {
   FiTrash2, FiChevronLeft, FiUploadCloud, FiSun, FiMoon,
   FiChevronDown
 } from 'react-icons/fi';
+import { MessageCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import '../css/MainLayout.css';
 import ChangePasswordModal from './modals/ChangePasswordModal';
@@ -75,6 +76,33 @@ function MainLayout({ children, onLogout, user, flags }) {
   const globalSearchRef = useRef(null);
 
   useGlobalShortcuts(navigate, user);
+
+  useEffect(() => {
+  const loadPermissions = async () => {
+    if (user.role === 'super_admin') {
+      setGranularPermissions({
+        candidate_search: true,
+        add_candidate: true,
+        bulk_import: true,
+        employers: true,
+        job_orders: true,
+        visa_board: true,
+        system_reports: true,
+        system_audit_log: true,
+        system_modules: true,
+        system_recycle_bin: true,
+        whatsapp_access: true, // ✅ Add this
+      });
+    } else {
+      const res = await window.electronAPI.getUserGranularPermissions({ userId: user.id });
+      if (res.success) {
+        setGranularPermissions(res.data || {});
+      }
+    }
+    setPermsLoaded(true);
+  };
+  loadPermissions();
+}, [user]);
 
   useEffect(() => {
     const loadPermissions = async () => {
@@ -335,6 +363,18 @@ function MainLayout({ children, onLogout, user, flags }) {
                     </NavLink>
                   </li>
                 )}
+                // MainLayout.jsx
+
+{canAccess('whatsapp_access') && (
+  <li>
+    <NavLink to="/whatsapp" title="WhatsApp">
+      <MessageCircle size={18} />
+      <span>WhatsApp</span>
+    </NavLink>
+  </li>
+)}
+
+
                 {canAccess('system_modules') && (
                   <li>
                     <NavLink to="/whatsapp-bulk" title="WhatsApp Bulk">

@@ -1,8 +1,9 @@
+// src-electron/server/api.cjs
+
 const express = require('express');
 const cors = require('cors');
 const ip = require('ip');
 const jwt = require('jsonwebtoken');
-// <--- NEW IMPORT
 const multer = require('multer');
 const { saveDocumentFromApi } = require('../ipc/handlers.cjs');
 const upload = multer({ storage: multer.memoryStorage() });
@@ -15,13 +16,14 @@ const {
     addPassportEntry, 
     getPassportTracking,
     getSuperAdminFeatureFlags,
-    getJwtSecret // 🐞 FIX: Import getJwtSecret
+    getJwtSecret
 } = require('../db/queries.cjs');
+
 const app = express();
 const PORT = 3000;
-let JWT_SECRET = "initial_secret_loading"; // Placeholder until loaded
+let JWT_SECRET = "initial_secret_loading";
 
-// 🐞 FIX: Function to load the secret securely
+// Load JWT secret
 async function loadSecret() {
     try {
         JWT_SECRET = await getJwtSecret();
@@ -30,17 +32,24 @@ async function loadSecret() {
         console.error("CRITICAL: Failed to load JWT Secret, using fallback.", e);
     }
 }
-loadSecret(); // Load the secret when the module starts
+loadSecret();
 
 // Middleware
 app.use(cors()); 
 app.use(express.json({ limit: '50mb' }));
+
 // --- SECURITY MIDDLEWARE ---
 const authMiddleware = async (req, res, next) => {
-    // 1. Skip check for Public Routes (Health check & Login)
-    if (req.path === '/' || req.path === '/api/login') return next();
+    // ✅ UPDATED: Skip auth for WhatsApp webhook endpoints
+    const publicPaths = [
+        '/', 
+        '/api/login',
+        '/webhook/whatsapp', // WhatsApp webhook verification
+    ];
+    
+    if (publicPaths.includes(req.path)) return next();
 
-    // 2. Check Feature Flag (Global Kill Switch)
+    // Check Feature Flag
     const flagsRes = await getSuperAdminFeatureFlags();
     if (!flagsRes.success || !flagsRes.data || !flagsRes.data.isMobileAccessEnabled) {
         return res.status(403).json({ 
@@ -49,9 +58,9 @@ const authMiddleware = async (req, res, next) => {
         });
     }
 
-    // 3. Verify JWT Token (Authentication)
+    // Verify JWT Token
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Format: "Bearer <token>"
+    const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
         return res.status(401).json({ success: false, error: "Access Denied: No Token Provided." });
@@ -61,7 +70,6 @@ const authMiddleware = async (req, res, next) => {
         if (err) {
             return res.status(403).json({ success: false, error: "Access Denied: Invalid or Expired Token." });
         }
-        // Attach user info to request for use in routes
         req.user = user;
         next();
     });
@@ -69,9 +77,66 @@ const authMiddleware = async (req, res, next) => {
 
 // Apply Middleware Globally
 app.use(authMiddleware);
-// ---------------------------
 
-// --- ROUTES ---
+// --- WHATSAPP WEBHOOK ROUTES (BEFORE AUTH) ---
+// These must be defined BEFORE authMiddleware or added to publicPaths
+
+// ✅ WhatsApp Webhook Verification (GET)
+app.get('/webhook/whatsapp', (req, res) => {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+    
+    // Set your webhook verify token in environment or config
+    const WEBHOOK_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'your_verify_token_here';
+    
+    if (mode === 'subscribe' && token === WEBHOOK_VERIFY_TOKEN) {
+        console.log('✅ WhatsApp webhook verified');
+        res.status(200).send(challenge);
+    } else {
+        console.warn('⚠️ WhatsApp webhook verification failed');
+        res.sendStatus(403);
+    }
+});
+
+// ✅ WhatsApp Webhook Receiver (POST)
+app.post('/webhook/whatsapp', async (req, res) => {
+    try {
+        const data = req.body;
+        
+        if (data.object === 'whatsapp_business_account') {
+            // Import webhook handler
+            const { handleIncomingMessage, handleStatusUpdate } = require('./whatsapp-webhook.cjs');
+            
+            for (const entry of data.entry) {
+                for (const change of entry.changes) {
+                    if (change.field === 'messages') {
+                        const value = change.value;
+                        
+                        // Handle incoming messages
+                        if (value.messages) {
+                            await handleIncomingMessage(value);
+                        }
+                        
+                        // Handle status updates (sent, delivered, read)
+                        if (value.statuses) {
+                            await handleStatusUpdate(value);
+                        }
+                    }
+                }
+            }
+            
+            res.sendStatus(200);
+        } else {
+            res.sendStatus(404);
+        }
+    } catch (error) {
+        console.error('WhatsApp webhook error:', error);
+        res.sendStatus(500);
+    }
+});
+
+// --- EXISTING ROUTES ---
 
 // 1. Health Check
 app.get('/', (req, res) => {
@@ -82,25 +147,25 @@ app.get('/', (req, res) => {
         auth_required: true
     });
 });
-// 2. Authentication (Issues Token)
+
+// 2. Authentication
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     const result = await login(username, password);
     
     if (result.success) {
-        // Generate Token valid for 24 hours
         const token = jwt.sign(
             { id: result.id, username: result.username, role: result.role }, 
-            JWT_SECRET, // 🐞 FIX: Use the securely loaded secret
+            JWT_SECRET,
             { expiresIn: '24h' }
         );
         
-        // Return user info + Token
         res.json({ ...result, token });
     } else {
         res.status(401).json(result);
     }
 });
+
 // 3. Candidate List / Search
 app.get('/api/candidates', async (req, res) => {
     const { q, status, position, page = 1 } = req.query;
@@ -115,20 +180,16 @@ app.get('/api/candidates', async (req, res) => {
         res.status(500).json(result);
     }
 });
+
 // 4. Add New Candidate
 app.post('/api/candidates', async (req, res) => {
     try {
         const textData = req.body;
         
-        // Validation
         if (!textData.name || !textData.passportNo) {
             return res.status(400).json({ success: false, error: "Name and Passport are required." });
         }
         
-        
-// Use the Authenticated User from the Token
-        // Note: We pass textData to createCandidate. If you want to log WHO created it, 
-        // you'd need to update createCandidate to accept a user ID, but for now we just secure the endpoint.
         const result = await createCandidate(textData);
         
         if (result.success) {
@@ -140,6 +201,7 @@ app.post('/api/candidates', async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
+
 // 5. Candidate Details
 app.get('/api/candidates/:id', async (req, res) => {
     const result = await getCandidateDetails(req.params.id);
@@ -149,16 +211,19 @@ app.get('/api/candidates/:id', async (req, res) => {
         res.status(404).json(result);
     }
 });
+
 // 6. Passport Tracking
 app.get('/api/passport/:candidateId', async (req, res) => {
     const result = await getPassportTracking(req.params.candidateId);
     res.json(result);
 });
+
 app.post('/api/passport', async (req, res) => {
     const result = await addPassportEntry(req.body);
     res.json(result);
 });
-// 6. Delete Candidate (Used by Mobile)
+
+// 7. Delete Candidate
 app.delete('/api/candidates/:id', async (req, res) => {
     try {
         const candidateId = req.params.id;
@@ -166,11 +231,9 @@ app.delete('/api/candidates/:id', async (req, res) => {
             return res.status(400).json({ success: false, error: "Candidate ID is required for deletion." });
         }
         
-        // Use the existing soft delete function from the main Electron handlers
         const result = await deleteCandidate(candidateId); 
 
         if (result.success) {
-            // Note: Audit logging would happen in the deleteCandidate handler in the main IPC flow.
             res.json({ success: true, message: `Candidate ${candidateId} soft-deleted.` });
         } else {
             res.status(500).json(result);
@@ -179,34 +242,30 @@ app.delete('/api/candidates/:id', async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
-// 7. Document Upload Endpoint (Phase 4.2)
-// Uses multer middleware to handle file data
+
+// 8. Document Upload
 app.post('/api/documents/:candidateId', upload.single('document'), async (req, res) => {
     try {
         const candidateId = req.params.candidateId;
-        const file = req.file; // File data handled by multer
+        const file = req.file;
 
         if (!candidateId || !file) {
             return res.status(400).json({ success: false, error: "Candidate ID and document file are required." });
         }
-    
-        
-        // --- PROCESS THE FILE ---
-        // Since we are in the Express thread, we can't directly use the existing IPC handler (addDocuments).
-        // We need a dedicated query function to save the file and link it to the DB.
         
         const fileData = {
             buffer: file.buffer,
             fileName: file.originalname,
             fileType: file.mimetype,
-            category: req.body.category || 'Uncategorized', // Expect category in body
+            category: req.body.category || 'Uncategorized',
         };
 
         const result = await saveDocumentFromApi({ 
             candidateId, 
-            user: req.user, // User attached by JWT middleware
+            user: req.user,
             fileData 
         });
+        
         if (result.success) {
             res.json({ success: true, message: "Document uploaded and saved.", documentId: result.documentId });
         } else {
@@ -219,24 +278,76 @@ app.post('/api/documents/:candidateId', upload.single('document'), async (req, r
     }
 });
 
-// NOTE: The following mobile-style interactive alert/queueing code was removed from the server
-// to avoid client-side/native dialog calls being executed in the Node server process.
-// If you require a deletion endpoint with immediate or queued behavior, implement it
-// as a dedicated API route and invoke it from the renderer process. Retaining the
-// mobile Alert.alert calls in the server caused unexpected behavior and potential
-// native dialogs. This block is intentionally a no-op on the server.
-// (Original mobile logic is intentionally removed.)
+// ✅ NEW: WhatsApp Send Message API
+app.post('/api/whatsapp/send', async (req, res) => {
+    try {
+        const { to, message, type = 'text', conversationId } = req.body;
+        
+        if (!to || !message) {
+            return res.status(400).json({ success: false, error: "Phone number and message are required." });
+        }
+
+        // Import WhatsApp service
+        const { sendWhatsAppMessage } = require('./whatsapp-service.cjs');
+        
+        const result = await sendWhatsAppMessage({
+            to,
+            message,
+            type,
+            conversationId,
+            userId: req.user.id
+        });
+
+        if (result.success) {
+            res.json(result);
+        } else {
+            res.status(500).json(result);
+        }
+    } catch (error) {
+        console.error('WhatsApp send error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ✅ NEW: WhatsApp Upload Media
+app.post('/api/whatsapp/upload-media', upload.single('file'), async (req, res) => {
+    try {
+        const file = req.file;
+        
+        if (!file) {
+            return res.status(400).json({ success: false, error: "File is required." });
+        }
+
+        const { uploadWhatsAppMedia } = require('./whatsapp-service.cjs');
+        
+        const result = await uploadWhatsAppMedia(file);
+
+        if (result.success) {
+            res.json(result);
+        } else {
+            res.status(500).json(result);
+        }
+    } catch (error) {
+        console.error('WhatsApp media upload error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 // --- START SERVER ---
 function startServer() {
-    app.listen(PORT, '0.0.0.0', () => {
+    // ✅ FIXED: Return server instance
+    const server = app.listen(PORT, '0.0.0.0', () => {
         const localIP = ip.address();
         console.log(`============================================`);
         console.log(`📱 MOBILE API SERVER RUNNING (SECURE)`);
         console.log(`🔗 Connect: http://${localIP}:${PORT}`);
         console.log(`🔑 JWT Authentication Enabled`);
+        console.log(`📲 WhatsApp Webhooks Ready`);
         console.log(`============================================`);
     });
+
+    return server; // ✅ Return server instance for Socket.io
 }
 
-module.exports = { startServer };
+// ✅ Export both server function and app instance
+module.exports = { startServer, app };

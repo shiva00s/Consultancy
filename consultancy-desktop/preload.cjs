@@ -372,6 +372,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   activateLicense: (args) => ipcRenderer.invoke('license:activate', args),
   requestActivationCode: () => ipcRenderer.invoke('request-activation-code'),
 
+  whatsapp: {
+    getConversations: () => ipcRenderer.invoke('whatsapp:get-conversations'),
+    getMessages: (conversationId) => 
+      ipcRenderer.invoke('whatsapp:get-messages', conversationId),
+    sendMessage: (data) => ipcRenderer.invoke('whatsapp:send-message', data),
+    uploadMedia: (file) => ipcRenderer.invoke('whatsapp:upload-media', file),
+    updateMessageStatus: (messageId, status) => 
+      ipcRenderer.invoke('whatsapp:update-status', messageId, status)
+  }
+
 });
 
 // ==========================================================================

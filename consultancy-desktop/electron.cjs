@@ -2,7 +2,6 @@
 
 const { app, BrowserWindow, dialog } = require('electron');
 const path = require('path');
-
 const { initializeDatabase, closeDatabase } = require('./src-electron/db/database.cjs');
 const { registerIpcHandlers, startReminderScheduler } = require('./src-electron/ipc/handlers.cjs');
 const { fileManager } = require('./src-electron/utils/fileManager.cjs');
@@ -33,6 +32,10 @@ try {
 
 let mainWindow = null;
 let updater = null;
+
+// ✅ SERVER REFERENCES (moved outside)
+let apiServer = null;
+let socketServer = null;
 
 /**
  * Global permission context holder
@@ -134,7 +137,12 @@ function createWindow() {
   });
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    const allowedOrigins = ['http://localhost:5173', 'http://localhost:3000', 'file://'];
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost:3001', // ✅ Add Socket.io port
+      'file://'
+    ];
 
     const isAllowed = allowedOrigins.some((origin) => url.startsWith(origin));
 
@@ -179,6 +187,53 @@ function createWindow() {
   return mainWindow;
 }
 
+async function startServers() {
+  try {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🌐 Starting API and Socket servers...');
+    }
+
+    // ✅ Start API server and get HTTP server instance
+    const { startServer } = require('./src-electron/server/api.cjs');
+    const httpServer = startServer(); // Returns HTTP server
+
+    // ✅ Attach Socket.io to the SAME HTTP server
+    const { initializeSocketServer } = require('./src-electron/server/socket.cjs');
+    socketServer = initializeSocketServer(httpServer); // No second parameter needed
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ Servers started successfully');
+    }
+
+    return httpServer; // Return for cleanup
+  } catch (error) {
+    console.error('❌ Failed to start servers:', error);
+    throw error;
+  }
+}
+
+// ✅ FIXED: Cleanup servers on shutdown
+async function stopServers() {
+  try {
+    if (socketServer) {
+      const { closeSocketServer } = require('./src-electron/server/socket.cjs');
+      closeSocketServer();
+      console.log('🔌 Socket.io server closed');
+    }
+
+    if (apiServer) {
+      await new Promise((resolve) => {
+        apiServer.close(() => {
+          console.log('🌐 API server closed');
+          resolve();
+        });
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error stopping servers:', error);
+  }
+}
+
 app.whenReady().then(async () => {
   try {
     if (process.env.NODE_ENV !== 'production') {
@@ -200,6 +255,9 @@ app.whenReady().then(async () => {
     if (process.env.NODE_ENV !== 'production') {
       console.log('✅ File manager initialized');
     }
+
+    // ✅ START SERVERS HERE (after DB initialization)
+    await startServers();
 
     if (process.env.NODE_ENV !== 'production') {
       console.log('🔌 Registering IPC handlers...');
@@ -247,12 +305,14 @@ app.on('activate', () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    closeDatabase()
+    // ✅ ADDED: Stop servers before closing
+    stopServers()
+      .then(() => closeDatabase())
       .then(() => {
         app.quit();
       })
       .catch((err) => {
-        console.error('Error closing database:', err);
+        console.error('Error closing application:', err);
         app.quit();
       });
   }
@@ -262,6 +322,8 @@ app.on('before-quit', async () => {
   app.isQuitting = true;
 
   try {
+    // ✅ ADDED: Stop servers before quit
+    await stopServers();
     await closeDatabase();
   } catch (err) {
     console.error('Error during cleanup:', err);

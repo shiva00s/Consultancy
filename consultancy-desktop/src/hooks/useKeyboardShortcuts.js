@@ -54,6 +54,8 @@ export const useGlobalShortcuts = (navigate, user) => {
     'ctrl+s': () => navigate('/search'),
     'ctrl+n': () => navigate('/add'),
     
+    
+
     // Actions
     'escape': () => {
       // Close modals, dropdowns, etc.

@@ -3264,4 +3264,79 @@ ipcMain.handle('get-file-url', async (event, { path: filePath }) => {
   }
 });
 
-    module.exports = { registerIpcHandlers , saveDocumentFromApi  , registerAnalyticsHandlers , getDatabase,startReminderScheduler  };
+ipcMain.handle('whatsapp:get-conversations', async () => {
+  // Query SQLite for conversations with candidate details
+  const conversations = db.prepare(`
+    SELECT wc.*, c.name as candidate_name
+    FROM whatsapp_conversations wc
+    JOIN candidates c ON wc.candidate_id = c.id
+    ORDER BY wc.last_message_time DESC
+  `).all();
+  
+  return conversations;
+});
+
+ipcMain.handle('whatsapp:send-message', async (event, data) => {
+  try {
+    // Send via WhatsApp API
+    const response = await axios.post('http://localhost:3000/api/whatsapp/send', {
+      to: data.to,
+      message: data.content,
+      type: data.type
+    });
+    
+    // Store in database
+    const stmt = db.prepare(`
+      INSERT INTO whatsapp_messages 
+      (conversation_id, message_id, sender_type, content, message_type, status)
+      VALUES (?, ?, 'user', ?, ?, 'sent')
+    `);
+    
+    stmt.run(
+      data.conversationId,
+      response.data.messages[0].id,
+      data.content,
+      data.type
+    );
+    
+    return { success: true, messageId: response.data.messages[0].id };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Handle document uploads
+ipcMain.handle('whatsapp:upload-media', async (event, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('messaging_product', 'whatsapp');
+  
+  const response = await axios.post(
+    `${WHATSAPP_API_URL}/${PHONE_NUMBER_ID}/media`,
+    formData,
+    {
+      headers: {
+        'Authorization': `Bearer ${ACCESS_TOKEN}`,
+        'Content-Type': 'multipart/form-data'
+      }
+    }
+  );
+  
+  return response.data.id; // Media ID for sending
+});
+
+// Auto-link documents to candidate
+async function saveReceivedDocument(message, candidateId) {
+  const mediaUrl = await downloadWhatsAppMedia(message.media_id);
+  const filePath = await saveToLocal(mediaUrl, candidateId);
+  
+  db.prepare(`
+    INSERT INTO whatsapp_documents 
+    (message_id, candidate_id, file_path, file_type, file_size)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(message.id, candidateId, filePath, message.mime_type, message.file_size);
+}
+
+
+    module.exports = { registerIpcHandlers , saveDocumentFromApi  , 
+      registerAnalyticsHandlers , getDatabase,startReminderScheduler  };
