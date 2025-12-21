@@ -1,7 +1,7 @@
 const twilio = require("twilio");
 
 const ACCOUNT_SID = "AC7ff5862adc4fc67803722d3e8ac3bda7";
-const AUTH_TOKEN = "-u AC7ff5862adc4fc67803722d3e8ac3bda7:a2c9f8374f7bd8e9b20bf9f95a18a534";
+const AUTH_TOKEN = "99edfb0989b10cdab747c55f89e227e5";
 const FROM_NUMBER = "whatsapp:+919629881598"; // Twilio Sandbox number
 
 const client = twilio(ACCOUNT_SID, AUTH_TOKEN);

@@ -14,6 +14,7 @@ import KeyboardShortcutsGuide from './KeyboardShortcutsGuide';
 import UploadProgress from './UploadProgress';
 import { useGlobalShortcuts } from '../hooks/useKeyboardShortcuts';
 import useThemeStore from '../store/useThemeStore';
+import { MessageSquare } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 import NotificationPanel from './NotificationPanel';
 import useNotificationStore from '../store/useNotificationStore';
@@ -91,7 +92,7 @@ function MainLayout({ children, onLogout, user, flags }) {
         system_audit_log: true,
         system_modules: true,
         system_recycle_bin: true,
-        whatsapp_access: true, // ✅ Add this
+        whatsapp_access: true, 
       });
     } else {
       const res = await window.electronAPI.getUserGranularPermissions({ userId: user.id });
@@ -104,31 +105,7 @@ function MainLayout({ children, onLogout, user, flags }) {
   loadPermissions();
 }, [user]);
 
-  useEffect(() => {
-    const loadPermissions = async () => {
-      if (user.role === 'super_admin') {
-        setGranularPermissions({
-          candidate_search: true,
-          add_candidate: true,
-          bulk_import: true,
-          employers: true,
-          job_orders: true,
-          visa_board: true,
-          system_reports: true,
-          system_audit_log: true,
-          system_modules: true,
-          system_recycle_bin: true,
-        });
-      } else {
-        const res = await window.electronAPI.getUserGranularPermissions({ userId: user.id });
-        if (res.success) {
-          setGranularPermissions(res.data || {});
-        }
-      }
-      setPermsLoaded(true);
-    };
-    loadPermissions();
-  }, [user]);
+ 
 
   const canAccess = (permKey) => granularPermissions[permKey] === true;
 
@@ -363,19 +340,7 @@ function MainLayout({ children, onLogout, user, flags }) {
                     </NavLink>
                   </li>
                 )}
-                // MainLayout.jsx
-
-{canAccess('whatsapp_access') && (
-  <li>
-    <NavLink to="/whatsapp" title="WhatsApp">
-      <MessageCircle size={18} />
-      <span>WhatsApp</span>
-    </NavLink>
-  </li>
-)}
-
-
-                {canAccess('system_modules') && (
+                 {canAccess('system_modules') && (
                   <li>
                     <NavLink to="/whatsapp-bulk" title="WhatsApp Bulk">
                       <FiSend />
@@ -383,6 +348,16 @@ function MainLayout({ children, onLogout, user, flags }) {
                     </NavLink>
                   </li>
                 )}
+                {/* ✅ ADD THIS BLOCK - NEW WhatsApp Chat */}
+    {canAccess('whatsapp_access') && (
+      <li>
+        <NavLink to="/whatsapp" title="WhatsApp">
+          <MessageSquare />
+          <span>WhatsApp</span>
+        </NavLink>
+      </li>
+    )}
+    {/* ✅ END NEW BLOCK */}
                 {canAccess('system_audit_log') && (
                   <li>
                     <NavLink to="/system-audit" title="Audit Log">

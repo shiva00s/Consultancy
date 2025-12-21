@@ -13,6 +13,125 @@ function setupDatabaseSchema(dbInstance) {
           return reject(new Error('Failed to BEGIN TRANSACTION.'));
         }
 
+// ========================================================================
+// 30. WHATSAPP CONVERSATIONS
+// ========================================================================
+dbInstance.run(`
+  CREATE TABLE IF NOT EXISTS whatsapp_conversations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    candidate_id INTEGER,
+    candidate_name TEXT,
+    phone_number TEXT UNIQUE NOT NULL,
+    last_message TEXT,
+    last_message_time TEXT,
+    unread_count INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at TEXT DEFAULT (datetime('now', 'localtime')),
+    is_deleted INTEGER DEFAULT 0,
+    FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE SET NULL
+  );
+`);
+
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_whatsapp_conversations_candidate
+    ON whatsapp_conversations(candidate_id);
+`);
+
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_whatsapp_conversations_phone
+    ON whatsapp_conversations(phone_number);
+`);
+
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_whatsapp_conversations_time
+    ON whatsapp_conversations(last_message_time DESC);
+`);
+
+// ========================================================================
+// 31. WHATSAPP MESSAGES
+// ========================================================================
+dbInstance.run(`
+  CREATE TABLE IF NOT EXISTS whatsapp_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL,
+    message_sid TEXT UNIQUE,
+    direction TEXT NOT NULL CHECK(direction IN ('inbound', 'outbound')),
+    body TEXT,
+    media_url TEXT,
+    media_type TEXT,
+    status TEXT DEFAULT 'sent',
+    timestamp TEXT NOT NULL,
+    from_number TEXT NOT NULL,
+    to_number TEXT NOT NULL,
+    error_message TEXT,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    is_deleted INTEGER DEFAULT 0,
+    FOREIGN KEY (conversation_id) REFERENCES whatsapp_conversations(id) ON DELETE CASCADE
+  );
+`);
+
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_conversation
+    ON whatsapp_messages(conversation_id);
+`);
+
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_timestamp
+    ON whatsapp_messages(timestamp DESC);
+`);
+
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_sid
+    ON whatsapp_messages(message_sid);
+`);
+
+// ========================================================================
+// 32. WHATSAPP MEDIA
+// ========================================================================
+dbInstance.run(`
+  CREATE TABLE IF NOT EXISTS whatsapp_media (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id INTEGER NOT NULL,
+    media_url TEXT NOT NULL,
+    media_type TEXT,
+    content_type TEXT,
+    file_name TEXT,
+    file_size INTEGER,
+    downloaded INTEGER DEFAULT 0,
+    local_path TEXT,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY (message_id) REFERENCES whatsapp_messages(id) ON DELETE CASCADE
+  );
+`);
+
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_whatsapp_media_message
+    ON whatsapp_media(message_id);
+`);
+
+// ========================================================================
+// 33. WHATSAPP TEMPLATES (Optional - for message templates)
+// ========================================================================
+dbInstance.run(`
+  CREATE TABLE IF NOT EXISTS whatsapp_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    content TEXT NOT NULL,
+    category TEXT DEFAULT 'general',
+    created_by INTEGER,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at TEXT DEFAULT (datetime('now', 'localtime')),
+    is_deleted INTEGER DEFAULT 0,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+  );
+`);
+
+dbInstance.run(`
+  CREATE INDEX IF NOT EXISTS idx_whatsapp_templates_category
+    ON whatsapp_templates(category);
+`);
+
+
         // ========================================================================
         // 1. USERS TABLE
         // ========================================================================

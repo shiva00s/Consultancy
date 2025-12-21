@@ -372,6 +372,52 @@ contextBridge.exposeInMainWorld('electronAPI', {
   activateLicense: (args) => ipcRenderer.invoke('license:activate', args),
   requestActivationCode: () => ipcRenderer.invoke('request-activation-code'),
 
+getStatus: () => ipcRenderer.invoke('whatsapp:getStatus'),
+  logout: () => ipcRenderer.invoke('whatsapp:logout'),
+  
+  // Listen to WhatsApp events
+  onQR: (callback) => ipcRenderer.on('whatsapp:qr', (_, data) => callback(data)),
+  onReady: (callback) => ipcRenderer.on('whatsapp:ready', () => callback()),
+  onAuthenticated: (callback) => ipcRenderer.on('whatsapp:authenticated', () => callback()),
+  onDisconnected: (callback) => ipcRenderer.on('whatsapp:disconnected', (_, reason) => callback(reason)),
+  onNewMessage: (callback) => ipcRenderer.on('whatsapp:new-message', (_, message) => callback(message)),
+  onMessageAck: (callback) => ipcRenderer.on('whatsapp:message-ack', (_, data) => callback(data)),
+
+// ✅ CORRECTED WHATSAPP API
+whatsapp: {
+  // ========== Conversations ==========
+  getConversations: () => ipcRenderer.invoke('whatsapp:getConversations'),
+  createConversation: (data) => ipcRenderer.invoke('whatsapp:createConversation', data),
+  deleteConversation: (conversationId) => ipcRenderer.invoke('whatsapp:deleteConversation', conversationId),
+
+  editMessage: (messageId, newContent) => ipcRenderer.invoke('whatsapp:editMessage', messageId, newContent),
+  archiveConversation: (conversationId) => ipcRenderer.invoke('whatsapp:archiveConversation', conversationId),
+  
+  // ========== Messages ==========
+  getMessages: (conversationId) => ipcRenderer.invoke('whatsapp:getMessages', conversationId),
+  sendMessage: (data) => ipcRenderer.invoke('whatsapp:sendMessage', data),
+  deleteMessage: (messageId) => ipcRenderer.invoke('whatsapp:deleteMessage', messageId),
+  
+  // ========== Candidates ==========
+  // ✅ FIX: Changed from getCandidatesForChat to getCandidatesWithPhone
+  getCandidatesWithPhone: () => ipcRenderer.invoke('whatsapp:getCandidatesWithPhone'),
+  
+  // ========== Settings & Status ==========
+  getStatus: () => ipcRenderer.invoke('whatsapp:getStatus'),
+  saveCredentials: (credentials) => ipcRenderer.invoke('whatsapp:saveCredentials', credentials),
+  testConnection: (credentials) => ipcRenderer.invoke('whatsapp:testConnection', credentials), // ✅ ADDED
+  logout: () => ipcRenderer.invoke('whatsapp:logout'),
+  
+  // ========== Event Listeners ==========
+  onReady: (callback) => {    ipcRenderer.on('whatsapp:ready', () => callback());  },  
+  onAuthenticated: (callback) => {    ipcRenderer.on('whatsapp:authenticated', () => callback());  },  
+  onDisconnected: (callback) => {    ipcRenderer.on('whatsapp:disconnected', (_, reason) => callback(reason));  },  
+  onNewMessage: (callback) => {    ipcRenderer.on('whatsapp:new-message', (_, message) => callback(message));  },  
+  onMessageAck: (callback) => {    ipcRenderer.on('whatsapp:message-ack', (_, data) => callback(data));  }
+  
+}
+
+
 });
 
 // ==========================================================================

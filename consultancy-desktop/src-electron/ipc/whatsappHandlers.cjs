@@ -1,194 +1,270 @@
 // src-electron/ipc/whatsappHandlers.cjs
 
 const { ipcMain } = require('electron');
-const path = require('path');
-const fs = require('fs').promises;
-const { getCandidatesForWhatsApp } = require('../db/whatsappQueries.cjs');
+const { getDatabase } = require('../db/database.cjs');
 
-// You'll need your database instance
-// Adjust based on your setup
-let db;
+let whatsappService;
 
-function initializeWhatsAppHandlers(database) {
-  db = database;
+function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
+  whatsappService = whatsappServiceInstance;
 
-  // ✅ Get all conversations
+
+  ipcMain.handle('whatsapp:editMessage', async (event, messageId, newContent) => {
+  try {
+    const db = getDatabase();
+    
+    await db.run(`
+      UPDATE whatsapp_messages 
+      SET body = ?, 
+          updated_at = datetime('now', 'localtime')
+      WHERE id = ?
+    `, [newContent, messageId]);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error editing message:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Archive conversation
+ipcMain.handle('whatsapp:archiveConversation', async (event, conversationId) => {
+  try {
+    const db = getDatabase();
+    
+    await db.run(`
+      UPDATE whatsapp_conversations 
+      SET is_archived = 1,
+          updated_at = datetime('now', 'localtime')
+      WHERE id = ?
+    `, [conversationId]);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error archiving conversation:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+  // ========================================================================
+  // GET CONVERSATIONS
+  // ========================================================================
   ipcMain.handle('whatsapp:getConversations', async () => {
     try {
+      const db = getDatabase();
+      
       const conversations = await db.all(`
         SELECT 
-          c.*,
-          ca.name as candidate_name,
-          ca.contact as phone_number,
-          COUNT(CASE WHEN m.is_read = 0 AND m.sender_type = 'candidate' THEN 1 END) as unread_count,
-          (
-            SELECT timestamp 
-            FROM whatsapp_messages 
-            WHERE conversation_id = c.id 
-            ORDER BY timestamp DESC 
-            LIMIT 1
-          ) as last_message_time
-        FROM whatsapp_conversations c
-        LEFT JOIN candidates ca ON c.candidate_id = ca.id
-        LEFT JOIN whatsapp_messages m ON m.conversation_id = c.id
-        GROUP BY c.id
+    id,
+    candidate_id,
+    candidate_name,
+    phone_number,
+    last_message_time
+  FROM whatsapp_conversations
+        WHERE is_deleted = 0
         ORDER BY last_message_time DESC
       `);
 
-      return { success: true, data: conversations };
+      return {
+        success: true,
+        data: conversations || []
+      };
     } catch (error) {
       console.error('Error fetching conversations:', error);
-      return { success: false, error: error.message };
+      return {
+        success: false,
+        error: error.message,
+        data: []
+      };
     }
   });
 
-  // ✅ Get messages for a conversation
+  // ========================================================================
+  // GET MESSAGES
+  // ========================================================================
   ipcMain.handle('whatsapp:getMessages', async (event, conversationId) => {
     try {
+      const db = getDatabase();
+      
       const messages = await db.all(`
-        SELECT * FROM whatsapp_messages 
+        SELECT 
+          id,
+          conversation_id,
+          direction,
+          body,
+          media_url,
+          media_type,
+          status,
+          timestamp,
+          from_number,
+          to_number,
+          message_sid
+        FROM whatsapp_messages 
         WHERE conversation_id = ? 
+          AND is_deleted = 0
         ORDER BY timestamp ASC
       `, [conversationId]);
 
-      return { success: true, data: messages };
+      return { 
+        success: true, 
+        data: messages || [] 
+      };
     } catch (error) {
       console.error('Error fetching messages:', error);
-      return { success: false, error: error.message };
+      return { 
+        success: false, 
+        error: error.message,
+        data: []
+      };
     }
   });
 
-  // ✅ Send a message
-  ipcMain.handle('whatsapp:sendMessage', async (event, { conversationId, to, content, type }) => {
+  // ========================================================================
+  // SEND MESSAGE
+  // ========================================================================
+  ipcMain.handle('whatsapp:sendMessage', async (event, { conversationId, phoneNumber, message }) => {
     try {
-      const timestamp = Date.now();
+      const db = getDatabase();
       
+      // ✅ Validate inputs
+      if (!phoneNumber) {
+        return { success: false, error: 'Phone number is required' };
+      }
+      if (!message) {
+        return { success: false, error: 'Message content is required' };
+      }
+
+      console.log('📤 Sending WhatsApp message to:', phoneNumber);
+
+      // Format phone number for Twilio (must include whatsapp: prefix)
+      let formattedPhone = phoneNumber.replace(/\s+/g, '');
+      if (!formattedPhone.startsWith('+')) {
+        formattedPhone = '+' + formattedPhone;
+      }
+      
+      // Twilio WhatsApp requires whatsapp: prefix
+      const twilioNumber = formattedPhone.startsWith('whatsapp:') 
+        ? formattedPhone 
+        : `whatsapp:${formattedPhone}`;
+
+      // Send via Twilio WhatsApp service
+      const twilioResult = await whatsappService.sendMessage(twilioNumber, message);
+      
+      if (!twilioResult.success) {
+        console.error('❌ Twilio send failed:', twilioResult.error);
+        return { 
+          success: false, 
+          error: twilioResult.error || 'Failed to send message via Twilio' 
+        };
+      }
+
+      console.log('✅ Twilio message sent:', twilioResult.messageId);
+
+      // Store in database
+      const timestamp = new Date().toISOString();
       const result = await db.run(`
         INSERT INTO whatsapp_messages (
-          conversation_id, 
-          sender_type, 
-          content, 
-          message_type,
+          conversation_id,
+          message_sid,
+          direction,
+          body,
           status,
-          timestamp
-        ) VALUES (?, ?, ?, ?, ?, ?)
-      `, [conversationId, 'user', content, type || 'text', 'sent', timestamp]);
+          timestamp,
+          from_number,
+          to_number,
+          created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        conversationId,
+        twilioResult.messageId || null,
+        'outbound',
+        message,
+        twilioResult.status || 'sent',
+        timestamp,
+        whatsappService.whatsappNumber || 'system',
+        formattedPhone,
+        timestamp
+      ]);
 
-      // TODO: Integrate with actual WhatsApp API here
-      // For now, we're just storing in database
+      // Update conversation last message time
+      await db.run(`
+        UPDATE whatsapp_conversations 
+        SET last_message_time = ?,
+            updated_at = ?
+        WHERE id = ?
+      `, [timestamp, timestamp, conversationId]);
+
+      console.log('✅ Message saved to database');
 
       return { 
         success: true, 
         data: { 
           id: result.lastID,
-          message_id: `msg_${timestamp}`,
-          status: 'sent'
+          messageId: twilioResult.messageId,
+          status: twilioResult.status || 'sent',
+          timestamp: timestamp
         }
       };
     } catch (error) {
-      console.error('Error sending message:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  // ✅ Delete a message
-  ipcMain.handle('whatsapp:deleteMessage', async (event, messageId) => {
-    try {
-      await db.run(`DELETE FROM whatsapp_messages WHERE id = ?`, [messageId]);
-      return { success: true };
-    } catch (error) {
-      console.error('Error deleting message:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  // ✅ Edit a message
-  ipcMain.handle('whatsapp:editMessage', async (event, messageId, newContent) => {
-    try {
-      await db.run(`
-        UPDATE whatsapp_messages 
-        SET content = ?, edited = 1 
-        WHERE id = ?
-      `, [newContent, messageId]);
-
-      return { success: true };
-    } catch (error) {
-      console.error('Error editing message:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  // ✅ Upload media
-  ipcMain.handle('whatsapp:uploadMedia', async (event, formData) => {
-    try {
-      // Handle file upload logic here
-      // For now, return a mock response
-      const mediaId = `media_${Date.now()}`;
-      
+      console.error('❌ Error sending message:', error);
       return { 
-        success: true, 
-        mediaId,
-        mediaUrl: `/uploads/${mediaId}`
+        success: false, 
+        error: error.message 
       };
-    } catch (error) {
-      console.error('Error uploading media:', error);
-      return { success: false, error: error.message };
     }
   });
 
-  // ✅ Delete conversation
-  ipcMain.handle('whatsapp:deleteConversation', async (event, conversationId) => {
+  // ========================================================================
+  // CREATE CONVERSATION
+  // ========================================================================
+  ipcMain.handle('whatsapp:createConversation', async (event, { candidateId, candidateName, phoneNumber }) => {
     try {
-      await db.run(`DELETE FROM whatsapp_messages WHERE conversation_id = ?`, [conversationId]);
-      await db.run(`DELETE FROM whatsapp_conversations WHERE id = ?`, [conversationId]);
+      const db = getDatabase();
       
-      return { success: true };
-    } catch (error) {
-      console.error('Error deleting conversation:', error);
-      return { success: false, error: error.message };
-    }
-  });
+      console.log('📞 Creating conversation:', { candidateId, candidateName, phoneNumber });
 
-  // ✅ Archive conversation
-  ipcMain.handle('whatsapp:archiveConversation', async (event, conversationId) => {
-    try {
-      await db.run(`
-        UPDATE whatsapp_conversations 
-        SET archived = 1 
-        WHERE id = ?
-      `, [conversationId]);
-      
-      return { success: true };
-    } catch (error) {
-      console.error('Error archiving conversation:', error);
-      return { success: false, error: error.message };
-    }
-  });
+      // ✅ Validate phone number
+      if (!phoneNumber) {
+        return { 
+          success: false, 
+          error: 'Phone number is required' 
+        };
+      }
 
-  // ✅ FIXED: Create conversation with proper data return
-  ipcMain.handle('whatsapp:createConversation', async (event, { candidateId, phoneNumber, candidateName }) => {
-    try {
-      console.log('📞 Creating conversation for candidate:', candidateId, candidateName);
+      // Format phone number
+      let formattedPhone = phoneNumber.replace(/\s+/g, '');
+      if (!formattedPhone.startsWith('+')) {
+        formattedPhone = '+' + formattedPhone;
+      }
 
       // Check if conversation already exists
       let conversation = await db.get(`
         SELECT * FROM whatsapp_conversations 
-        WHERE candidate_id = ?
-      `, [candidateId]);
+        WHERE phone_number = ? AND is_deleted = 0
+      `, [formattedPhone]);
 
       if (!conversation) {
         console.log('Creating new conversation...');
         
-        // Create new conversation
+        const timestamp = new Date().toISOString();
         const result = await db.run(`
           INSERT INTO whatsapp_conversations (
-            candidate_id, 
-            phone_number, 
-            last_message_time
-          ) VALUES (?, ?, ?)
-        `, [candidateId, phoneNumber, Date.now()]);
+            candidate_id,
+            candidate_name,
+            phone_number,
+            last_message_time,
+            created_at,
+            updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?)
+        `, [
+          candidateId || null,
+          candidateName || 'Unknown',
+          formattedPhone,
+          timestamp,
+          timestamp,
+          timestamp
+        ]);
 
-        // ✅ FIX: Fetch the created conversation to get all fields
         conversation = await db.get(`
           SELECT * FROM whatsapp_conversations 
           WHERE id = ?
@@ -199,79 +275,184 @@ function initializeWhatsAppHandlers(database) {
         console.log('✅ Existing conversation found:', conversation);
       }
 
-      // ✅ FIX: Return complete data structure
       return { 
-        success: true, 
+        success: true,
         conversationId: conversation.id,
         data: {
           id: conversation.id,
           candidate_id: conversation.candidate_id,
+          candidate_name: conversation.candidate_name,
           phone_number: conversation.phone_number,
-          candidate_name: candidateName,
           last_message_time: conversation.last_message_time,
-          archived: conversation.archived
+          unread_count: conversation.unread_count || 0
         }
       };
     } catch (error) {
       console.error('❌ Error creating conversation:', error);
-      return { success: false, error: error.message };
+      return { 
+        success: false, 
+        error: error.message 
+      };
     }
   });
 
-  // ✅ Initialize all conversations
-  ipcMain.handle('whatsapp:initializeAllConversations', async () => {
+  // ========================================================================
+  // GET CANDIDATES WITH PHONE
+  // ========================================================================
+  ipcMain.handle('whatsapp:getCandidatesWithPhone', async () => {
     try {
-      // Get all candidates with phone numbers
+      const db = getDatabase();
+      
+      console.log('📞 Fetching candidates with phone numbers...');
+      
       const candidates = await db.all(`
-        SELECT id, name, contact as phone_number 
-        FROM candidates 
+        SELECT 
+          id,
+          name,
+          contact,
+          Position as position,
+          education
+        FROM candidates
         WHERE contact IS NOT NULL 
-        AND contact != ''
-        AND isDeleted = 0
+          AND TRIM(contact) != ''
+          AND isDeleted = 0
+        ORDER BY name ASC
       `);
 
-      let created = 0;
-
-      for (const candidate of candidates) {
-        // Check if conversation exists
-        const existing = await db.get(`
-          SELECT id FROM whatsapp_conversations 
-          WHERE candidate_id = ?
-        `, [candidate.id]);
-
-        if (!existing) {
-          // Create conversation
-          await db.run(`
-            INSERT INTO whatsapp_conversations (
-              candidate_id, 
-              phone_number, 
-              last_message_time
-            ) VALUES (?, ?, ?)
-          `, [candidate.id, candidate.phone_number, Date.now()]);
-          
-          created++;
-        }
+      // ✅ Log results for debugging
+      console.log(`✅ Query returned ${candidates?.length || 0} candidates`);
+      
+      if (!candidates) {
+        console.warn('⚠️ Query returned null/undefined');
+        return {
+          success: true,
+          data: []
+        };
       }
 
-      console.log(`✅ Initialized ${created} conversations`);
-
-      return { 
-        success: true, 
-        created,
-        total: candidates.length 
+      if (candidates.length > 0) {
+        console.log('✅ Sample candidate:', {
+          id: candidates[0].id,
+          name: candidates[0].name,
+          contact: candidates[0].contact
+        });
+      }
+      
+      return {
+        success: true,
+        data: candidates
       };
+      
     } catch (error) {
-      console.error('Error initializing conversations:', error);
+      console.error('❌ Error fetching candidates with phone:', error.message);
+      console.error('Stack:', error.stack);
+      
+      return {
+        success: false,
+        error: error.message,
+        data: []
+      };
+    }
+  });
+
+  // ========================================================================
+  // DELETE MESSAGE
+  // ========================================================================
+  ipcMain.handle('whatsapp:deleteMessage', async (event, messageId) => {
+    try {
+      const db = getDatabase();
+      
+      await db.run(`
+        UPDATE whatsapp_messages 
+        SET is_deleted = 1 
+        WHERE id = ?
+      `, [messageId]);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting message:', error);
       return { success: false, error: error.message };
     }
   });
 
-  // ✅ Get candidates for chat
-  ipcMain.handle('whatsapp:getCandidatesForChat', async () => {
+  // ========================================================================
+  // DELETE CONVERSATION
+  // ========================================================================
+  ipcMain.handle('whatsapp:deleteConversation', async (event, conversationId) => {
     try {
-      return await getCandidatesForWhatsApp();
+      const db = getDatabase();
+      
+      await db.run(`
+        UPDATE whatsapp_conversations 
+        SET is_deleted = 1 
+        WHERE id = ?
+      `, [conversationId]);
+      
+      return { success: true };
     } catch (error) {
-      console.error('whatsapp:getCandidatesForChat error:', error);
+      console.error('Error deleting conversation:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // ========================================================================
+  // GET WHATSAPP STATUS
+  // ========================================================================
+  ipcMain.handle('whatsapp:getStatus', async () => {
+    try {
+      return await whatsappService.getStatus();
+    } catch (error) {
+      console.error('Error getting WhatsApp status:', error);
+      return { 
+        success: false, 
+        error: error.message,
+        hasCredentials: false,
+        isReady: false
+      };
+    }
+  });
+
+  // ========================================================================
+  // SAVE CREDENTIALS
+  // ========================================================================
+  ipcMain.handle('whatsapp:saveCredentials', async (event, credentials) => {
+    try {
+      return await whatsappService.saveCredentials(
+        credentials.accountSid,
+        credentials.authToken,
+        credentials.whatsappNumber
+      );
+    } catch (error) {
+      console.error('Error saving credentials:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // ========================================================================
+  // TEST CONNECTION
+  // ========================================================================
+  ipcMain.handle('whatsapp:testConnection', async (event, credentials) => {
+    try {
+      return await whatsappService.testConnection(
+        credentials.accountSid,
+        credentials.authToken,
+        credentials.whatsappNumber
+      );
+    } catch (error) {
+      console.error('Error testing connection:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // ========================================================================
+  // LOGOUT/DISCONNECT
+  // ========================================================================
+  ipcMain.handle('whatsapp:logout', async () => {
+    try {
+      await whatsappService.disconnect();
+      return { success: true };
+    } catch (error) {
+      console.error('Error logging out:', error);
       return { success: false, error: error.message };
     }
   });

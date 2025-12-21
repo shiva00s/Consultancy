@@ -7,6 +7,10 @@ const { initializeDatabase, closeDatabase } = require('./src-electron/db/databas
 const { registerIpcHandlers, startReminderScheduler } = require('./src-electron/ipc/handlers.cjs');
 const { fileManager } = require('./src-electron/utils/fileManager.cjs');
 
+// ✅ ADD WHATSAPP IMPORTS
+const TwilioWhatsAppService = require('./src-electron/services/twilioWhatsAppService.cjs');
+const { initializeWhatsAppHandlers } = require('./src-electron/ipc/whatsappHandlers.cjs');
+
 // 🔐 Permission Engine
 const {
   PermissionEngine,
@@ -188,7 +192,7 @@ app.whenReady().then(async () => {
     if (process.env.NODE_ENV !== 'production') {
       console.log('📦 Initializing database...');
     }
-    await initializeDatabase();
+    const db = await initializeDatabase(); // ✅ STORE DB REFERENCE
     if (process.env.NODE_ENV !== 'production') {
       console.log('✅ Database initialized');
     }
@@ -218,6 +222,31 @@ app.whenReady().then(async () => {
       console.log('🪟 Creating main window...');
     }
     mainWindow = createWindow();
+
+    // ✅ ADD WHATSAPP INITIALIZATION HERE
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('📱 Initializing WhatsApp service...');
+    }
+    try {
+      whatsappService = new TwilioWhatsAppService(mainWindow, db);
+
+      // Register WhatsApp IPC handlers immediately so renderer can call them
+      // even if the Twilio service is still initializing. Handlers that
+      // require the Twilio client will check `whatsappService.isReady`.
+      initializeWhatsAppHandlers(db, whatsappService);
+
+      // Initialize Twilio service (may take time); handlers are already
+      // available to the renderer which avoids race conditions on startup.
+      await whatsappService.initialize();
+      
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('✅ WhatsApp service initialized');
+      }
+    } catch (whatsappError) {
+      console.error('⚠️ WhatsApp initialization failed:', whatsappError.message);
+      console.error('The app will continue without WhatsApp functionality');
+      // Don't crash the app, just log the error
+    }
 
     startReminderScheduler(mainWindow);
 
@@ -258,8 +287,20 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('before-quit', async () => {
+// ✅ UPDATE before-quit TO CLEANUP WHATSAPP
+app.on('before-quit', async (event) => {
   app.isQuitting = true;
+
+  // ✅ ADD WHATSAPP CLEANUP
+  if (whatsappService) {
+    console.log('🔄 Cleaning up WhatsApp service...');
+    try {
+      await whatsappService.destroy();
+      console.log('✅ WhatsApp service cleaned up');
+    } catch (error) {
+      console.error('Error cleaning up WhatsApp:', error);
+    }
+  }
 
   try {
     await closeDatabase();
