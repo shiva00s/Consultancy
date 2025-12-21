@@ -80,7 +80,7 @@ function ProfilePhotoDisplay({ candidateId, candidateName, editable = false }) {
             <div className="skeleton-shimmer"></div>
           </div>
         ) : photoUrl ? (
-          <img src={photoUrl} alt={candidateName} className="profile-photo" />
+          <img src={photoUrl} alt={candidateName} className="profile-photo candidate-photo" />
         ) : (
           <div className="photo-placeholder">
             <FiUser />

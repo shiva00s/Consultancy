@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiSearch, FiEdit, FiUser, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import '../css/CandidateListPage.css';
+import LazyRemoteImage from '../components/common/LazyRemoteImage';
 import { useJobOrderPositions } from '../hooks/useJobOrderPositions';
 
 const statusOptions = [
@@ -74,28 +75,7 @@ function CandidateListPage() {
 
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
-  // Image Fetcher
-  const fetchPhotos = async (candidates) => {
-    const pathsToFetch = candidates
-      .filter((c) => (c.photo_path || c.photoPath) && !photoCache[c.id])
-      .map((c) => ({ id: c.id, path: c.photo_path || c.photoPath }));
-
-    if (pathsToFetch.length === 0) return;
-
-    const promises = pathsToFetch.map(async ({ id, path }) => {
-      const res = await window.electronAPI.getImageBase64({ filePath: path });
-      return { id, data: res.success ? res.data : null };
-    });
-
-    const results = await Promise.all(promises);
-    setPhotoCache((prev) => {
-      const newCache = { ...prev };
-      results.forEach((item) => {
-        if (item.data) newCache[item.id] = item.data;
-      });
-      return newCache;
-    });
-  };
+  // photoCache remains available for other consumers; images are now lazily loaded per-item
 
   // Search Function
   const runSearch = async (page, term, status, position) => {
@@ -113,10 +93,9 @@ function CandidateListPage() {
         offset: offset,
       });
 
-      if (res.success) {
+        if (res.success) {
         setResults(res.data);
         setTotalItems(res.totalCount);
-        fetchPhotos(res.data);
       } else {
         toast.error(`Error searching: ${res.error}`);
       }
@@ -256,15 +235,12 @@ function CandidateListPage() {
               >
                 {/* Photo / Icon */}
                 <div className="result-card-icon">
-                  {photoCache[candidate.id] ? (
-                    <img
-                      src={photoCache[candidate.id]}
-                      alt={candidate.name}
-                      className="candidate-photo"
-                    />
-                  ) : (
-                    <FiUser />
-                  )}
+                  <LazyRemoteImage
+                    filePath={candidate.photo_path || candidate.photoPath}
+                    placeholder={<FiUser />}
+                    className="candidate-photo"
+                    onLoad={(dataUrl) => setPhotoCache((prev) => ({ ...prev, [candidate.id]: dataUrl }))}
+                  />
                 </div>
 
                 {/* Candidate Info */}
