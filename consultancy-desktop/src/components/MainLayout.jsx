@@ -459,4 +459,3 @@ function MainLayout({ children, onLogout, user, flags }) {
 
 
 export default MainLayout;
-
