@@ -38,10 +38,57 @@ const { guard, FEATURES } = require('./security/ipcPermissionGuard.cjs');
 const { registerPassportHandlers } = require('./passportHandlers.cjs');
 //const sendTwilioWhatsApp = require("./twilioSendWhatsApp.cjs");
 
+// Map to track active upload streams for cancellation and progress control
+const uploadStreams = new Map();
+
+// Simple thumbnail cache to avoid regenerating thumbnails repeatedly
+const thumbnailCache = new Map();
+
+// Lazy require Jimp to avoid startup cost until needed
+let Jimp = null;
+
 
 
 const tempDir = path.join(os.tmpdir(), "paddle_ocr_temp");
 if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+// Robust MIME detection helper: prefer mime.getType/lookup if available, otherwise fallback to extension map
+function detectMimeType(filePathOrName) {
+  try {
+    if (!filePathOrName) return 'application/octet-stream';
+    // Try mime library (handles full paths or filenames)
+    if (mime && typeof mime.getType === 'function') {
+      const t = mime.getType(filePathOrName);
+      if (t) return t;
+    }
+    if (mime && typeof mime.lookup === 'function') {
+      const t = mime.lookup(filePathOrName);
+      if (t) return t;
+    }
+    // Fallback: simple extension map
+    const ext = (path.extname(filePathOrName) || '').toLowerCase();
+    const map = {
+      '.pdf': 'application/pdf',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.txt': 'text/plain',
+      '.csv': 'text/csv',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.xls': 'application/vnd.ms-excel',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.mp4': 'video/mp4',
+      '.mov': 'video/quicktime',
+      '.zip': 'application/zip'
+    };
+    return map[ext] || 'application/octet-stream';
+  } catch (e) {
+    return 'application/octet-stream';
+  }
+}
 
 // 🐞 FIX: Rename the local helper to avoid declaration conflict
 const getEventUserContext = (event) => {
@@ -605,6 +652,16 @@ ipcMain.handle('get-feature-flags', async (event, { user } = {}) => {
                 return { success: false, error: 'Archive file not found.' };
             }
 
+            // Emit overall bulk-import progress so UI can show a progress bar
+            const webContents = event && event.sender;
+            const bulkUploadId = uuidv4();
+            let processedCount = 0;
+
+            if (webContents && !webContents.isDestroyed()) {
+              // files count unknown yet; frontend will display an indeterminate/0 total until updated
+              webContents.send('upload-progress', { uploadId: bulkUploadId, transferred: 0, total: 0, status: 'progress' });
+            }
+
             // 1. Prepare Temp Directory
             const tempExtractDir = path.join(os.tmpdir(), `import_${uuidv4()}`);
         
@@ -647,27 +704,27 @@ ipcMain.handle('get-feature-flags', async (event, { user } = {}) => {
                     const newFilePath = path.join(filesDir, uniqueName);
                     
                     try {
-                        // A. Copy file to permanent storage
+                        // A. Copy file to permanent storage (synchronous copy)
                         fs.copyFileSync(path.join(tempExtractDir, fileName), newFilePath);
+                        // update overall progress
+                        processedCount++;
+                        if (webContents && !webContents.isDestroyed()) {
+                          webContents.send('upload-progress', { uploadId: bulkUploadId, transferred: processedCount, total: files.length, status: 'progress' });
+                        }
 // B. Database Insert (Awaited Promise)
                         await new Promise((resolve, reject) => {
-                            const fileType = mime.getType(fileName) || 'application/octet-stream';
-                            db.run(sqlDoc, [candidateId, fileType, fileName, newFilePath, newFilePath, category], function(err) {
-                                if (err) {
-                                    console.error(`DB Insert Failed for ${fileName}:`, err.message);
-                       
-                                    failedDocs++;
-                                    // Cleanup file if DB insert fails
-                                    try { fs.unlinkSync(newFilePath); } catch(e) {}
-    
-                                    resolve(); 
-                                } else {
-                                 
-                                    successfulDocs++;
-                                    resolve();
-                                }
-                            });
- 
+                          const fileType = detectMimeType(fileName) || 'application/octet-stream';
+                          db.run(sqlDoc, [candidateId, fileType, fileName, newFilePath, newFilePath, category], function(err) {
+                            if (err) {
+                              console.error(`DB Insert Failed for ${fileName}:`, err.message);
+                              failedDocs++;
+                              try { fs.unlinkSync(newFilePath); } catch(e) {}
+                              return resolve();
+                            } else {
+                              successfulDocs++;
+                              return resolve();
+                            }
+                          });
                         });
                     } catch (fileErr) {
                         console.error(`File Copy Error for ${fileName}:`, fileErr.message);
@@ -684,10 +741,17 @@ ipcMain.handle('get-feature-flags', async (event, { user } = {}) => {
                 fs.rmSync(tempExtractDir, { recursive: true, force: true });
             } catch (e) { console.error("Temp cleanup failed:", e.message); }
 
+            // Emit completed status for overall bulk import
+            try {
+              if (webContents && !webContents.isDestroyed()) {
+                webContents.send('upload-progress', { uploadId: bulkUploadId, transferred: processedCount, total: files.length, status: 'completed', data: { successfulDocs, failedDocs } });
+              }
+            } catch (emitErr) { console.error('Failed to emit bulk import completion:', emitErr); }
+
             const logMsg = `Bulk Import: Success=${successfulDocs}, Failed=${failedDocs}`;
             logAction(user, 'bulk_doc_import', 'system', 1, logMsg);
             
-            return { success: true, data: { successfulDocs, failedDocs } };
+            return { success: true, data: { successfulDocs, failedDocs }, uploadId: bulkUploadId };
         } catch (error) {
             console.error('Bulk document import CRITICAL failure:', error);
             return { success: false, error: error.message };
@@ -827,10 +891,17 @@ ipcMain.handle('get-system-audit-log', async (event, args) => {
               for (const file of files) {
                 const uniqueName = `${uuidv4()}${path.extname(file.name)}`;
                 const newFilePath = path.join(filesDir, uniqueName);
+                const webContents = event && event.sender;
+                const uploadId = uuidv4();
+                const totalBytes = file.buffer ? file.buffer.length : 0;
                 try {
+                  if (webContents && !webContents.isDestroyed()) webContents.send('upload-progress', { uploadId, transferred: 0, total: totalBytes, status: 'progress' });
+                  // write file
                   fs.writeFileSync(newFilePath, Buffer.from(file.buffer));
+                  if (webContents && !webContents.isDestroyed()) webContents.send('upload-progress', { uploadId, transferred: totalBytes, total: totalBytes, status: 'done' });
                 } catch (wErr) {
                   console.error('Failed to write uploaded file to disk:', wErr, file.name);
+                  if (webContents && !webContents.isDestroyed()) webContents.send('upload-progress', { uploadId, status: 'error', error: wErr.message });
                   throw wErr;
                 }
                 const category = file.category || (file.isProfile ? 'Profile' : 'Uncategorized');
@@ -925,31 +996,118 @@ ipcMain.handle('add-documents', async (event, { user, candidateId, files }) => {
 
         const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, file_path, category) VALUES (?, ?, ?, ?, ?, ?)`;
         
-        // Use Promise.all 
+        // Use Promise.all and collect uploadIds so renderer can map progress
+        const uploadIds = [];
         const fileOperations = files.map(async (file) => { // marked async
+            const uploadId = uuidv4();
+          uploadIds.push(uploadId);
             const uniqueName = `${uuidv4()}${path.extname(file.name)}`;
             const newFilePath = path.join(filesDir, uniqueName);
             const category = file.category || 'Uncategorized';
 
-            // FIX: Non-blocking write
-            await fs.promises.writeFile(newFilePath, Buffer.from(file.buffer));
+            // Emit initial progress (0%)
+            const webContents = event && event.sender;
+            const totalBytes = file.buffer ? file.buffer.length : 0;
+            if (webContents && !webContents.isDestroyed()) {
+              webContents.send('upload-progress', { uploadId, transferred: 0, total: totalBytes, status: 'progress' });
+            }
 
-   
-            return new Promise((resolve, reject) => {
-                db.run(sqlDoc, [candidateId, file.type, file.name, newFilePath, category], function (err) {
-                    if (err) reject(err);
-                    else {
-                        logAction(user, 'add_document', 'candidates', candidateId, `File: ${file.name}`);
-                        resolve({ id: this.lastID, fileName: file.name, filePath: newFilePath, fileType: file.type, category });
+                // Write file using a stream in chunks and emit progress events
+                const buffer = Buffer.from(file.buffer || []);
+                const stream = fs.createWriteStream(newFilePath);
+                // Register stream so it can be cancelled from the renderer
+                try {
+                  uploadStreams.set(uploadId, { stream, filePath: newFilePath });
+                } catch (e) {}
+
+                // Helper to emit progress safely
+                const emitProgress = (payload) => {
+                  if (webContents && !webContents.isDestroyed()) {
+                    try { webContents.send('upload-progress', payload); } catch (e) {}
+                  }
+                };
+
+                const CHUNK_SIZE = 64 * 1024; // 64KB
+                let offset = 0;
+
+                await new Promise((resolve, reject) => {
+                  function writeNext() {
+                    if (offset >= buffer.length) {
+                      stream.end();
+                      return;
                     }
+                    const end = Math.min(offset + CHUNK_SIZE, buffer.length);
+                    const chunk = buffer.slice(offset, end);
+                    const ok = stream.write(chunk, (err) => {
+                      if (err) return reject(err);
+                    });
+                    offset = end;
+                    emitProgress({ uploadId, transferred: offset, total: buffer.length, status: 'progress' });
+                    // schedule next write
+                    if (!ok) {
+                      stream.once('drain', () => setImmediate(writeNext));
+                    } else {
+                      setImmediate(writeNext);
+                    }
+                  }
+
+                  stream.on('error', (err) => reject(err));
+                  stream.on('finish', () => resolve());
+                  // start writing
+                  writeNext();
+                });
+
+                // Emit done/completed for this file
+                emitProgress({ uploadId, transferred: buffer.length, total: buffer.length, status: 'done' });
+                // Cleanup any tracked stream for this uploadId
+                try { uploadStreams.delete(uploadId); } catch (e) {}
+
+            return new Promise((resolve, reject) => {
+                db.run(sqlDoc, [candidateId, file.type, file.name, newFilePath, newFilePath, category], function (err) {
+                    if (err) {
+                      if (webContents && !webContents.isDestroyed()) {
+                        webContents.send('upload-progress', { uploadId, status: 'error', error: err.message });
+                      }
+                      try { uploadStreams.delete(uploadId); } catch (e) {}
+                      return reject(err);
+                    }
+                    try { logAction(user, 'add_document', 'candidates', candidateId, `File: ${file.name}`); } catch (e) {}
+                    const doc = { id: this.lastID, fileName: file.name, filePath: newFilePath, fileType: file.type, category };
+                    if (webContents && !webContents.isDestroyed()) {
+                      webContents.send('upload-progress', { uploadId, status: 'completed', data: doc });
+                    }
+                    try { uploadStreams.delete(uploadId); } catch (e) {}
+                    resolve(doc);
                 });
             });
         });
         const newDocs = await Promise.all(fileOperations);
-        return { success: true, newDocs };
+        return { success: true, newDocs, uploadIds };
     } catch (error) {
         return { success: false, error: error.message };
     }
+});
+// Allow renderer to cancel an in-progress upload
+ipcMain.handle('cancel-upload', async (event, { uploadId }) => {
+  try {
+    if (!uploadId) return { success: false, error: 'uploadId required' };
+    const entry = uploadStreams.get(uploadId);
+    if (!entry) return { success: false, error: 'Upload not found or already finished' };
+    const { stream, filePath } = entry;
+    // Destroy the stream to abort writes
+    try { stream.destroy(new Error('Cancelled by user')); } catch (e) {}
+    // Remove partial file if exists
+    try {
+      if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (e) {}
+    // Cleanup tracking
+    try { uploadStreams.delete(uploadId); } catch (e) {}
+    // Notify renderer that upload was cancelled
+    try { event.sender.send('upload-progress', { uploadId, status: 'cancelled' }); } catch (e) {}
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 // ====================================================================
     ipcMain.handle('update-document-category', async (event, { user, docId, category }) => {
@@ -1700,13 +1858,33 @@ ipcMain.handle('readAbsoluteFileBuffer', async (event, { filePath }) => {
     try {
         const buffer = fs.readFileSync(filePath);
         return { 
-            success: true, 
-            buffer: buffer,
-            type: mime.getType(filePath) || (path.extname(filePath) === '.pdf' ? 'application/pdf' : 'application/octet-stream')
-        };
+        success: true, 
+        buffer: buffer,
+        type: detectMimeType(filePath) || (path.extname(filePath) === '.pdf' ? 'application/pdf' : 'application/octet-stream')
+      };
     } catch (error) {
         return { success: false, error: error.message };
     }
+});
+// Generate a small thumbnail (data URL) for faster list rendering
+ipcMain.handle('get-thumbnail', async (event, { filePath, maxWidth = 64, maxHeight = 64 } = {}) => {
+  try {
+    if (!filePath || !fs.existsSync(filePath)) return { success: false, error: 'File not found' };
+    const cacheKey = `${filePath}:${maxWidth}x${maxHeight}`;
+    if (thumbnailCache.has(cacheKey)) return { success: true, data: thumbnailCache.get(cacheKey) };
+    // Lazy load Jimp
+    if (!Jimp) {
+      try { Jimp = require('jimp'); } catch (e) { return { success: false, error: 'Image library not available' }; }
+    }
+    const img = await Jimp.read(filePath);
+    img.cover(maxWidth, maxHeight, Jimp.HORIZONTAL_ALIGN_CENTER | Jimp.VERTICAL_ALIGN_MIDDLE);
+    const mimeType = img.getMIME();
+    const base64 = await img.getBase64Async(mimeType);
+    thumbnailCache.set(cacheKey, base64);
+    return { success: true, data: base64 };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 // --- Document ZIP Export ---
     ipcMain.handle('zip-candidate-documents', async (event, { user, candidateId, destinationPath }) => {
@@ -2440,7 +2618,7 @@ ipcMain.handle('upload-document', async (event, { candidateId, filePath, origina
       const sql = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, file_path, category, uploadedAt) VALUES (?, ?, ?, ?, ?, ?, ?)`;
       const params = [
         candidateId,
-        mime.getType(destinationPath) || null,
+        detectMimeType(destinationPath) || null,
         originalName,
         destinationPath,
         destinationPath,
@@ -2459,7 +2637,7 @@ ipcMain.handle('upload-document', async (event, { candidateId, filePath, origina
         path: destinationPath,
         filePath: destinationPath,
         file_path: destinationPath,
-        mimeType: mime.getType(destinationPath) || null,
+        mimeType: detectMimeType(destinationPath) || null,
         size: (await fs.stat(destinationPath)).size,
       };
 
@@ -2774,7 +2952,7 @@ ipcMain.handle('get-candidate-by-id', async (event, { candidateId }) => {
   const db = getDatabase();
   
   return new Promise((resolve) => {
-    db.get(
+      db.get(
       `SELECT 
         id,
         name,
@@ -2783,7 +2961,8 @@ ipcMain.handle('get-candidate-by-id', async (event, { candidateId }) => {
         education,
         contact,
         status,
-        isDeleted
+        isDeleted,
+        photo_path
        FROM candidates 
        WHERE id = ? 
        AND isDeleted = 0`,

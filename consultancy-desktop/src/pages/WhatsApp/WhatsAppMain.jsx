@@ -1,6 +1,7 @@
 // src/pages/WhatsApp/WhatsAppMain.jsx
 
 import { useState, useEffect } from 'react';
+import LazyRemoteImage from '../../components/common/LazyRemoteImage';
 import { MessageSquare, Plus, Settings, Wifi, WifiOff } from 'lucide-react';
 import ChatWindow from './ChatWindow';
 import NewChatModal from './NewChatModal';
@@ -78,6 +79,20 @@ const WhatsAppMain = () => {
           ? response.data 
           : [];
         setConversations(conversationsData);
+        // Prefetch small thumbnails during idle to avoid blocking UI
+        try {
+          const prefetch = () => {
+            if (!Array.isArray(conversationsData)) return;
+            for (let i = 0; i < Math.min(8, conversationsData.length); i++) {
+              const c = conversationsData[i];
+              if (c && c.photo_path) {
+                window.electronAPI.getThumbnail({ filePath: c.photo_path, maxWidth: 64, maxHeight: 64 }).catch(() => {});
+              }
+            }
+          };
+          if (typeof window.requestIdleCallback === 'function') requestIdleCallback(prefetch, { timeout: 1000 });
+          else setTimeout(prefetch, 500);
+        } catch (e) {}
       }
     } catch (error) {
       console.error('Error loading conversations:', error);
@@ -191,7 +206,13 @@ const WhatsAppMain = () => {
                   onClick={() => setSelectedConversation(conv)}
                 >
                   <div className="conversation-avatar">
-                    {conv.candidate_name?.charAt(0).toUpperCase() || '?'}
+                    {conv.photo_base64 ? (
+                      <img src={conv.photo_base64} alt={conv.candidate_name || 'avatar'} loading="lazy" className="conversation-photo img-loaded" />
+                    ) : conv.photo_path ? (
+                      <LazyRemoteImage filePath={conv.photo_path} className="conversation-photo" />
+                    ) : (
+                      conv.candidate_name?.charAt(0).toUpperCase() || '?'
+                    )}
                   </div>
                   <div className="conversation-details">
                     <div className="conversation-header">

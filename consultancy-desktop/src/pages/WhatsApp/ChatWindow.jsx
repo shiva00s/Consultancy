@@ -99,8 +99,9 @@ const ChatWindow = ({ conversation, isConnected }) => {
     try {
       const response = await window.electronAPI.whatsapp.sendMessage({
         conversationId: conversation.id,
-        phoneNumber: conversation.phone_number, // ✅ Use phoneNumber key
-        message: messageContent // ✅ Use message key
+        phoneNumber: conversation.phone_number,
+        message: messageContent,
+        attachments: pendingAttachments || []
       });
 
       if (response?.success) {
@@ -110,6 +111,9 @@ const ChatWindow = ({ conversation, isConnected }) => {
           conversation_id: conversation.id,
           direction: 'outbound',
           body: messageContent,
+          media_url: (pendingAttachments && pendingAttachments[0]) ? (pendingAttachments[0].path || pendingAttachments[0].filePath || pendingAttachments[0].url) : null,
+          media_type: (pendingAttachments && pendingAttachments[0]) ? (pendingAttachments[0].mimeType || pendingAttachments[0].fileType) : null,
+          media_name: (pendingAttachments && pendingAttachments[0]) ? (pendingAttachments[0].originalName || pendingAttachments[0].fileName) : null,
           status: response.data?.status || 'sent',
           timestamp: new Date().toISOString(),
           from_number: 'You',
@@ -131,6 +135,33 @@ const ChatWindow = ({ conversation, isConnected }) => {
       setInputMessage(messageContent);
     } finally {
       setSending(false);
+    }
+  };
+
+  // Emoji picker and attachments state
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState([]);
+
+  const emojiList = ['😀','😁','😂','😊','😍','😎','😢','😡','👍','🙏','🎉','🔥'];
+
+  const handleEmojiClick = (emoji) => {
+    setInputMessage(prev => prev + emoji);
+    setShowEmoji(false);
+  };
+
+  const handleAttachClick = async () => {
+    try {
+      const pick = await window.electronAPI.openFileDialog({ filters: [] });
+      if (!pick || !pick.success) return;
+
+      const uploadRes = await window.electronAPI.uploadDocument({ candidateId: conversation.candidate_id || null, filePath: pick.filePath, originalName: pick.fileName, meta: { category: 'WhatsApp_Attachment' } });
+      if (uploadRes && uploadRes.success) {
+        setPendingAttachments([{ id: uploadRes.data.id, path: uploadRes.data.path, filePath: uploadRes.data.path, originalName: uploadRes.data.fileName, mimeType: uploadRes.data.mimeType || uploadRes.data.fileType }]);
+      } else {
+        console.error('Attachment upload failed', uploadRes);
+      }
+    } catch (err) {
+      console.error('Attach error', err);
     }
   };
 
@@ -199,7 +230,13 @@ const ChatWindow = ({ conversation, isConnected }) => {
       <div className="chat-header">
         <div className="chat-header-left">
           <div className="chat-avatar">
-            {conversation.candidate_name?.charAt(0)?.toUpperCase() || '?'}
+            {conversation.photo_base64 ? (
+              <img src={conversation.photo_base64} alt={conversation.candidate_name || 'avatar'} loading="lazy" className="chat-avatar-photo img-loaded" />
+            ) : conversation.photo_path ? (
+              <LazyRemoteImage filePath={conversation.photo_path} className="chat-avatar-photo" />
+            ) : (
+              conversation.candidate_name?.charAt(0)?.toUpperCase() || '?'
+            )}
           </div>
           <div className="chat-info">
             <h3>{conversation.candidate_name || 'Unknown'}</h3>
@@ -266,6 +303,7 @@ const ChatWindow = ({ conversation, isConnected }) => {
             className="input-icon-btn" 
             title="Emoji"
             disabled={!isConnected}
+            onClick={() => setShowEmoji(!showEmoji)}
           >
             <Smile size={22} />
           </button>
@@ -275,6 +313,7 @@ const ChatWindow = ({ conversation, isConnected }) => {
             className="input-icon-btn" 
             title="Attach File"
             disabled={!isConnected}
+            onClick={handleAttachClick}
           >
             <Paperclip size={22} />
           </button>
@@ -303,6 +342,25 @@ const ChatWindow = ({ conversation, isConnected }) => {
             )}
           </button>
         </form>
+
+        {showEmoji && (
+          <div className="emoji-picker">
+            {emojiList.map((em, i) => (
+              <button key={i} type="button" className="emoji-btn" onClick={() => handleEmojiClick(em)}>{em}</button>
+            ))}
+          </div>
+        )}
+
+        {pendingAttachments && pendingAttachments.length > 0 && (
+          <div className="pending-attachments">
+            {pendingAttachments.map((att, i) => (
+              <div key={i} className="pending-attachment-item">
+                {att.originalName || att.fileName || att.path}
+                <button type="button" onClick={() => setPendingAttachments([])} className="remove-attachment">✖</button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Context Menu */}

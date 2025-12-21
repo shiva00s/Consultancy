@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FiUploadCloud, FiFilePlus, FiTrash2 } from "react-icons/fi";
+import { FiUploadCloud, FiFilePlus, FiTrash2, FiXCircle } from "react-icons/fi";
 import ConfirmDialog from "./common/ConfirmDialog";
 import toast from 'react-hot-toast';
 import "../css/DocumentUploader.css";
@@ -9,6 +9,8 @@ function DocumentUploader({ user, candidateId, onUploaded }) {
   const [uploadCategory, setUploadCategory] = useState("Uncategorized");
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadMap, setUploadMap] = useState({}); // uploadId -> fileIndex
+  const [fileProgress, setFileProgress] = useState({}); // uploadId -> { transferred, total, status }
   const [deleteDialog, setDeleteDialog] = useState({ open: false, index: null });
   
   // ✅ DYNAMIC: Fetch categories from DocumentRequirementManager
@@ -184,11 +186,26 @@ function DocumentUploader({ user, candidateId, onUploaded }) {
         files: fileData,
       });
 
+        // If main returned uploadIds, map them to files by order so we can show per-file progress
+        if (res && res.uploadIds && Array.isArray(res.uploadIds)) {
+          const map = {};
+          res.uploadIds.forEach((id, idx) => { map[id] = idx; });
+          setUploadMap(map);
+          // initialize progress entries
+          const initial = {};
+          res.uploadIds.forEach((id, idx) => {
+            initial[id] = { transferred: 0, total: fileData[idx].buffer.length || 0, status: 'progress', fileName: fileData[idx].name };
+          });
+          setFileProgress(initial);
+        }
+
       if (!res.success) {
         throw new Error(res.error || "Upload failed");
       }
 
       onUploaded(res.newDocs);
+      // show success toast for user feedback
+      try { toast.success(`✅ ${res.newDocs.length} file(s) uploaded successfully.`); } catch (e) {}
       setFiles([]);
       setUploadCategory("Uncategorized");
       if (fileInputRef.current) fileInputRef.current.value = null;
@@ -199,6 +216,57 @@ function DocumentUploader({ user, candidateId, onUploaded }) {
       setIsUploading(false);
     }
   };
+
+  // Subscribe to upload progress events for per-file progress UI
+  useEffect(() => {
+    if (!window.electronAPI || !window.electronAPI.onUploadProgress) return;
+
+    const unsubscribe = window.electronAPI.onUploadProgress((payload) => {
+      const { uploadId, transferred = 0, total = 0, status, data, error } = payload || {};
+      if (!uploadId) return;
+      setFileProgress((prev) => {
+        const next = { ...prev };
+        const entry = next[uploadId] || { transferred: 0, total: total || 0, status: 'progress' };
+        if (status === 'progress') {
+          entry.transferred = transferred;
+          entry.total = total || entry.total;
+          entry.status = 'progress';
+        } else if (status === 'done' || status === 'completed') {
+          entry.transferred = total || transferred;
+          entry.total = total || entry.total;
+          entry.status = 'completed';
+          entry.data = data || entry.data;
+          // schedule cleanup of this upload entry
+          setTimeout(() => {
+            setFileProgress((p) => {
+              const c = { ...p };
+              delete c[uploadId];
+              return c;
+            });
+            setUploadMap((m) => {
+              const nm = { ...m };
+              delete nm[uploadId];
+              return nm;
+            });
+          }, 2000);
+        } else if (status === 'error') {
+          entry.status = 'error';
+          entry.error = error;
+          setTimeout(() => {
+            setFileProgress((p) => {
+              const c = { ...p };
+              delete c[uploadId];
+              return c;
+            });
+          }, 5000);
+        }
+        next[uploadId] = entry;
+        return next;
+      });
+    });
+
+    return () => unsubscribe && unsubscribe();
+  }, []);
 
   const formatSize = (bytes) => {
     if (!bytes && bytes !== 0) return "";
@@ -327,6 +395,55 @@ function DocumentUploader({ user, candidateId, onUploaded }) {
                         <span>🏷️ {getFileCategory(f.name)}</span>
                         <span style={{ marginLeft: 12 }}>💾 {formatSize(f.size)}</span>
                       </div>
+
+                      {/* Per-file inline progress (mapped via uploadMap) */}
+                      {(() => {
+                        const uploadId = Object.keys(uploadMap).find((k) => uploadMap[k] === idx);
+                        const prog = uploadId ? fileProgress[uploadId] : null;
+                        if (!prog) return null;
+                        const percent = prog.total ? Math.round((prog.transferred / prog.total) * 100) : 0;
+                        return (
+                          <div style={{ marginTop: 8 }}>
+                            <div style={{ height: 8, background: '#1f2937', borderRadius: 6, overflow: 'hidden' }}>
+                              <div style={{ width: `${percent}%`, height: '100%', background: '#06b6d4' }} />
+                            </div>
+                            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>{percent}% {prog.status === 'error' ? `• Error` : prog.status === 'completed' ? '• Done' : ''}</div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Cancel button when upload in progress */}
+                      {(() => {
+                        const uploadId = Object.keys(uploadMap).find((k) => uploadMap[k] === idx);
+                        const prog = uploadId ? fileProgress[uploadId] : null;
+                        if (!uploadId || !prog || prog.status !== 'progress') return null;
+                        return (
+                          <button
+                            type="button"
+                            className="du-upload-cancel-btn"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                if (window.electronAPI && window.electronAPI.cancelUpload) {
+                                  await window.electronAPI.cancelUpload({ uploadId });
+                                }
+                                // Optimistically mark as cancelled
+                                setFileProgress((p) => {
+                                  const next = { ...p };
+                                  next[uploadId] = { ...(next[uploadId] || {}), status: 'cancelled' };
+                                  return next;
+                                });
+                              } catch (err) {
+                                console.error('Cancel upload error', err);
+                              }
+                            }}
+                            title="Cancel upload"
+                          >
+                            <FiXCircle />
+                          </button>
+                        );
+                      })()}
+
                     </div>
                   </div>
                   {/* ✅ Individual Delete Button */}

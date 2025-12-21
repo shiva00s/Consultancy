@@ -1,6 +1,8 @@
 // src-electron/services/twilioWhatsAppService.cjs
 
 const twilio = require('twilio');
+const { dbAll, dbGet, dbRun } = require('../db/database.cjs');
+const TwilioWebhookServer = require('./twilioWebhookServer.cjs');
 
 class TwilioWhatsAppService {
   constructor(mainWindow, db) {
@@ -9,6 +11,7 @@ class TwilioWhatsAppService {
     this.client = null;
     this.isReady = false;
     this.webhookUrl = null;
+    this.webhookServer = null;
     
     // Twilio credentials (will be stored in database)
     this.accountSid = null;
@@ -35,6 +38,16 @@ class TwilioWhatsAppService {
       // Test connection
       await this.testConnection();
 
+      // Initialize webhook server for incoming messages
+      try {
+        this.webhookServer = new TwilioWebhookServer(this.mainWindow, this.db, 3001);
+        await this.webhookServer.initialize(this.authToken);
+        console.log('✅ Webhook server initialized on port 3001');
+      } catch (webhookError) {
+        console.warn('⚠️ Failed to start webhook server:', webhookError.message);
+        // Don't fail - app can still send messages
+      }
+
       this.isReady = true;
       this.mainWindow.webContents.send('whatsapp:ready');
       
@@ -46,24 +59,23 @@ class TwilioWhatsAppService {
     }
   }
 
- async loadCredentials() {
+async loadCredentials() {
   try {
-    const settings = await this.db.all(`
+    const settings = await dbAll(this.db, `
       SELECT key, value 
       FROM system_settings 
       WHERE key IN ('twilio_account_sid', 'twilio_auth_token', 'twilio_whatsapp_number')
     `);
-    
+
     console.log('Settings response:', settings);
-    
-    const settingsArray = Array.isArray(settings) ? settings : (settings?.data || []);
-    
+
+    const settingsArray = Array.isArray(settings) ? settings : [];
+
     if (settingsArray.length === 0) {
       console.log('No Twilio credentials configured yet');
       return;
     }
-    
-    // ✅ Use proper key names
+
     settingsArray.forEach(setting => {
       if (setting.key === 'twilio_account_sid') {
         this.accountSid = setting.value;
@@ -73,7 +85,7 @@ class TwilioWhatsAppService {
         this.whatsappNumber = setting.value;
       }
     });
-    
+
     console.log('Loaded Twilio credentials:', {
       accountSid: this.accountSid ? '***configured***' : 'missing',
       authToken: this.authToken ? '***configured***' : 'missing',
@@ -93,7 +105,7 @@ async saveCredentials(accountSid, authToken, whatsappNumber) {
     ];
     
     for (const credential of credentials) {
-      await this.db.run(`
+      await dbRun(this.db, `
         INSERT OR REPLACE INTO system_settings (key, value) 
         VALUES (?, ?)
       `, [credential.key, credential.value]);
@@ -173,7 +185,7 @@ async saveCredentials(accountSid, authToken, whatsappNumber) {
       console.log('📨 Incoming message from:', phoneNumber);
 
       // Find candidate by phone number
-      const candidate = await this.db.get(`
+      const candidate = await dbGet(this.db, `
         SELECT id, name FROM candidates 
         WHERE contact LIKE ? OR contact LIKE ?
       `, [`%${phoneNumber}%`, `%${phoneNumber.slice(-10)}%`]);
@@ -190,7 +202,7 @@ async saveCredentials(accountSid, authToken, whatsappNumber) {
       `, [candidate.id]);
 
       if (!conversation) {
-        const result = await this.db.run(`
+        const result = await dbRun(this.db, `
           INSERT INTO whatsapp_conversations (
             candidate_id, 
             phone_number, 
@@ -201,7 +213,7 @@ async saveCredentials(accountSid, authToken, whatsappNumber) {
         conversation = { id: result.lastID };
       } else {
         // Update last message time
-        await this.db.run(`
+        await dbRun(this.db, `
           UPDATE whatsapp_conversations 
           SET last_message_time = ? 
           WHERE id = ?
@@ -209,7 +221,7 @@ async saveCredentials(accountSid, authToken, whatsappNumber) {
       }
 
       // Store message in database
-      const result = await this.db.run(`
+      const result = await dbRun(this.db, `
         INSERT INTO whatsapp_messages (
           conversation_id,
           sender_type,
@@ -267,9 +279,18 @@ async saveCredentials(accountSid, authToken, whatsappNumber) {
   }
 
   async destroy() {
+    if (this.webhookServer) {
+      await this.webhookServer.destroy();
+    }
     this.client = null;
     this.isReady = false;
     console.log('✅ Twilio WhatsApp service destroyed');
+  }
+
+  // Get webhook URL (for Twilio dashboard configuration)
+  getWebhookUrl(publicUrl = 'http://localhost:3001') {
+    if (!this.webhookServer) return null;
+    return this.webhookServer.getWebhookUrl(publicUrl);
   }
 }
 

@@ -6,8 +6,8 @@ import './TwilioSettingsModal.css';
 
 const TwilioSettingsModal = ({ onClose, onSave }) => {
   const [accountSid, setAccountSid] = useState('AC7ff5862adc4fc67803722d3e8ac3bda7');
-  const [authToken, setAuthToken] = useState('99edfb0989b10cdab747c55f89e227e5');
-  const [whatsappNumber, setWhatsappNumber] = useState('whatsapp:+919629881598');
+  const [authToken, setAuthToken] = useState('8db81c11ec073e5edf84330ad4d9c563');
+  const [whatsappNumber, setWhatsappNumber] = useState('whatsapp:+14155238886');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);

@@ -349,5 +349,58 @@ function startServer() {
     return server; // ✅ Return server instance for Socket.io
 }
 
+// Public file access route (signed temporary URLs)
+app.get('/public/files/:token/:filename', async (req, res) => {
+    try {
+        const token = req.params.token;
+        const jwt = require('jsonwebtoken');
+        const { getJwtSecret } = require('../db/queries.cjs');
+        const secret = await getJwtSecret();
+
+        // Verify token
+        let payload;
+        try {
+            payload = jwt.verify(token, secret);
+        } catch (err) {
+            return res.status(403).send('Invalid or expired token');
+        }
+
+        const filePath = payload && payload.path;
+        if (!filePath) return res.status(400).send('Invalid token payload');
+
+        // Security: ensure the file is inside app userData documents folder
+        const userData = require('electron').app ? require('electron').app.getPath('userData') : null;
+        const path = require('path');
+        const fs = require('fs');
+        const mime = require('mime');
+
+        // Allow serving files from `documents` or `candidate_files` under userData
+        if (userData) {
+            const documentsDir = path.join(userData, 'documents');
+            const candidateFilesDir = path.join(userData, 'candidate_files');
+            const allowed = [documentsDir, candidateFilesDir];
+
+            const normalized = path.resolve(filePath);
+            const isAllowed = allowed.some((d) => normalized.startsWith(path.resolve(d) + path.sep) || normalized === path.resolve(d));
+            if (!isAllowed) {
+                return res.status(403).send('Access denied');
+            }
+        }
+
+        if (!fs.existsSync(filePath)) return res.status(404).send('File not found');
+
+        // Set explicit content-type for reliability
+        try {
+            const contentType = (mime && typeof mime.getType === 'function') ? mime.getType(filePath) : null;
+            if (contentType) res.setHeader('Content-Type', contentType);
+        } catch (e) {}
+
+        return res.sendFile(path.resolve(filePath));
+    } catch (err) {
+        console.error('Public file route error:', err);
+        return res.status(500).send('Server error');
+    }
+});
+
 // ✅ Export both server function and app instance
 module.exports = { startServer, app };

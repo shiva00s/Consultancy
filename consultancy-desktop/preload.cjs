@@ -62,6 +62,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Document Operations
   addDocuments: (args) => ipcRenderer.invoke('add-documents', args),
+  cancelUpload: (args) => ipcRenderer.invoke('cancel-upload', args),
   deleteDocument: (id) => ipcRenderer.invoke('delete-document', id),
   getDocumentBase64: (args) => ipcRenderer.invoke('get-document-base64', args),
   openFileExternally: (args) => ipcRenderer.invoke('open-file-externally', args),
@@ -91,6 +92,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // File Utilities
   readAbsoluteFileBuffer: (params) => ipcRenderer.invoke('read-absolute-file-buffer', params),
   getImageBase64: (params) => ipcRenderer.invoke('getImageBase64', params),
+  getThumbnail: (params) => ipcRenderer.invoke('get-thumbnail', params),
   openFileDialog: (options) => ipcRenderer.invoke('open-file-dialog', options),
   zipCandidateDocuments: (args) => ipcRenderer.invoke('zip-candidate-documents', args),
   
@@ -401,12 +403,23 @@ whatsapp: {
   // ========== Candidates ==========
   // ✅ FIX: Changed from getCandidatesForChat to getCandidatesWithPhone
   getCandidatesWithPhone: () => ipcRenderer.invoke('whatsapp:getCandidatesWithPhone'),
+  seedCandidates: () => ipcRenderer.invoke('whatsapp:seedCandidates'),
+  debugCandidates: () => ipcRenderer.invoke('whatsapp:debugCandidates'),
+  importCandidatesFromFile: (filePath) => ipcRenderer.invoke('whatsapp:importCandidatesFromFile', filePath),
+ 
+  // Webhook & Production
+  getWebhookInfo: () => ipcRenderer.invoke('whatsapp:getWebhookInfo'),
+  saveWebhookUrl: (url) => ipcRenderer.invoke('whatsapp:saveWebhookUrl', url),
   
   // ========== Settings & Status ==========
   getStatus: () => ipcRenderer.invoke('whatsapp:getStatus'),
   saveCredentials: (credentials) => ipcRenderer.invoke('whatsapp:saveCredentials', credentials),
   testConnection: (credentials) => ipcRenderer.invoke('whatsapp:testConnection', credentials), // ✅ ADDED
   logout: () => ipcRenderer.invoke('whatsapp:logout'),
+  
+  // ========== Configuration ==========
+  verifyConfig: () => ipcRenderer.invoke('whatsapp:verifyConfig'),
+  setWhatsAppNumber: (number) => ipcRenderer.invoke('whatsapp:setWhatsAppNumber', number),
   
   // ========== Event Listeners ==========
   onReady: (callback) => {    ipcRenderer.on('whatsapp:ready', () => callback());  },  

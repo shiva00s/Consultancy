@@ -30,6 +30,9 @@ function CandidateMedical({ user, candidateId, candidateName }) {
     onConfirm: null,
   });
 
+  const [medUploadId, setMedUploadId] = useState(null);
+  const [medFileProgress, setMedFileProgress] = useState(null);
+
   const fileInputRef = useRef(null);
   const editFileInputRefs = useRef({});
   const [editPreviews, setEditPreviews] = useState({});
@@ -180,12 +183,11 @@ function CandidateMedical({ user, candidateId, candidateName }) {
           category: 'Medical',
         };
 
-        const docRes = await window.electronAPI.addDocuments({
-          user,
-          candidateId,
-          files: [fileData],
-        });
-
+        const docRes = await window.electronAPI.addDocuments({ user, candidateId, files: [fileData] });
+        if (docRes && Array.isArray(docRes.uploadIds) && docRes.uploadIds[0]) {
+          setMedUploadId(docRes.uploadIds[0]);
+          setMedFileProgress({ transferred: 0, total: buffer.length, status: 'progress', fileName: fileData.name });
+        }
         if (docRes.success && docRes.newDocs.length > 0) {
           certificate_path = docRes.newDocs[0].filePath;
         } else {
@@ -256,6 +258,27 @@ function CandidateMedical({ user, candidateId, candidateName }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Subscribe to upload progress for medical file uploads
+  useEffect(() => {
+    if (!window.electronAPI || !window.electronAPI.onUploadProgress) return;
+    const unsub = window.electronAPI.onUploadProgress((payload) => {
+      const { uploadId, transferred = 0, total = 0, status, data } = payload || {};
+      if (!uploadId) return;
+      if (medUploadId && uploadId === medUploadId) {
+        setMedFileProgress({ transferred, total, status, data });
+        if (status === 'completed' || status === 'done') {
+          setTimeout(() => setMedUploadId(null), 1200);
+        }
+      }
+      // also allow matching by filename on completed event
+      if (!medUploadId && data && data.fileName && medicalForm.certificate_file && data.fileName === medicalForm.certificate_file.name) {
+        setMedFileProgress({ transferred: total || transferred, total, status: 'completed', data });
+        setTimeout(() => setMedFileProgress(null), 1500);
+      }
+    });
+    return () => unsub && unsub();
+  }, [medUploadId, medicalForm.certificate_file]);
+
   const handleAddEntry = async (e) => {
     e.preventDefault();
     if (!medicalForm.test_date) {
@@ -279,12 +302,11 @@ function CandidateMedical({ user, candidateId, candidateName }) {
           category: 'Medical',
         };
 
-        const docRes = await window.electronAPI.addDocuments({
-          user,
-          candidateId,
-          files: [fileData],
-        });
-
+        const docRes = await window.electronAPI.addDocuments({ user, candidateId, files: [fileData] });
+        if (docRes && Array.isArray(docRes.uploadIds) && docRes.uploadIds[0]) {
+          setMedUploadId(docRes.uploadIds[0]);
+          setMedFileProgress({ transferred: 0, total: buffer.length, status: 'progress', fileName: fileData.name });
+        }
         if (docRes.success && docRes.newDocs.length > 0) {
           certificate_path = docRes.newDocs[0].filePath;
         } else {
@@ -476,6 +498,36 @@ function CandidateMedical({ user, candidateId, candidateName }) {
           <FiFileText />
           <span className="file-name-text">{medicalForm.certificate_file.name}</span>
         </div>
+        {/* Inline progress for certificate upload */}
+        {medFileProgress && (medFileProgress.fileName === medicalForm.certificate_file.name || medUploadId) && (
+          <div style={{ flex: 1, marginLeft: 12 }}>
+            <div style={{ height: 8, background: '#1f2937', borderRadius: 6, overflow: 'hidden' }}>
+              <div style={{ width: `${medFileProgress.total ? Math.round((medFileProgress.transferred / medFileProgress.total) * 100) : 0}%`, height: '100%', background: '#10b981' }} />
+            </div>
+            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>{medFileProgress.total ? `${Math.round((medFileProgress.transferred / medFileProgress.total) * 100)}%` : ''} {medFileProgress.status === 'error' ? ' • Error' : medFileProgress.status === 'completed' ? ' • Done' : ''}</div>
+          </div>
+        )}
+        {/* Cancel button for certificate upload */}
+        {medUploadId && medFileProgress && medFileProgress.status === 'progress' && (
+          <button
+            type="button"
+            className="du-upload-cancel-btn"
+            onClick={async () => {
+              try {
+                if (window.electronAPI && window.electronAPI.cancelUpload) {
+                  await window.electronAPI.cancelUpload({ uploadId: medUploadId });
+                }
+              } catch (err) {
+                console.error('Cancel med upload error', err);
+              }
+              setMedFileProgress((p) => p ? { ...p, status: 'cancelled' } : p);
+              setMedUploadId(null);
+            }}
+            title="Cancel upload"
+          >
+            Cancel
+          </button>
+        )}
       </div>
     )}
   </div>

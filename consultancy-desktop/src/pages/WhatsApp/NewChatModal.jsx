@@ -14,16 +14,9 @@ const NewChatModal = ({ onClose, onSelect }) => {
   }, []);
 
   const loadCandidates = async () => {
-    try {
-      setLoading(true);
-      
-      const response = await window.electronAPI.whatsapp.getCandidatesWithPhone();
-      
       try {
-        console.log('Candidates response (raw):', response, JSON.stringify(response));
-      } catch (e) {
-        console.log('Candidates response (raw, non-serializable):', response);
-      }
+        setLoading(true);
+        const response = await window.electronAPI.whatsapp.getCandidatesWithPhone();
 
       // Tolerant handling: accept either an array, or { success, data } shape.
       let candidatesData = [];
@@ -72,11 +65,23 @@ const NewChatModal = ({ onClose, onSelect }) => {
       if (response?.success) {
         const conversationData = {
           id: response.conversationId || response.data?.id,
-          candidate_id: candidate.id,
-          candidate_name: candidate.name,
-          phone_number: candidate.contact,
+          candidate_id: response.data?.candidate_id || candidate.id,
+          candidate_name: response.data?.candidate_name || candidate.name,
+          phone_number: response.data?.phone_number || candidate.contact,
           ...response.data
         };
+        
+        // Validate required fields
+        if (!conversationData.id) {
+          console.error('❌ Invalid conversation - missing id:', conversationData);
+          alert('Invalid conversation - missing id. Check console logs.');
+          return;
+        }
+        if (!conversationData.phone_number) {
+          console.error('❌ Invalid conversation - missing phone_number:', conversationData);
+          alert('Invalid conversation - missing phone number. Check console logs.');
+          return;
+        }
         
         console.log('Conversation created:', conversationData);
         onSelect(conversationData);
@@ -138,7 +143,25 @@ const NewChatModal = ({ onClose, onSelect }) => {
                 onClick={() => handleSelect(candidate)}
               >
                 <div className="candidate-avatar">
-                  <User size={20} />
+                  {candidate.photo_base64 ? (
+                    <img
+                      src={candidate.photo_base64}
+                      alt={candidate.name}
+                      className="candidate-photo-thumb img-loading"
+                      loading="lazy"
+                      onLoad={(e) => { try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {} }}
+                    />
+                  ) : candidate.photo_path ? (
+                    <img
+                      src={candidate.photo_path}
+                      alt={candidate.name}
+                      className="candidate-photo-thumb img-loading"
+                      loading="lazy"
+                      onLoad={(e) => { try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {} }}
+                    />
+                  ) : (
+                    <User size={20} />
+                  )}
                 </div>
                 <div className="candidate-details">
                   <h4>{candidate.name}</h4>

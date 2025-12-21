@@ -20,3 +20,21 @@
 .upload-bar { background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden; }
 .upload-bar-fill { background: linear-gradient(90deg,#4fbe79,#2bb0ff); height: 100%; width: 0%; transition: width 200ms linear; }
 .upload-meta { margin-top: 6px; opacity: 0.9; font-size: 11px; }
+
+/* Cancel button used inline near file progress */
+.du-upload-cancel-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #fff;
+  padding: 6px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.du-upload-cancel-btn:hover { opacity: 0.95; }
+
+/* Visual for cancelled uploads */
+.progress-cancelled { opacity: 0.6; filter: grayscale(0.6); }

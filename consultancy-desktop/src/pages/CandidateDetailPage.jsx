@@ -18,6 +18,7 @@ import {
 import toast from "react-hot-toast";
 
 import "../css/CandidateDetailPage.css";
+import LazyRemoteImage from "../components/common/LazyRemoteImage"; 
 import UniversalTabs from "../components/common/UniversalTabs"; 
 import CandidateFinance from "../components/candidate-detail/CandidateFinance";
 import CandidateVisa from "../components/candidate-detail/CandidateVisa";
@@ -707,21 +708,10 @@ function CandidateDetailPage({ user, flags }) {
             }}
           >
             {photoUrl ? (
-              <img
-                src={photoUrl}
-                alt="Candidate"
-                onClick={handleUploadPhoto}
-                title="Click to change photo"
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                  marginRight: 10,
-                  verticalAlign: "middle",
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.35)'
-                }}
+              <LazyRemoteImage
+                filePath={photoUrl}
+                className="candidate-header-photo"
+                onLoad={() => {}}
               />
             ) : (
               <div onClick={handleUploadPhoto} title="Click to add photo" style={{ display: 'inline-block', cursor: 'pointer', marginRight: 10 }}>

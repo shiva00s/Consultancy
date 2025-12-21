@@ -51,6 +51,8 @@ function BulkImportPage() {
   const [mapping, setMapping] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState(null);
+  const [bulkUploadId, setBulkUploadId] = useState(null);
+  const [bulkProgress, setBulkProgress] = useState(null);
 
   // File Selection
   const handleFileSelect = async () => {
@@ -281,11 +283,11 @@ function BulkImportPage() {
       setIsLoading(true);
       toast.loading('Processing archive...');
       try {
-        const importRes = await window.electronAPI.bulkImportDocuments({
-          user,
-          candidateIdMap: {},
-          archivePath: res.filePaths[0],
-        });
+        const importRes = await window.electronAPI.bulkImportDocuments({ user, candidateIdMap: {}, archivePath: res.filePaths[0] });
+        if (importRes && importRes.uploadId) {
+          setBulkUploadId(importRes.uploadId);
+          setBulkProgress({ transferred: 0, total: 0, status: 'progress' });
+        }
         toast.dismiss();
         if (importRes.success) {
           toast.success('Documents imported successfully!');
@@ -299,6 +301,27 @@ function BulkImportPage() {
       setIsLoading(false);
     }
   };
+
+  // Subscribe to bulk import progress updates
+  React.useEffect(() => {
+    if (!window.electronAPI || !window.electronAPI.onUploadProgress) return;
+    const unsub = window.electronAPI.onUploadProgress((payload) => {
+      const { uploadId, transferred = 0, total = 0, status, data } = payload || {};
+      if (!uploadId) return;
+      if (bulkUploadId && uploadId === bulkUploadId) {
+        setBulkProgress({ transferred, total, status, data });
+        if (status === 'completed' || status === 'done') {
+          setTimeout(() => setBulkUploadId(null), 1000);
+        }
+      }
+      // allow anonymous mapping by presence of bulk completion data
+      if (!bulkUploadId && status === 'completed' && data && data.successfulDocs !== undefined) {
+        setBulkProgress({ transferred: total || transferred, total, status, data });
+        setTimeout(() => setBulkProgress(null), 2000);
+      }
+    });
+    return () => unsub && unsub();
+  }, [bulkUploadId]);
 
   // Render Step 1 (Data)
   const renderDataStep1 = () => (
@@ -539,6 +562,14 @@ function BulkImportPage() {
           <FiUploadCloud /> Import documents
         </button>
       </div>
+      {bulkProgress && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ height: 10, background: '#111827', borderRadius: 6, overflow: 'hidden' }}>
+            <div style={{ width: `${bulkProgress.total ? Math.round((bulkProgress.transferred / bulkProgress.total) * 100) : 0}%`, height: '100%', background: '#8b5cf6' }} />
+          </div>
+          <div style={{ marginTop: 6, color: '#94a3b8', fontSize: 13 }}>{bulkProgress.total ? `${Math.round((bulkProgress.transferred / bulkProgress.total) * 100)}%` : ''} {bulkProgress.status === 'completed' ? ' • Done' : ''}</div>
+        </div>
+      )}
     </div>
   );
 

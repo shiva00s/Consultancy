@@ -80,7 +80,15 @@ function ProfilePhotoDisplay({ candidateId, candidateName, editable = false }) {
             <div className="skeleton-shimmer"></div>
           </div>
         ) : photoUrl ? (
-          <img src={photoUrl} alt={candidateName} className="profile-photo candidate-photo" />
+          <img
+            src={photoUrl}
+            alt={candidateName}
+            loading="lazy"
+            className="profile-photo candidate-photo img-loading"
+            onLoad={(e) => {
+              try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {}
+            }}
+          />
         ) : (
           <div className="photo-placeholder">
             <FiUser />

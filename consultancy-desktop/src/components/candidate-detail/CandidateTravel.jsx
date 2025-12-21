@@ -25,6 +25,8 @@ function CandidateTravel({ user, candidateId, candidateName }) {
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, travelId: null });
   const fileInputRef = useRef(null);
   const [ticketPreviews, setTicketPreviews] = useState({});
+  const [travelUploadId, setTravelUploadId] = useState(null);
+  const [travelFileProgress, setTravelFileProgress] = useState(null);
 
   const fetchTravelTracking = useCallback(async () => {
     setLoading(true);
@@ -115,11 +117,11 @@ function CandidateTravel({ user, candidateId, candidateName }) {
           buffer: buffer,
           category: 'Travel',
         };
-        const docRes = await window.electronAPI.addDocuments({
-          user,
-          candidateId,
-          files: [fileData],
-        });
+        const docRes = await window.electronAPI.addDocuments({ user, candidateId, files: [fileData] });
+        if (docRes && Array.isArray(docRes.uploadIds) && docRes.uploadIds[0]) {
+          setTravelUploadId(docRes.uploadIds[0]);
+          setTravelFileProgress({ transferred: 0, total: buffer.length, status: 'progress', fileName: fileData.name });
+        }
         if (docRes.success && docRes.newDocs.length > 0) {
           ticket_file_path = docRes.newDocs[0].filePath;
         } else {
@@ -253,6 +255,26 @@ function CandidateTravel({ user, candidateId, candidateName }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Subscribe to upload progress for ticket uploads
+  useEffect(() => {
+    if (!window.electronAPI || !window.electronAPI.onUploadProgress) return;
+    const unsub = window.electronAPI.onUploadProgress((payload) => {
+      const { uploadId, transferred = 0, total = 0, status, data } = payload || {};
+      if (!uploadId) return;
+      if (travelUploadId && uploadId === travelUploadId) {
+        setTravelFileProgress({ transferred, total, status, data });
+        if (status === 'completed' || status === 'done') {
+          setTimeout(() => setTravelUploadId(null), 1200);
+        }
+      }
+      if (!travelUploadId && data && data.fileName && travelForm.ticket_file && data.fileName === travelForm.ticket_file.name) {
+        setTravelFileProgress({ transferred: total || transferred, total, status: 'completed', data });
+        setTimeout(() => setTravelFileProgress(null), 1500);
+      }
+    });
+    return () => unsub && unsub();
+  }, [travelUploadId, travelForm.ticket_file]);
+
   if (loading) return <div className="loading-state">⏳ Loading travel tracking...</div>;
 
   return (
@@ -345,6 +367,36 @@ function CandidateTravel({ user, candidateId, candidateName }) {
                     <FiSend />
                     <span className="file-name-text">{travelForm.ticket_file.name}</span>
                   </div>
+                  {/* Inline progress for ticket upload */}
+                  {travelFileProgress && (travelFileProgress.fileName === travelForm.ticket_file.name || travelUploadId) && (
+                    <div style={{ flex: 1, marginLeft: 12 }}>
+                      <div style={{ height: 8, background: '#1f2937', borderRadius: 6, overflow: 'hidden' }}>
+                        <div style={{ width: `${travelFileProgress.total ? Math.round((travelFileProgress.transferred / travelFileProgress.total) * 100) : 0}%`, height: '100%', background: '#3b82f6' }} />
+                      </div>
+                      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>{travelFileProgress.total ? `${Math.round((travelFileProgress.transferred / travelFileProgress.total) * 100)}%` : ''} {travelFileProgress.status === 'error' ? ' • Error' : travelFileProgress.status === 'completed' ? ' • Done' : ''}</div>
+                    </div>
+                  )}
+                    {/* Cancel button for ticket upload */}
+                    {travelUploadId && travelFileProgress && travelFileProgress.status === 'progress' && (
+                      <button
+                        type="button"
+                        className="du-upload-cancel-btn"
+                        onClick={async () => {
+                          try {
+                            if (window.electronAPI && window.electronAPI.cancelUpload) {
+                              await window.electronAPI.cancelUpload({ uploadId: travelUploadId });
+                            }
+                          } catch (err) {
+                            console.error('Cancel travel upload error', err);
+                          }
+                          setTravelFileProgress((p) => p ? { ...p, status: 'cancelled' } : p);
+                          setTravelUploadId(null);
+                        }}
+                        title="Cancel upload"
+                      >
+                        Cancel
+                      </button>
+                    )}
                 </div>
               )}
             </div>

@@ -62,11 +62,68 @@ async function runMigrations(dbInstance) {
       console.log('⏭️  Migration 002: Already applied');
     }
 
+    // Migration 003: Create attachments table for message attachments
+    if (!appliedNames.includes('003_create_message_attachments')) {
+      await migration_003_create_message_attachments(dbInstance);
+      await dbRun(
+        dbInstance,
+        `INSERT INTO schema_migrations (migration_name) VALUES ('003_create_message_attachments')`
+      );
+      console.log('✅ Migration 003: Create message attachments table - APPLIED');
+    } else {
+      console.log('⏭️  Migration 003: Already applied');
+    }
+
+    // Migration 004: Add media columns to whatsapp_messages
+    if (!appliedNames.includes('004_add_media_columns_whatsapp_messages')) {
+      await migration_004_add_media_columns_whatsapp_messages(dbInstance);
+      await dbRun(
+        dbInstance,
+        `INSERT INTO schema_migrations (migration_name) VALUES ('004_add_media_columns_whatsapp_messages')`
+      );
+      console.log('✅ Migration 004: Add media columns to whatsapp_messages - APPLIED');
+    } else {
+      console.log('⏭️  Migration 004: Already applied');
+    }
+
     console.log('✅ All migrations completed successfully');
     return dbInstance;
   } catch (error) {
     console.error('❌ Migration failed:', error);
     throw error;
+  }
+}
+
+async function migration_004_add_media_columns_whatsapp_messages(dbInstance) {
+  console.log('🔄 Running migration: Add media columns to whatsapp_messages...');
+  try {
+    const cols = await dbAll(dbInstance, `PRAGMA table_info(whatsapp_messages)`);
+    const colNames = (cols || []).map(c => c.name);
+
+    if (!colNames.includes('media_url')) {
+      await dbRun(dbInstance, `ALTER TABLE whatsapp_messages ADD COLUMN media_url TEXT`);
+      console.log('✅ Added media_url to whatsapp_messages');
+    } else {
+      console.log('⏭️ media_url already exists on whatsapp_messages');
+    }
+
+    if (!colNames.includes('media_type')) {
+      await dbRun(dbInstance, `ALTER TABLE whatsapp_messages ADD COLUMN media_type TEXT`);
+      console.log('✅ Added media_type to whatsapp_messages');
+    } else {
+      console.log('⏭️ media_type already exists on whatsapp_messages');
+    }
+
+    if (!colNames.includes('media_name')) {
+      await dbRun(dbInstance, `ALTER TABLE whatsapp_messages ADD COLUMN media_name TEXT`);
+      console.log('✅ Added media_name to whatsapp_messages');
+    } else {
+      console.log('⏭️ media_name already exists on whatsapp_messages');
+    }
+
+  } catch (err) {
+    console.error('❌ Migration 004 failed:', err);
+    throw err;
   }
 }
 
@@ -153,6 +210,34 @@ async function migration_002_add_comm_metadata_and_doc_path(dbInstance) {
 
   } catch (err) {
     console.error('❌ Migration 002 failed:', err);
+    throw err;
+  }
+}
+
+async function migration_003_create_message_attachments(dbInstance) {
+  console.log('🔄 Running migration: Create message attachments table...');
+  try {
+    const cols = await dbAll(dbInstance, `PRAGMA table_info(whatsapp_message_attachments)`);
+    if (!cols || cols.length === 0) {
+      await dbRun(dbInstance, `
+        CREATE TABLE IF NOT EXISTS whatsapp_message_attachments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          message_id INTEGER NOT NULL,
+          document_id INTEGER,
+          file_path TEXT,
+          original_name TEXT,
+          mime_type TEXT,
+          created_at TEXT DEFAULT (datetime('now','localtime')),
+          FOREIGN KEY(message_id) REFERENCES whatsapp_messages(id),
+          FOREIGN KEY(document_id) REFERENCES documents(id)
+        )
+      `);
+      console.log('✅ Created whatsapp_message_attachments table');
+    } else {
+      console.log('⏭️ whatsapp_message_attachments already exists');
+    }
+  } catch (err) {
+    console.error('❌ Migration 003 failed:', err);
     throw err;
   }
 }
