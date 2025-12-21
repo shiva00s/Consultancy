@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import '../css/MainLayout.css';
 import ChangePasswordModal from './modals/ChangePasswordModal';
 import KeyboardShortcutsGuide from './KeyboardShortcutsGuide';
+import UploadProgress from './UploadProgress';
 import { useGlobalShortcuts } from '../hooks/useKeyboardShortcuts';
 import useThemeStore from '../store/useThemeStore';
 import NotificationBell from './NotificationBell';
@@ -402,6 +403,8 @@ function MainLayout({ children, onLogout, user, flags }) {
       <main className="main-content">{children}</main>
 
       <KeyboardShortcutsGuide />
+
+      <UploadProgress />
 
       {isPasswordModalOpen && (
         <ChangePasswordModal

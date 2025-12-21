@@ -76,7 +76,7 @@ function registerPassportHandlers() {
         return { success: false, error: 'Candidate ID is required' };
       }
 
-      console.log(`📥 Fetching movements for candidate ${candidateId}...`);
+      
       const result = await queries.getPassportMovements(candidateId);
 
       if (result.success) {

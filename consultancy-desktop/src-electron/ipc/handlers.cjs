@@ -8,14 +8,14 @@ const { v4: uuidv4 } = require('uuid');
 const archiver = require('archiver');
 const mime = require('mime');
 const { getDatabase } = require('../db/database.cjs');
-const fs = require('fs-extra','fs');
+const fs = require('fs-extra');
 const { 
   getAdminAssignedFeatures,
   getUserPermissions,
   getAdminEffectiveFlags,
   dbRun,      // ✅ Already imported
   dbGet,      // ✅ Already imported
-  dbAll,      // ✅ ADD THIS - Missing import
+  dbAll,      // ✅ Now imported
   getCanonicalUserContext: getCanonicalUserContextFromQueries 
 } = require('../db/queries.cjs');
 const ejs = require('ejs');
@@ -623,7 +623,7 @@ ipcMain.handle('get-feature-flags', async (event, { user } = {}) => {
             const filesDir = path.join(app.getPath('userData'), 'candidate_files');
 // Ensure storage directory exists
             if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true });
-            const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
+            const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, file_path, category) VALUES (?, ?, ?, ?, ?, ?)`;
             for (const fileName of files) {
                 // Skip Mac/Linux artifacts and hidden files
                 if (fileName.startsWith('.') || fileName.startsWith('__')) continue;
@@ -652,7 +652,7 @@ ipcMain.handle('get-feature-flags', async (event, { user } = {}) => {
 // B. Database Insert (Awaited Promise)
                         await new Promise((resolve, reject) => {
                             const fileType = mime.getType(fileName) || 'application/octet-stream';
-                            db.run(sqlDoc, [candidateId, fileType, fileName, newFilePath, category], function(err) {
+                            db.run(sqlDoc, [candidateId, fileType, fileName, newFilePath, newFilePath, category], function(err) {
                                 if (err) {
                                     console.error(`DB Insert Failed for ${fileName}:`, err.message);
                        
@@ -858,10 +858,10 @@ ipcMain.handle('get-system-audit-log', async (event, args) => {
 
             // 3. Insert documents records for saved files
             if (savedFiles.length > 0) {
-              const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
+              const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, file_path, category) VALUES (?, ?, ?, ?, ?, ?)`;
               const fileOperations = savedFiles.map((f) => {
                 return new Promise((resolve, reject) => {
-                  db.run(sqlDoc, [candidateId, f.fileType, f.originalName, f.filePath, f.category], function (err) {
+                  db.run(sqlDoc, [candidateId, f.fileType, f.originalName, f.filePath, f.filePath, f.category], function (err) {
                     if (err) return reject(err);
                     try { logAction(user, 'add_document', 'candidates', candidateId, `File: ${f.originalName}`); } catch (e) {}
                     resolve({ id: this.lastID, fileName: f.originalName, filePath: f.filePath, fileType: f.fileType, category: f.category });
@@ -923,7 +923,7 @@ ipcMain.handle('add-documents', async (event, { user, candidateId, files }) => {
         const filesDir = path.join(app.getPath('userData'), 'candidate_files');
         if (!files || files.length === 0) return { success: false, error: 'No files provided.' };
 
-        const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
+        const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, file_path, category) VALUES (?, ?, ?, ?, ?, ?)`;
         
         // Use Promise.all 
         const fileOperations = files.map(async (file) => { // marked async
@@ -2313,19 +2313,177 @@ ipcMain.handle('get-activation-status', async () => {
 // COMMUNICATION LOGS HANDLERS
 // ============================================================================
 
-ipcMain.handle("logCommunication", async (event, { user, candidateId, communication_type, details }) => {
-  console.log("📞 logCommunication called:", { candidateId, type: communication_type, details });
-  
+ipcMain.handle("logCommunication", async (event, { user, candidateId, communication_type, details, attachments, metadata }) => {
+  console.log("📞 logCommunication called:", { candidateId, type: communication_type, details, attachments, metadata });
+
   if (!user?.id) {
     return { success: false, error: "User not authenticated" };
   }
-  
+
+  // Normalize metadata: merge attachments into metadata object
+  const meta = Object.assign({}, metadata || {});
+  if (attachments) meta.attachments = Array.isArray(attachments) ? attachments : [attachments];
+
+  // Ensure each attachment has a usable `path` property for renderer previews.
+  // If an attachment only contains an `id` (document id) or `filePath`, resolve it from the DB.
+  try {
+    const db = getDatabase();
+    if (meta.attachments && meta.attachments.length) {
+      for (let i = 0; i < meta.attachments.length; i++) {
+        const att = meta.attachments[i] || {};
+        // Already has a path or URL — nothing to do
+        if (att.path || att.url) continue;
+
+        // If filePath present (different codepaths use different names), normalize it
+        if (att.filePath) {
+          att.path = att.filePath;
+          meta.attachments[i] = att;
+          continue;
+        }
+
+        // If an id/documentId is present, resolve it from documents table
+        const docId = att.id || att.documentId || att._id;
+        if (docId && db) {
+          try {
+            const row = await dbGet(db, 'SELECT filePath, fileName FROM documents WHERE id = ?', [docId]);
+            if (row) {
+              att.path = row.filePath || row.file_path || att.path || null;
+              att.originalName = att.originalName || att.fileName || row.fileName || att.name || null;
+              meta.attachments[i] = att;
+            }
+          } catch (e) {
+            // ignore resolution errors — we'll persist whatever we have
+            console.warn('Could not resolve document path for attachment', docId, e && e.message);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Attachment path normalization failed:', e && e.message);
+  }
+
   return queries.logCommunication({
     candidateId: parseInt(candidateId),
     userId: user.id,
     type: communication_type,
-    details: details
+    details: details,
+    metadata: meta,
   });
+});
+
+
+// === DOCUMENT UPLOAD ===
+ipcMain.handle('upload-document', async (event, { candidateId, filePath, originalName, meta = {}, uploadId: incomingUploadId = null }) => {
+  // Stream file copy with progress reporting to renderer via `upload-progress` events.
+  const webContents = event && event.sender;
+  const uploadId = incomingUploadId || uuidv4();
+  try {
+    if (!filePath || !fs.existsSync(filePath)) {
+      // Inform renderer about immediate failure
+      if (webContents && !webContents.isDestroyed()) {
+        webContents.send('upload-progress', { uploadId, status: 'error', error: 'File not found for upload.' });
+      }
+      return { success: false, error: 'File not found for upload.' };
+    }
+
+    const appDataPath = app.getPath('userData');
+    const documentsDir = path.join(appDataPath, 'documents');
+    await fs.ensureDir(documentsDir); // Ensure the directory exists
+
+    const stat = await fs.stat(filePath);
+    const totalBytes = stat.size || 0;
+    const fileExtension = path.extname(originalName);
+    const newFileName = `${Date.now()}-${uuidv4()}${fileExtension}`;
+    const destinationPath = path.join(documentsDir, newFileName);
+
+    // Stream copy with backpressure and progress events
+    await new Promise((resolve, reject) => {
+      const readStream = fs.createReadStream(filePath);
+      const writeStream = fs.createWriteStream(destinationPath);
+      let transferred = 0;
+
+      readStream.on('data', (chunk) => {
+        transferred += chunk.length;
+        if (webContents && !webContents.isDestroyed()) {
+          webContents.send('upload-progress', { uploadId, transferred, total: totalBytes, status: 'progress' });
+        }
+      });
+
+      readStream.on('error', (err) => {
+        if (webContents && !webContents.isDestroyed()) {
+          webContents.send('upload-progress', { uploadId, status: 'error', error: err.message });
+        }
+        reject(err);
+      });
+
+      writeStream.on('error', (err) => {
+        if (webContents && !webContents.isDestroyed()) {
+          webContents.send('upload-progress', { uploadId, status: 'error', error: err.message });
+        }
+        reject(err);
+      });
+
+      writeStream.on('close', () => {
+        if (webContents && !webContents.isDestroyed()) {
+          webContents.send('upload-progress', { uploadId, transferred: totalBytes, total: totalBytes, status: 'done' });
+        }
+        resolve();
+      });
+
+      // Start piping
+      readStream.pipe(writeStream);
+    });
+
+    // Persist document record
+    try {
+      const db = getDatabase();
+      const sql = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, file_path, category, uploadedAt) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+      const params = [
+        candidateId,
+        mime.getType(destinationPath) || null,
+        originalName,
+        destinationPath,
+        destinationPath,
+        meta.category || 'WhatsApp_Attachment',
+        new Date().toISOString(),
+      ];
+
+      const runResult = await dbRun(db, sql, params);
+      const insertedId = runResult.lastID;
+
+      const docRecord = {
+        id: insertedId,
+        candidateId,
+        originalName,
+        fileName: originalName,
+        path: destinationPath,
+        filePath: destinationPath,
+        file_path: destinationPath,
+        mimeType: mime.getType(destinationPath) || null,
+        size: (await fs.stat(destinationPath)).size,
+      };
+
+      // Finalize: send a completion event with the document info
+      if (webContents && !webContents.isDestroyed()) {
+        webContents.send('upload-progress', { uploadId, status: 'completed', data: docRecord });
+      }
+
+      return { success: true, data: docRecord, uploadId };
+    } catch (dbErr) {
+      console.error('Failed to insert document record:', dbErr);
+      await fs.remove(destinationPath).catch(() => {});
+      if (webContents && !webContents.isDestroyed()) {
+        webContents.send('upload-progress', { uploadId, status: 'error', error: dbErr.message || 'DB insert failed' });
+      }
+      return { success: false, error: dbErr.message || 'DB insert failed' };
+    }
+  } catch (error) {
+    console.error('❌ upload-document error:', error);
+    if (webContents && !webContents.isDestroyed()) {
+      webContents.send('upload-progress', { uploadId, status: 'error', error: error.message });
+    }
+    return { success: false, error: error.message };
+  }
 });
 
 
@@ -2498,9 +2656,9 @@ ipcMain.handle('get-user-role', async (event, { userId }) => {
         // Write buffer to disk (Async)
         await fs.promises.writeFile(newFilePath, fileData.buffer);
 // Database Insert
-        const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
+        const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, file_path, category) VALUES (?, ?, ?, ?, ?, ?)`;
         return new Promise((resolve, reject) => {
-            db.run(sqlDoc, [candidateId, fileData.fileType, fileData.fileName, newFilePath, fileData.category], function (err) {
+          db.run(sqlDoc, [candidateId, fileData.fileType, fileData.fileName, newFilePath, newFilePath, fileData.category], function (err) {
                 if (err) {
                     // Try to clean up file if DB insert fails
                     fs.unlink(newFilePath, () => {}); 

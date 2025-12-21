@@ -50,6 +50,18 @@ async function runMigrations(dbInstance) {
       console.log('⏭️  Migration 001: Already applied');
     }
 
+    // Migration 002: Add metadata to communication_logs and file_path to documents
+    if (!appliedNames.includes('002_add_comm_metadata_and_doc_path')) {
+      await migration_002_add_comm_metadata_and_doc_path(dbInstance);
+      await dbRun(
+        dbInstance,
+        `INSERT INTO schema_migrations (migration_name) VALUES ('002_add_comm_metadata_and_doc_path')`
+      );
+      console.log('✅ Migration 002: Add communication metadata & document file_path - APPLIED');
+    } else {
+      console.log('⏭️  Migration 002: Already applied');
+    }
+
     console.log('✅ All migrations completed successfully');
     return dbInstance;
   } catch (error) {
@@ -117,3 +129,30 @@ async function migration_001_consolidate_passport_tables(dbInstance) {
 module.exports = {
   runMigrations,
 };
+
+async function migration_002_add_comm_metadata_and_doc_path(dbInstance) {
+  console.log('🔄 Running migration: Add communication metadata and document file_path...');
+  try {
+    // communication_logs metadata column
+    const commCols = await dbAll(dbInstance, `PRAGMA table_info(communication_logs)`);
+    if (!commCols.some((c) => c.name === 'metadata')) {
+      await dbRun(dbInstance, `ALTER TABLE communication_logs ADD COLUMN metadata TEXT`);
+      console.log('✅ Added metadata column to communication_logs');
+    } else {
+      console.log('⏭️ metadata column already exists on communication_logs');
+    }
+
+    // documents table file_path column
+    const docCols = await dbAll(dbInstance, `PRAGMA table_info(documents)`);
+    if (!docCols.some((c) => c.name === 'file_path')) {
+      await dbRun(dbInstance, `ALTER TABLE documents ADD COLUMN file_path TEXT`);
+      console.log('✅ Added file_path column to documents');
+    } else {
+      console.log('⏭️ file_path column already exists on documents');
+    }
+
+  } catch (err) {
+    console.error('❌ Migration 002 failed:', err);
+    throw err;
+  }
+}

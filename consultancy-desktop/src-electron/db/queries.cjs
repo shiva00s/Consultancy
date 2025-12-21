@@ -2849,7 +2849,7 @@ const saveDocumentFromApi = async ({ candidateId, user, fileData }) => {
 
   try {
     const db = getDatabase();
-    const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, category) VALUES (?, ?, ?, ?, ?)`;
+    const sqlDoc = `INSERT INTO documents (candidate_id, fileType, fileName, filePath, file_path, category) VALUES (?, ?, ?, ?, ?, ?)`;
     const uniqueName = `${uuidv4()}${path.extname(fileData.fileName)}`;
     const newFilePath = path.join(filesDir, uniqueName);
 
@@ -2858,6 +2858,7 @@ const saveDocumentFromApi = async ({ candidateId, user, fileData }) => {
       candidateId,
       fileData.fileType,
       fileData.fileName,
+      newFilePath,
       newFilePath,
       fileData.category,
     ]);
@@ -3551,17 +3552,30 @@ async function deleteJobOrder(user, id) {
 /**
  * Log a communication event
  */
-async function logCommunication({ candidateId, userId, type, details }) {
+async function logCommunication({ candidateId, userId, type, details, metadata }) {
   const db = getDatabase();
-  
-  const sql = `
-    INSERT INTO communication_logs (candidate_id, user_id, communication_type, details)
-    VALUES (?, ?, ?, ?)
-  `;
-  
+
+  // Ensure metadata column exists; add if missing
   try {
-    await dbRun(db, sql, [candidateId, userId, type, details]);
-    console.log('✅ Communication logged:', { candidateId, type, details });
+    const cols = await dbAll(db, "PRAGMA table_info(communication_logs)");
+    const hasMetadata = cols.some((c) => c.name === 'metadata');
+    if (!hasMetadata) {
+      await dbRun(db, 'ALTER TABLE communication_logs ADD COLUMN metadata TEXT');
+      console.log('✅ Added metadata column to communication_logs');
+    }
+  } catch (err) {
+    console.warn('Could not verify/add metadata column:', err.message);
+  }
+
+  const sql = `
+    INSERT INTO communication_logs (candidate_id, user_id, communication_type, details, metadata)
+    VALUES (?, ?, ?, ?, ?)
+  `;
+
+  try {
+    const metaStr = metadata ? JSON.stringify(metadata) : null;
+    await dbRun(db, sql, [candidateId, userId, type, details, metaStr]);
+    console.log('✅ Communication logged:', { candidateId, type, details, metadata });
     return { success: true };
   } catch (err) {
     console.error('❌ logCommunication error:', err);
@@ -3574,23 +3588,55 @@ async function logCommunication({ candidateId, userId, type, details }) {
  */
 async function getCommunicationLogs(candidateId) {
   const db = getDatabase();
-  
-  const sql = `
-    SELECT 
-      cl.id,
-      cl.communication_type,
-      cl.details,
-      cl.createdAt,
-      u.username
-    FROM communication_logs cl
-    LEFT JOIN users u ON cl.user_id = u.id
-    WHERE cl.candidate_id = ?
-    ORDER BY cl.createdAt DESC
-  `;
-  
   try {
+    // Check if metadata column exists in communication_logs
+    const cols = await dbAll(db, "PRAGMA table_info(communication_logs)");
+    const hasMetadata = cols.some((c) => c.name === 'metadata');
+
+    const sql = hasMetadata
+      ? `
+        SELECT 
+          cl.id,
+          cl.communication_type,
+          cl.details,
+          cl.metadata,
+          cl.createdAt,
+          u.username
+        FROM communication_logs cl
+        LEFT JOIN users u ON cl.user_id = u.id
+        WHERE cl.candidate_id = ?
+        ORDER BY cl.createdAt DESC
+      `
+      : `
+        SELECT 
+          cl.id,
+          cl.communication_type,
+          cl.details,
+          cl.createdAt,
+          u.username
+        FROM communication_logs cl
+        LEFT JOIN users u ON cl.user_id = u.id
+        WHERE cl.candidate_id = ?
+        ORDER BY cl.createdAt DESC
+      `;
+
     const rows = await dbAll(db, sql, [candidateId]);
-    return { success: true, data: rows || [] };
+
+    const parsed = (rows || []).map((r) => {
+      let meta = null;
+      try {
+        meta = hasMetadata && r.metadata ? JSON.parse(r.metadata) : null;
+      } catch (err) {
+        meta = null;
+      }
+      return {
+        ...r,
+        attachments: meta && meta.attachments ? meta.attachments : [],
+        metadata: meta,
+      };
+    });
+
+    return { success: true, data: parsed };
   } catch (err) {
     console.error('getCommunicationLogs error:', err);
     return { success: false, error: mapErrorToFriendly(err), data: [] };

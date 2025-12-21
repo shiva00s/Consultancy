@@ -89,7 +89,7 @@ function CandidatePassport({ candidateId, candidateData }) {
         setExistingMovements({ receive: false, send: false });
       }
     } catch (error) {
-      console.error('Error fetching movements:', error);
+      
       toast.error('Failed to load movements');
       setMovements([]);
       setExistingMovements({ receive: false, send: false });

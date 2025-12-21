@@ -66,6 +66,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDocumentBase64: (args) => ipcRenderer.invoke('get-document-base64', args),
   openFileExternally: (args) => ipcRenderer.invoke('open-file-externally', args),
   uploadDocument: (data) => ipcRenderer.invoke('upload-document', data),
+  // Upload progress events: subscribe and unsubscribe. Returns an unsubscribe function when called.
+  onUploadProgress: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('upload-progress', handler);
+    return () => ipcRenderer.removeListener('upload-progress', handler);
+  },
   getCandidateDocuments: (candidateId) => ipcRenderer.invoke('get-candidate-documents', candidateId),
   downloadDocument: (documentId) => ipcRenderer.invoke('download-document', documentId),
   uploadResume: (data) => ipcRenderer.invoke('upload-resume', data),

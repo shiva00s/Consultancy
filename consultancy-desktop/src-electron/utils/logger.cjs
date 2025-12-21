@@ -1,3 +1,58 @@
+const fs = require('fs');
+const path = require('path');
+const { app } = require('electron');
+
+function ensureLogsDir() {
+  try {
+    const dir = path.join(app.getPath('userData'), 'logs');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    return dir;
+  } catch (e) {
+    return null;
+  }
+}
+
+function writeErrorToFile(message) {
+  try {
+    const dir = ensureLogsDir();
+    if (!dir) return;
+    const file = path.join(dir, 'errors.log');
+    const line = `[${new Date().toISOString()}] ${message}\n`;
+    fs.appendFileSync(file, line, { encoding: 'utf8' });
+  } catch (e) {
+    // swallow
+  }
+}
+
+const SHOULD_SHOW_LOGS = process.env.APP_LOGS === 'true';
+
+function info(...args) {
+  if (SHOULD_SHOW_LOGS) console.info(...args);
+}
+
+function debug(...args) {
+  if (SHOULD_SHOW_LOGS) console.debug(...args);
+}
+
+function warn(...args) {
+  if (SHOULD_SHOW_LOGS) console.warn(...args);
+}
+
+function error(...args) {
+  try {
+    const msg = args.map((a) => (a && a.stack) ? a.stack : String(a)).join(' ');
+    // Always persist errors to file in production so we can diagnose crashes
+    if (process.env.NODE_ENV === 'production') {
+      writeErrorToFile(msg);
+    }
+    // Only print to console if explicitly enabled
+    if (SHOULD_SHOW_LOGS) console.error(...args);
+  } catch (e) {
+    // swallow
+  }
+}
+
+module.exports = { info, debug, warn, error };
 // src-electron/db/audit.cjs
 const { getDatabase } = require('./database.cjs');
 
