@@ -388,7 +388,7 @@ function CandidateVisa({ user, candidateId }) {
             </select>
           </div>
 
-          <div className="form-field full-width">
+          <div className="form-field">
             <label>📞 Agent Contact</label>
             <input
               type="text"
@@ -396,6 +396,7 @@ function CandidateVisa({ user, candidateId }) {
               value={visaForm.agent_contact}
               onChange={handleVisaFormChange}
               placeholder="Agent name or contact details"
+              className="compact-input"
             />
           </div>
 
@@ -406,7 +407,8 @@ function CandidateVisa({ user, candidateId }) {
               value={visaForm.notes}
               onChange={handleVisaFormChange}
               placeholder="Additional notes or comments..."
-              rows={3}
+              rows={2}
+              className="compact-textarea"
             />
           </div>
 
@@ -535,25 +537,25 @@ function CandidateVisa({ user, candidateId }) {
                           </select>
                         </div>
 
-                        <div className="edit-field edit-field-full">
+                        <div className="edit-field">
                           <label>📞 Agent Contact</label>
                           <input
                             type="text"
                             name="agent_contact"
                             value={editForm.agent_contact}
                             onChange={handleEditFormChange}
-                            className="edit-input"
+                            className="edit-input compact-input"
                           />
                         </div>
 
-                        <div className="edit-field edit-field-full">
+                        <div className="edit-field">
                           <label>📝 Notes</label>
                           <textarea
                             name="notes"
                             value={editForm.notes}
                             onChange={handleEditFormChange}
-                            className="edit-input"
-                            rows={3}
+                            className="edit-input compact-textarea"
+                            rows={2}
                           />
                         </div>
                       </div>

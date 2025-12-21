@@ -198,82 +198,78 @@ function CandidateInterview({ user, candidateId, candidateName }) {
         <h3>
           <FiPlus /> ➕ Schedule New Interview
         </h3>
-        <form onSubmit={handleAddEntry} className="interview-form">
-          <div className="form-row">
-            <div className="form-group">
-              <label>
-                <FiBriefcase /> 💼 Job Position *
-              </label>
-              <select
-                name="job_order_id"
-                value={interviewForm.job_order_id}
-                onChange={handleFormChange}
-                required
-                className="form-input"
-              >
-                <option value="">Select Job Position...</option>
-                {jobOrders.map((job) => (
-                  <option key={job.id} value={job.id}>
-                    {job.company} - {job.position}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>
-                <FiCalendar /> 📅 Interview Date *
-              </label>
-              <input
-                type="date"
-                name="interview_date"
-                value={interviewForm.interview_date}
-                onChange={handleFormChange}
-                required
-                className="form-input"
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label>
-                <FiClock /> 🔄 Interview Round
-              </label>
-              <select
-                name="round"
-                value={interviewForm.round}
-                onChange={handleFormChange}
-                className="form-input"
-              >
-                <option value="1st Round">1st Round</option>
-                <option value="2nd Round">2nd Round</option>
-                <option value="3rd Round">3rd Round</option>
-                <option value="Final Round">Final Round</option>
-                <option value="HR Round">HR Round</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>
-                <FiCheckCircle /> ✅ Status
-              </label>
-              <select
-                name="status"
-                value={interviewForm.status}
-                onChange={handleFormChange}
-                className="form-input"
-              >
-                {interviewStatusOptions.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <form onSubmit={handleAddEntry} className="interview-form form-grid">
+          <div className="form-group">
+            <label>
+              <FiBriefcase /> 💼 Job Position *
+            </label>
+            <select
+              name="job_order_id"
+              value={interviewForm.job_order_id}
+              onChange={handleFormChange}
+              required
+              className="form-input"
+            >
+              <option value="">Select Job Position...</option>
+              {jobOrders.map((job) => (
+                <option key={job.id} value={job.id}>
+                  {job.company} - {job.position}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="form-group">
+            <label>
+              <FiCalendar /> 📅 Interview Date *
+            </label>
+            <input
+              type="date"
+              name="interview_date"
+              value={interviewForm.interview_date}
+              onChange={handleFormChange}
+              required
+              className="form-input"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>
+              <FiClock /> 🔄 Interview Round
+            </label>
+            <select
+              name="round"
+              value={interviewForm.round}
+              onChange={handleFormChange}
+              className="form-input"
+            >
+              <option value="1st Round">1st Round</option>
+              <option value="2nd Round">2nd Round</option>
+              <option value="3rd Round">3rd Round</option>
+              <option value="Final Round">Final Round</option>
+              <option value="HR Round">HR Round</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>
+              <FiCheckCircle /> ✅ Status
+            </label>
+            <select
+              name="status"
+              value={interviewForm.status}
+              onChange={handleFormChange}
+              className="form-input"
+            >
+              {interviewStatusOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group full-width">
             <label>📝 Notes / Feedback (Optional)</label>
             <textarea
               name="notes"
@@ -281,11 +277,11 @@ function CandidateInterview({ user, candidateId, candidateName }) {
               onChange={handleFormChange}
               placeholder="Add interview notes or feedback..."
               rows="3"
-              className="form-input"
+              className="form-input notes-textarea auto-resize"
             />
           </div>
 
-          <button type="submit" disabled={isSaving} className="btn-full-width btn-add">
+          <button type="submit" disabled={isSaving} className="btn-full-width btn-add" style={{ gridColumn: '1 / -1' }}>
             <FiPlus />
             {isSaving ? 'Scheduling...' : '➕ Schedule Interview'}
           </button>

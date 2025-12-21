@@ -225,6 +225,28 @@ body {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+/* Auto-resize textareas - compact by default, grow with content */
+textarea, .auto-resize, .notes-textarea {
+  min-height: 32px;
+  max-height: 800px;
+  overflow-y: auto;
+  resize: none;
+  transition: height 120ms ease;
+}
+
+/* Compact utilities for dense forms (agent contact, short notes) */
+.compact-input {
+  padding: 6px 10px !important;
+  height: 30px !important;
+  font-size: 12px !important;
+}
+
+.compact-textarea {
+  min-height: 28px !important;
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+}
+
 
 /* STATUS INDICATORS */
 .status-online { background: var(--color-success); }

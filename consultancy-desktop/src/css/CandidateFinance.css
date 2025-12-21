@@ -87,9 +87,19 @@
 
 .finance-form.form-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1.25rem;
 }
+
+/* Utility span helpers for finance forms */
+.span-2 { grid-column: span 2; }
+.span-3 { grid-column: span 3; }
+.full-width { grid-column: 1 / -1; }
+.align-end { justify-self: end; }
+
+/* Center helpers for placing an element in the middle columns */
+.span-4 { grid-column: span 4; }
+.center-span-2 { grid-column: 2 / span 2; justify-self: center; }
 
 .form-group {
   display: flex;
@@ -334,7 +344,7 @@
 
 .edit-form-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
   margin-bottom: 1rem;
 }

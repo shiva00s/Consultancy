@@ -513,6 +513,30 @@
   text-overflow: ellipsis;
 }
 
+/* Small PDF thumbnail for document list items */
+.doclist-pdf-thumb {
+  width: 56px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+}
+
+.doclist-pdf-thumb embed,
+.doclist-pdf-thumb iframe,
+.doclist-pdf-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 /* ============================================
    📱 RESPONSIVE - STABLE ON MOBILE
    ============================================ */

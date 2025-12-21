@@ -18,11 +18,13 @@ function CandidateTravel({ user, candidateId, candidateName }) {
   const [travelEntries, setTravelEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [travelForm, setTravelForm] = useState(initialTravelForm);
+  const [ticketPreview, setTicketPreview] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editData, setEditData] = useState({});
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, travelId: null });
   const fileInputRef = useRef(null);
+  const [ticketPreviews, setTicketPreviews] = useState({});
 
   const fetchTravelTracking = useCallback(async () => {
     setLoading(true);
@@ -35,16 +37,60 @@ function CandidateTravel({ user, candidateId, candidateName }) {
     fetchTravelTracking();
   }, [candidateId, fetchTravelTracking]);
 
+  // Load previews for ticket files (image/pdf) for history thumbnails
+  useEffect(() => {
+    const loadPreviews = async () => {
+      if (!travelEntries || travelEntries.length === 0) return;
+      for (const entry of travelEntries) {
+        if (!entry.ticket_file_path) continue;
+        if (ticketPreviews[entry.id]) continue;
+        try {
+          const path = entry.ticket_file_path;
+          const isImage = /\.(jpe?g|png|gif|webp)$/i.test(path);
+          if (isImage) {
+            const res = await window.electronAPI.getImageBase64({ filePath: path });
+            if (res && res.success) {
+              setTicketPreviews((p) => ({ ...p, [entry.id]: { data: res.data, type: 'image' } }));
+            }
+          } else {
+            const res = await window.electronAPI.getDocumentBase64({ filePath: path });
+            if (res && res.success) {
+              const data = res.data || '';
+              const hasPrefix = data.startsWith('data:');
+              const url = hasPrefix ? data : `data:application/pdf;base64,${data}`;
+              setTicketPreviews((p) => ({ ...p, [entry.id]: { data: url, type: 'pdf' } }));
+            }
+          }
+        } catch (err) {
+          console.error('load ticket preview failed', err);
+        }
+      }
+    };
+    loadPreviews();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [travelEntries]);
+
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setTravelForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = (e) => {
-    setTravelForm((prev) => ({
-      ...prev,
-      ticket_file: e.target.files[0] || null,
-    }));
+    const file = e.target.files[0] || null;
+    setTravelForm((prev) => ({ ...prev, ticket_file: file }));
+
+    // create object URL preview for immediate feedback
+    if (file) {
+      try {
+        const url = URL.createObjectURL(file);
+        setTicketPreview({ url, type: file.type });
+      } catch (err) {
+        console.error('ticket preview create failed', err);
+        setTicketPreview(null);
+      }
+    } else {
+      setTicketPreview(null);
+    }
   };
 
   const handleAddEntry = async (e) => {
@@ -61,6 +107,7 @@ function CandidateTravel({ user, candidateId, candidateName }) {
     try {
       if (travelForm.ticket_file) {
         toast.loading('📤 Uploading ticket file...', { id: toastId });
+      
         const buffer = await readFileAsBuffer(travelForm.ticket_file);
         const fileData = {
           name: travelForm.ticket_file.name,
@@ -91,6 +138,13 @@ function CandidateTravel({ user, candidateId, candidateName }) {
         setTravelEntries((prev) => [res.data, ...prev]);
         setTravelForm(initialTravelForm);
         if (fileInputRef.current) fileInputRef.current.value = null;
+        // revoke transient preview URL to avoid memory leak
+        if (ticketPreview && ticketPreview.url) {
+          try {
+            URL.revokeObjectURL(ticketPreview.url);
+          } catch {}
+        }
+        setTicketPreview(null);
         toast.success('✅ Travel entry saved successfully!', { id: toastId });
 
         try {
@@ -187,6 +241,18 @@ function CandidateTravel({ user, candidateId, candidateName }) {
     window.electronAPI.openFileExternally({ path: filePath });
   };
 
+  // cleanup object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (ticketPreview && ticketPreview.url) {
+        try {
+          URL.revokeObjectURL(ticketPreview.url);
+        } catch {}
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (loading) return <div className="loading-state">⏳ Loading travel tracking...</div>;
 
   return (
@@ -194,83 +260,110 @@ function CandidateTravel({ user, candidateId, candidateName }) {
       {/* ===== ADD FORM ===== */}
       <div className="form-container">
         <h3>✈️ Add Travel Entry</h3>
-        <form onSubmit={handleAddEntry} className="travel-form">
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="pnr">🎫 PNR Number</label>
-              <input
-                type="text"
-                id="pnr"
-                name="pnr"
-                placeholder="Enter PNR"
-                value={travelForm.pnr}
-                onChange={handleFormChange}
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="travel_date">📅 Travel Date *</label>
-              <input
-                type="date"
-                id="travel_date"
-                name="travel_date"
-                value={travelForm.travel_date}
-                onChange={handleFormChange}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="departure_city">🛫 Departure City *</label>
-              <input
-                type="text"
-                id="departure_city"
-                name="departure_city"
-                placeholder="From"
-                value={travelForm.departure_city}
-                onChange={handleFormChange}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="arrival_city">🛬 Arrival City *</label>
-              <input
-                type="text"
-                id="arrival_city"
-                name="arrival_city"
-                placeholder="To"
-                value={travelForm.arrival_city}
-                onChange={handleFormChange}
-                required
-              />
-            </div>
-          </div>
-
+        <form onSubmit={handleAddEntry} className="travel-form form-grid">
           <div className="form-group">
-            <label htmlFor="ticket_file">📎 Ticket File</label>
+            <label htmlFor="pnr">🎫 PNR Number</label>
             <input
-              type="file"
-              id="ticket_file"
-              name="ticket_file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
+              type="text"
+              id="pnr"
+              name="pnr"
+              placeholder="Enter PNR"
+              value={travelForm.pnr}
+              onChange={handleFormChange}
             />
           </div>
 
           <div className="form-group">
+            <label htmlFor="travel_date">📅 Travel Date *</label>
+            <input
+              type="date"
+              id="travel_date"
+              name="travel_date"
+              value={travelForm.travel_date}
+              onChange={handleFormChange}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="departure_city">🛫 Departure City *</label>
+            <input
+              type="text"
+              id="departure_city"
+              name="departure_city"
+              placeholder="From"
+              value={travelForm.departure_city}
+              onChange={handleFormChange}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="arrival_city">🛬 Arrival City *</label>
+            <input
+              type="text"
+              id="arrival_city"
+              name="arrival_city"
+              placeholder="To"
+              value={travelForm.arrival_city}
+              onChange={handleFormChange}
+              required
+            />
+          </div>
+
+          <div className="form-group full-width">
+            <label>📎 Ticket File</label>
+            <div className="file-input-wrapper">
+              <input
+                type="file"
+                id="ticket_file"
+                name="ticket_file"
+                ref={fileInputRef}
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+              />
+              <label htmlFor="ticket_file" className="file-input-label">
+                <FiSend /> Choose File
+              </label>
+
+              {travelForm.ticket_file && (
+                <div className="file-preview-row" style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                  {ticketPreview ? (
+                    ticketPreview.type && ticketPreview.type.startsWith('image/') ? (
+                      <div className="du-file-thumb">
+                        <img src={ticketPreview.url} alt="ticket preview" />
+                      </div>
+                    ) : (
+                      <div className="doclist-pdf-thumb">
+                        <embed src={ticketPreview.url} type="application/pdf" />
+                      </div>
+                    )
+                  ) : null}
+
+                  <div className="file-name-display">
+                    <FiSend />
+                    <span className="file-name-text">{travelForm.ticket_file.name}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="form-group full-width">
             <label htmlFor="notes">📝 Notes</label>
             <textarea
               id="notes"
               name="notes"
               placeholder="Additional notes"
-              rows="3"
+              rows="2"
               value={travelForm.notes}
               onChange={handleFormChange}
+              className="notes-textarea auto-resize compact-textarea"
             />
           </div>
 
-          <button type="submit" className="btn-full-width" disabled={isSaving}>
+          <button type="submit" className="btn-full-width" disabled={isSaving} style={{ gridColumn: '1 / -1' }}>
             <FiPlus /> {isSaving ? 'Saving...' : 'Add Travel Entry'}
           </button>
         </form>
@@ -356,27 +449,37 @@ function CandidateTravel({ user, candidateId, candidateName }) {
                       />
                     </div>
                   </div>
-                ) : (
-                  // ===== VIEW MODE =====
-                  <div className="item-details">
-                    <strong>
-                      {entry.departure_city} → {entry.arrival_city}
-                    </strong>
-                    <p>📅 Date: {entry.travel_date} | 🎫 PNR: {entry.pnr || 'N/A'}</p>
-                    {entry.notes && <p>📝 Notes: {entry.notes}</p>}
-                    {entry.ticket_file_path && (
-                      <small>
-                        📎{' '}
-                        <span
-                          className="file-link"
-                          onClick={() => openFile(entry.ticket_file_path)}
-                        >
-                          View Ticket
-                        </span>
-                      </small>
-                    )}
-                  </div>
-                )}
+                  ) : (
+                    // ===== VIEW MODE =====
+                    <div className="item-details">
+                      <strong>
+                        {entry.departure_city} → {entry.arrival_city}
+                      </strong>
+                      <p>📅 Date: {entry.travel_date} | 🎫 PNR: {entry.pnr || 'N/A'}</p>
+                      {entry.notes && <p>📝 Notes: {entry.notes}</p>}
+                      {entry.ticket_file_path && (
+                        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+                          {ticketPreviews[entry.id] ? (
+                            ticketPreviews[entry.id].type === 'image' ? (
+                              <div className="du-file-thumb">
+                                <img src={ticketPreviews[entry.id].data} alt="ticket" />
+                              </div>
+                            ) : (
+                              <div className="doclist-pdf-thumb">
+                                <embed src={ticketPreviews[entry.id].data} type="application/pdf" />
+                              </div>
+                            )
+                          ) : null}
+                          <small>
+                            📎{' '}
+                            <span className="file-link" onClick={() => openFile(entry.ticket_file_path)}>
+                              View Ticket
+                            </span>
+                          </small>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                 <div className="item-actions">
                   {editingId === entry.id ? (

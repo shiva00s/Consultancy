@@ -18,6 +18,8 @@ function CandidateMedical({ user, candidateId, candidateName }) {
   const [medicalEntries, setMedicalEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [medicalForm, setMedicalForm] = useState(initialMedicalForm);
+  const [certificatePreview, setCertificatePreview] = useState(null);
+  const [certificatePreviews, setCertificatePreviews] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -30,6 +32,7 @@ function CandidateMedical({ user, candidateId, candidateName }) {
 
   const fileInputRef = useRef(null);
   const editFileInputRefs = useRef({});
+  const [editPreviews, setEditPreviews] = useState({});
 
   const fetchMedicalTracking = useCallback(async () => {
     setLoading(true);
@@ -42,16 +45,58 @@ function CandidateMedical({ user, candidateId, candidateName }) {
     fetchMedicalTracking();
   }, [candidateId, fetchMedicalTracking]);
 
+  // Load previews for certificate files for history thumbnails
+  useEffect(() => {
+    const load = async () => {
+      if (!medicalEntries || medicalEntries.length === 0) return;
+      for (const entry of medicalEntries) {
+        if (!entry.certificate_path) continue;
+        if (certificatePreviews[entry.id]) continue;
+        try {
+          const path = entry.certificate_path;
+          const isImage = /\.(jpe?g|png|gif|webp)$/i.test(path);
+          if (isImage) {
+            const res = await window.electronAPI.getImageBase64({ filePath: path });
+            if (res && res.success) setCertificatePreviews((p) => ({ ...p, [entry.id]: { data: res.data, type: 'image' } }));
+          } else {
+            const res = await window.electronAPI.getDocumentBase64({ filePath: path });
+            if (res && res.success) {
+              const data = res.data || '';
+              const hasPrefix = data.startsWith('data:');
+              const url = hasPrefix ? data : `data:application/pdf;base64,${data}`;
+              setCertificatePreviews((p) => ({ ...p, [entry.id]: { data: url, type: 'pdf' } }));
+            }
+          }
+        } catch (err) {
+          console.error('load certificate preview failed', err);
+        }
+      }
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [medicalEntries]);
+
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setMedicalForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = (e) => {
-    setMedicalForm((prev) => ({
-      ...prev,
-      certificate_file: e.target.files[0] || null,
-    }));
+    const file = e.target.files[0] || null;
+    setMedicalForm((prev) => ({ ...prev, certificate_file: file }));
+
+    // create object URL preview
+    if (file) {
+      try {
+        const url = URL.createObjectURL(file);
+        setCertificatePreview({ url, type: file.type });
+      } catch (err) {
+        console.error('preview create failed', err);
+        setCertificatePreview(null);
+      }
+    } else {
+      setCertificatePreview(null);
+    }
   };
 
   // === INLINE EDIT HANDLERS ===
@@ -66,6 +111,17 @@ function CandidateMedical({ user, candidateId, candidateName }) {
   };
 
   const cancelEdit = () => {
+    // cleanup preview for current editing id (if any)
+    if (editingId && editPreviews[editingId] && editPreviews[editingId].url) {
+      try {
+        URL.revokeObjectURL(editPreviews[editingId].url);
+      } catch {}
+    }
+    setEditPreviews((prev) => {
+      const copy = { ...prev };
+      if (editingId) delete copy[editingId];
+      return copy;
+    });
     setEditingId(null);
     setEditForm({});
   };
@@ -76,10 +132,30 @@ function CandidateMedical({ user, candidateId, candidateName }) {
   };
 
   const handleEditFileChange = (entryId, e) => {
-    setEditForm((prev) => ({
-      ...prev,
-      certificate_file: e.target.files[0] || null,
-    }));
+    const file = e.target.files[0] || null;
+    setEditForm((prev) => ({ ...prev, certificate_file: file }));
+
+    // create object URL preview for this entry
+    setEditPreviews((prev) => {
+      // revoke previous if exists
+      if (prev[entryId] && prev[entryId].url) {
+        try {
+          URL.revokeObjectURL(prev[entryId].url);
+        } catch {}
+      }
+      if (file) {
+        try {
+          const url = URL.createObjectURL(file);
+          return { ...prev, [entryId]: { url, type: file.type } };
+        } catch (err) {
+          console.error('edit preview create failed', err);
+          return { ...prev, [entryId]: null };
+        }
+      }
+      const copy = { ...prev };
+      delete copy[entryId];
+      return copy;
+    });
   };
 
   const saveEdit = async (entryId) => {
@@ -134,6 +210,17 @@ function CandidateMedical({ user, candidateId, candidateName }) {
         setMedicalEntries((prev) =>
           prev.map((m) => (m.id === entryId ? res.data : m))
         );
+        // cleanup any transient preview for this entry
+        if (editPreviews[entryId] && editPreviews[entryId].url) {
+          try {
+            URL.revokeObjectURL(editPreviews[entryId].url);
+          } catch {}
+        }
+        setEditPreviews((prev) => {
+          const copy = { ...prev };
+          delete copy[entryId];
+          return copy;
+        });
         setEditingId(null);
         setEditForm({});
         toast.success('✅ Medical entry updated successfully!', { id: toastId });
@@ -149,6 +236,25 @@ function CandidateMedical({ user, candidateId, candidateName }) {
       setIsSaving(false);
     }
   };
+
+  // cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (certificatePreview && certificatePreview.url) {
+        try {
+          URL.revokeObjectURL(certificatePreview.url);
+        } catch {}
+      }
+      Object.values(editPreviews).forEach((p) => {
+        if (p && p.url) {
+          try {
+            URL.revokeObjectURL(p.url);
+          } catch {}
+        }
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAddEntry = async (e) => {
     e.preventDefault();
@@ -198,6 +304,13 @@ function CandidateMedical({ user, candidateId, candidateName }) {
         setMedicalEntries((prev) => [res.data, ...prev]);
         setMedicalForm(initialMedicalForm);
         if (fileInputRef.current) fileInputRef.current.value = null;
+        // revoke any transient preview URL
+        if (certificatePreview && certificatePreview.url) {
+          try {
+            URL.revokeObjectURL(certificatePreview.url);
+          } catch {}
+        }
+        setCertificatePreview(null);
         toast.success('✅ Medical entry saved successfully!', { id: toastId });
 
         try {
@@ -339,17 +452,30 @@ function CandidateMedical({ user, candidateId, candidateName }) {
       id="certificate_file"
       accept=".pdf,.jpg,.jpeg,.png"
       onChange={handleFileChange}
+      style={{ display: 'none' }}
     />
     <label htmlFor="certificate_file" className="file-input-label">
       <FiFileText />
       Choose File
     </label>
     {medicalForm.certificate_file && (
-      <div className="file-name-display">
-        <FiFileText />
-        <span className="file-name-text">
-          {medicalForm.certificate_file.name}
-        </span>
+      <div className="file-preview-row" style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+        {certificatePreview ? (
+          certificatePreview.type && certificatePreview.type.startsWith('image/') ? (
+            <div className="du-file-thumb">
+              <img src={certificatePreview.url} alt="certificate preview" />
+            </div>
+          ) : (
+            <div className="doclist-pdf-thumb">
+              <embed src={certificatePreview.url} type="application/pdf" />
+            </div>
+          )
+        ) : null}
+
+        <div className="file-name-display">
+          <FiFileText />
+          <span className="file-name-text">{medicalForm.certificate_file.name}</span>
+        </div>
       </div>
     )}
   </div>
@@ -362,7 +488,8 @@ function CandidateMedical({ user, candidateId, candidateName }) {
               value={medicalForm.notes}
               onChange={handleFormChange}
               placeholder="Add any additional notes..."
-              rows="3"
+              rows={2}
+              className="notes-textarea auto-resize compact-textarea"
             />
           </div>
 
@@ -394,7 +521,7 @@ function CandidateMedical({ user, candidateId, candidateName }) {
                   </div>
 
                   <div className="item-details">
-                    {isEditing ? (
+                      {isEditing ? (
                       // === INLINE EDIT MODE ===
                       <div className="inline-edit-container">
                         <div className="edit-form-grid">
@@ -441,11 +568,23 @@ function CandidateMedical({ user, candidateId, candidateName }) {
       Choose New Certificate
     </label>
     {editForm.certificate_file && (
-      <div className="file-name-display">
-        <FiFileText />
-        <span className="file-name-text">
-          {editForm.certificate_file.name}
-        </span>
+      <div className="file-preview-row" style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+        {editPreviews[entry.id] ? (
+          editPreviews[entry.id].type && editPreviews[entry.id].type.startsWith('image/') ? (
+            <div className="du-file-thumb">
+              <img src={editPreviews[entry.id].url} alt="edit certificate preview" />
+            </div>
+          ) : (
+            <div className="doclist-pdf-thumb">
+              <embed src={editPreviews[entry.id].url} type="application/pdf" />
+            </div>
+          )
+        ) : null}
+
+        <div className="file-name-display">
+          <FiFileText />
+          <span className="file-name-text">{editForm.certificate_file.name}</span>
+        </div>
       </div>
     )}
   </div>
@@ -478,30 +617,44 @@ function CandidateMedical({ user, candidateId, candidateName }) {
                           </button>
                         </div>
                       </div>
-                    ) : (
+                      ) : (
                       // === VIEW MODE ===
                       <>
                         <strong>Medical Certificate - {formatDate(entry.test_date)}</strong>
-                        <p>
-                          📄{' '}
-                          {entry.certificate_path ? (
-                            <span
-                              onClick={() => openFile(entry.certificate_path)}
-                              style={{
-                                cursor: 'pointer',
-                                color: '#4CAF50',
-                                textDecoration: 'underline',
-                                fontWeight: 600,
-                              }}
-                            >
-                              View Certificate
-                            </span>
-                          ) : (
-                            <span style={{ color: 'var(--text-secondary)' }}>
-                              No certificate uploaded
-                            </span>
-                          )}
-                        </p>
+                        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+                          {entry.certificate_path && certificatePreviews[entry.id] ? (
+                            certificatePreviews[entry.id].type === 'image' ? (
+                              <div className="du-file-thumb">
+                                <img src={certificatePreviews[entry.id].data} alt="certificate" />
+                              </div>
+                            ) : (
+                              <div className="doclist-pdf-thumb">
+                                <embed src={certificatePreviews[entry.id].data} type="application/pdf" />
+                              </div>
+                            )
+                          ) : null}
+
+                          <p style={{ margin: 0 }}>
+                            📄{' '}
+                            {entry.certificate_path ? (
+                              <span
+                                onClick={() => openFile(entry.certificate_path)}
+                                style={{
+                                  cursor: 'pointer',
+                                  color: '#4CAF50',
+                                  textDecoration: 'underline',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                View Certificate
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--text-secondary)' }}>
+                                No certificate uploaded
+                              </span>
+                            )}
+                          </p>
+                        </div>
                         {entry.notes && (
                           <small>
                             <span role="img" aria-label="notes">

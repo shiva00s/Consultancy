@@ -32,6 +32,7 @@ function DocumentList({
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageCache, setImageCache] = useState({});
+  const [pdfCache, setPdfCache] = useState({});
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -72,6 +73,23 @@ function DocumentList({
       }
     } catch (error) {
       console.error("Error loading image:", error);
+    }
+    return null;
+  };
+
+  const loadPdfPreview = async (doc) => {
+    if (pdfCache[doc.id]) return pdfCache[doc.id];
+    try {
+      const res = await window.electronAPI.getDocumentBase64({ filePath: doc.filePath });
+      if (res.success) {
+        const data = res.data || '';
+        const hasPrefix = data.startsWith('data:');
+        const url = hasPrefix ? data : `data:${doc.fileType};base64,${data}`;
+        setPdfCache((p) => ({ ...p, [doc.id]: url }));
+        return url;
+      }
+    } catch (err) {
+      console.error('Error loading pdf preview', err);
     }
     return null;
   };
@@ -148,12 +166,24 @@ function DocumentList({
                 <div className="doclist-items">
                   {docs.map((doc) => {
                     const isImage = doc.fileType?.startsWith("image/");
+                    const isPdf = doc.fileType === 'application/pdf';
 
                     return (
                       <div key={doc.id} className="doclist-item">
                         <div className="doclist-item-main">
                           <div className={`doclist-icon ${isImage ? 'is-image' : ''}`}>
-                            {isImage ? <FiCamera /> : <FiFileText />}
+                            {/* Thumbnail: image -> preview img, pdf -> small embed if loaded, else icon */}
+                            {isImage && imageCache[doc.id] ? (
+                              <img src={imageCache[doc.id]} alt={doc.fileName} />
+                            ) : isPdf && pdfCache[doc.id] ? (
+                              <embed src={pdfCache[doc.id]} type="application/pdf" className="doclist-pdf-thumb" />
+                            ) : isImage ? (
+                              <FiCamera />
+                            ) : isPdf ? (
+                              <FiFileText />
+                            ) : (
+                              <FiFileText />
+                            )}
                           </div>
                           <div className="doclist-text">
                             <span className="doclist-name" title={localNames[doc.id] || doc.fileName}>
@@ -200,9 +230,17 @@ function DocumentList({
                               type="button"
                               className="doclist-btn doclist-btn-primary"
                               title={isImage ? "View in Gallery" : "View"}
-                              onClick={() =>
-                                isImage ? openGallery(doc) : onView(doc)
-                              }
+                              onClick={async () => {
+                                if (isImage) {
+                                  await loadImage(doc);
+                                  openGallery(doc);
+                                } else if (isPdf) {
+                                  await loadPdfPreview(doc);
+                                  onView(doc);
+                                } else {
+                                  onView(doc);
+                                }
+                              }}
                             >
                               <FiEye />
                             </button>

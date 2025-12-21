@@ -148,6 +148,30 @@
 
 .detail-card .form-grid {
   padding: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* Form group defaults used across tabs */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Allow full-width form items (e.g., notes, textareas) */
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+/* Helpful utility spans for multi-column items */
+.form-group.span-2 {
+  grid-column: span 2;
+}
+.form-group.span-3 {
+  grid-column: span 3;
 }
 
 /* === Form Groups - Read-only Style === */
@@ -562,6 +586,7 @@
 
   .detail-card .form-grid {
     padding: 1.25rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .module-list {
@@ -582,6 +607,19 @@
   .add-docs-form .btn {
     grid-column: 1 / -1;
   }
+}
+/* tablet and phone fallbacks */
+@media (max-width: 900px) {
+  .detail-card .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .detail-card .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-group { gap: 0.35rem; }
 }
 /* ============================================
    🔙 PROFESSIONAL BACK TO SEARCH BUTTON

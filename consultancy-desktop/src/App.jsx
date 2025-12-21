@@ -32,6 +32,7 @@ import useAuthStore from './store/useAuthStore';
 import useDataStore from './store/dataStore';
 import useNotificationStore from './store/useNotificationStore';
 import { useShallow } from 'zustand/react/shallow';
+import initAutoResizeAll from './utils/autoResizeTextareas';
 
 function App() {
   const initializeNotifications = useNotificationStore((s) => s.initialize);
@@ -142,6 +143,16 @@ function App() {
       if (off) off();
     };
   }, [navigate, createNotification]);
+
+  // Initialize autosize for textarea elements across the app
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const cleanup = initAutoResizeAll();
+    // Re-run on route changes could re-init but App is root; keep one-time init
+    return () => {
+      if (typeof cleanup === 'function') cleanup();
+    };
+  }, []);
 
   if (activationLoading) {
     return (

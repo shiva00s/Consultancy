@@ -96,7 +96,17 @@ function DocumentUploader({ user, candidateId, onUploaded }) {
   const handleFileSelect = (e) => {
     const list = Array.from(e.target.files || []);
     if (!list.length) return;
-    setFiles((prev) => [...prev, ...list]);
+    // attach preview URL for images to show immediate thumbnail
+    const withPreview = list.map((f) => {
+      const item = f;
+      try {
+        if (f.type.startsWith('image/')) {
+          item.__preview = URL.createObjectURL(f);
+        }
+      } catch (err) {}
+      return item;
+    });
+    setFiles((prev) => [...prev, ...withPreview]);
   };
 
   const handleDrop = (e) => {
@@ -128,6 +138,10 @@ function DocumentUploader({ user, candidateId, onUploaded }) {
   // ✅ Confirm and remove file
   const handleDeleteConfirm = () => {
     const { index } = deleteDialog;
+    const removed = files[index];
+    if (removed && removed.__preview) {
+      try { URL.revokeObjectURL(removed.__preview); } catch(_) {}
+    }
     setFiles((prev) => prev.filter((_, i) => i !== index));
     setDeleteDialog({ open: false, index: null });
   };
@@ -300,13 +314,20 @@ function DocumentUploader({ user, candidateId, onUploaded }) {
               {files.map((f, idx) => (
                 <li key={`${f.name}-${idx}`}>
                   <div className="du-file-info">
-                    <span className="du-file-name">📄 {f.name}</span>
-                    <span className="du-file-category">
-                      🏷️ {getFileCategory(f.name)}
-                    </span>
-                    <span className="du-file-size">
-                      💾 {formatSize(f.size)}
-                    </span>
+                    <div className="du-file-thumb">
+                      {f.__preview ? (
+                        <img src={f.__preview} alt={f.name} />
+                      ) : (
+                        <div className="du-file-ext">{(f.name.split('.').pop() || '').toUpperCase()}</div>
+                      )}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div className="du-file-name">📄 {f.name}</div>
+                      <div className="du-file-meta" style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+                        <span>🏷️ {getFileCategory(f.name)}</span>
+                        <span style={{ marginLeft: 12 }}>💾 {formatSize(f.size)}</span>
+                      </div>
+                    </div>
                   </div>
                   {/* ✅ Individual Delete Button */}
                   <button
