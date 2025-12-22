@@ -226,14 +226,7 @@ function CommunicationHistory({ candidateId, user }) {
         </h3>
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <button
-            onClick={loadCommunicationHistory}
-            className="communication-refresh-btn"
-            title="Refresh"
-            aria-label="Refresh communication history"
-          >
-            <FiRefreshCw size={20} />
-          </button>
+          
 
           <button
             className="communication-refresh-btn"

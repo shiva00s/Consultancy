@@ -48,6 +48,21 @@ function CandidateMedical({ user, candidateId, candidateName }) {
     fetchMedicalTracking();
   }, [candidateId, fetchMedicalTracking]);
 
+
+  useEffect(() => {
+  if (medicalEntries.length > 0) return;
+  if (medicalForm.certificate_file) return;
+
+  const timer = setTimeout(() => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();   // opens Open‑file dialog
+    }
+  }, 300);
+
+  return () => clearTimeout(timer);
+}, [medicalEntries.length, medicalForm.certificate_file]);
+
+
   // Load previews for certificate files for history thumbnails
   useEffect(() => {
     const load = async () => {
@@ -61,7 +76,8 @@ function CandidateMedical({ user, candidateId, candidateName }) {
           if (isImage) {
             const res = await window.electronAPI.getImageBase64({ filePath: path });
             if (res && res.success) setCertificatePreviews((p) => ({ ...p, [entry.id]: { data: res.data, type: 'image' } }));
-          } else {
+          } else if (/\.pdf$/i.test(path)) {
+            // only create embedded preview for PDFs — other document types should not be embedded
             const res = await window.electronAPI.getDocumentBase64({ filePath: path });
             if (res && res.success) {
               const data = res.data || '';
@@ -69,6 +85,9 @@ function CandidateMedical({ user, candidateId, candidateName }) {
               const url = hasPrefix ? data : `data:application/pdf;base64,${data}`;
               setCertificatePreviews((p) => ({ ...p, [entry.id]: { data: url, type: 'pdf' } }));
             }
+          } else {
+            // for other file types (docx, xlsx, etc.) don't attempt to embed — mark as 'other'
+            setCertificatePreviews((p) => ({ ...p, [entry.id]: { data: null, type: 'other', path } }));
           }
         } catch (err) {
           console.error('load certificate preview failed', err);
@@ -92,7 +111,11 @@ function CandidateMedical({ user, candidateId, candidateName }) {
     if (file) {
       try {
         const url = URL.createObjectURL(file);
-        setCertificatePreview({ url, type: file.type });
+        let normalizedType = 'other';
+        if (file.type && file.type.startsWith('image/')) normalizedType = 'image';
+        else if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) normalizedType = 'pdf';
+        // for non-previewable types mark as 'other' (no embed)
+        setCertificatePreview(normalizedType === 'other' ? { url: null, type: 'other' } : { url, type: normalizedType });
       } catch (err) {
         console.error('preview create failed', err);
         setCertificatePreview(null);
@@ -149,7 +172,10 @@ function CandidateMedical({ user, candidateId, candidateName }) {
       if (file) {
         try {
           const url = URL.createObjectURL(file);
-          return { ...prev, [entryId]: { url, type: file.type } };
+          let normalizedType = 'other';
+          if (file.type && file.type.startsWith('image/')) normalizedType = 'image';
+          else if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) normalizedType = 'pdf';
+          return { ...prev, [entryId]: normalizedType === 'other' ? { url: null, type: 'other' } : { url, type: normalizedType } };
         } catch (err) {
           console.error('edit preview create failed', err);
           return { ...prev, [entryId]: null };

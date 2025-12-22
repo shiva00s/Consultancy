@@ -114,10 +114,10 @@
 
 /* === Sidebar Header === */
 .sidebar-header {
-  padding: 24px 24px 20px 24px;
+  padding: 24px 16px 20px 24px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   border-bottom: 1px solid var(--border-color);
   position: relative;
 }
@@ -139,11 +139,12 @@
   color: var(--text-primary);
   font-size: 1.2rem;
   font-weight: 700;
-  white-space: nowrap;
   background: linear-gradient(135deg, var(--primary), var(--accent, var(--primary)));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  flex: 1;
+  min-width: 0;
 }
 
 /* === Theme Toggle === */

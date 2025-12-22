@@ -63,9 +63,8 @@ function MainLayout({ children, onLogout, user, flags }) {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(getInitialCollapseState());
 
-  // ✨ NEW: Auto-expand/collapse state
+  // ✨ Auto-expand/collapse state
   const [isHovered, setIsHovered] = useState(false);
-  const [isPinned, setIsPinned] = useState(!getInitialCollapseState());
   const collapseTimerRef = useRef(null);
 
   const { theme, toggleTheme } = useThemeStore();
@@ -156,43 +155,22 @@ function MainLayout({ children, onLogout, user, flags }) {
     navigate('/login');
   };
 
-  // ✨ NEW: Auto-expand on mouse enter
+  // Auto-expand on mouse enter
   const handleMouseEnter = () => {
-    // Clear any pending collapse timer
     if (collapseTimerRef.current) {
       clearTimeout(collapseTimerRef.current);
       collapseTimerRef.current = null;
     }
-    // Only auto-expand if not pinned
-    if (!isPinned) {
-      setIsHovered(true);
-      setIsCollapsed(false);
-    }
+    setIsHovered(true);
+    setIsCollapsed(false);
   };
 
-  // ✨ NEW: Auto-collapse on mouse leave
+  // Auto-collapse on mouse leave
   const handleMouseLeave = () => {
-    // Only auto-collapse if not pinned
-    if (!isPinned) {
-      // Add 300ms delay to prevent accidental collapse
-      collapseTimerRef.current = setTimeout(() => {
-        setIsHovered(false);
-        setIsCollapsed(true);
-      }, 300);
-    }
-  };
-
-  // ✨ NEW: Toggle pin/unpin (replaces old toggle)
-  const handleTogglePin = () => {
-    const newPinState = !isPinned;
-    setIsPinned(newPinState);
-    setIsCollapsed(!newPinState);
-    localStorage.setItem('sidebarCollapsed', JSON.stringify(!newPinState));
-
-    // If unpinning and mouse is not hovering, collapse immediately
-    if (!newPinState && !isHovered) {
+    collapseTimerRef.current = setTimeout(() => {
+      setIsHovered(false);
       setIsCollapsed(true);
-    }
+    }, 300);
   };
 
   // ✨ NEW: Cleanup timer on unmount
@@ -232,15 +210,6 @@ function MainLayout({ children, onLogout, user, flags }) {
         onMouseLeave={handleMouseLeave}
       >
         <div className="sidebar-scrollable-area">
-          {/* ✨ UPDATED: Toggle button with pinned state and new handler */}
-          <button 
-            className={`sidebar-toggle-btn ${isPinned ? 'pinned' : ''}`}
-            onClick={handleTogglePin}
-            title={isPinned ? "Unpin sidebar (auto-collapse)" : "Pin sidebar (keep expanded)"}
-          >
-            <FiChevronLeft />
-          </button>
-
           <div className="sidebar-header">
             <FiBriefcase className="sidebar-logo" />
             <h3>Consultancy App</h3>

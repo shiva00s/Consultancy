@@ -375,3 +375,23 @@
   background: linear-gradient(135deg, #ffffff, #f8fafc);
   box-shadow: 0 10px 26px rgba(148, 163, 184, 0.35);
 }
+.communication-refresh-btn {
+  border-radius: 999px;          /* pill button */
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.communication-refresh-btn.is-on {
+  background-color: #e3f2ff;
+  border-color: #1976d2;
+}
+
+.communication-refresh-label {
+  font-size: 12px;
+  font-weight: 600;
+}
