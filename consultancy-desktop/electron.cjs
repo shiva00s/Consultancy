@@ -2,7 +2,7 @@
 
 const { app, BrowserWindow, dialog } = require('electron');
 const path = require('path');
-
+const { initializeCommunicationHandlers } = require('./src-electron/ipc/communicationHandlers.cjs');
 const { initializeDatabase, closeDatabase } = require('./src-electron/db/database.cjs');
 const { registerIpcHandlers, startReminderScheduler } = require('./src-electron/ipc/handlers.cjs');
 const { fileManager } = require('./src-electron/utils/fileManager.cjs');
@@ -234,7 +234,7 @@ app.whenReady().then(async () => {
       // even if the Twilio service is still initializing. Handlers that
       // require the Twilio client will check `whatsappService.isReady`.
       initializeWhatsAppHandlers(db, whatsappService);
-
+initializeCommunicationHandlers();
       // Initialize Twilio service (may take time); handlers are already
       // available to the renderer which avoids race conditions on startup.
       await whatsappService.initialize();

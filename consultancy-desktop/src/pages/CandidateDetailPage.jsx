@@ -16,6 +16,7 @@ import {
   FiMessageSquare,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
+import LazyRemoteImage from '../components/common/LazyRemoteImage';
 
 import "../css/CandidateDetailPage.css";
 import UniversalTabs from "../components/common/UniversalTabs"; 
@@ -673,7 +674,7 @@ function CandidateDetailPage({ user, flags }) {
       key: "communications",
       label: "Comms Log",
       icon: "💬",
-      content: <CommunicationHistory candidateId={id} />,
+      content: <CommunicationHistory candidateId={id} user={user} />,
       permKey: "tab_comms_log",
     },
   ].filter((tab) => canAccessTab(tab.permKey));
@@ -707,22 +708,30 @@ function CandidateDetailPage({ user, flags }) {
             }}
           >
             {photoUrl ? (
-              <img
-                src={photoUrl}
-                alt="Candidate"
-                onClick={handleUploadPhoto}
-                title="Click to change photo"
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                  marginRight: 10,
-                  verticalAlign: "middle",
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.35)'
-                }}
-              />
+              // If photoUrl is already a data URL (base64) show it directly for instant preview
+              (typeof photoUrl === 'string' && photoUrl.startsWith && photoUrl.startsWith('data:')) ? (
+                <img
+                  src={photoUrl}
+                  alt="Candidate"
+                  onClick={handleUploadPhoto}
+                  title="Click to change photo"
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                    marginRight: 10,
+                    verticalAlign: "middle",
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.35)'
+                  }}
+                />
+              ) : (
+                // Otherwise use LazyRemoteImage for efficient loading of file paths
+                <div onClick={handleUploadPhoto} title="Click to change photo" style={{ display: 'inline-block', cursor: 'pointer', marginRight: 10, width: 48, height: 48, borderRadius: '50%', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.35)' }}>
+                  <LazyRemoteImage filePath={details?.candidate?.photo_path || details?.candidate?.photoPath || photoUrl} className="candidate-header-photo" />
+                </div>
+              )
             ) : (
               <div onClick={handleUploadPhoto} title="Click to add photo" style={{ display: 'inline-block', cursor: 'pointer', marginRight: 10 }}>
                 <FiUser style={{ marginRight: "10px", verticalAlign: "middle" }} />

@@ -80,7 +80,12 @@ ipcMain.handle('whatsapp:archiveConversation', async (event, conversationId) => 
           wc.candidate_id,
           wc.candidate_name,
           wc.phone_number,
-          wc.last_message_time
+          wc.last_message_time,
+          wc.last_message,
+          wc.unread_count,
+          wc.created_at,
+          wc.updated_at,
+          wc.media_name
         FROM whatsapp_conversations wc
         WHERE wc.is_deleted = 0
         ORDER BY wc.last_message_time DESC

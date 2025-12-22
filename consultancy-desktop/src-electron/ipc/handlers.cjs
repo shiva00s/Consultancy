@@ -2667,8 +2667,94 @@ ipcMain.handle('upload-document', async (event, { candidateId, filePath, origina
 
 ipcMain.handle("getCommunicationLogs", async (event, { candidateId }) => {
   console.log("📞 getCommunicationLogs called:", { candidateId });
-  
-  return queries.getCommunicationLogs(parseInt(candidateId));
+
+  try {
+    const parsedId = parseInt(candidateId, 10);
+
+    // Start with non-WhatsApp communication logs from communication_logs table
+    const base = await queries.getCommunicationLogs(parsedId);
+    const resultLogs = Array.isArray(base.data) ? base.data.slice() : [];
+
+    // Now include WhatsApp messages and attachments (if any)
+    try {
+      const db = getDatabase();
+      const fs = require('fs');
+      const path = require('path');
+
+      const convs = await dbAll(db, `SELECT id FROM whatsapp_conversations WHERE candidate_id = ?`, [parsedId]);
+      const convIds = (convs || []).map((c) => c.id);
+      if (convIds.length > 0) {
+        const placeholders = convIds.map(() => '?').join(',');
+        const messages = await dbAll(db, `SELECT id, body, timestamp, sender_name, from_number, context_json, reason FROM whatsapp_messages WHERE conversation_id IN (${placeholders}) AND is_deleted = 0 ORDER BY timestamp DESC LIMIT 500`, convIds);
+
+        if (Array.isArray(messages) && messages.length > 0) {
+          const ids = messages.map((m) => m.id);
+          const ph = ids.map(() => '?').join(',');
+
+          // fetch media and legacy attachments for these message ids
+          const medias = await dbAll(db, `SELECT id, message_id, media_url, local_path, file_name, content_type FROM whatsapp_media WHERE message_id IN (${ph})`, ids);
+          const attachments = await dbAll(db, `SELECT id, message_id, file_path, original_name, mime_type FROM whatsapp_message_attachments WHERE message_id IN (${ph})`, ids);
+
+          const mapMed = {};
+          for (const r of medias || []) {
+            if (!mapMed[r.message_id]) mapMed[r.message_id] = [];
+            let url = r.media_url || null;
+            try {
+              if (!url && r.local_path && fs.existsSync(r.local_path)) {
+                url = `file://${path.resolve(r.local_path)}`;
+              }
+            } catch (e) {
+              // ignore
+            }
+            mapMed[r.message_id].push({ id: r.id, url, path: r.local_path || null, originalName: r.file_name || null, mimeType: r.content_type || null });
+          }
+
+          const mapAttach = {};
+          for (const a of attachments || []) {
+            if (!mapAttach[a.message_id]) mapAttach[a.message_id] = [];
+            let url = null;
+            try {
+              if (a.file_path && fs.existsSync(a.file_path)) url = `file://${path.resolve(a.file_path)}`;
+            } catch (e) { }
+            mapAttach[a.message_id].push({ id: a.id, url, path: a.file_path || null, originalName: a.original_name || null, mimeType: a.mime_type || null });
+          }
+
+          for (const m of messages) {
+            const combined = [];
+            for (const mm of (mapMed[m.id] || [])) combined.push(mm);
+            for (const at of (mapAttach[m.id] || [])) combined.push(at);
+
+            const metadata = m.context_json ? (() => { try { return JSON.parse(m.context_json); } catch { return { raw: m.context_json }; } })() : { reason: m.reason || null };
+
+            resultLogs.push({
+              id: `wa-${m.id}`,
+              communication_type: 'WhatsApp',
+              username: m.sender_name || m.from_number || null,
+              metadata,
+              details: m.body || '',
+              createdAt: m.timestamp || null,
+              attachments: combined,
+              raw: m,
+            });
+          }
+        }
+      }
+    } catch (waErr) {
+      console.warn('Error fetching WhatsApp messages for combined logs:', waErr && waErr.message ? waErr.message : waErr);
+    }
+
+    // Sort by createdAt desc
+    resultLogs.sort((a, b) => {
+      const ta = new Date(a.createdAt || 0).getTime();
+      const tb = new Date(b.createdAt || 0).getTime();
+      return tb - ta;
+    });
+
+    return { success: true, data: resultLogs };
+  } catch (err) {
+    console.error('getCommunicationLogs (combined) error:', err);
+    return { success: false, error: err.message, data: [] };
+  }
 });
 
 

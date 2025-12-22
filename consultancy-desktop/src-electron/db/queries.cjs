@@ -3573,6 +3573,40 @@ async function logCommunication({ candidateId, userId, type, details, metadata }
   `;
 
   try {
+    // Special-case: if this is a reaction to an existing message, attach it
+    // to the original communication_log's metadata.reactions array instead
+    // of inserting a new, separate log row.
+    if (type === 'reaction' && metadata && (metadata.messageId || metadata.msgId)) {
+      const targetId = metadata.messageId || metadata.msgId;
+      try {
+        const existing = await dbGet(db, 'SELECT id, metadata FROM communication_logs WHERE id = ?', [targetId]);
+        if (existing) {
+          let existingMeta = {};
+          try {
+            existingMeta = existing.metadata ? JSON.parse(existing.metadata) : {};
+          } catch (e) {
+            existingMeta = {};
+          }
+
+          existingMeta.reactions = existingMeta.reactions || [];
+          // Allow metadata.emoji or metadata.emojis or raw emoji string
+          const emoji = metadata.emoji || metadata.emojis || metadata.emojiChar || null;
+          if (emoji) {
+            existingMeta.reactions.push({ emoji, byUserId: userId, at: new Date().toISOString() });
+          } else if (Array.isArray(metadata.reactions)) {
+            existingMeta.reactions = existingMeta.reactions.concat(metadata.reactions.map(r => (typeof r === 'string' ? { emoji: r, at: new Date().toISOString(), byUserId: userId } : r)));
+          }
+
+          await dbRun(db, 'UPDATE communication_logs SET metadata = ? WHERE id = ?', [JSON.stringify(existingMeta), targetId]);
+          console.log('✅ Attached reaction to communication log:', { targetId, emoji });
+          return { success: true };
+        }
+      } catch (e) {
+        console.warn('Could not attach reaction to message:', e && e.message);
+        // fallback to inserting as a new log below
+      }
+    }
+
     const metaStr = metadata ? JSON.stringify(metadata) : null;
     await dbRun(db, sql, [candidateId, userId, type, details, metaStr]);
     console.log('✅ Communication logged:', { candidateId, type, details, metadata });

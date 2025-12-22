@@ -2,6 +2,7 @@
 
 import { Check, CheckCheck, Clock, File } from 'lucide-react';
 import './MessageBubble.css';
+import LazyRemoteImage from '../../components/common/LazyRemoteImage.jsx';
 
 const MessageBubble = ({ message }) => {
   const isUser = message.direction === 'outbound' || message.sender_type === 'user';
@@ -44,7 +45,11 @@ const MessageBubble = ({ message }) => {
             if (/\.(png|jpe?g|gif|webp)$/i.test(url) || (att.mimeType && att.mimeType.startsWith('image'))) {
               return (
                 <div key={att.id || name} className="message-attachment image">
-                  <img src={url} alt={name} loading="lazy" className="img-loading" onLoad={(e) => { try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {} }} />
+                  {url && url.startsWith('http') ? (
+                    <img src={url} alt={name} loading="lazy" className="img-loading" onLoad={(e) => { try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {} }} />
+                  ) : (
+                    <LazyRemoteImage filePath={url} />
+                  )}
                 </div>
               );
             }
@@ -68,10 +73,14 @@ const MessageBubble = ({ message }) => {
     if (/\.(png|jpe?g|gif|webp)$/i.test(url) || (message.media_type && message.media_type.startsWith('image'))) {
       // If it's a local path, renderer can display it directly, or it may already be a data URI
       return (
-        <div className="message-attachment image">
-          <img src={url} alt={name} loading="lazy" className="img-loading" onLoad={(e) => { try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {} }} />
-        </div>
-      );
+          <div className="message-attachment image">
+            {url && url.startsWith('http') ? (
+              <img src={url} alt={name} loading="lazy" className="img-loading" onLoad={(e) => { try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {} }} />
+            ) : (
+              <LazyRemoteImage filePath={url} />
+            )}
+          </div>
+        );
     }
 
     // Fallback: file link

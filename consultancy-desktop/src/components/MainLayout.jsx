@@ -340,14 +340,7 @@ function MainLayout({ children, onLogout, user, flags }) {
                     </NavLink>
                   </li>
                 )}
-                 {canAccess('system_modules') && (
-                  <li>
-                    <NavLink to="/whatsapp-bulk" title="WhatsApp Bulk">
-                      <FiSend />
-                      <span>WhatsApp Bulk</span>
-                    </NavLink>
-                  </li>
-                )}
+                
                 {/* ✅ ADD THIS BLOCK - NEW WhatsApp Chat */}
     {canAccess('whatsapp_access') && (
       <li>

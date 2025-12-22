@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Search, User, Phone } from 'lucide-react';
+import LazyRemoteImage from '../../components/common/LazyRemoteImage.jsx';
 import './NewChatModal.css';
 
 const NewChatModal = ({ onClose, onSelect }) => {
@@ -152,13 +153,9 @@ const NewChatModal = ({ onClose, onSelect }) => {
                       onLoad={(e) => { try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {} }}
                     />
                   ) : candidate.photo_path ? (
-                    <img
-                      src={candidate.photo_path}
-                      alt={candidate.name}
-                      className="candidate-photo-thumb img-loading"
-                      loading="lazy"
-                      onLoad={(e) => { try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {} }}
-                    />
+                    <div style={{ width: 36, height: 36, borderRadius: 999, overflow: 'hidden' }}>
+                      <LazyRemoteImage filePath={candidate.photo_path} className="candidate-photo-thumb" />
+                    </div>
                   ) : (
                     <User size={20} />
                   )}

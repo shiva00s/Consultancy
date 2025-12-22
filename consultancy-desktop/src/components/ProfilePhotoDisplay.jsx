@@ -80,15 +80,22 @@ function ProfilePhotoDisplay({ candidateId, candidateName, editable = false }) {
             <div className="skeleton-shimmer"></div>
           </div>
         ) : photoUrl ? (
-          <img
-            src={photoUrl}
-            alt={candidateName}
-            loading="lazy"
-            className="profile-photo candidate-photo img-loading"
-            onLoad={(e) => {
-              try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {}
-            }}
-          />
+          // If photoUrl is a data URL (base64), render directly. Otherwise use LazyRemoteImage to fetch via preload.
+          (typeof photoUrl === 'string' && photoUrl.startsWith('data:')) ? (
+            <img
+              src={photoUrl}
+              alt={candidateName}
+              loading="lazy"
+              className="profile-photo candidate-photo img-loading"
+              onLoad={(e) => {
+                try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {}
+              }}
+            />
+          ) : (
+            <div style={{ width: 80, height: 80 }}>
+              <LazyRemoteImage filePath={photoUrl} className="profile-photo candidate-photo" />
+            </div>
+          )
         ) : (
           <div className="photo-placeholder">
             <FiUser />

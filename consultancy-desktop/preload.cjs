@@ -275,6 +275,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Communication Logs
   logCommunication: (data) => ipcRenderer.invoke('logCommunication', data),
   getCommunicationLogs: (data) => ipcRenderer.invoke('getCommunicationLogs', data),
+  getMediaSignedUrl: (params) => ipcRenderer.invoke('whatsapp:getMediaSignedUrl', params),
   getCommLogs: (args) => ipcRenderer.invoke('get-comm-logs', args),
 
   // ==========================================================================

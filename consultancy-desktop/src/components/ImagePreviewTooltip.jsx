@@ -1,18 +1,14 @@
 import React, { useState } from 'react';
 import './ImagePreviewTooltip.css';
+import LazyRemoteImage from './common/LazyRemoteImage.jsx';
 
 const ImagePreviewTooltip = ({ fileName, filePath, children }) => {
   const [showPreview, setShowPreview] = useState(false);
   const [imageUrl, setImageUrl] = useState(null);
 
   const handleMouseEnter = async () => {
-    if (!imageUrl) {
-      // Fetch image base64
-      const res = await window.electronAPI.getImageBase64({ filePath });
-      if (res.success) {
-        setImageUrl(res.data);
-      }
-    }
+    // Defer loading to LazyRemoteImage which will fetch via preload when visible
+    if (!imageUrl) setImageUrl(filePath);
     setShowPreview(true);
   };
 
@@ -32,7 +28,9 @@ const ImagePreviewTooltip = ({ fileName, filePath, children }) => {
       
       {showPreview && imageUrl && (
         <div className="image-preview-tooltip">
-          <img src={imageUrl} alt={fileName} />
+          <div style={{ width: 240, height: 160 }}>
+            <LazyRemoteImage filePath={imageUrl} />
+          </div>
         </div>
       )}
     </div>

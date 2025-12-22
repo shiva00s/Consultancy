@@ -1,694 +1,377 @@
-/* ============================================
-   COMMUNICATION HISTORY STYLES
-   Premium Modern Design with Emoji Support
-   ============================================ */
-
 .communication-history-container {
-  max-width: 850px;
-  margin: 0 auto;
-  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
+/* Header */
 .communication-history-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid var(--border-color);
-  position: relative;
+  gap: 12px;
 }
 
-.communication-history-header::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  width: 80px;
-  height: 2px;
-  background: linear-gradient(90deg, var(--primary-color), transparent);
-  transition: width 0.3s ease;
-}
-
-.communication-history-header:hover::after {
-  width: 150px;
-}
-
-.communication-history-header h3 {
-  font-size: 1.4rem;
-  font-weight: 600;
-  color: var(--text-primary);
+.communication-history-header-left h3 {
   margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  font-size: 1.5rem;
+  letter-spacing: 0.2px;
+  font-weight: 700;
 }
 
-/* Refresh button - Circular style in top-right */
-.communication-refresh-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
-  border: 2px solid var(--border-color);
+.communication-history-header-left p {
+  margin: 2px 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.communication-history-header-right {
   display: flex;
+  gap: 8px;
   align-items: center;
-  justify-content: center;
+}
+
+.comm-header-refresh,
+.comm-header-toggle {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: rgba(15, 23, 42, 0.9);
+  color: var(--text-secondary, #e5e7eb);
+  padding: 6px 12px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  color: var(--text-secondary);
-  flex-shrink: 0;
-  position: relative;
-  overflow: hidden;
-}
-
-.communication-refresh-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary-color), #2196F3);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.communication-refresh-btn:hover::before {
-  opacity: 1;
-}
-
-.communication-refresh-btn:hover {
-  border-color: var(--primary-color);
-  color: white;
-  transform: rotate(180deg) scale(1.08);
-  box-shadow: 0 6px 20px rgba(33, 150, 243, 0.35);
-}
-
-.communication-refresh-btn svg {
-  position: relative;
-  z-index: 1;
-  font-size: 1.2rem;
-}
-
-.communication-refresh-btn:active {
-  transform: rotate(180deg) scale(0.95);
-}
-
-/* Timeline List */
-.communication-timeline-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  position: relative;
-}
-
-/* Vertical timeline bar - Premium gradient */
-.communication-timeline-list::before {
-  content: '';
-  position: absolute;
-  left: 19px;
-  top: 10px;
-  bottom: 10px;
-  width: 3px;
-  background: linear-gradient(
-    to bottom,
-    var(--primary-color) 0%,
-    var(--border-color) 20%,
-    var(--border-color) 80%,
-    transparent 100%
-  );
-  border-radius: 2px;
-  box-shadow: 0 0 8px rgba(33, 150, 243, 0.2);
-}
-
-/* Individual Timeline Item */
-.communication-timeline-item {
-  display: flex;
-  gap: 1.8rem;
-  padding-bottom: 2.5rem;
-  position: relative;
-  opacity: 0;
-  animation: slideInFromLeft 0.4s ease-out forwards;
-}
-
-.communication-timeline-item:nth-child(1) { animation-delay: 0.05s; }
-.communication-timeline-item:nth-child(2) { animation-delay: 0.1s; }
-.communication-timeline-item:nth-child(3) { animation-delay: 0.15s; }
-.communication-timeline-item:nth-child(4) { animation-delay: 0.2s; }
-.communication-timeline-item:nth-child(5) { animation-delay: 0.25s; }
-
-.communication-timeline-item:last-child {
-  padding-bottom: 0;
-}
-
-/* Timeline Icon (Circle with icon inside) - Enhanced */
-.communication-timeline-icon {
-  font-size: 1.3rem;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--bg-secondary);
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  z-index: 2;
-  border: 3px solid var(--border-color);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  gap: 6px;
+  font-size: 0.8rem;
+  transition: background 140ms ease, transform 140ms ease, box-shadow 140ms ease;
 }
 
-/* Emoji support for timeline icon */
-.communication-timeline-icon::before {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, transparent, var(--primary-color));
-  opacity: 0;
-  transition: opacity 0.3s ease;
+.comm-header-refresh:hover,
+.comm-header-toggle:hover {
+  background: rgba(59, 130, 246, 0.28);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.9);
 }
 
-/* Type-specific icon colors with glow */
-.comm-type-whatsapp .communication-timeline-icon {
-  border-color: #25D366;
-  color: #25D366;
-  background: linear-gradient(135deg, #fff 0%, #f0fdf4 100%);
+/* WhatsApp summary block */
+.communication-whatsapp-block {
+  margin-top: 4px;
 }
 
-.comm-type-whatsapp .communication-timeline-icon:hover {
-  box-shadow: 0 0 20px rgba(37, 211, 102, 0.4);
-}
-
-.comm-type-call .communication-timeline-icon {
-  border-color: #2196F3;
-  color: #2196F3;
-  background: linear-gradient(135deg, #fff 0%, #e3f2fd 100%);
-}
-
-.comm-type-call .communication-timeline-icon:hover {
-  box-shadow: 0 0 20px rgba(33, 150, 243, 0.4);
-}
-
-.comm-type-email .communication-timeline-icon {
-  border-color: #EA4335;
-  color: #EA4335;
-  background: linear-gradient(135deg, #fff 0%, #ffebee 100%);
-}
-
-.comm-type-email .communication-timeline-icon:hover {
-  box-shadow: 0 0 20px rgba(234, 67, 53, 0.4);
-}
-
-.comm-type-meeting .communication-timeline-icon {
-  border-color: #9C27B0;
-  color: #9C27B0;
-  background: linear-gradient(135deg, #fff 0%, #f3e5f5 100%);
-}
-
-.comm-type-meeting .communication-timeline-icon:hover {
-  box-shadow: 0 0 20px rgba(156, 39, 176, 0.4);
-}
-
-.comm-type-sms .communication-timeline-icon {
-  border-color: #FF9800;
-  color: #FF9800;
-  background: linear-gradient(135deg, #fff 0%, #fff3e0 100%);
-}
-
-.comm-type-sms .communication-timeline-icon:hover {
-  box-shadow: 0 0 20px rgba(255, 152, 0, 0.4);
-}
-
-/* Content area - Premium card design */
-.communication-timeline-content {
-  flex-grow: 1;
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
-  padding: 1.2rem;
+.communication-whatsapp-summary {
+  padding: 12px;
   border-radius: 12px;
-  border: 1px solid var(--border-color);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-}
-
-.communication-timeline-content::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    var(--primary-color) 50%, 
-    transparent 100%
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  background: linear-gradient(
+    90deg,
+    rgba(34, 197, 94, 0.08),
+    rgba(59, 130, 246, 0.05)
   );
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  margin-bottom: 8px;
 }
 
-.communication-timeline-item:hover .communication-timeline-content::before {
-  opacity: 1;
+.communication-whatsapp-summary h4 {
+  margin: 0 0 6px;
+  font-size: 1rem;
 }
 
-.communication-timeline-item:hover .communication-timeline-content {
-  background: var(--bg-input);
-  border-color: var(--primary-color);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  transform: translateX(4px);
-}
-
-.communication-timeline-item:hover .communication-timeline-icon {
-  transform: scale(1.15) rotate(5deg);
-  border-width: 3px;
-}
-
-/* Header (Type + User) */
-.communication-timeline-header {
+.communication-whatsapp-meta {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.7rem;
-  gap: 10px;
-}
-
-.communication-timeline-header strong {
-  color: var(--text-primary);
-  font-size: 1.05rem;
-  font-weight: 600;
-  text-transform: capitalize;
-  display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
-}
-
-.communication-timeline-user {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  background: var(--bg-tertiary);
-  padding: 5px 12px;
-  border-radius: 14px;
-  transition: all 0.2s ease;
-  border: 1px solid transparent;
-}
-
-.communication-timeline-item:hover .communication-timeline-user {
-  background: var(--bg-secondary);
-  border-color: var(--border-color);
-}
-
-/* Details */
-.communication-timeline-details {
-  margin: 0 0 0.7rem 0;
-  font-size: 0.95rem;
-  color: var(--text-secondary);
-  line-height: 1.6;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-/* Timestamp */
-.communication-timeline-timestamp {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   font-size: 0.82rem;
-  color: var(--text-secondary);
-  opacity: 0.75;
-  transition: opacity 0.2s ease;
+  color: var(--text-muted, #94a3b8);
 }
 
-.communication-timeline-item:hover .communication-timeline-timestamp {
-  opacity: 1;
-}
-
-/* Empty State - Enhanced */
-.communication-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 100px 20px;
-  text-align: center;
-  color: var(--text-secondary);
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-input) 100%);
-  border-radius: 16px;
-  border: 2px dashed var(--border-color);
-}
-
-.communication-empty-state svg {
-  color: var(--text-secondary);
-  opacity: 0.3;
-  margin-bottom: 20px;
-  font-size: 3.5rem;
-  animation: floatIcon 3s ease-in-out infinite;
-}
-
-.communication-empty-state h3 {
-  margin: 0 0 10px 0;
-  font-weight: 600;
-  color: var(--text-primary);
-  font-size: 1.2rem;
-}
-
-.communication-empty-state p {
-  font-size: 0.95rem;
-  color: var(--text-secondary);
-  max-width: 420px;
-  margin: 0 0 24px 0;
-  line-height: 1.5;
-}
-
-.communication-empty-state .communication-refresh-btn {
-  padding: 12px 24px;
-  border-radius: 10px;
-  width: auto;
-  height: auto;
-  gap: 10px;
-  font-weight: 500;
-}
-
-/* Loading State - Enhanced */
-.communication-loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 20px;
-  text-align: center;
-  color: var(--text-secondary);
-}
-
-.communication-loading-container svg {
-  animation: spin 1s linear infinite;
-  font-size: 2.5rem;
-  color: var(--primary-color);
-  margin-bottom: 16px;
-}
-
-/* Animations */
-@keyframes slideInFromLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes floatIcon {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-/* Scrollbar Styling - Premium */
-.communication-timeline-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.communication-timeline-list::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
-  border-radius: 4px;
-}
-
-.communication-timeline-list::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, var(--primary-color), var(--border-color));
-  border-radius: 4px;
-  transition: background 0.3s ease;
-}
-
-.communication-timeline-list::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-color);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .communication-history-container {
-    padding: 1.5rem 1rem;
-  }
-
-  .communication-timeline-item {
-    gap: 1.2rem;
-  }
-
-  .communication-timeline-icon {
-    width: 36px;
-    height: 36px;
-    font-size: 1.1rem;
-    border-width: 2px;
-  }
-
-  .communication-timeline-list::before {
-    left: 17px;
-    width: 2px;
-  }
-
-  .communication-timeline-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .communication-refresh-btn {
-    width: 40px;
-    height: 40px;
-  }
-
-  .communication-history-header h3 {
-    font-size: 1.2rem;
-  }
-
-  .communication-timeline-content {
-    padding: 1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .communication-history-container {
-    padding: 1rem 0.5rem;
-  }
-
-  .communication-timeline-item {
-    gap: 1rem;
-  }
-
-  .communication-empty-state {
-    padding: 60px 15px;
-  }
-
-  .communication-empty-state svg {
-    font-size: 2.5rem;
-  }
-}
-
-/* Dark mode enhancements (if applicable) */
-@media (prefers-color-scheme: dark) {
-  .communication-timeline-list::before {
-    box-shadow: 0 0 12px rgba(33, 150, 243, 0.3);
-  }
-
-  .communication-timeline-icon {
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
-  }
-
-  .communication-timeline-content {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  }
-}
-.communication-history-container {
-  padding: 16px 18px 20px;
-  max-height: 100%;
-  overflow: auto;
-}
-
-/* subtle bg shell */
-.communication-history-shell {
-  border-radius: 16px;
-  padding: 10px 12px;
-  background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.16), transparent 60%);
-}
-
-/* list + vertical line */
-.communication-timeline-list {
+.communication-whatsapp-messages-list ul {
   list-style: none;
-  margin: 0;
+  margin: 6px 0 0;
   padding: 0;
-  position: relative;
+  font-size: 0.82rem;
 }
 
-.communication-timeline-list::before {
-  content: '';
+/* Timeline */
+.communication-timeline {
+  position: relative;
+  margin-top: 4px;
+}
+
+.communication-timeline-line {
   position: absolute;
   left: 20px;
-  top: 4px;
-  bottom: 4px;
-  width: 3px;
-  border-radius: 999px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
   background: linear-gradient(
     to bottom,
-    var(--primary-color),
-    var(--border-color),
-    transparent
+    rgba(59, 130, 246, 0.4),
+    rgba(56, 189, 248, 0.1)
   );
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.35);
 }
 
-/* each comm row */
+.communication-timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Timeline item */
 .communication-timeline-item {
   display: flex;
-  gap: 1.3rem;
-  padding: 0 0 1.3rem 0;
-  position: relative;
-  opacity: 0;
-  animation: slideInFromLeft 0.35s ease-out forwards;
+  gap: 12px;
+  padding-left: 40px;
 }
 
-/* circular icon */
 .communication-timeline-icon {
-  width: 36px;
-  height: 36px;
+  position: relative;
+  margin-right: 4px;
+}
+
+.communication-timeline-avatar {
+  width: 38px;
+  height: 38px;
   border-radius: 999px;
-  background: radial-gradient(circle at 30% 0, #ffffff, var(--bg-secondary));
-  border: 3px solid var(--border-color);
+  background: radial-gradient(circle at 30% 10%, #22c55e, #0f172a);
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  color: var(--primary-color);
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.25);
-  position: relative;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  color: #e5e7eb;
+  border: 2px solid rgba(148, 163, 184, 0.75);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.9);
 }
 
-.comm-type-whatsapp .communication-timeline-icon {
-  color: #22c55e;
-  border-color: rgba(34, 197, 94, 0.9);
+/* Emoji badge floating above avatar */
+.comm-emoji-badge {
+  position: absolute;
+  top: -12px;
+  right: -6px;
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.08),
+    rgba(15, 23, 42, 0.95)
+  );
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  animation: floatEmoji 3s ease-in-out infinite;
 }
 
-.comm-type-email .communication-timeline-icon {
-  color: #f97316;
-  border-color: rgba(249, 115, 22, 0.9);
+@keyframes floatEmoji {
+  0%,
+  100% {
+    transform: translateY(-2px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
-.comm-type-call .communication-timeline-icon {
-  color: #0ea5e9;
-  border-color: rgba(14, 165, 233, 0.9);
-}
-
-/* card */
+/* Card content */
 .communication-timeline-content {
   flex: 1;
-  padding: 0.75rem 0.9rem 0.6rem;
-  border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.45);
-  background: linear-gradient(135deg, var(--bg-secondary), var(--bg-input));
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  position: relative;
-  overflow: hidden;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease,
-    background 0.18s ease;
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.95),
+    rgba(15, 23, 42, 0.98)
+  );
+  border-radius: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.9);
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
 }
 
-.communication-timeline-content::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at top right, rgba(129, 140, 248, 0.22), transparent 60%);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.22s ease;
-}
-
-/* hover */
 .communication-timeline-item:hover .communication-timeline-content {
-  transform: translateX(4px);
-  border-color: rgba(59, 130, 246, 0.75);
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.25);
+  transform: translateY(-4px);
+  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.95);
+  border-color: rgba(59, 130, 246, 0.35);
 }
 
-.communication-timeline-item:hover .communication-timeline-content::before {
-  opacity: 1;
-}
-
-.communication-timeline-item:hover .communication-timeline-icon {
-  transform: translateY(-1px) scale(1.08);
-  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.6);
-}
-
-/* header / meta */
+/* Header inside card */
 .communication-timeline-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 8px;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 4px;
 }
 
 .communication-timeline-header strong {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 
 .communication-timeline-user {
+  margin-top: 2px;
   font-size: 0.78rem;
   padding: 3px 9px;
   border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.02),
+    rgba(255, 255, 255, 0.01)
+  );
+  color: var(--text-muted, #94a3b8);
 }
 
-/* message + time */
 .communication-timeline-details {
   margin: 0;
   font-size: 0.85rem;
+  color: var(--text-secondary, #e5e7eb);
 }
 
 .communication-timeline-timestamp {
   font-size: 0.76rem;
+  color: var(--text-muted, #94a3b8);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-/* animations */
-@keyframes slideInFromLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+/* Extra meta row */
+.communication-extra-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #e5e7eb);
 }
 
+.communication-extra-row {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 8px;
+  background: rgba(15, 23, 42, 0.85);
+  border-radius: 8px;
+}
+
+/* Attachments */
+.communication-attachments {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.comm-attachment-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.comm-attachment-item img {
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
+}
+
+.comm-attachment-details-btn {
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, rgba(148, 163, 184, 0.5));
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-secondary, #e5e7eb);
+}
+
+.comm-attachment-meta {
+  font-size: 11px;
+  color: var(--text-muted, #94a3b8);
+}
+
+/* Reactions chips */
+.comm-reactions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.comm-reaction {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03),
+    rgba(255, 255, 255, 0.01)
+  );
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 14px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.7);
+}
+
+/* Loading and empty states */
+.communication-loading-container,
+.communication-empty-state {
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px dashed rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.95);
+  text-align: center;
+}
+
+.communication-loading-text {
+  margin-top: 8px;
+  color: var(--text-muted, #94a3b8);
+}
+
+.communication-empty-emoji {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.communication-empty-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.communication-empty-description {
+  font-size: 0.9rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+/* Light theme adjustments */
 @media (prefers-color-scheme: dark) {
   .communication-timeline-content {
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.7);
   }
+}
+
+[data-theme="light"] .communication-timeline-content {
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  border-color: rgba(148, 163, 184, 0.35);
+  box-shadow: 0 12px 26px rgba(148, 163, 184, 0.45);
+}
+
+[data-theme="light"] .communication-loading-container,
+[data-theme="light"] .communication-empty-state {
+  background: #f8fafc;
+}
+
+/* Wrapper when showing CommunicationLog instead of timeline */
+.communication-log-wrapper {
+  margin-top: 4px;
+}
+
+.communication-log-wrapper .comm-log-item {
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.95),
+    rgba(248, 250, 252, 0.95)
+  );
+  box-shadow: 0 10px 26px rgba(148, 163, 184, 0.35);
+}
+
+[data-theme='light'] .communication-log-wrapper .comm-log-item {
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  box-shadow: 0 10px 26px rgba(148, 163, 184, 0.35);
 }

@@ -14,6 +14,7 @@ import {
 } from "react-icons/fi";
 import "../css/DocumentList.css";
 import ConfirmDialog from './common/ConfirmDialog';
+import LazyRemoteImage from './common/LazyRemoteImage';
 import {
   cleanCategory,
   addEmojiToCategory,
@@ -173,8 +174,11 @@ function DocumentList({
                         <div className="doclist-item-main">
                           <div className={`doclist-icon ${isImage ? 'is-image' : ''}`}>
                             {/* Thumbnail: image -> preview img, pdf -> small embed if loaded, else icon */}
-                            {isImage && imageCache[doc.id] ? (
-                              <img src={imageCache[doc.id]} alt={doc.fileName} />
+                            {isImage ? (
+                              // Use LazyRemoteImage which will fetch the image base64 via preload and cache it
+                              <div style={{ width: '100%', height: '100%' }}>
+                                <LazyRemoteImage filePath={doc.filePath} />
+                              </div>
                             ) : isPdf && pdfCache[doc.id] ? (
                               <embed src={pdfCache[doc.id]} type="application/pdf" className="doclist-pdf-thumb" />
                             ) : isImage ? (
@@ -290,14 +294,12 @@ function DocumentList({
 
             {/* Main Image */}
             <div className="gallery-content">
-              {imageCache[allImages[currentImageIndex].id] ? (
-                <img
-                  src={imageCache[allImages[currentImageIndex].id]}
-                  alt={allImages[currentImageIndex].fileName}
+              {(
+                // Use LazyRemoteImage for gallery display; it will load via preload and cache
+                <LazyRemoteImage
+                  filePath={allImages[currentImageIndex].filePath}
                   className="gallery-image"
                 />
-              ) : (
-                <div className="gallery-loading">Loading image...</div>
               )}
             </div>
 
