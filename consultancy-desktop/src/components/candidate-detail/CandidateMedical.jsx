@@ -49,20 +49,6 @@ function CandidateMedical({ user, candidateId, candidateName }) {
   }, [candidateId, fetchMedicalTracking]);
 
 
-  useEffect(() => {
-  if (medicalEntries.length > 0) return;
-  if (medicalForm.certificate_file) return;
-
-  const timer = setTimeout(() => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();   // opens Open‑file dialog
-    }
-  }, 300);
-
-  return () => clearTimeout(timer);
-}, [medicalEntries.length, medicalForm.certificate_file]);
-
-
   // Load previews for certificate files for history thumbnails
   useEffect(() => {
     const load = async () => {

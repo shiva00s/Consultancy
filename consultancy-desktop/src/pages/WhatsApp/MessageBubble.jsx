@@ -1,11 +1,13 @@
 // src/pages/WhatsApp/MessageBubble.jsx
 
-import { Check, CheckCheck, Clock, File } from 'lucide-react';
+import { useState } from 'react';
+import { Check, CheckCheck, Clock, File, X } from 'lucide-react';
 import './MessageBubble.css';
 import LazyRemoteImage from '../../components/common/LazyRemoteImage.jsx';
 
 const MessageBubble = ({ message }) => {
   const isUser = message.direction === 'outbound' || message.sender_type === 'user';
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const formatTime = (timestamp) => {
     if (!timestamp) return '';
@@ -44,11 +46,13 @@ const MessageBubble = ({ message }) => {
 
             if (/\.(png|jpe?g|gif|webp)$/i.test(url) || (att.mimeType && att.mimeType.startsWith('image'))) {
               return (
-                <div key={att.id || name} className="message-attachment image">
+                <div key={att.id || name} className="message-attachment image" onClick={() => setSelectedImage(url)}>
                   {url && url.startsWith('http') ? (
-                    <img src={url} alt={name} loading="lazy" className="img-loading" onLoad={(e) => { try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {} }} />
+                    <img src={url} alt={name} loading="lazy" className="img-loading" onLoad={(e) => { try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {} }} style={{ cursor: 'pointer' }} />
                   ) : (
-                    <LazyRemoteImage filePath={url} />
+                    <div style={{ cursor: 'pointer' }}>
+                      <LazyRemoteImage filePath={url} />
+                    </div>
                   )}
                 </div>
               );
@@ -73,11 +77,13 @@ const MessageBubble = ({ message }) => {
     if (/\.(png|jpe?g|gif|webp)$/i.test(url) || (message.media_type && message.media_type.startsWith('image'))) {
       // If it's a local path, renderer can display it directly, or it may already be a data URI
       return (
-          <div className="message-attachment image">
+          <div className="message-attachment image" onClick={() => setSelectedImage(url)}>
             {url && url.startsWith('http') ? (
-              <img src={url} alt={name} loading="lazy" className="img-loading" onLoad={(e) => { try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {} }} />
+              <img src={url} alt={name} loading="lazy" className="img-loading" onLoad={(e) => { try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {} }} style={{ cursor: 'pointer' }} />
             ) : (
-              <LazyRemoteImage filePath={url} />
+              <div style={{ cursor: 'pointer' }}>
+                <LazyRemoteImage filePath={url} />
+              </div>
             )}
           </div>
         );
@@ -110,6 +116,26 @@ const MessageBubble = ({ message }) => {
           )}
         </div>
       </div>
+
+      {/* Image Preview Modal */}
+      {selectedImage && (
+        <div className="image-preview-modal" onClick={() => setSelectedImage(null)}>
+          <div className="image-preview-container" onClick={(e) => e.stopPropagation()}>
+            <button 
+              className="image-preview-close"
+              onClick={() => setSelectedImage(null)}
+              title="Close"
+            >
+              <X size={24} />
+            </button>
+            {selectedImage.startsWith('http') ? (
+              <img src={selectedImage} alt="preview" className="image-preview-img" />
+            ) : (
+              <LazyRemoteImage filePath={selectedImage} className="image-preview-img" />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

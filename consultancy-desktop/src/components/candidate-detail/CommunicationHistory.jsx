@@ -228,17 +228,7 @@ function CommunicationHistory({ candidateId, user }) {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           
 
-          <button
-            className="communication-refresh-btn"
-            style={{ width: 110, borderRadius: 999 }}
-            title="Toggle detailed timeline"
-            onClick={() => setRichView((v) => !v)}
-            aria-pressed={richView}
-          >
-            <span style={{ fontSize: 12, fontWeight: 600 }}>
-              {richView ? '📜 Timeline' : '🧊 Rich View'}
-            </span>
-          </button>
+          
         </div>
       </div>
 
