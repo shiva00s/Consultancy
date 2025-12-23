@@ -128,12 +128,16 @@
   }
 }
 
-/* Image attachments */
+/* ========================================
+   IMAGE ATTACHMENTS
+======================================== */
+
 .message-image-container {
   margin: 4px 0 0 0;
   max-width: 100%;
   border-radius: 7.5px;
   overflow: hidden;
+  position: relative;
 }
 
 .message-image {
@@ -143,15 +147,20 @@
   height: auto;
   display: block;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, transform 0.2s;
   border-radius: 7.5px;
+  object-fit: cover;
 }
 
 .message-image:hover {
   opacity: 0.95;
+  transform: scale(1.01);
 }
 
-/* Document attachments */
+/* ========================================
+   DOCUMENT ATTACHMENTS
+======================================== */
+
 .message-attachment {
   display: flex;
   align-items: center;
@@ -161,10 +170,30 @@
   border-radius: 7.5px;
   margin-top: 4px;
   max-width: 300px;
+  transition: background-color 0.2s;
+}
+
+.message-attachment:hover {
+  background-color: rgba(17, 27, 33, 0.08);
 }
 
 [data-theme="dark"] .message-attachment {
   background-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .message-attachment:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.attachment-icon-wrapper {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 168, 132, 0.1);
+  border-radius: 6px;
 }
 
 .attachment-icon {
@@ -201,6 +230,7 @@
   font-size: 11px;
   color: rgba(17, 27, 33, 0.6);
   text-transform: uppercase;
+  font-weight: 500;
 }
 
 [data-theme="dark"] .attachment-type {
@@ -208,7 +238,7 @@
 }
 
 .attachment-download-btn {
-  padding: 6px;
+  padding: 8px;
   background-color: #00a884;
   color: white;
   border-radius: 50%;
@@ -216,26 +246,73 @@
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, transform 0.2s;
   flex-shrink: 0;
+  border: none;
+  cursor: pointer;
 }
 
 .attachment-download-btn:hover {
   background-color: #008069;
+  transform: scale(1.05);
 }
+
+/* ========================================
+   FALLBACK FOR UNAVAILABLE MEDIA
+======================================== */
 
 .message-attachment-fallback {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 10px;
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: rgba(248, 113, 113, 0.1);
   border-radius: 7.5px;
   font-size: 13px;
-  color: #667781;
+  color: #dc2626;
+  border: 1px solid rgba(248, 113, 113, 0.3);
 }
 
-/* Image lightbox */
+[data-theme="dark"] .message-attachment-fallback {
+  background-color: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.message-attachment-fallback svg {
+  color: #dc2626;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .message-attachment-fallback svg {
+  color: #f87171;
+}
+
+.message-attachment-fallback .fallback-text {
+  flex: 1;
+  font-style: italic;
+}
+
+.message-attachment-fallback .fallback-action {
+  color: #00a884;
+  cursor: pointer;
+  text-decoration: underline;
+  font-weight: 500;
+  font-style: normal;
+}
+
+[data-theme="dark"] .message-attachment-fallback .fallback-action {
+  color: #00a884;
+}
+
+.message-attachment-fallback .fallback-action:hover {
+  opacity: 0.8;
+}
+
+/* ========================================
+   IMAGE LIGHTBOX
+======================================== */
+
 .image-lightbox {
   position: fixed;
   top: 0;
@@ -248,12 +325,23 @@
   justify-content: center;
   z-index: 10000;
   cursor: pointer;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .lightbox-content {
   position: relative;
   max-width: 90vw;
   max-height: 90vh;
+  cursor: default;
 }
 
 .lightbox-image {
@@ -261,188 +349,186 @@
   max-height: 90vh;
   object-fit: contain;
   border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 .lightbox-close {
   position: absolute;
-  top: -40px;
-  right: 0;
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  padding: 8px;
-  transition: transform 0.2s;
-}
-
-.lightbox-close:hover {
-  transform: scale(1.1);
-}
-/* Attachment styles */
-.message-attachment {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 8px;
-  margin-top: 6px;
-}
-
-.attachment-icon-wrapper {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 6px;
-}
-
-.attachment-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.attachment-name {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.attachment-type {
-  display: block;
-  font-size: 11px;
-  opacity: 0.7;
-  text-transform: uppercase;
-}
-
-.attachment-download-btn {
-  flex-shrink: 0;
-  padding: 6px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.1);
-  transition: background 0.2s;
-}
-
-.attachment-download-btn:hover {
-  background: rgba(0, 0, 0, 0.2);
-}
-
-/* Image preview */
-.message-image-container {
-  margin-top: 6px;
-  border-radius: 8px;
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.message-image {
-  max-width: 100%;
-  max-height: 300px;
-  display: block;
-  border-radius: 8px;
-}
-
-/* Lightbox */
-.image-lightbox {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.9);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.lightbox-content {
-  position: relative;
-  max-width: 90vw;
-  max-height: 90vh;
-}
-
-.lightbox-image {
-  max-width: 100%;
-  max-height: 90vh;
-  border-radius: 8px;
-}
-
-.lightbox-close {
-  position: absolute;
-  top: -40px;
+  top: -50px;
   right: 0;
   background: rgba(255, 255, 255, 0.2);
   border: none;
-  padding: 8px;
-  border-radius: 50%;
-  cursor: pointer;
   color: white;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(1.1);
 }
 
 .lightbox-download {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
+  bottom: -50px;
+  right: 0;
   background: rgba(255, 255, 255, 0.9);
+  border: none;
   padding: 10px;
   border-radius: 50%;
   color: #000;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: background-color 0.2s, transform 0.2s;
 }
-.lightbox-close:hover {
-  background: rgba(255, 255, 255, 0.4);
-}
+
 .lightbox-download:hover {
   background: rgba(255, 255, 255, 1);
+  transform: scale(1.1);
 }
-/* Responsive adjustments */
+
+/* ========================================
+   RESPONSIVE ADJUSTMENTS
+======================================== */
+
 @media (max-width: 600px) {
   .message-bubble {
     max-width: 80%;
   }
-}
-/* Fallback for unavailable media */
-.message-attachment-fallback {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px;
-  background-color: rgba(0, 0, 0, 0.05);
-  border-radius: 7.5px;
-  font-size: 13px;
-  color: #667781;
-  font-style: italic;
+
+  .message-image {
+    max-width: 250px;
+    max-height: 250px;
+  }
+
+  .lightbox-close,
+  .lightbox-download {
+    top: 10px;
+    bottom: auto;
+  }
+
+  .lightbox-download {
+    right: 60px;
+  }
 }
 
-[data-theme="dark"] .message-attachment-fallback {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: #8696a0;
+/* ========================================
+   LOADING STATES
+======================================== */
+
+.message-image[src=""],
+.message-image:not([src]) {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }
 
-.message-attachment-fallback svg {
-  color: #f87171;
-  flex-shrink: 0;
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
-[data-theme="dark"] .message-attachment-fallback svg {
-  color: #f87171;
+.message-attachment .attachment-icon-wrapper {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }
-.message-attachment-fallback .fallback-text {
-  flex: 1;
+.message-attachment .attachment-name,
+.message-attachment .attachment-type {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  color: transparent;
 }
-.message-attachment-fallback .fallback-action {
-  color: #00a884;
+.message-attachment .attachment-download-btn {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  color: transparent;
+  pointer-events: none;
+}
+/* ========================================
+   DEBUG PANEL (NEW)
+======================================== */
+
+.message-attachment-fallback details {
+  margin-top: 8px;
+  width: 100%;
+}
+
+.message-attachment-fallback summary {
   cursor: pointer;
-  text-decoration: underline;
+  font-size: 10px;
+  color: #dc2626;
+  font-weight: 500;
+  padding: 4px 0;
+  user-select: none;
 }
-[data-theme="dark"] .message-attachment-fallback .fallback-action {
-  color: #00a884;
+
+[data-theme="dark"] .message-attachment-fallback summary {
+  color: #f87171;
 }
-.message-attachment-fallback .fallback-action:hover {
+
+.message-attachment-fallback summary:hover {
   opacity: 0.8;
+}
+
+.message-attachment-fallback code {
+  display: block;
+  word-break: break-all;
+  font-size: 9px;
+  line-height: 1.4;
+  padding: 8px;
+  background: rgba(17, 27, 33, 0.05);
+  border-radius: 4px;
+  margin-top: 5px;
+  font-family: 'Courier New', monospace;
+  color: #374151;
+  max-height: 100px;
+  overflow-y: auto;
+  border: 1px solid rgba(17, 27, 33, 0.1);
+}
+
+[data-theme="dark"] .message-attachment-fallback code {
+  background: rgba(255, 255, 255, 0.08);
+  color: #9ca3af;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.message-attachment-fallback code::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.message-attachment-fallback code::-webkit-scrollbar-track {
+  background: rgba(17, 27, 33, 0.05);
+  border-radius: 2px;
+}
+
+.message-attachment-fallback code::-webkit-scrollbar-thumb {
+  background: rgba(17, 27, 33, 0.2);
+  border-radius: 2px;
+}
+
+[data-theme="dark"] .message-attachment-fallback code::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .message-attachment-fallback code::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
 }

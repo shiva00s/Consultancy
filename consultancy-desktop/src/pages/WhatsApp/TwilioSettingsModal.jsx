@@ -6,33 +6,45 @@ import './TwilioSettingsModal.css';
 import TwilioOnboardingModal from './TwilioOnboardingModal';
 
 const TwilioSettingsModal = ({ onClose, onSave }) => {
-  const [accountSid, setAccountSid] = useState('AC7ff5862adc4fc67803722d3e8ac3bda7');
-  const [authToken, setAuthToken] = useState('8db81c11ec073e5edf84330ad4d9c563');
+  const [accountSid, setAccountSid] = useState('');
+  const [authToken, setAuthToken] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('whatsapp:+14155238886');
-  const [ngrokUrl, setNgrokUrl] = useState(''); // ✅ Moved up
+  const [ngrokUrl, setNgrokUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // ✅ Load ngrok URL on component mount
+  // ✅ Load saved credentials and ngrok URL on mount
   useEffect(() => {
-    const loadNgrokUrl = async () => {
+    const loadSettings = async () => {
       try {
-        const result = await window.electron.invoke('whatsapp:getNgrokUrl');
-        if (result.success && result.url) {
-          setNgrokUrl(result.url);
+        // Load Twilio credentials
+        const statusResult = await window.electronAPI.whatsapp.getStatus();
+        if (statusResult.success && statusResult.credentials) {
+          setAccountSid(statusResult.credentials.accountSid || '');
+          setAuthToken(statusResult.credentials.authToken || '');
+          setWhatsappNumber(statusResult.credentials.whatsappNumber || 'whatsapp:+14155238886');
+        }
+
+        // ✅ FIXED: Load ngrok URL using correct API
+        const ngrokResult = await window.electronAPI.whatsapp.getNgrokUrl();
+        if (ngrokResult.success && ngrokResult.ngrokUrl) {
+          setNgrokUrl(ngrokResult.ngrokUrl);
+          console.log('✅ Loaded ngrok URL:', ngrokResult.ngrokUrl);
         }
       } catch (err) {
-        console.error('Error loading ngrok URL:', err);
+        console.error('Error loading settings:', err);
       }
     };
-    loadNgrokUrl();
+
+    loadSettings();
   }, []);
 
   const handleSave = async () => {
-    if (!accountSid || !authToken || !whatsappNumber) {
-      setError('Please fill in all fields');
+    // Validate required fields
+    if (!accountSid?.trim() || !authToken?.trim() || !whatsappNumber?.trim()) {
+      setError('Please fill in all required fields (Account SID, Auth Token, WhatsApp Number)');
       return;
     }
 
@@ -41,33 +53,56 @@ const TwilioSettingsModal = ({ onClose, onSave }) => {
     setSuccess(false);
 
     try {
-      // ✅ Save Twilio credentials
-      const response = await window.electronAPI.whatsapp.saveCredentials({
+      // ✅ 1. Save Twilio credentials
+      const credentialsResult = await window.electronAPI.whatsapp.saveCredentials({
         accountSid: accountSid.trim(),
         authToken: authToken.trim(),
         whatsappNumber: whatsappNumber.trim()
       });
 
-      if (!response.success) {
-        setError(response.error || 'Failed to save credentials');
-        return;
+      if (!credentialsResult.success) {
+        throw new Error(credentialsResult.error || 'Failed to save Twilio credentials');
       }
 
-      // ✅ Save ngrok URL if provided
+      console.log('✅ Twilio credentials saved successfully');
+
+      // ✅ 2. Save ngrok URL (if provided)
       if (ngrokUrl && ngrokUrl.trim()) {
-        const ngrokResult = await window.electron.invoke('whatsapp:setNgrokUrl', ngrokUrl.trim());
-        if (!ngrokResult.success) {
-          console.warn('Failed to save ngrok URL:', ngrokResult.error);
+        const trimmedUrl = ngrokUrl.trim();
+        
+        // Basic URL validation
+        if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
+          console.warn('⚠️ Ngrok URL should start with http:// or https://');
+          setError('Ngrok URL should start with http:// or https://');
+          setLoading(false);
+          return;
         }
+
+        // ✅ FIXED: Save ngrok URL using correct API
+        const ngrokResult = await window.electronAPI.whatsapp.saveNgrokUrl(trimmedUrl);
+        
+        if (ngrokResult.success) {
+          console.log('✅ Ngrok URL saved:', ngrokResult.ngrokUrl);
+        } else {
+          console.warn('⚠️ Failed to save ngrok URL:', ngrokResult.error);
+          // Don't fail the entire save, just warn
+        }
+      } else {
+        console.log('ℹ️ No ngrok URL provided, skipping...');
       }
 
+      // ✅ 3. Show success
       setSuccess(true);
+      
+      // ✅ 4. Close modal after delay
       setTimeout(() => {
-        onSave();
+        if (onSave) onSave();
         onClose();
       }, 1500);
+
     } catch (err) {
-      setError(err.message || 'Failed to save credentials');
+      console.error('❌ Error saving settings:', err);
+      setError(err.message || 'Failed to save settings. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -79,7 +114,7 @@ const TwilioSettingsModal = ({ onClose, onSave }) => {
         <div className="twilio-modal" onClick={(e) => e.stopPropagation()}>
           <div className="twilio-modal-header">
             <h3>🔐 Twilio WhatsApp Configuration</h3>
-            <button onClick={onClose} className="twilio-close-btn">
+            <button onClick={onClose} className="twilio-close-btn" disabled={loading}>
               <X size={20} />
             </button>
           </div>
@@ -95,7 +130,7 @@ const TwilioSettingsModal = ({ onClose, onSave }) => {
             {success && (
               <div className="alert alert-success">
                 <CheckCircle size={18} />
-                <span>Credentials saved successfully!</span>
+                <span>✅ Settings saved successfully!</span>
               </div>
             )}
 
@@ -125,114 +160,125 @@ const TwilioSettingsModal = ({ onClose, onSave }) => {
                     Messaging → Try it Out → WhatsApp <ExternalLink size={14} />
                   </a>
                 </li>
-                <li>Use the Twilio sandbox number or get approved</li>
+                <li>Use the Twilio sandbox number: <code>whatsapp:+14155238886</code></li>
               </ol>
             </div>
 
+            {/* Account SID */}
             <div className="form-group">
-              <label>Account SID *</label>
+              <label htmlFor="accountSid">Account SID *</label>
               <input
                 type="text"
+                id="accountSid"
                 placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                 value={accountSid}
                 onChange={(e) => setAccountSid(e.target.value)}
                 className="form-input"
+                disabled={loading}
               />
               <span className="form-hint">
-                Found in Twilio Console dashboard
+                Found in Twilio Console dashboard (starts with AC)
               </span>
             </div>
 
+            {/* Auth Token */}
             <div className="form-group">
-              <label>Auth Token *</label>
+              <label htmlFor="authToken">Auth Token *</label>
               <input
                 type="password"
+                id="authToken"
                 placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                 value={authToken}
                 onChange={(e) => setAuthToken(e.target.value)}
                 className="form-input"
+                disabled={loading}
               />
               <span className="form-hint">
-                Found in Twilio Console dashboard (click to reveal)
+                Found in Twilio Console dashboard (click "Show" to reveal)
               </span>
             </div>
 
+            {/* WhatsApp Number */}
             <div className="form-group">
-              <label>WhatsApp Number *</label>
+              <label htmlFor="whatsappNumber">WhatsApp Number *</label>
               <input
                 type="text"
+                id="whatsappNumber"
                 placeholder="whatsapp:+14155238886"
                 value={whatsappNumber}
                 onChange={(e) => setWhatsappNumber(e.target.value)}
                 className="form-input"
+                disabled={loading}
               />
               <span className="form-hint">
-                Format: whatsapp:+[country code][number]
+                Format: <code>whatsapp:+[country code][number]</code>
                 <br />
-                Sandbox: whatsapp:+14155238886
+                Sandbox: <code>whatsapp:+14155238886</code>
               </span>
             </div>
 
             {/* ✅ NGROK URL FIELD */}
             <div className="form-group">
               <label htmlFor="ngrokUrl">
-                Ngrok URL (for media files) <span className="optional">Optional</span>
+                NGROK URL (FOR MEDIA FILES) <span className="optional">OPTIONAL</span>
               </label>
               <input
                 type="url"
                 id="ngrokUrl"
                 className="form-input"
-                placeholder="https://abc123.ngrok-free.app"
+                placeholder="https://oillike-unbrilliantly-meghan.ngrok-free.dev"
                 value={ngrokUrl}
                 onChange={(e) => setNgrokUrl(e.target.value)}
+                disabled={loading}
               />
               <span className="form-hint">
                 Run: <code>ngrok http 3001</code> and paste the HTTPS URL here
               </span>
             </div>
 
+            {/* Webhook Info */}
             <div className="webhook-info">
               <h4>📡 Webhook Setup (for receiving messages)</h4>
               <p>
                 To receive incoming messages, you'll need to set up a webhook URL in Twilio Console.
               </p>
-              <p className="webhook-note">
-                Note: This requires your app to have a public endpoint. You can use ngrok for testing.
-              </p>
+              <button 
+                type="button"
+                onClick={() => setShowOnboarding(true)} 
+                className="btn-link"
+                disabled={loading || !accountSid || !authToken || !whatsappNumber}
+              >
+                <Smartphone size={16} />
+                How to Connect WhatsApp
+              </button>
             </div>
           </div>
 
           <div className="twilio-modal-footer">
-            {/* ⭐ How to Connect WhatsApp Button */}
             <button 
-              type="button"
-              onClick={() => setShowOnboarding(true)} 
-              className="btn-onboarding"
-              disabled={!accountSid || !authToken || !whatsappNumber}
-              title={!accountSid || !authToken || !whatsappNumber ? "Please fill in credentials first" : ""}
+              onClick={onClose} 
+              className="btn-secondary" 
+              disabled={loading}
             >
-              <Smartphone size={18} />
-              How to Connect WhatsApp
+              Cancel
             </button>
-
-            <div className="footer-right">
-              <button onClick={onClose} className="btn-secondary" disabled={loading}>
-                Cancel
-              </button>
-              <button onClick={handleSave} className="btn-primary" disabled={loading}>
-                {loading ? (
-                  <>
-                    <div className="spinner-small"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save size={18} />
-                    Save & Connect
-                  </>
-                )}
-              </button>
-            </div>
+            <button 
+              onClick={handleSave} 
+              className="btn-primary" 
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <div className="spinner-small"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save size={18} />
+                  Save & Connect
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>

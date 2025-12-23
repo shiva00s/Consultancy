@@ -79,7 +79,7 @@ class TwilioWhatsAppService {
       // Initialize webhook server for incoming messages
       try {
         this.webhookServer = new TwilioWebhookServer(this.mainWindow, this.db, 3001);
-        await this.webhookServer.initialize(this.authToken);
+        await this.webhookServer.initialize(this.authToken, this.accountSid);
         console.log('Webhook server initialized on port 3001');
       } catch (webhookError) {
         console.warn('Failed to start webhook server:', webhookError.message);
@@ -97,75 +97,79 @@ class TwilioWhatsAppService {
   }
 
   // ========================================
-  // Load credentials from database
+// Load credentials from database
+// ========================================
+async loadCredentials() {
+  try {
+    const settings = await dbAll(this.db,
+      `SELECT key, value FROM system_settings 
+       WHERE key IN ('twilioaccountsid', 'twilioauthtoken', 'twiliowhatsappnumber')`
+    );
+
+    const settingsArray = Array.isArray(settings) ? settings : [settings];
+    
+    if (settingsArray.length === 0) {
+      console.log('⚠️ No Twilio credentials configured yet');
+      return;
+    }
+
+    settingsArray.forEach(setting => {
+      if (setting.key === 'twilioaccountsid') {
+        this.accountSid = setting.value;
+      } else if (setting.key === 'twilioauthtoken') {
+        this.authToken = setting.value;
+      } else if (setting.key === 'twiliowhatsappnumber') {
+        this.whatsappNumber = setting.value;
+      }
+    });
+
+    console.log('✅ Loaded Twilio credentials:', {
+      accountSid: this.accountSid ? 'SET' : 'MISSING',
+      authToken: this.authToken ? 'SET' : 'MISSING',
+      whatsappNumber: this.whatsappNumber || 'NOT SET'
+    });
+  } catch (error) {
+    console.error('❌ Error loading Twilio credentials:', error);
+  }
+}
+
+
   // ========================================
-  async loadCredentials() {
-    try {
-      const settings = await dbAll(this.db,
-        `SELECT key, value FROM system_settings WHERE key IN ('twilio_account_sid', 'twilio_auth_token', 'twilio_whatsapp_number')`
+// Save credentials
+// ========================================
+async saveCredentials(accountSid, authToken, whatsappNumber) {
+  try {
+    const credentials = [
+      { key: 'twilioaccountsid', value: accountSid },
+      { key: 'twilioauthtoken', value: authToken },
+      { key: 'twiliowhatsappnumber', value: whatsappNumber }
+    ];
+
+    for (const credential of credentials) {
+      await dbRun(this.db,
+        `INSERT OR REPLACE INTO system_settings (key, value, updated_at) 
+         VALUES (?, ?, datetime('now'))`,
+        [credential.key, credential.value]
       );
-
-      const settingsArray = Array.isArray(settings) ? settings : [settings];
-
-      if (settingsArray.length === 0) {
-        console.log('No Twilio credentials configured yet');
-        return;
-      }
-
-      settingsArray.forEach(setting => {
-        if (setting.key === 'twilio_account_sid') {
-          this.accountSid = setting.value;
-        } else if (setting.key === 'twilio_auth_token') {
-          this.authToken = setting.value;
-        } else if (setting.key === 'twilio_whatsapp_number') {
-          this.whatsappNumber = setting.value;
-        }
-      });
-
-      console.log('Loaded Twilio credentials:', {
-        accountSid: this.accountSid ? 'configured' : 'missing',
-        authToken: this.authToken ? 'configured' : 'missing',
-        whatsappNumber: this.whatsappNumber
-      });
-    } catch (error) {
-      console.error('Error loading Twilio credentials:', error);
     }
+
+    console.log('✅ Twilio credentials saved successfully');
+
+    // Update instance variables
+    this.accountSid = accountSid;
+    this.authToken = authToken;
+    this.whatsappNumber = whatsappNumber;
+
+    // Reinitialize Twilio client
+    await this.initialize();
+
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error saving credentials:', error);
+    return { success: false, error: error.message };
   }
+}
 
-  // ========================================
-  // Save credentials
-  // ========================================
-  async saveCredentials(accountSid, authToken, whatsappNumber) {
-    try {
-      const credentials = [
-        { key: 'twilio_account_sid', value: accountSid },
-        { key: 'twilio_auth_token', value: authToken },
-        { key: 'twilio_whatsapp_number', value: whatsappNumber }
-      ];
-
-      for (const credential of credentials) {
-        await dbRun(this.db,
-          `INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)`,
-          [credential.key, credential.value]
-        );
-      }
-
-      console.log('Twilio credentials saved successfully');
-
-      // Update instance variables
-      this.accountSid = accountSid;
-      this.authToken = authToken;
-      this.whatsappNumber = whatsappNumber;
-
-      // Reinitialize Twilio client
-      await this.initialize();
-
-      return { success: true };
-    } catch (error) {
-      console.error('Error saving credentials:', error);
-      return { success: false, error: error.message };
-    }
-  }
 
   // ========================================
   // Test connection
@@ -338,6 +342,37 @@ async sendMessage(phoneNumber, content, localMediaPaths, ngrokUrl = null) {
   }
 }
 
+async generatePublicFileUrl(filePath) {
+  const jwt = require('jsonwebtoken');
+  const path = require('path');
+  const { dbGet } = require('../db/whatsappQueries.cjs');
+  const { getDatabase } = require('../db/database.cjs');
+
+  try {
+    if (!filePath) throw new Error('File path is required');
+
+    // Get ngrok URL from database
+    const db = getDatabase();
+    const setting = await dbGet(db, 
+      `SELECT value FROM systemsettings WHERE key = 'twilioNgrokUrl'`
+    );
+
+    // Use ngrok URL if available, otherwise fallback to localhost
+    const BASE_URL = setting?.value || 'http://127.0.0.1:3001';
+    const SECRET = '12023e5cf451cc4fc225b09f1543bd6c43c735c71db89f20c63cd6860430fc395b88778254ccbba2043df5989c0e61968cbf4ef6e4c6a6924f90fbe4c75cbb60';
+
+    const normalizedPath = path.resolve(filePath);
+    const token = jwt.sign({ path: normalizedPath }, SECRET, { expiresIn: '24h' });
+    const filename = path.basename(normalizedPath);
+    const publicUrl = `${BASE_URL}/public/files/${token}/${filename}`;
+
+    console.log('✅ Generated public URL:', publicUrl);
+    return publicUrl;
+  } catch (error) {
+    console.error('Error generating public URL:', error);
+    throw error;
+  }
+}
 
   // ========================================
   // Handle incoming message (unchanged)
@@ -412,16 +447,27 @@ async sendMessage(phoneNumber, content, localMediaPaths, ngrokUrl = null) {
     }
   }
 
-  // ========================================
-  // Get status
-  // ========================================
-  async getStatus() {
-    return {
-      isReady: this.isReady,
-      hasCredentials: !!(this.accountSid && this.authToken && this.whatsappNumber),
-      whatsappNumber: this.whatsappNumber
-    };
+// ========================================
+// Get status
+// ========================================
+async getStatus() {
+  // Ensure credentials are loaded before returning status
+  if (!this.accountSid && !this.authToken && !this.whatsappNumber) {
+    await this.loadCredentials();
   }
+  
+  return {
+    isReady: this.isReady,
+    hasCredentials: !!(this.accountSid && this.authToken && this.whatsappNumber),
+    whatsappNumber: this.whatsappNumber,
+    credentials: {
+      accountSid: this.accountSid || '',
+      authToken: this.authToken || '',
+      whatsappNumber: this.whatsappNumber || ''
+    }
+  };
+}
+
 
   // ========================================
   // Disconnect

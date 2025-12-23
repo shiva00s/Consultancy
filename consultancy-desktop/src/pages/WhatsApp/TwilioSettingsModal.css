@@ -207,6 +207,15 @@
   color: var(--twilio-text);
 }
 
+/* Optional label styling */
+.form-group label .optional {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--twilio-text-secondary);
+  margin-left: 6px;
+  font-style: italic;
+}
+
 .form-input {
   width: 100%;
   padding: 12px 16px;
@@ -231,6 +240,24 @@
   font-size: 12px;
   color: var(--twilio-text-secondary);
   line-height: 1.5;
+}
+
+/* Code tag styling */
+.form-hint code {
+  background: var(--twilio-bg-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: #e11d48;
+  border: 1px solid var(--twilio-border);
+}
+
+[data-theme="dark"] .form-hint code,
+.dark-mode .form-hint code {
+  background: #334155;
+  color: #f472b6;
+  border-color: #475569;
 }
 
 /* Webhook Info */
@@ -437,31 +464,6 @@
 .twilio-modal::-webkit-scrollbar-thumb:hover {
   background: var(--twilio-input-border);
 }
-/* Add to TwilioSettingsModal.css */
-
-/* Optional label styling */
-.form-group label .optional {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--twilio-text-secondary);
-  margin-left: 6px;
-  font-style: italic;
-}
-
-/* Code tag styling */
-.form-hint code {
-  background: var(--twilio-bg-secondary);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  color: #e11d48;
-  border: 1px solid var(--twilio-border);
-}
-
-[data-theme="dark"] .form-hint code,
-.dark-mode .form-hint code {
-  background: #334155;
-  color: #f472b6;
-  border-color: #475569;
+.twilio-modal::-webkit-scrollbar-thumb:active {
+  background: var(--twilio-text-secondary);
 }

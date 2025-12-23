@@ -13,6 +13,33 @@ function setupDatabaseSchema(dbInstance) {
           return reject(new Error('Failed to BEGIN TRANSACTION.'));
         }
 
+        // 33.5 TWILIO SETTINGS
+dbInstance.run(`
+  CREATE TABLE IF NOT EXISTS twilio_settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_sid TEXT,
+    auth_token TEXT,
+    phone_number TEXT,
+    is_configured INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at TEXT DEFAULT (datetime('now', 'localtime'))
+  )
+`, (err) => {
+  if (err) {
+    console.error('❌ Failed to create twilio_settings table:', err.message);
+  }
+});
+
+// Insert default row if not exists
+dbInstance.run(`
+  INSERT OR IGNORE INTO twilio_settings (id, account_sid, auth_token, phone_number, is_configured)
+  VALUES (1, NULL, NULL, NULL, 0)
+`, (err) => {
+  if (err) {
+    console.error('❌ Failed to insert default twilio_settings row:', err.message);
+  }
+});
+
 // ========================================================================
 // 30. WHATSAPP CONVERSATIONS
 // ========================================================================

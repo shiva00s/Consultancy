@@ -1,29 +1,24 @@
 // FILE: electron.cjs
 
-const { app, BrowserWindow, dialog } = require('electron');
+const { app, BrowserWindow, dialog, session } = require('electron'); // ✅ ADD session HERE
 const path = require('path');
 const { initializeCommunicationHandlers } = require('./src-electron/ipc/communicationHandlers.cjs');
-const { initializeDatabase, closeDatabase } = require('./src-electron/db/database.cjs');
+const { initializeDatabase, closeDatabase, dbAll } = require('./src-electron/db/database.cjs');
 const { registerIpcHandlers, startReminderScheduler } = require('./src-electron/ipc/handlers.cjs');
 const { fileManager } = require('./src-electron/utils/fileManager.cjs');
-
-// ✅ ADD WHATSAPP IMPORTS
 const TwilioWhatsAppService = require('./src-electron/services/twilioWhatsAppService.cjs');
 const { initializeWhatsAppHandlers } = require('./src-electron/ipc/whatsappHandlers.cjs');
 
-// 🔐 Permission Engine
 const {
   PermissionEngine,
   ROLES,
   FEATURES,
 } = require('./src-electron/ipc/security/permissionEngine.cjs');
 
-// Suppress Electron security warnings in development
 if (process.env.NODE_ENV !== 'production') {
   process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 }
 
-// Try to load auto-updater
 let AutoUpdater = null;
 let hasAutoUpdater = false;
 try {
@@ -38,9 +33,6 @@ let mainWindow = null;
 let updater = null;
 let whatsappService = null;
 
-/**
- * Global permission context holder
- */
 const permissionContext = {
   role: null,
   superAdminEnabled: [],
@@ -83,6 +75,8 @@ function createWindow() {
       'Autofill.setAddresses failed',
       'protocol_client.js',
       'Download the React DevTools',
+      'ERR_CONNECTION_REFUSED',
+      'WebSocket connection',
     ];
 
     if (suppressPatterns.some((pattern) => message.includes(pattern))) {
@@ -104,11 +98,6 @@ function createWindow() {
       case 'info':
         if (process.env.NODE_ENV !== 'production') {
           console.info(`[Renderer Info] ${message}`);
-        }
-        break;
-      case 'debug':
-        if (process.env.NODE_ENV !== 'production') {
-          console.debug(`[Renderer Debug] ${message}`);
         }
         break;
       default:
@@ -179,95 +168,121 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  // ✅ FIX: Bypass ngrok browser warning for all image/media requests
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['https://*.ngrok-free.dev/*', 'https://*.ngrok.io/*'] },
+    (details, callback) => {
+      details.requestHeaders['ngrok-skip-browser-warning'] = 'true';
+      details.requestHeaders['User-Agent'] = 'ConsultancyApp/1.0'; // ✅ Changed to match app name
+      callback({ requestHeaders: details.requestHeaders });
+    }
+  );
+
+  // ✅ FIX: Add CORS headers to responses
+  session.defaultSession.webRequest.onHeadersReceived(
+    { urls: ['https://*.ngrok-free.dev/*', 'https://*.ngrok.io/*'] },
+    (details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Access-Control-Allow-Origin': ['*'],
+          'Access-Control-Allow-Methods': ['GET, POST, PUT, DELETE, OPTIONS'],
+          'Access-Control-Allow-Headers': ['*'],
+        }
+      });
+    }
+  );
+
   try {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('🚀 Starting Consultancy Desktop App...');
-    }
+    console.log('🚀 Starting Consultancy Desktop App...');
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('📦 Initializing database...');
-    }
+    // ✅ INITIALIZE DATABASE
+    const db = await initializeDatabase();
+    console.log('✅ Database initialized');
 
-    const db = await initializeDatabase(); // ✅ STORE DB REFERENCE
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('✅ Database initialized');
-    }
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('📁 Initializing file manager...');
-    }
-
+    // ✅ INITIALIZE FILE MANAGER
     await fileManager.initialize();
+    console.log('✅ File manager initialized');
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('✅ File manager initialized');
-    }
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('🔌 Registering IPC handlers...');
-    }
-
+    // ✅ REGISTER IPC HANDLERS
     registerIpcHandlers(app, {
       permissionContext,
       ROLES,
       FEATURES,
       PermissionEngine,
     });
+    console.log('✅ IPC handlers registered');
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('✅ IPC handlers registered');
-    }
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('🪟 Creating main window...');
-    }
-
+    // ✅ CREATE MAIN WINDOW
     mainWindow = createWindow();
+    console.log('✅ Main window created');
 
-    // ✅ ADD WHATSAPP + REAL-TIME SYNC INITIALIZATION
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('📱 Initializing WhatsApp service...');
-    }
-
+    // ✅ INITIALIZE WHATSAPP SERVICE
+    console.log('📱 Initializing WhatsApp service...');
+    
     try {
+      // ✅ LOAD TWILIO CREDENTIALS FROM DATABASE
+      console.log('🔑 Loading Twilio credentials from database...');
+      
+      const twilioSettings = await dbAll(
+        db,
+        `SELECT key, value FROM system_settings 
+         WHERE key IN ('twilioaccountsid', 'twilioauthtoken', 'twiliowhatsappnumber', 'twilioNgrokUrl')`
+      );
+
+      const settings = {};
+      if (Array.isArray(twilioSettings)) {
+        twilioSettings.forEach(row => {
+          settings[row.key] = row.value;
+        });
+      }
+
+      const accountSid = settings.twilioaccountsid;
+      const authToken = settings.twilioauthtoken;
+      const whatsappNumber = settings.twiliowhatsappnumber;
+      const ngrokUrl = settings.twilioNgrokUrl;
+
+      // ✅ CREATE WHATSAPP SERVICE (NO AUTO-INIT)
       whatsappService = new TwilioWhatsAppService(mainWindow, db);
+      
+      // ✅ REGISTER HANDLERS
       initializeWhatsAppHandlers(db, whatsappService);
       initializeCommunicationHandlers();
 
-      // ✅ FIXED: Initialize WhatsApp first
-      await whatsappService.initialize();
+      // ✅ INITIALIZE WITH CREDENTIALS
+      if (accountSid && authToken) {
+        console.log('✅ Loaded ngrok URL from database:', ngrokUrl || 'NOT SET');
+        await whatsappService.initialize(accountSid, authToken, whatsappNumber);
+        console.log('✅ WhatsApp service initialized with database credentials');
+      } else {
+        console.warn('⚠️ No Twilio credentials configured yet');
+        await whatsappService.initialize();
+      }
 
-      // ✅ NEW: Attach Socket.IO to the webhook HTTP server
+      // ✅ INITIALIZE SOCKET.IO REAL-TIME SYNC
       if (whatsappService.webhookServer && whatsappService.webhookServer.server) {
         const RealtimeSync = require('./src-electron/services/realtimeSync.cjs');
-        // Get the HTTP server from Express
         const httpServer = whatsappService.webhookServer.server;
         global.realtimeSync = new RealtimeSync(httpServer);
-        console.log('✅ Real-time sync initialized with webhook server');
+        console.log('✅ Real-time sync initialized');
       } else {
-        console.error('❌ Webhook server not available for Socket.IO');
+        console.warn('⚠️ Webhook server not available for Socket.IO');
       }
 
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('✅ WhatsApp service initialized');
-      }
+      console.log('✅ WhatsApp service ready');
     } catch (whatsappError) {
       console.error('⚠️ WhatsApp initialization failed:', whatsappError.message);
-      console.error('Stack:', whatsappError.stack);
     }
 
+    // ✅ START REMINDER SCHEDULER
     startReminderScheduler(mainWindow);
+    console.log('✅ Application ready!');
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('✅ Application ready!');
-    }
   } catch (error) {
     console.error('❌ Failed to initialize application:', error);
-    console.error('Error stack:', error.stack);
     dialog.showErrorBox(
       'Initialization Error',
-      `Failed to start application:\n\n${error.message}\n\nPlease check the console logs for more details.`
+      `Failed to start application:\n\n${error.message}`
     );
     app.quit();
   }
@@ -284,9 +299,7 @@ app.on('activate', () => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     closeDatabase()
-      .then(() => {
-        app.quit();
-      })
+      .then(() => app.quit())
       .catch((err) => {
         console.error('Error closing database:', err);
         app.quit();
@@ -294,11 +307,9 @@ app.on('window-all-closed', () => {
   }
 });
 
-// ✅ UPDATE before-quit TO CLEANUP WHATSAPP
 app.on('before-quit', async (event) => {
   app.isQuitting = true;
 
-  // ✅ ADD WHATSAPP CLEANUP
   if (whatsappService) {
     console.log('🔄 Cleaning up WhatsApp service...');
     try {
@@ -316,7 +327,7 @@ app.on('before-quit', async (event) => {
   }
 });
 
-// Shared list for ignorable startup DB errors
+// ✅ IGNORED STARTUP ERRORS
 const IGNORED_STARTUP_TABLE_ERRORS = [
   'no such table: main.license_activation',
   'no such table: main.activation_requests',
@@ -328,7 +339,6 @@ const IGNORED_STARTUP_TABLE_ERRORS = [
   'no such table: main.user_features',
 ];
 
-// Global error handlers
 process.on('uncaughtException', (error) => {
   const message = String(error && error.message);
   if (IGNORED_STARTUP_TABLE_ERRORS.some((p) => message.includes(p))) {
@@ -337,10 +347,7 @@ process.on('uncaughtException', (error) => {
 
   console.error('❌ Uncaught Exception:', message);
   if (process.env.NODE_ENV === 'production' && mainWindow) {
-    dialog.showErrorBox(
-      'Application Error',
-      `An unexpected error occurred.\n\nDetails: ${message}`
-    );
+    dialog.showErrorBox('Application Error', `An unexpected error occurred.\n\nDetails: ${message}`);
   }
 });
 
@@ -352,10 +359,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
   console.error('❌ Unhandled Rejection:', message);
   if (process.env.NODE_ENV === 'production' && mainWindow) {
-    dialog.showErrorBox(
-      'Application Error',
-      `An unexpected error occurred.\n\nDetails: ${message}`
-    );
+    dialog.showErrorBox('Application Error', `An unexpected error occurred.\n\nDetails: ${message}`);
   }
 });
 

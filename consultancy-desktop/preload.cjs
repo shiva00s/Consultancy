@@ -419,6 +419,9 @@ whatsapp: {
   verifyConfig: () => ipcRenderer.invoke('whatsapp:verifyConfig'),
   setWhatsAppNumber: (number) => ipcRenderer.invoke('whatsapp:setWhatsAppNumber', number),
   
+  getNgrokUrl: () => ipcRenderer.invoke('whatsapp:getNgrokUrl'),
+  saveNgrokUrl: (ngrokUrl) => ipcRenderer.invoke('whatsapp:saveNgrokUrl', ngrokUrl),
+
   // ========== Event Listeners ==========
   onReady: (callback) => {    ipcRenderer.on('whatsapp:ready', () => callback());  },  
   onAuthenticated: (callback) => {    ipcRenderer.on('whatsapp:authenticated', () => callback());  },  

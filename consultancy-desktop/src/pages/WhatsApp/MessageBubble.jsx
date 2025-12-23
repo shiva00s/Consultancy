@@ -1,7 +1,7 @@
 // src/pages/WhatsApp/MessageBubble.jsx
 
-import { useState } from 'react';
-import { Check, CheckCheck, Clock, X, Download, FileText, Image as ImageIcon, Paperclip, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Check, CheckCheck, Clock, X, Download, FileText, Paperclip, AlertCircle } from 'lucide-react';
 import './MessageBubble.css';
 
 const MessageBubble = ({ message }) => {
@@ -9,8 +9,15 @@ const MessageBubble = ({ message }) => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageError, setImageError] = useState(false);
   const [mediaLoadError, setMediaLoadError] = useState(false);
+  const [imageLoadAttempts, setImageLoadAttempts] = useState(0);
 
-  // ✅ Safe time formatter with error handling
+  // ✅ Reset error states when message changes
+  useEffect(() => {
+    setMediaLoadError(false);
+    setImageError(false);
+    setImageLoadAttempts(0);
+  }, [message?.id]);
+
   const formatTime = (timestamp) => {
     if (!timestamp) return '';
     try {
@@ -24,7 +31,6 @@ const MessageBubble = ({ message }) => {
     }
   };
 
-  // ✅ Status icon with fallback
   const getStatusIcon = () => {
     try {
       switch (message?.status) {
@@ -37,6 +43,8 @@ const MessageBubble = ({ message }) => {
         case 'failed':
           return <X size={16} className="status-icon status-failed" />;
         case 'pending':
+        case 'queued':
+        case 'sending':
           return <Clock size={16} className="status-icon status-pending" />;
         default:
           return <Check size={16} className="status-icon status-sent" />;
@@ -47,32 +55,37 @@ const MessageBubble = ({ message }) => {
     }
   };
 
-  // ✅ Safe media URL getter with multiple fallbacks
   const getMediaUrl = () => {
     try {
-      // Try different field names for backward compatibility
-      return (
+      const url = (
+        message?.mediaurl ||
         message?.media_url ||
         message?.mediaUrl ||
-        message?.mediaurl ||
         message?.media_path ||
         message?.mediaPath ||
         message?.mediapath ||
         null
       );
+      
+      // ✅ Add cache-busting for ngrok URLs to avoid stale cached errors
+      if (url && url.includes('ngrok') && imageLoadAttempts > 0) {
+        const separator = url.includes('?') ? '&' : '?';
+        return `${url}${separator}_retry=${imageLoadAttempts}`;
+      }
+      
+      return url;
     } catch (error) {
       console.error('⚠️ Error getting media URL:', error);
       return null;
     }
   };
 
-  // ✅ Safe media type getter
   const getMediaType = () => {
     try {
       return (
+        message?.mediatype ||
         message?.media_type ||
         message?.mediaType ||
-        message?.mediatype ||
         message?.content_type ||
         message?.contentType ||
         null
@@ -83,16 +96,15 @@ const MessageBubble = ({ message }) => {
     }
   };
 
-  // ✅ Safe file name getter
   const getFileName = () => {
     try {
       return (
+        message?.medianame ||
+        message?.media_name ||
         message?.file_name ||
         message?.fileName ||
         message?.filename ||
-        message?.media_name ||
         message?.mediaName ||
-        message?.medianame ||
         'Attachment'
       );
     } catch (error) {
@@ -100,40 +112,113 @@ const MessageBubble = ({ message }) => {
     }
   };
 
-  // ✅ Render media attachment with error boundaries
+  const isImageMedia = (url, type) => {
+    if (type?.startsWith('image/')) return true;
+    
+    if (url) {
+      const urlWithoutQuery = url.split('?')[0];
+      return /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(urlWithoutQuery);
+    }
+    
+    return false;
+  };
+
+  // ✅ Handle image load errors with detailed logging
+  const handleImageError = (e, mediaUrl) => {
+    console.error('❌ Image failed to load:', {
+      url: mediaUrl?.substring(0, 100),
+      messageId: message?.id,
+      attempts: imageLoadAttempts,
+      errorType: e?.type,
+      target: e?.target?.src?.substring(0, 100)
+    });
+
+    setImageLoadAttempts(prev => prev + 1);
+    
+    // After 2 failed attempts, show fallback
+    if (imageLoadAttempts >= 1) {
+      setMediaLoadError(true);
+      if (e?.target) {
+        e.target.style.display = 'none';
+      }
+    }
+  };
+
+  // ✅ Handle successful image load
+  const handleImageLoad = (e) => {
+    console.log('✅ Image loaded successfully:', {
+      messageId: message?.id,
+      url: e?.target?.src?.substring(0, 100),
+      width: e?.target?.naturalWidth,
+      height: e?.target?.naturalHeight
+    });
+    setMediaLoadError(false);
+    setImageError(false);
+  };
+
   const renderAttachment = () => {
     try {
       const mediaUrl = getMediaUrl();
       const mediaType = getMediaType();
+      const fileName = getFileName();
 
-      // If no media URL, skip rendering
       if (!mediaUrl) {
         return null;
       }
 
-      // If media failed to load, show fallback
+      console.log('📎 Rendering attachment:', {
+        messageId: message?.id,
+        url: mediaUrl.substring(0, 100),
+        type: mediaType,
+        name: fileName
+      });
+
+      // If media failed to load after multiple attempts
       if (mediaLoadError) {
         return (
           <div className="message-attachment-fallback">
             <AlertCircle size={16} />
-            <span>Media unavailable</span>
+            <span className="fallback-text">Media unavailable</span>
+            <span 
+              className="fallback-action"
+              onClick={() => {
+                console.log('🔄 Retrying media load...');
+                setMediaLoadError(false);
+                setImageError(false);
+                setImageLoadAttempts(0);
+              }}
+            >
+              Retry
+            </span>
+            {/* ✅ DEBUG: Show URL for troubleshooting */}
+            <details style={{ fontSize: '10px', marginTop: '5px' }}>
+              <summary style={{ cursor: 'pointer' }}>Debug Info</summary>
+              <code style={{ 
+                display: 'block', 
+                wordBreak: 'break-all', 
+                fontSize: '9px',
+                padding: '5px',
+                background: '#f5f5f5',
+                marginTop: '5px'
+              }}>
+                {mediaUrl}
+              </code>
+            </details>
           </div>
         );
       }
 
-      // ✅ Render IMAGE
-      if (mediaType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(mediaUrl)) {
+      // ✅ Render IMAGE (removed crossOrigin for Electron compatibility)
+      if (isImageMedia(mediaUrl, mediaType)) {
         return (
           <div className="message-image-container">
             <img
               src={mediaUrl}
-              alt="Attachment"
+              alt={fileName}
               className="message-image"
               onClick={() => setSelectedImage(mediaUrl)}
-              onError={() => {
-                console.warn('⚠️ Image failed to load:', mediaUrl);
-                setMediaLoadError(true);
-              }}
+              onError={(e) => handleImageError(e, mediaUrl)}
+              onLoad={handleImageLoad}
               loading="lazy"
             />
           </div>
@@ -141,17 +226,18 @@ const MessageBubble = ({ message }) => {
       }
 
       // ✅ Render DOCUMENT/FILE
-      const fileName = getFileName();
       const fileExt = fileName.split('.').pop()?.toUpperCase() || 'FILE';
+      const isPdf = mediaType?.includes('pdf') || fileExt === 'PDF';
+      const isDoc = mediaType?.includes('word') || ['DOC', 'DOCX'].includes(fileExt);
+      const isExcel = mediaType?.includes('sheet') || mediaType?.includes('excel') || ['XLS', 'XLSX'].includes(fileExt);
 
       return (
         <div className="message-attachment">
           <div className="attachment-icon-wrapper">
-            {mediaType?.startsWith('application/pdf') ? (
-              <FileText size={20} className="attachment-icon" />
-            ) : (
-              <Paperclip size={20} className="attachment-icon" />
-            )}
+            {isPdf && <FileText size={20} className="attachment-icon" />}
+            {isDoc && <FileText size={20} className="attachment-icon" />}
+            {isExcel && <FileText size={20} className="attachment-icon" />}
+            {!isPdf && !isDoc && !isExcel && <Paperclip size={20} className="attachment-icon" />}
           </div>
           <div className="attachment-info">
             <span className="attachment-name" title={fileName}>
@@ -162,10 +248,11 @@ const MessageBubble = ({ message }) => {
           <a
             href={mediaUrl}
             download={fileName}
+            target="_blank"
+            rel="noopener noreferrer"
             className="attachment-download-btn"
             title="Download"
             onClick={(e) => {
-              // If download fails, prevent default
               if (mediaLoadError) {
                 e.preventDefault();
                 alert('This file is no longer available');
@@ -187,7 +274,6 @@ const MessageBubble = ({ message }) => {
     }
   };
 
-  // ✅ Render database attachments (if available)
   const renderDatabaseAttachments = () => {
     try {
       const attachments = message?.attachments;
@@ -196,15 +282,35 @@ const MessageBubble = ({ message }) => {
       }
 
       return attachments.map((att, index) => {
-        const fileName = att?.fileName || att?.file_name || att?.originalName || 'File';
-        const filePath = att?.filePath || att?.file_path || att?.path;
-        const fileType = att?.fileType || att?.file_type || att?.mimeType || 'application/octet-stream';
+        const fileName = att?.originalName || att?.original_name || att?.fileName || att?.file_name || 'File';
+        const fileUrl = att?.url || att?.path || att?.filePath || att?.file_path;
+        const fileType = att?.mimeType || att?.mime_type || att?.fileType || att?.file_type || '';
 
-        if (!filePath) {
-          return null; // Skip broken attachments
+        if (!fileUrl) {
+          return null;
         }
 
         const fileExt = fileName.split('.').pop()?.toUpperCase() || 'FILE';
+        const isImage = fileType.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(fileUrl);
+
+        if (isImage) {
+          return (
+            <div key={`att-${index}`} className="message-image-container">
+              <img
+                src={fileUrl}
+                alt={fileName}
+                className="message-image"
+                onClick={() => setSelectedImage(fileUrl)}
+                onError={(e) => {
+                  console.error('❌ Attachment image failed:', fileUrl);
+                  e.target.style.display = 'none';
+                }}
+                onLoad={() => console.log('✅ Attachment image loaded')}
+                loading="lazy"
+              />
+            </div>
+          );
+        }
 
         return (
           <div key={`att-${index}`} className="message-attachment">
@@ -218,8 +324,10 @@ const MessageBubble = ({ message }) => {
               <span className="attachment-type">{fileExt}</span>
             </div>
             <a
-              href={`file://${filePath}`}
+              href={fileUrl}
               download={fileName}
+              target="_blank"
+              rel="noopener noreferrer"
               className="attachment-download-btn"
               title="Download"
             >
@@ -234,22 +342,14 @@ const MessageBubble = ({ message }) => {
     }
   };
 
-  // ✅ Main render with error boundary
   try {
     return (
       <>
         <div className={`message-bubble ${isUser ? 'user-message' : 'contact-message'}`}>
           <div className="message-content">
-            {/* Message text */}
             {message?.body && <p className="message-text">{message.body}</p>}
-
-            {/* Media attachment from message fields */}
             {renderAttachment()}
-
-            {/* Database attachments */}
             {renderDatabaseAttachments()}
-
-            {/* Message metadata */}
             <div className="message-meta">
               <span className="message-time">{formatTime(message?.timestamp)}</span>
               {isUser && getStatusIcon()}
@@ -277,12 +377,16 @@ const MessageBubble = ({ message }) => {
                   setImageError(true);
                   setSelectedImage(null);
                 }}
+                onLoad={() => console.log('✅ Lightbox image loaded')}
               />
               <a
                 href={selectedImage}
                 download
+                target="_blank"
+                rel="noopener noreferrer"
                 className="lightbox-download"
                 title="Download"
+                onClick={(e) => e.stopPropagation()}
               >
                 <Download size={20} />
               </a>

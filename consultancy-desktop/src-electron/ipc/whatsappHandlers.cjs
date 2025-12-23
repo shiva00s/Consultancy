@@ -1,64 +1,152 @@
 // src-electron/ipc/whatsappHandlers.cjs
 
-const { ipcMain, app } = require('electron');
+const { ipcMain } = require('electron');
 const { getDatabase, dbAll, dbGet, dbRun } = require('../db/database.cjs');
 
-// ✅ Global variables
 let NGROK_URL = null;
 let whatsappService;
 
-// ========================================================================
-// INITIALIZE HANDLERS
-// ========================================================================
+// ✅ FIX 1: Match webhook server expiry (7 days) + proper encoding
+async function generatePublicFileUrl(filePath) {
+  const jwt = require('jsonwebtoken');
+  const path = require('path');
+  
+  const db = getDatabase();
+  const setting = await dbGet(
+    db,
+    `SELECT value FROM system_settings WHERE key = 'twilioNgrokUrl' LIMIT 1`
+  );
+  
+  const BASE_URL = setting?.value || 'http://127.0.0.1:3001';
+  const SECRET = '12023e5cf451cc4fc225b09f1543bd6c43c735c71db89f20c63cd6860430fc395b88778254ccbba2043df5989c0e61968cbf4ef6e4c6a6924f90fbe4c75cbb60';
+  
+  try {
+    if (!filePath) throw new Error('File path is required');
+    
+    const normalizedPath = path.resolve(filePath);
+    
+    // ✅ CRITICAL FIX: Match webhook server - 7 days expiry
+    const token = jwt.sign({ path: normalizedPath }, SECRET, { expiresIn: '7d' });
+    
+    const filename = path.basename(normalizedPath);
+    
+    // ✅ CRITICAL FIX: Encode filename for special characters
+    const publicUrl = `${BASE_URL}/public/files/${token}/${encodeURIComponent(filename)}`;
+    
+    console.log('✅ Generated public URL:', publicUrl);
+    return publicUrl;
+  } catch (error) {
+    console.error('❌ Error generating public URL:', error);
+    throw error;
+  }
+}
+
+async function loadNgrokUrl() {
+  try {
+    const db = getDatabase();
+    const result = await dbGet(db, 
+      `SELECT value FROM system_settings WHERE key = 'twilioNgrokUrl' LIMIT 1`
+    );
+
+    if (result && result.value) {
+      NGROK_URL = result.value;
+      console.log('✅ Loaded ngrok URL from database:', NGROK_URL);
+    } else {
+      console.log('⚠️ No ngrok URL configured');
+    }
+  } catch (error) {
+    console.error('❌ Error loading ngrok URL:', error);
+  }
+}
+
 function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
   whatsappService = whatsappServiceInstance;
-
-  // ✅ Load ngrok URL on startup
   loadNgrokUrl();
 
   // ========================================================================
   // NGROK URL HANDLERS
   // ========================================================================
   
-  // Set ngrok URL
-  ipcMain.handle('whatsapp:setNgrokUrl', async (event, ngrokUrl) => {
+  ipcMain.handle('whatsapp:saveNgrokUrl', async (event, ngrokUrl) => {
     try {
       const db = getDatabase();
       
-      // Clean URL (remove trailing slash)
-      const cleanUrl = ngrokUrl.trim().replace(/\/$/, '');
-      
-      NGROK_URL = cleanUrl;
-      console.log('✅ Ngrok URL set:', cleanUrl);
-      
-      // Save to database
+      if (!ngrokUrl || typeof ngrokUrl !== 'string') {
+        return { success: false, error: 'Valid ngrok URL required' };
+      }
+
       await dbRun(db,
-        `INSERT OR REPLACE INTO system_settings (key, value) VALUES ('ngrok_url', ?)`,
-        [cleanUrl]
+        `INSERT OR REPLACE INTO system_settings (key, value) VALUES ('twilioNgrokUrl', ?)`,
+        [ngrokUrl]
       );
-      
-      return { success: true, url: cleanUrl };
+
+      NGROK_URL = ngrokUrl;
+      console.log('✅ Ngrok URL saved to system_settings:', ngrokUrl);
+      return { success: true, ngrokUrl };
     } catch (error) {
-      console.error('Error setting ngrok URL:', error);
+      console.error('❌ Error saving ngrok URL:', error);
       return { success: false, error: error.message };
     }
   });
 
-  // Get current ngrok URL
-  ipcMain.handle('whatsapp:getNgrokUrl', async (event) => {
-    return { success: true, url: NGROK_URL };
+  ipcMain.handle('whatsapp:getNgrokUrl', async () => {
+    try {
+      const db = getDatabase();
+      const setting = await dbGet(db,
+        `SELECT value FROM system_settings WHERE key = 'twilioNgrokUrl' LIMIT 1`
+      );
+      
+      return { 
+        success: true, 
+        ngrokUrl: setting?.value || null 
+      };
+    } catch (error) {
+      console.error('❌ Error getting ngrok URL:', error);
+      return { success: false, error: error.message, ngrokUrl: null };
+    }
+  });
+
+  // ✅ DEPRECATED: Remove duplicate setNgrokUrl handler
+  ipcMain.handle('whatsapp:setNgrokUrl', async (event, ngrokUrl) => {
+    try {
+      const db = getDatabase();
+      
+      if (!ngrokUrl || typeof ngrokUrl !== 'string') {
+        return { success: false, error: 'Valid ngrok URL required' };
+      }
+      
+      const urlPattern = /^https:\/\/.+\.ngrok-free\.(dev|app)$/;
+      if (!urlPattern.test(ngrokUrl)) {
+        return { 
+          success: false, 
+          error: 'Invalid ngrok URL format' 
+        };
+      }
+      
+      await dbRun(db,
+        `INSERT OR REPLACE INTO system_settings (key, value) VALUES ('twilioNgrokUrl', ?)`,
+        [ngrokUrl]
+      );
+      
+      NGROK_URL = ngrokUrl;
+      console.log('✅ Ngrok URL saved:', ngrokUrl);
+      return { success: true, url: ngrokUrl };
+    } catch (error) {
+      console.error('Error saving ngrok URL:', error);
+      return { success: false, error: error.message };
+    }
   });
 
   // ========================================================================
-  // EDIT MESSAGE
+  // MESSAGE HANDLERS
   // ========================================================================
+
   ipcMain.handle('whatsapp:editMessage', async (event, messageId, newContent) => {
     try {
       const db = getDatabase();
       await dbRun(db, `
         UPDATE whatsapp_messages
-        SET body = ?,
-            updated_at = datetime('now', 'localtime')
+        SET body = ?, updated_at = datetime('now', 'localtime')
         WHERE id = ?
       `, [newContent, messageId]);
 
@@ -69,16 +157,12 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
     }
   });
 
-  // ========================================================================
-  // ARCHIVE CONVERSATION
-  // ========================================================================
   ipcMain.handle('whatsapp:archiveConversation', async (event, conversationId) => {
     try {
       const db = getDatabase();
       await dbRun(db, `
         UPDATE whatsapp_conversations
-        SET is_archived = 1,
-            updated_at = datetime('now', 'localtime')
+        SET is_archived = 1, updated_at = datetime('now', 'localtime')
         WHERE id = ?
       `, [conversationId]);
 
@@ -89,64 +173,58 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
     }
   });
 
-  // ========================================================================
-  // GET CONVERSATIONS
-  // ========================================================================
   ipcMain.handle('whatsapp:getConversations', async () => {
     try {
       const db = getDatabase();
       const conversations = await dbAll(db, `
         SELECT
-          wc.id,
-          wc.candidate_id,
-          wc.candidate_name,
-          wc.phone_number,
-          wc.last_message_time,
-          wc.last_message,
-          wc.unread_count,
-          wc.created_at,
-          wc.updated_at,
-          wc.media_name
+          wc.id, wc.candidate_id, wc.candidate_name,
+          wc.phone_number, wc.last_message_time, wc.last_message,
+          wc.unread_count, wc.created_at, wc.updated_at, wc.media_name
         FROM whatsapp_conversations wc
         WHERE wc.is_deleted = 0
         ORDER BY wc.last_message_time DESC
       `);
 
-      // Attach candidate photo (base64) when available
       const fs = require('fs');
       const path = require('path');
 
-      const conversationsEnriched = Array.isArray(conversations) ? await Promise.all(conversations.map(async (conv) => {
-        try {
-          if (!conv || !conv.candidate_id) return conv;
+      const conversationsEnriched = Array.isArray(conversations) ? await Promise.all(
+        conversations.map(async (conv) => {
+          try {
+            if (!conv || !conv.candidate_id) return conv;
 
-          const candidate = await dbGet(db, `SELECT id, photo_path FROM candidates WHERE id = ? LIMIT 1`, [conv.candidate_id]);
+            const candidate = await dbGet(db, 
+              `SELECT id, photo_path FROM candidates WHERE id = ? LIMIT 1`, 
+              [conv.candidate_id]
+            );
 
-          if (candidate && candidate.photo_path) {
-            const photoPath = candidate.photo_path;
-            try {
-              if (fs.existsSync(photoPath)) {
-                const buffer = fs.readFileSync(photoPath);
-                const ext = (path.extname(photoPath) || '').toLowerCase();
-                let mime = 'image/png';
-                if (ext === '.jpg' || ext === '.jpeg') mime = 'image/jpeg';
-                else if (ext === '.gif') mime = 'image/gif';
-                else if (ext === '.webp') mime = 'image/webp';
+            if (candidate && candidate.photo_path) {
+              const photoPath = candidate.photo_path;
+              try {
+                if (fs.existsSync(photoPath)) {
+                  const buffer = fs.readFileSync(photoPath);
+                  const ext = (path.extname(photoPath) || '').toLowerCase();
+                  let mime = 'image/png';
+                  if (ext === '.jpg' || ext === '.jpeg') mime = 'image/jpeg';
+                  else if (ext === '.gif') mime = 'image/gif';
+                  else if (ext === '.webp') mime = 'image/webp';
 
-                const dataUri = `data:${mime};base64,${buffer.toString('base64')}`;
-                return { ...conv, photo_base64: dataUri, photo_path: photoPath };
+                  const dataUri = `data:${mime};base64,${buffer.toString('base64')}`;
+                  return { ...conv, photo_base64: dataUri, photo_path: photoPath };
+                }
+              } catch (fsErr) {
+                console.error('Error reading candidate photo:', fsErr);
               }
-            } catch (fsErr) {
-              console.error('Error reading candidate photo for conversation:', fsErr);
             }
-          }
 
-          return conv;
-        } catch (err) {
-          console.error('Error enriching conversation with photo:', err);
-          return conv;
-        }
-      })) : [];
+            return conv;
+          } catch (err) {
+            console.error('Error enriching conversation:', err);
+            return conv;
+          }
+        })
+      ) : [];
 
       return {
         success: true,
@@ -154,67 +232,58 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
       };
     } catch (error) {
       console.error('Error fetching conversations:', error);
-      return {
-        success: false,
-        error: error.message,
-        data: []
-      };
+      return { success: false, error: error.message, data: [] };
     }
   });
 
-  // ========================================================================
-  // GET MESSAGES - WITH FRESH URLS
-  // ========================================================================
+  // ✅ FIX 2: Regenerate URLs and proper field mapping
   ipcMain.handle('whatsapp:getMessages', async (event, conversationId) => {
     try {
       const db = getDatabase();
       const messages = await dbAll(db, `
         SELECT
-          id,
-          conversation_id,
-          direction,
-          body,
-          media_url,
-          media_type,
-          media_name,
-          status,
-          timestamp,
-          from_number,
-          to_number,
-          message_sid
+          id, conversation_id, direction, body,
+          media_url, media_type, media_name, status,
+          timestamp, from_number, to_number, message_sid
         FROM whatsapp_messages
-        WHERE conversation_id = ?
-          AND is_deleted = 0
+        WHERE conversation_id = ? AND is_deleted = 0
         ORDER BY timestamp ASC
       `, [conversationId]);
 
-      // ✅ Generate fresh URLs for media
       const fs = require('fs');
+      
+      // ✅ Generate fresh public URLs with proper encoding
       for (const msg of messages) {
-        if (msg.media_url) {
-          // Check if already a URL
-          const isUrl = msg.media_url.startsWith('http://') || msg.media_url.startsWith('https://');
-          
-          if (!isUrl && fs.existsSync(msg.media_url)) {
-            // Generate URL for local path
-            const newUrl = await generatePublicFileUrl(msg.media_url);
-            if (newUrl) {
-              msg.media_url = newUrl;
-              msg.mediaurl = newUrl;
-            } else {
-              msg.media_url = null;
-              msg.mediaurl = null;
-            }
-          } else if (isUrl) {
-            // Already a URL, keep it
-            msg.mediaurl = msg.media_url;
-          } else {
-            // File doesn't exist
-            console.warn('⚠️ Media file missing for message:', msg.id, msg.media_url);
-            msg.media_url = null;
-            msg.mediaurl = null;
-          }
-        }
+  if (msg.media_url) {
+    const isUrl = msg.media_url.startsWith('http://') || msg.media_url.startsWith('https://');
+    
+    // ✅ NEW: Check if URL has wrong base URL
+    const hasWrongBase = msg.media_url.includes('192.168.') || 
+                         msg.media_url.includes('127.0.0.1') ||
+                         msg.media_url.includes('localhost');
+    
+    if (!isUrl || hasWrongBase) {
+      // Wrong/local URL - regenerate
+      console.log('🔄 Fixing wrong URL for message', msg.id);
+      if (fs.existsSync(msg.media_url)) {
+        const publicUrl = await generatePublicFileUrl(msg.media_url);
+        msg.mediaurl = publicUrl;
+      } else {
+        msg.mediaurl = null;
+      }
+    } else {
+      // Correct URL
+      msg.mediaurl = msg.media_url;
+    }
+  }
+        
+        // Map all fields for compatibility
+        msg.conversationid = msg.conversation_id;
+        msg.messagesid = msg.message_sid;
+        msg.mediatype = msg.media_type;
+        msg.medianame = msg.media_name;
+        msg.fromnumber = msg.from_number;
+        msg.tonumber = msg.to_number;
       }
 
       // Fetch attachments
@@ -227,13 +296,11 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
           WHERE message_id IN (${placeholders})
         `, ids);
 
-        const path = require('path');
         const map = {};
 
         for (const a of attachments || []) {
           if (!map[a.message_id]) map[a.message_id] = [];
 
-          // Generate fresh public URL
           let fileUrl = null;
           try {
             if (a.file_path && fs.existsSync(a.file_path)) {
@@ -259,28 +326,27 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
         }
       }
 
+      console.log(`✅ Loaded ${messages.length} messages for conversation ${conversationId}`);
+      
+      const withMedia = messages.find(m => m.mediaurl);
+      if (withMedia) {
+        console.log('📷 Sample media URL:', withMedia.mediaurl?.substring(0, 100));
+      }
+
       return {
         success: true,
         data: Array.isArray(messages) ? messages : []
       };
     } catch (error) {
-      console.error('Error fetching messages:', error);
-      return {
-        success: false,
-        error: error.message,
-        data: []
-      };
+      console.error('❌ Error fetching messages:', error);
+      return { success: false, error: error.message, data: [] };
     }
   });
 
-  // ========================================================================
-  // SEND MESSAGE WITH MEDIA - NGROK VERSION
-  // ========================================================================
   ipcMain.handle('whatsapp:sendMessage', async (event, { conversationId, phoneNumber, message, attachments }) => {
     try {
       const db = getDatabase();
 
-      // Validate inputs
       if (!phoneNumber) {
         return { success: false, error: 'Phone number is required' };
       }
@@ -291,7 +357,6 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
 
       console.log('📤 Sending WhatsApp message to:', phoneNumber);
 
-      // Format phone number for Twilio
       let formattedPhone = phoneNumber.replace(/\D/g, '');
       if (!formattedPhone.startsWith('+')) {
         formattedPhone = '+' + formattedPhone;
@@ -301,11 +366,11 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
         ? formattedPhone
         : 'whatsapp:' + formattedPhone;
 
-      // ✅ Process attachments - get local file paths
       let localFilePaths = [];
       let mediaType = null;
       let mediaName = null;
       let localFilePath = null;
+      let publicMediaUrl = null;
 
       if (Array.isArray(attachments) && attachments.length > 0) {
         const fs = require('fs');
@@ -314,7 +379,6 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
         for (const att of attachments) {
           let filePath = att.path || att.filePath || att.filepath || null;
 
-          // Resolve from documents table if needed
           if (!filePath && att.id) {
             try {
               const docRow = await dbGet(db,
@@ -330,26 +394,28 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
           }
 
           if (!filePath || !fs.existsSync(filePath)) {
-            console.warn('⚠️  File not found, skipping:', filePath);
+            console.warn('⚠️ File not found, skipping:', filePath);
             continue;
           }
 
-          // Store file info
           localFilePath = filePath;
           localFilePaths.push(filePath);
           mediaType = att.mimeType || att.fileType || 'application/octet-stream';
           mediaName = att.originalName || att.fileName || path.basename(filePath);
 
-          break; // Twilio WhatsApp supports only 1 media per message
+          // Generate public URL with proper encoding
+          publicMediaUrl = await generatePublicFileUrl(filePath);
+          console.log('📎 Generated public media URL:', publicMediaUrl);
+
+          break; // Twilio supports 1 media per message
         }
       }
 
-      // ✅ Send via Twilio with ngrok URL
       const twilioResult = await whatsappService.sendMessage(
         twilioNumber,
         message || '📎 Media',
         localFilePaths,
-        NGROK_URL // Pass ngrok URL
+        NGROK_URL
       );
 
       if (!twilioResult.success) {
@@ -362,60 +428,34 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
 
       console.log('✅ Twilio message sent:', twilioResult.messageId);
 
-      // Store in database
       const timestamp = new Date().toISOString();
       const result = await dbRun(
         db,
         `INSERT INTO whatsapp_messages (
-          conversation_id,
-          message_sid,
-          direction,
-          body,
-          media_url,
-          media_type,
-          media_name,
-          status,
-          timestamp,
-          from_number,
-          to_number,
-          created_at,
-          is_deleted
+          conversation_id, message_sid, direction, body,
+          media_url, media_type, media_name, status,
+          timestamp, from_number, to_number, created_at, is_deleted
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          conversationId,
-          twilioResult.messageId || null,
-          'outbound',
-          message || '',
-          localFilePath,
-          mediaType,
-          mediaName,
-          twilioResult.status || 'sent',
-          timestamp,
+          conversationId, twilioResult.messageId || null, 'outbound',
+          message || '', publicMediaUrl, mediaType, mediaName,
+          twilioResult.status || 'sent', timestamp,
           whatsappService.whatsappNumber || 'system',
-          formattedPhone,
-          timestamp,
-          0
+          formattedPhone, timestamp, 0
         ]
       );
 
-      // Update conversation
       await dbRun(
         db,
         `UPDATE whatsapp_conversations
-         SET last_message_time = ?,
-             last_message = ?,
-             media_name = ?,
-             updated_at = ?
+         SET last_message_time = ?, last_message = ?,
+             media_name = ?, updated_at = ?
          WHERE id = ?`,
         [timestamp, message || '[Media]', mediaName, timestamp, conversationId]
       );
 
-      console.log('✅ Message saved to database');
+      console.log('✅ Message saved to database with public URL');
 
-      // Generate fresh public URL for broadcasting
-      const broadcastMediaUrl = localFilePath ? await generatePublicFileUrl(localFilePath) : null;
-
-      // Broadcast via Socket.IO
       const messageData = {
         id: result.lastID,
         conversation_id: conversationId,
@@ -423,8 +463,8 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
         message_sid: twilioResult.messageId,
         direction: 'outbound',
         body: message || '',
-        media_url: broadcastMediaUrl,
-        mediaurl: broadcastMediaUrl,
+        media_url: publicMediaUrl,
+        mediaurl: publicMediaUrl,
         media_type: mediaType,
         mediatype: mediaType,
         media_name: mediaName,
@@ -439,29 +479,15 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
 
       if (global.realtimeSync) {
         global.realtimeSync.broadcast('whatsapp:new-message', messageData);
-        console.log('📡 Broadcasted message via Socket.IO');
       }
 
-      // Save attachment
       if (localFilePath) {
         await dbRun(
           db,
           `INSERT INTO whatsapp_message_attachments (
-            message_id,
-            document_id,
-            file_path,
-            original_name,
-            mime_type,
-            created_at
+            message_id, document_id, file_path, original_name, mime_type, created_at
           ) VALUES (?, ?, ?, ?, ?, ?)`,
-          [
-            result.lastID,
-            attachments[0]?.id || null,
-            localFilePath,
-            mediaName,
-            mediaType,
-            timestamp
-          ]
+          [result.lastID, attachments[0]?.id || null, localFilePath, mediaName, mediaType, timestamp]
         );
       }
 
@@ -473,7 +499,7 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
           message_sid: twilioResult.messageId,
           status: twilioResult.status || 'sent',
           timestamp: timestamp,
-          media_url: broadcastMediaUrl,
+          media_url: publicMediaUrl,
           media_name: mediaName
         }
       };
@@ -483,9 +509,6 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
     }
   });
 
-  // ========================================================================
-  // CREATE CONVERSATION
-  // ========================================================================
   ipcMain.handle('whatsapp:createConversation', async (event, { candidateId, candidateName, phoneNumber }) => {
     try {
       const db = getDatabase();
@@ -495,56 +518,34 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
         return { success: false, error: 'Phone number is required' };
       }
 
-      // Auto-add 91 country code
       let cleanPhone = phoneNumber.replace(/\D/g, '');
-      console.log('📞 Original phone:', phoneNumber);
-      console.log('📞 Cleaned phone:', cleanPhone);
 
       if (cleanPhone.length === 10) {
         cleanPhone = '91' + cleanPhone;
-        console.log('✅ Added country code 91:', cleanPhone);
       }
 
       const formattedPhone = '+' + cleanPhone;
-      console.log('📞 Final formatted phone:', formattedPhone);
 
-      // Check if conversation already exists
       let conversation = await dbGet(db, `
         SELECT * FROM whatsapp_conversations
         WHERE phone_number = ? AND is_deleted = 0
       `, [formattedPhone]);
 
       if (!conversation) {
-        console.log('Creating new conversation...');
         const timestamp = new Date().toISOString();
         const result = await dbRun(db, `
           INSERT INTO whatsapp_conversations (
-            candidate_id,
-            candidate_name,
-            phone_number,
-            last_message_time,
-            created_at,
-            updated_at
+            candidate_id, candidate_name, phone_number,
+            last_message_time, created_at, updated_at
           ) VALUES (?, ?, ?, ?, ?, ?)
         `, [
-          candidateId || null,
-          candidateName || 'Unknown',
-          formattedPhone,
-          timestamp,
-          timestamp,
-          timestamp
+          candidateId || null, candidateName || 'Unknown',
+          formattedPhone, timestamp, timestamp, timestamp
         ]);
 
-        console.log('📊 dbRun result:', { lastID: result.lastID, changes: result.changes });
-
         conversation = await dbGet(db, `
-          SELECT * FROM whatsapp_conversations
-          WHERE id = ?
+          SELECT * FROM whatsapp_conversations WHERE id = ?
         `, [result.lastID]);
-
-        console.log('✅ New conversation created:', conversation);
-      } else {
-        console.log('✅ Existing conversation found:', conversation);
       }
 
       return {
@@ -565,22 +566,13 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
     }
   });
 
-  // ========================================================================
-  // GET CANDIDATES WITH PHONE
-  // ========================================================================
   ipcMain.handle('whatsapp:getCandidatesWithPhone', async () => {
     try {
       const db = getDatabase();
-      console.log('📞 Fetching candidates with phone numbers...');
-
       const candidates = await dbAll(db, `
         SELECT
-          id,
-          name,
-          contact,
-          Position as position,
-          education,
-          photo_path
+          id, name, contact, Position as position,
+          education, photo_path
         FROM candidates
         WHERE contact IS NOT NULL
           AND TRIM(contact) != ''
@@ -588,11 +580,7 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
         ORDER BY name ASC
       `);
 
-      console.log(`✅ Query returned ${Array.isArray(candidates) ? candidates.length : 0} candidates`);
-
       const candidatesArray = Array.isArray(candidates) ? candidates : [];
-
-      // Enrich with base64 preview
       const fs = require('fs');
       const path = require('path');
 
@@ -616,30 +604,18 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
         }
       }
 
-      return {
-        success: true,
-        data: candidatesArray
-      };
+      return { success: true, data: candidatesArray };
     } catch (error) {
       console.error('❌ Error fetching candidates with phone:', error);
-      return {
-        success: false,
-        error: error.message,
-        data: []
-      };
+      return { success: false, error: error.message, data: [] };
     }
   });
 
-  // ========================================================================
-  // DELETE MESSAGE
-  // ========================================================================
   ipcMain.handle('whatsapp:deleteMessage', async (event, messageId) => {
     try {
       const db = getDatabase();
       await dbRun(db, `
-        UPDATE whatsapp_messages
-        SET is_deleted = 1
-        WHERE id = ?
+        UPDATE whatsapp_messages SET is_deleted = 1 WHERE id = ?
       `, [messageId]);
 
       return { success: true };
@@ -649,16 +625,11 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
     }
   });
 
-  // ========================================================================
-  // DELETE CONVERSATION
-  // ========================================================================
   ipcMain.handle('whatsapp:deleteConversation', async (event, conversationId) => {
     try {
       const db = getDatabase();
       await dbRun(db, `
-        UPDATE whatsapp_conversations
-        SET is_deleted = 1
-        WHERE id = ?
+        UPDATE whatsapp_conversations SET is_deleted = 1 WHERE id = ?
       `, [conversationId]);
 
       return { success: true };
@@ -668,42 +639,71 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
     }
   });
 
-  // ========================================================================
-  // GET WHATSAPP STATUS
-  // ========================================================================
   ipcMain.handle('whatsapp:getStatus', async () => {
     try {
-      return await whatsappService.getStatus();
+      const db = getDatabase();
+      const settings = await dbAll(db, `
+        SELECT key, value
+        FROM system_settings
+        WHERE key IN ('twilioaccountsid', 'twilioauthtoken', 'twiliowhatsappnumber')
+      `);
+
+      const config = {};
+      const settingsArray = Array.isArray(settings) ? settings : [];
+      settingsArray.forEach(s => {
+        config[s.key] = s.value;
+      });
+
+      const isReady = whatsappService?.isReady || false;
+      const hasCredentials = !!(config.twilioaccountsid && config.twilioauthtoken);
+
+      return {
+        success: true,
+        hasCredentials,
+        isReady,
+        credentials: {
+          accountSid: config.twilioaccountsid || '',
+          authToken: config.twilioauthtoken || '',
+          whatsappNumber: config.twiliowhatsappnumber || ''
+        }
+      };
     } catch (error) {
-      console.error('Error getting WhatsApp status:', error);
+      console.error('❌ Error getting WhatsApp status:', error);
       return {
         success: false,
         error: error.message,
         hasCredentials: false,
-        isReady: false
+        isReady: false,
+        credentials: { accountSid: '', authToken: '', whatsappNumber: '' }
       };
     }
   });
 
-  // ========================================================================
-  // SAVE CREDENTIALS
-  // ========================================================================
   ipcMain.handle('whatsapp:saveCredentials', async (event, credentials) => {
     try {
-      return await whatsappService.saveCredentials(
+      const result = await whatsappService.saveCredentials(
         credentials.accountSid,
         credentials.authToken,
         credentials.whatsappNumber
       );
+
+      if (credentials.ngrokUrl) {
+        const db = getDatabase();
+        await dbRun(
+          db,
+          `INSERT OR REPLACE INTO system_settings (key, value) VALUES ('twilioNgrokUrl', ?)`,
+          [credentials.ngrokUrl]
+        );
+        console.log('✅ Ngrok URL saved:', credentials.ngrokUrl);
+      }
+
+      return result;
     } catch (error) {
       console.error('Error saving credentials:', error);
       return { success: false, error: error.message };
     }
   });
 
-  // ========================================================================
-  // TEST CONNECTION
-  // ========================================================================
   ipcMain.handle('whatsapp:testConnection', async (event, credentials) => {
     try {
       return await whatsappService.testConnection(
@@ -717,9 +717,6 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
     }
   });
 
-  // ========================================================================
-  // LOGOUT/DISCONNECT
-  // ========================================================================
   ipcMain.handle('whatsapp:logout', async () => {
     try {
       await whatsappService.disconnect();
@@ -730,31 +727,18 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
     }
   });
 
-  // ========================================================================
-  // GET WEBHOOK INFO
-  // ========================================================================
   ipcMain.handle('whatsapp:getWebhookInfo', async () => {
     try {
       return {
         success: true,
         webhookUrl: whatsappService?.getWebhookUrl('http://localhost:3001'),
-        localPort: 3001,
-        instructions: {
-          step1: 'Deploy app to production server with fixed public IP or domain',
-          step2: 'Update webhook URL in Twilio console: https://console.twilio.com/',
-          step3: 'Webhook URL: https://your-production-domain:3001/whatsapp/webhook',
-          step4: 'Configure incoming message webhook in Twilio WhatsApp sandbox settings',
-          step5: 'Request production approval from Twilio for unlimited messaging'
-        }
+        localPort: 3001
       };
     } catch (error) {
       return { success: false, error: error.message };
     }
   });
 
-  // ========================================================================
-  // SAVE WEBHOOK URL
-  // ========================================================================
   ipcMain.handle('whatsapp:saveWebhookUrl', async (event, webhookUrl) => {
     try {
       const db = getDatabase();
@@ -767,7 +751,6 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
         VALUES ('twilio_webhook_url', ?)
       `, [webhookUrl]);
 
-      console.log('✅ Webhook URL saved:', webhookUrl);
       return { success: true, webhookUrl };
     } catch (error) {
       console.error('Error saving webhook URL:', error);
@@ -775,16 +758,13 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
     }
   });
 
-  // ========================================================================
-  // VERIFY TWILIO CONFIGURATION
-  // ========================================================================
   ipcMain.handle('whatsapp:verifyConfig', async () => {
     try {
       const db = getDatabase();
       const settings = await dbAll(db, `
         SELECT key, value
         FROM system_settings
-        WHERE key IN ('twilio_account_sid', 'twilio_auth_token', 'twilio_whatsapp_number')
+        WHERE key IN ('twilioaccountsid', 'twilioauthtoken', 'twiliowhatsappnumber')
       `);
 
       const config = {};
@@ -794,9 +774,9 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
       });
 
       const verification = {
-        account_sid: !!config.twilio_account_sid,
-        auth_token: !!config.twilio_auth_token,
-        whatsapp_number: config.twilio_whatsapp_number || null,
+        account_sid: !!config.twilioaccountsid,
+        auth_token: !!config.twilioauthtoken,
+        whatsapp_number: config.twiliowhatsappnumber || null,
         service_status: whatsappService?.isReady || false,
         from_number: whatsappService?.whatsappNumber || 'NOT SET'
       };
@@ -809,9 +789,6 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
     }
   });
 
-  // ========================================================================
-  // SAVE TWILIO WHATSAPP NUMBER
-  // ========================================================================
   ipcMain.handle('whatsapp:setWhatsAppNumber', async (event, whatsappNumber) => {
     try {
       const db = getDatabase();
@@ -819,20 +796,16 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
         return { success: false, error: 'WhatsApp number is required' };
       }
 
-      // Format the number correctly
       let formattedNumber = whatsappNumber.trim();
       if (!formattedNumber.startsWith('whatsapp:')) {
         formattedNumber = `whatsapp:${formattedNumber}`;
       }
 
       await dbRun(db, `
-        INSERT OR REPLACE INTO system_settings (key, value)
-        VALUES ('twilio_whatsapp_number', ?)
+        INSERT OR REPLACE INTO system_settings (key, value, updated_at)
+        VALUES ('twiliowhatsappnumber', ?, datetime('now'))
       `, [formattedNumber]);
 
-      console.log('✅ WhatsApp number saved:', formattedNumber);
-
-      // Update the service
       if (whatsappService) {
         whatsappService.whatsappNumber = formattedNumber;
       }
@@ -845,57 +818,6 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
   });
 
   console.log('✅ WhatsApp IPC handlers initialized');
-}
-
-// ========================================================================
-// HELPER FUNCTIONS
-// ========================================================================
-
-// Load ngrok URL from database
-async function loadNgrokUrl() {
-  try {
-    const db = getDatabase();
-    const result = await dbGet(db,
-      `SELECT value FROM system_settings WHERE key = 'ngrok_url' LIMIT 1`
-    );
-    if (result && result.value) {
-      NGROK_URL = result.value;
-      console.log('✅ Loaded ngrok URL from database:', NGROK_URL);
-    } else {
-      console.log('⚠️  No ngrok URL configured');
-    }
-  } catch (error) {
-    console.error('Error loading ngrok URL:', error);
-  }
-}
-
-// Generate public file URL
-async function generatePublicFileUrl(filePath) {
-  const jwt = require('jsonwebtoken');
-  const path = require('path');
-  
-  // Use ngrok URL if available, otherwise localhost
-  const BASE_URL = NGROK_URL || 'http://127.0.0.1:3001';
-  const SECRET = '12023e5cf451cc4fc225b09f1543bd6c43c735c71db89f20c63cd6860430fc395b88778254ccbba2043df5989c0e61968cbf4ef6e4c6a6924f90fbe4c75cbb60';
-  
-  try {
-    if (!filePath) throw new Error('File path is required');
-    
-    const normalizedPath = path.resolve(filePath);
-    
-    // Generate JWT token (24 hour expiry)
-    const token = jwt.sign({ path: normalizedPath }, SECRET, { expiresIn: '24h' });
-    
-    const filename = path.basename(normalizedPath);
-    const publicUrl = `${BASE_URL}/public/files/${token}/${filename}`;
-    
-    console.log('🔗 Generated public URL:', publicUrl);
-    
-    return publicUrl;
-  } catch (error) {
-    console.error('Error generating public URL:', error);
-    throw error;
-  }
 }
 
 module.exports = { initializeWhatsAppHandlers };

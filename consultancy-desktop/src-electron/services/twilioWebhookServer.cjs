@@ -5,11 +5,11 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const path = require('path');
-const axios = require('axios'); // ✅ ADD THIS
-const os = require('os'); // ✅ ADD THIS
+const axios = require('axios');
+const os = require('os');
 const { dbGet, dbRun, dbAll } = require('../db/database.cjs');
 
-// ✅ JWT Secret for file URL signing (MUST MATCH whatsappHandlers.cjs)
+// ✅ JWT Secret for file URL signing
 const SECRET = '12023e5cf451cc4fc225b09f1543bd6c43c735c71db89f20c63cd6860430fc395b88778254ccbba2043df5989c0e61968cbf4ef6e4c6a6924f90fbe4c75cbb60';
 
 class TwilioWebhookServer {
@@ -20,14 +20,75 @@ class TwilioWebhookServer {
     this.app = null;
     this.server = null;
     this.authToken = null;
-    this.accountSid = null; // ✅ ADD THIS
+    this.accountSid = null;
+    this.ngrokUrl = null;
   }
 
-  async initialize(authToken, accountSid) { // ✅ ADD accountSid parameter
+  async loadNgrokUrl() {
+    try {
+      const result = await dbGet(
+        this.db,
+        `SELECT value FROM system_settings WHERE key = 'twilioNgrokUrl' LIMIT 1`
+      );
+      if (result && result.value) {
+        this.ngrokUrl = result.value;
+        console.log('✅ Loaded ngrok URL:', this.ngrokUrl);
+      } else {
+        console.log('⚠️ No ngrok URL configured, will use localhost');
+        this.ngrokUrl = 'http://127.0.0.1:3001';
+      }
+    } catch (error) {
+      console.error('Error loading ngrok URL:', error);
+      this.ngrokUrl = 'http://127.0.0.1:3001';
+    }
+  }
+
+  generatePublicFileUrl(filePath) {
+    try {
+      if (!filePath) return null;
+
+      const BASE_URL = this.ngrokUrl || 'http://127.0.0.1:3001';
+      console.log('🌐 Using base URL:', BASE_URL);
+      
+      const normalizedPath = path.resolve(filePath);
+      
+      // Generate JWT token (7 days expiry - longer than 24h)
+      const token = jwt.sign({ path: normalizedPath }, SECRET, { expiresIn: '7d' });
+      const filename = path.basename(normalizedPath);
+      const publicUrl = `${BASE_URL}/public/files/${token}/${encodeURIComponent(filename)}`;
+      
+      console.log('🔗 Generated public URL:', publicUrl);
+      return publicUrl;
+    } catch (error) {
+      console.error('❌ Error generating public URL:', error);
+      return null;
+    }
+  }
+
+  async initialize(authToken, accountSid) {
     try {
       this.authToken = authToken;
-      this.accountSid = accountSid; // ✅ ADD THIS
+      this.accountSid = accountSid;
+      
+      await this.loadNgrokUrl();
+      
       this.app = express();
+      
+      // ✅ CRITICAL FIX 1: ADD CORS MIDDLEWARE FIRST
+      this.app.use((req, res, next) => {
+        // Allow requests from any origin (for Electron app)
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        
+        // Handle preflight requests
+        if (req.method === 'OPTIONS') {
+          return res.status(200).end();
+        }
+        
+        next();
+      });
       
       // Middleware
       this.app.use(express.urlencoded({ extended: false }));
@@ -35,10 +96,14 @@ class TwilioWebhookServer {
 
       // Health check
       this.app.get('/health', (req, res) => {
-        res.json({ status: 'ok', message: 'Twilio webhook server running' });
+        res.json({ 
+          status: 'ok', 
+          message: 'Twilio webhook server running',
+          ngrokUrl: this.ngrokUrl 
+        });
       });
 
-      // JWT-secured file serving route
+      // ✅ CRITICAL FIX 2: JWT-secured file serving with CORS
       this.app.get('/public/files/:token/:filename', (req, res) => {
         this.serveFile(req, res);
       });
@@ -53,11 +118,12 @@ class TwilioWebhookServer {
         this.handleStatusCallback(req, res);
       });
 
-      this.server = this.app.listen(this.port, () => {
+      this.server = this.app.listen(this.port, '0.0.0.0', () => {
         console.log(`✅ Twilio webhook server listening on port ${this.port}`);
-        console.log(`📍 Incoming messages: http://localhost:${this.port}/whatsapp/webhook`);
-        console.log(`📍 Status callbacks: http://localhost:${this.port}/whatsapp/status`);
+        console.log(`📍 Health check: http://localhost:${this.port}/health`);
         console.log(`📍 File server: http://localhost:${this.port}/public/files/`);
+        console.log(`🌐 Public URL: ${this.ngrokUrl}`);
+        console.log(`✅ CORS enabled for all origins`);
       });
     } catch (error) {
       console.error('❌ Failed to initialize webhook server:', error);
@@ -68,17 +134,21 @@ class TwilioWebhookServer {
   async serveFile(req, res) {
     try {
       const { token, filename } = req.params;
-      
-      // ✅ Decode filename (in case of special characters)
       const decodedFilename = decodeURIComponent(filename);
       
+      console.log('📂 File request:', decodedFilename);
+      
+      // ✅ Verify JWT token
       let decoded;
       try {
         decoded = jwt.verify(token, SECRET);
       } catch (error) {
         if (error.name === 'TokenExpiredError') {
           console.error('❌ JWT token expired for file:', decodedFilename);
-          return res.status(401).json({ error: 'Token expired' });
+          return res.status(401).json({ 
+            error: 'Token expired',
+            message: 'File access token has expired. Please refresh the conversation.'
+          });
         }
         if (error.name === 'JsonWebTokenError') {
           console.error('❌ Invalid JWT token for file:', decodedFilename);
@@ -89,14 +159,22 @@ class TwilioWebhookServer {
 
       const filePath = decoded.path;
       
+      // ✅ Check if file exists
       if (!fs.existsSync(filePath)) {
         console.error('❌ File not found:', filePath);
-        return res.status(404).json({ error: 'File not found' });
+        return res.status(404).json({ 
+          error: 'File not found',
+          path: filePath 
+        });
       }
 
+      // ✅ Verify filename matches
       const actualFilename = path.basename(filePath);
       if (actualFilename !== decodedFilename) {
-        console.error('❌ Filename mismatch:', { expected: decodedFilename, actual: actualFilename });
+        console.error('❌ Filename mismatch:', { 
+          expected: decodedFilename, 
+          actual: actualFilename 
+        });
         return res.status(400).json({ error: 'Invalid filename' });
       }
 
@@ -111,10 +189,18 @@ class TwilioWebhookServer {
         '.webp': 'image/webp',
         '.pdf': 'application/pdf',
         '.mp4': 'video/mp4',
-        '.mp3': 'audio/mpeg'
+        '.mp3': 'audio/mpeg',
+        '.wav': 'audio/wav',
+        '.doc': 'application/msword',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.xls': 'application/vnd.ms-excel',
+        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       };
       const contentType = contentTypes[ext] || 'application/octet-stream';
 
+      // ✅ CRITICAL: Set CORS headers for images
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET');
       res.setHeader('Content-Type', contentType);
       res.setHeader('Cache-Control', 'public, max-age=86400');
       res.setHeader('Content-Disposition', `inline; filename="${decodedFilename}"`);
@@ -131,6 +217,10 @@ class TwilioWebhookServer {
           res.status(500).json({ error: 'Error serving file' });
         }
       });
+
+      fileStream.on('end', () => {
+        console.log('✅ File served successfully:', decodedFilename);
+      });
     } catch (error) {
       console.error('❌ Error serving file:', error);
       if (!res.headersSent) {
@@ -139,14 +229,12 @@ class TwilioWebhookServer {
     }
   }
 
-  // ✅ NEW METHOD: Download media from Twilio and save locally
   async downloadMediaFromTwilio(mediaUrl, mediaType, messageSid) {
     try {
       if (!mediaUrl) return null;
 
       console.log('📥 Downloading media from Twilio:', mediaUrl);
 
-      // Create downloads directory
       const documentsPath = path.join(os.homedir(), 'AppData', 'Roaming', 'consultancy-app', 'documents');
       const whatsappMediaPath = path.join(documentsPath, 'whatsapp-media');
       
@@ -154,22 +242,19 @@ class TwilioWebhookServer {
         fs.mkdirSync(whatsappMediaPath, { recursive: true });
       }
 
-      // Determine file extension from media type
       const ext = mediaType ? mediaType.split('/')[1] : 'bin';
       const filename = `${messageSid || Date.now()}-${Date.now()}.${ext}`;
       const localPath = path.join(whatsappMediaPath, filename);
 
-      // Download file with Twilio authentication
       const response = await axios.get(mediaUrl, {
         auth: {
           username: this.accountSid || '',
           password: this.authToken || ''
         },
         responseType: 'arraybuffer',
-        timeout: 30000 // 30 second timeout
+        timeout: 30000
       });
 
-      // Save to local file
       fs.writeFileSync(localPath, response.data);
       
       console.log('✅ Media downloaded successfully:', localPath);
@@ -178,7 +263,7 @@ class TwilioWebhookServer {
       return localPath;
     } catch (error) {
       console.error('❌ Failed to download media from Twilio:', error.message);
-      return null; // Return null instead of throwing - allow message to save without media
+      return null;
     }
   }
 
@@ -191,8 +276,6 @@ class TwilioWebhookServer {
     const twilioSignature = req.get('X-Twilio-Signature') || '';
     const protocol = req.get('X-Forwarded-Proto') || req.protocol || 'https';
     const url = `${protocol}://${req.get('host')}${req.originalUrl}`;
-    
-    console.log('🔐 Verifying signature for URL:', url);
     
     const params = req.body;
     let data = url;
@@ -211,8 +294,6 @@ class TwilioWebhookServer {
     
     if (!isValid) {
       console.warn('⚠️ Signature mismatch!');
-      console.warn('  Expected:', hash);
-      console.warn('  Received:', twilioSignature);
     } else {
       console.log('✅ Twilio signature validated');
     }
@@ -220,34 +301,23 @@ class TwilioWebhookServer {
     return isValid;
   }
 
-  // ✅ FIXED: Handle incoming message with media download
   async handleIncomingMessage(req, res) {
     try {
       console.log('📥 Webhook received from Twilio');
-      console.log('📦 Full body:', JSON.stringify(req.body, null, 2));
 
-      // ✅ Check direction to prevent duplicates
       const direction = req.body.Direction || req.body.direction || '';
       const messageStatus = req.body.MessageStatus || req.body.messageStatus || '';
-      const apiVersion = req.body.ApiVersion || req.body.apiVersion || '';
 
-      console.log('🔍 Direction:', direction);
-      console.log('🔍 MessageStatus:', messageStatus);
-      console.log('🔍 ApiVersion:', apiVersion);
-
-      // ✅ Only ignore if explicitly outbound
       if (direction && (direction === 'outbound-api' || direction === 'outbound-reply')) {
-        console.log('⏩ Ignoring outbound message - Direction:', direction);
+        console.log('⏩ Ignoring outbound message');
         return res.status(200).send('OK');
       }
 
-      // ✅ If direction is missing, check if it's a status callback
       if (!direction && messageStatus) {
-        console.log('⏩ This looks like a status callback, not a new message');
+        console.log('⏩ Status callback, not a new message');
         return res.status(200).send('OK');
       }
 
-      // ✅ Verify signature
       if (!this.verifyTwilioSignature(req)) {
         console.warn('⚠️ Invalid Twilio signature');
         return res.status(401).send('Unauthorized');
@@ -260,15 +330,6 @@ class TwilioWebhookServer {
         return res.status(400).send('Missing required fields');
       }
 
-      // ✅ Handle empty body (media-only messages)
-      const messageBody = Body || (NumMedia > 0 ? '[Media]' : '');
-
-      console.log('📨 Processing WhatsApp message from:', From);
-      console.log('  Body:', messageBody);
-      console.log('  MessageSid:', MessageSid);
-      console.log('  Media Count:', NumMedia || 0);
-
-      // ✅ Check if message already exists (prevent duplicates)
       if (MessageSid) {
         const existingMessage = await dbGet(
           this.db,
@@ -277,32 +338,41 @@ class TwilioWebhookServer {
         );
 
         if (existingMessage) {
-          console.log('⏩ Message already exists, skipping - MessageSid:', MessageSid);
+          console.log('⏩ Message already exists, skipping');
           return res.status(200).send('OK');
         }
       }
 
-      // Extract phone number
+      const messageBody = Body || (NumMedia > 0 ? '[Media]' : '');
       const phoneNumber = From.replace('whatsapp:', '').replace(/\+/g, '');
       const timestamp = new Date().toISOString();
       
-      // ✅ **CRITICAL FIX**: Download media locally instead of storing Twilio URL
       let localMediaPath = null;
+      let publicMediaUrl = null;
       let mediaType = null;
 
       if (MediaUrl0) {
-        console.log('📥 Media detected, downloading from Twilio...');
+        console.log('📥 Media detected, downloading...');
         mediaType = MediaContentType0 || null;
-        localMediaPath = await this.downloadMediaFromTwilio(MediaUrl0, mediaType, MessageSid);
         
-        if (localMediaPath) {
-          console.log('✅ Media saved locally:', localMediaPath);
+        if (!this.accountSid || !this.authToken) {
+          console.error('❌ Missing Twilio credentials');
         } else {
-          console.warn('⚠️ Failed to download media, message will be saved without media');
+          localMediaPath = await this.downloadMediaFromTwilio(MediaUrl0, mediaType, MessageSid);
+          
+          if (localMediaPath) {
+            console.log('✅ Media saved locally:', localMediaPath);
+            
+            if (!this.ngrokUrl) {
+              await this.loadNgrokUrl();
+            }
+            
+            publicMediaUrl = this.generatePublicFileUrl(localMediaPath);
+            console.log('✅ Public URL generated:', publicMediaUrl);
+          }
         }
       }
 
-      // Find candidate by phone
       const candidate = await dbGet(
         this.db,
         `SELECT id, name FROM candidates
@@ -313,13 +383,10 @@ class TwilioWebhookServer {
       );
 
       if (!candidate) {
-        console.warn('⚠️ No candidate found for phone:', phoneNumber);
+        console.warn('⚠️ No candidate found');
         return res.status(200).send('OK');
       }
 
-      console.log('✅ Found candidate:', candidate.name, '(ID:', candidate.id + ')');
-
-      // Find or create conversation
       let conversation = await dbGet(
         this.db,
         `SELECT id FROM whatsapp_conversations
@@ -329,73 +396,50 @@ class TwilioWebhookServer {
       );
 
       if (!conversation) {
-        console.log('📝 Creating new conversation for candidate:', candidate.id);
         const result = await dbRun(
           this.db,
           `INSERT INTO whatsapp_conversations (
-            candidate_id,
-            candidate_name,
-            phone_number,
-            last_message_time,
-            last_message,
-            unread_count,
-            created_at,
-            updated_at
+            candidate_id, candidate_name, phone_number,
+            last_message_time, last_message, unread_count,
+            created_at, updated_at
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [candidate.id, candidate.name, '+' + phoneNumber, timestamp, messageBody, 1, timestamp, timestamp]
         );
         conversation = { id: result.lastID };
-        console.log('✅ New conversation created with ID:', conversation.id);
       } else {
-        console.log('✅ Using existing conversation ID:', conversation.id);
-        // Update last message time and increment unread count
         await dbRun(
           this.db,
           `UPDATE whatsapp_conversations
-           SET last_message_time = ?,
-               last_message = ?,
-               unread_count = unread_count + 1,
-               updated_at = ?
+           SET last_message_time = ?, last_message = ?,
+               unread_count = unread_count + 1, updated_at = ?
            WHERE id = ?`,
           [timestamp, messageBody, timestamp, conversation.id]
         );
       }
 
-      // ✅ Insert message with LOCAL media path
-      console.log('💾 Saving message to database...');
       const msgResult = await dbRun(
         this.db,
         `INSERT INTO whatsapp_messages (
-          conversation_id,
-          message_sid,
-          direction,
-          body,
-          media_url,
-          media_type,
-          status,
-          timestamp,
-          from_number,
-          to_number,
-          created_at,
-          is_deleted
+          conversation_id, message_sid, direction, body,
+          media_url, media_type, status, timestamp,
+          from_number, to_number, created_at, is_deleted
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          conversation.id,
-          MessageSid || null,
-          'inbound',
-          messageBody,
-          localMediaPath,  // ✅ Store LOCAL path, not Twilio URL
-          mediaType,
-          'received',
-          timestamp,
-          phoneNumber,
-          To.replace('whatsapp:', ''),
-          timestamp,
-          0
+          conversation.id, MessageSid || null, 'inbound', messageBody,
+          publicMediaUrl, mediaType, 'received', timestamp,
+          phoneNumber, To.replace('whatsapp:', ''), timestamp, 0
         ]
       );
 
-      console.log('✅ Message saved with ID:', msgResult.lastID);
+      if (localMediaPath && publicMediaUrl) {
+        await dbRun(
+          this.db,
+          `INSERT INTO whatsapp_message_attachments (
+            message_id, file_path, original_name, mime_type, created_at
+          ) VALUES (?, ?, ?, ?, ?)`,
+          [msgResult.lastID, localMediaPath, path.basename(localMediaPath), mediaType, timestamp]
+        );
+      }
 
       const message = {
         id: msgResult.lastID,
@@ -404,55 +448,40 @@ class TwilioWebhookServer {
         message_sid: MessageSid || null,
         direction: 'inbound',
         body: messageBody,
-        media_url: localMediaPath,  // ✅ LOCAL path
-        mediaurl: localMediaPath,   // ✅ LOCAL path (for backward compatibility)
+        media_url: publicMediaUrl,
+        mediaurl: publicMediaUrl,
         media_type: mediaType,
+        mediatype: mediaType,
         status: 'received',
         timestamp: timestamp,
         from_number: phoneNumber,
-        to_number: To.replace('whatsapp:', '')
+        fromnumber: phoneNumber,
+        to_number: To.replace('whatsapp:', ''),
+        tonumber: To.replace('whatsapp:', '')
       };
 
-      console.log('📡 Broadcasting message:', JSON.stringify(message, null, 2));
-
-      // ✅ Broadcast via Socket.IO
       if (global.realtimeSync) {
         global.realtimeSync.broadcast('whatsapp:new-message', message);
-        console.log('✅ Message broadcasted via Socket.IO');
-      } else {
-        console.warn('⚠️ global.realtimeSync NOT AVAILABLE');
       }
 
-      // ✅ Send via IPC (backward compatibility)
       if (this.mainWindow && this.mainWindow.webContents) {
         this.mainWindow.webContents.send('whatsapp:new-message', message);
-        console.log('✅ Message sent via IPC to main window');
-      } else {
-        console.error('❌ mainWindow.webContents not available!');
       }
 
-      console.log('✅ Message processing complete:', message.id);
       res.status(200).send('OK');
     } catch (error) {
       console.error('❌ Error handling incoming message:', error);
-      console.error('Stack trace:', error.stack);
       res.status(500).send('Error processing message');
     }
   }
 
   async handleStatusCallback(req, res) {
     try {
-      console.log('📊 Status callback received');
-      console.log('  Data:', JSON.stringify(req.body, null, 2));
-
-      const { MessageSid, MessageStatus, To, ErrorCode, ErrorMessage } = req.body;
+      const { MessageSid, MessageStatus } = req.body;
 
       if (!MessageSid || !MessageStatus) {
-        console.error('❌ Missing MessageSid or MessageStatus');
         return res.status(400).send('Missing required fields');
       }
-
-      console.log(`📍 Message ${MessageSid} status: ${MessageStatus}`);
 
       const statusMap = {
         'queued': 'sending',
@@ -466,33 +495,24 @@ class TwilioWebhookServer {
 
       const dbStatus = statusMap[MessageStatus] || MessageStatus;
 
-      const result = await dbRun(
+      await dbRun(
         this.db,
-        `UPDATE whatsapp_messages
-         SET status = ?
-         WHERE message_sid = ?`,
+        `UPDATE whatsapp_messages SET status = ? WHERE message_sid = ?`,
         [dbStatus, MessageSid]
       );
-
-      console.log(`✅ Updated ${result.changes} message(s) in database`);
 
       const statusUpdate = {
         messageSid: MessageSid,
         status: dbStatus,
-        originalStatus: MessageStatus,
-        timestamp: new Date().toISOString(),
-        to: To,
-        error: ErrorCode ? { code: ErrorCode, message: ErrorMessage } : null
+        timestamp: new Date().toISOString()
       };
 
       if (global.realtimeSync) {
         global.realtimeSync.broadcast('whatsapp:message-status', statusUpdate);
-        console.log('✅ Status update broadcasted via Socket.IO');
       }
 
       if (this.mainWindow && this.mainWindow.webContents) {
         this.mainWindow.webContents.send('whatsapp:message-ack', statusUpdate);
-        console.log('✅ Status update sent via IPC');
       }
 
       res.status(200).send('OK');
