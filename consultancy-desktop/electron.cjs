@@ -223,30 +223,40 @@ app.whenReady().then(async () => {
     }
     mainWindow = createWindow();
 
-    // ✅ ADD WHATSAPP INITIALIZATION HERE
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('📱 Initializing WhatsApp service...');
-    }
-    try {
-      whatsappService = new TwilioWhatsAppService(mainWindow, db);
+    // ✅ ADD WHATSAPP + REAL-TIME SYNC INITIALIZATION
+if (process.env.NODE_ENV !== 'production') {
+  console.log('📱 Initializing WhatsApp service...');
+}
 
-      // Register WhatsApp IPC handlers immediately so renderer can call them
-      // even if the Twilio service is still initializing. Handlers that
-      // require the Twilio client will check `whatsappService.isReady`.
-      initializeWhatsAppHandlers(db, whatsappService);
-initializeCommunicationHandlers();
-      // Initialize Twilio service (may take time); handlers are already
-      // available to the renderer which avoids race conditions on startup.
-      await whatsappService.initialize();
-      
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('✅ WhatsApp service initialized');
-      }
-    } catch (whatsappError) {
-      console.error('⚠️ WhatsApp initialization failed:', whatsappError.message);
-      console.error('The app will continue without WhatsApp functionality');
-      // Don't crash the app, just log the error
-    }
+try {
+  whatsappService = new TwilioWhatsAppService(mainWindow, db);
+  initializeWhatsAppHandlers(db, whatsappService);
+  initializeCommunicationHandlers();
+
+  // ✅ FIXED: Initialize WhatsApp first
+  await whatsappService.initialize();
+
+  // ✅ NEW: Attach Socket.IO to the webhook HTTP server
+  if (whatsappService.webhookServer && whatsappService.webhookServer.server) {
+    const RealtimeSync = require('./src-electron/services/realtimeSync.cjs');
+    
+    // Get the HTTP server from Express
+    const httpServer = whatsappService.webhookServer.server;
+    
+    global.realtimeSync = new RealtimeSync(httpServer);
+    console.log('✅ Real-time sync initialized with webhook server');
+  } else {
+    console.error('❌ Webhook server not available for Socket.IO');
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('✅ WhatsApp service initialized');
+  }
+} catch (whatsappError) {
+  console.error('⚠️ WhatsApp initialization failed:', whatsappError.message);
+  console.error('Stack:', whatsappError.stack);
+}
+
 
     startReminderScheduler(mainWindow);
 

@@ -386,13 +386,11 @@ getStatus: () => ipcRenderer.invoke('whatsapp:getStatus'),
   onNewMessage: (callback) => ipcRenderer.on('whatsapp:new-message', (_, message) => callback(message)),
   onMessageAck: (callback) => ipcRenderer.on('whatsapp:message-ack', (_, data) => callback(data)),
 
-// ✅ CORRECTED WHATSAPP API
 whatsapp: {
   // ========== Conversations ==========
   getConversations: () => ipcRenderer.invoke('whatsapp:getConversations'),
   createConversation: (data) => ipcRenderer.invoke('whatsapp:createConversation', data),
   deleteConversation: (conversationId) => ipcRenderer.invoke('whatsapp:deleteConversation', conversationId),
-
   editMessage: (messageId, newContent) => ipcRenderer.invoke('whatsapp:editMessage', messageId, newContent),
   archiveConversation: (conversationId) => ipcRenderer.invoke('whatsapp:archiveConversation', conversationId),
   
@@ -402,7 +400,6 @@ whatsapp: {
   deleteMessage: (messageId) => ipcRenderer.invoke('whatsapp:deleteMessage', messageId),
   
   // ========== Candidates ==========
-  // ✅ FIX: Changed from getCandidatesForChat to getCandidatesWithPhone
   getCandidatesWithPhone: () => ipcRenderer.invoke('whatsapp:getCandidatesWithPhone'),
   seedCandidates: () => ipcRenderer.invoke('whatsapp:seedCandidates'),
   debugCandidates: () => ipcRenderer.invoke('whatsapp:debugCandidates'),
@@ -415,7 +412,7 @@ whatsapp: {
   // ========== Settings & Status ==========
   getStatus: () => ipcRenderer.invoke('whatsapp:getStatus'),
   saveCredentials: (credentials) => ipcRenderer.invoke('whatsapp:saveCredentials', credentials),
-  testConnection: (credentials) => ipcRenderer.invoke('whatsapp:testConnection', credentials), // ✅ ADDED
+  testConnection: (credentials) => ipcRenderer.invoke('whatsapp:testConnection', credentials),
   logout: () => ipcRenderer.invoke('whatsapp:logout'),
   
   // ========== Configuration ==========
@@ -427,12 +424,37 @@ whatsapp: {
   onAuthenticated: (callback) => {    ipcRenderer.on('whatsapp:authenticated', () => callback());  },  
   onDisconnected: (callback) => {    ipcRenderer.on('whatsapp:disconnected', (_, reason) => callback(reason));  },  
   onNewMessage: (callback) => {    ipcRenderer.on('whatsapp:new-message', (_, message) => callback(message));  },  
-  onMessageAck: (callback) => {    ipcRenderer.on('whatsapp:message-ack', (_, data) => callback(data));  }
-  
+  onMessageAck: (callback) => {    ipcRenderer.on('whatsapp:message-ack', (_, data) => callback(data));  },
+
+  // ✅ NEW: Real-Time Socket.IO Subscription
+  subscribeRealtimeMessages: (callback) => {
+    const io = require('socket.io-client');
+    const socket = io('http://localhost:3001', {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000
+    });
+    
+    socket.on('whatsapp:new-message', (message) => {
+      console.log('🔔 Real-time message via Socket.IO:', message);
+      callback(message);
+    });
+    
+    socket.on('connect', () => console.log('✅ Socket.IO connected'));
+    socket.on('disconnect', () => console.log('⚠️ Socket.IO disconnected'));
+    
+    return () => {
+      socket.disconnect();
+      console.log('🔌 Socket.IO cleaned up');
+    };
+  }
 }
 
 
+
+
 });
+
 
 // ==========================================================================
 // 🔐 PERMISSION VISIBILITY (OPTIONAL UI HELPER)

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Send, Smile, Paperclip, MoreVertical, Phone, Video, User, Trash2, Copy, MessageSquare, WifiOff } from 'lucide-react';
+import io from 'socket.io-client'; // ✅ ADDED
 import MessageBubble from './MessageBubble';
 import './ChatWindow.css';
 
@@ -15,6 +16,7 @@ const ChatWindow = ({ conversation, isConnected }) => {
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
 
+  // Load messages when conversation changes
   useEffect(() => {
     if (conversation?.id) {
       loadMessages();
@@ -23,26 +25,68 @@ const ChatWindow = ({ conversation, isConnected }) => {
     }
   }, [conversation?.id]);
 
+  // Auto-scroll when messages update
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
+  // ✅ FIXED: Real-time Socket.IO listener
   useEffect(() => {
-    // Listen for new messages in real-time
-    const handleNewMessage = (message) => {
-      if (conversation && message.conversation_id === conversation.id) {
-        setMessages(prev => [...prev, message]);
-      }
-    };
+    if (!conversation?.id) return;
 
-    if (window.electronAPI?.whatsapp?.onNewMessage) {
-      window.electronAPI.whatsapp.onNewMessage(handleNewMessage);
-    }
+    console.log('🔌 Setting up Socket.IO for conversation:', conversation.id);
+
+    // ✅ Use imported io
+    const socket = io('http://localhost:3001', {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
+    });
+
+    socket.on('connect', () => {
+      console.log('✅ Socket.IO connected to port 3001');
+    });
+
+    socket.on('whatsapp:new-message', (message) => {
+      console.log('🔔 Real-time message received:', message);
+      console.log('📍 Current conversation ID:', conversation.id);
+      console.log('📍 Message conversation ID:', message.conversationid);
+      
+      if (message.conversationid === conversation.id) {
+        console.log('✅ Message matches current conversation');
+        
+        setMessages(prev => {
+          const exists = prev.some(m => m.id === message.id);
+          if (exists) {
+            console.log('⚠️ Duplicate message detected, skipping');
+            return prev;
+          }
+          
+          console.log('✅ Adding new message to UI');
+          return [...prev, message];
+        });
+        
+        scrollToBottom();
+      } else {
+        console.log('⚠️ Message for different conversation, ignoring');
+      }
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('⚠️ Socket.IO disconnected:', reason);
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('❌ Socket.IO connection error:', error.message);
+    });
 
     return () => {
-      // Cleanup if needed
+      console.log('🔌 Cleaning up Socket.IO connection');
+      socket.disconnect();
     };
-  }, [conversation]);
+  }, [conversation?.id]);
+
 
   const loadMessages = async () => {
     if (!conversation?.id) return;
@@ -80,7 +124,7 @@ const ChatWindow = ({ conversation, isConnected }) => {
       return;
     }
 
-    if (!conversation.phone_number) {
+    if (!conversation.phonenumber && !conversation.phone_number) {
       console.error('No phone number in conversation');
       alert('Invalid conversation - missing phone number');
       return;
@@ -99,7 +143,7 @@ const ChatWindow = ({ conversation, isConnected }) => {
     try {
       const response = await window.electronAPI.whatsapp.sendMessage({
         conversationId: conversation.id,
-        phoneNumber: conversation.phone_number,
+        phoneNumber: conversation.phonenumber || conversation.phone_number,
         message: messageContent,
         attachments: pendingAttachments || []
       });
@@ -108,19 +152,20 @@ const ChatWindow = ({ conversation, isConnected }) => {
         // Add message to UI immediately
         const newMessage = {
           id: response.data?.id || Date.now(),
-          conversation_id: conversation.id,
+          conversationid: conversation.id,
           direction: 'outbound',
           body: messageContent,
-          media_url: (pendingAttachments && pendingAttachments[0]) ? (pendingAttachments[0].path || pendingAttachments[0].filePath || pendingAttachments[0].url) : null,
-          media_type: (pendingAttachments && pendingAttachments[0]) ? (pendingAttachments[0].mimeType || pendingAttachments[0].fileType) : null,
-          media_name: (pendingAttachments && pendingAttachments[0]) ? (pendingAttachments[0].originalName || pendingAttachments[0].fileName) : null,
+          mediaurl: (pendingAttachments && pendingAttachments[0]) ? (pendingAttachments[0].path || pendingAttachments[0].filePath || pendingAttachments[0].url) : null,
+          mediatype: (pendingAttachments && pendingAttachments[0]) ? (pendingAttachments[0].mimeType || pendingAttachments[0].fileType) : null,
+          medianame: (pendingAttachments && pendingAttachments[0]) ? (pendingAttachments[0].originalName || pendingAttachments[0].fileName) : null,
           status: response.data?.status || 'sent',
           timestamp: new Date().toISOString(),
-          from_number: 'You',
-          to_number: conversation.phone_number
+          fromnumber: 'You',
+          tonumber: conversation.phonenumber || conversation.phone_number
         };
         
         setMessages(prev => [...prev, newMessage]);
+        setPendingAttachments([]);
         scrollToBottom();
       } else {
         console.error('Failed to send message:', response?.error);
@@ -154,9 +199,21 @@ const ChatWindow = ({ conversation, isConnected }) => {
       const pick = await window.electronAPI.openFileDialog({ filters: [] });
       if (!pick || !pick.success) return;
 
-      const uploadRes = await window.electronAPI.uploadDocument({ candidateId: conversation.candidate_id || null, filePath: pick.filePath, originalName: pick.fileName, meta: { category: 'WhatsApp_Attachment' } });
+      const uploadRes = await window.electronAPI.uploadDocument({ 
+        candidateId: conversation.candidateid || conversation.candidate_id || null, 
+        filePath: pick.filePath, 
+        originalName: pick.fileName, 
+        meta: { category: 'WhatsApp_Attachment' } 
+      });
+      
       if (uploadRes && uploadRes.success) {
-        setPendingAttachments([{ id: uploadRes.data.id, path: uploadRes.data.path, filePath: uploadRes.data.path, originalName: uploadRes.data.fileName, mimeType: uploadRes.data.mimeType || uploadRes.data.fileType }]);
+        setPendingAttachments([{ 
+          id: uploadRes.data.id, 
+          path: uploadRes.data.path, 
+          filePath: uploadRes.data.path, 
+          originalName: uploadRes.data.fileName, 
+          mimeType: uploadRes.data.mimeType || uploadRes.data.fileType 
+        }]);
       } else {
         console.error('Attachment upload failed', uploadRes);
       }
@@ -230,17 +287,27 @@ const ChatWindow = ({ conversation, isConnected }) => {
       <div className="chat-header">
         <div className="chat-header-left">
           <div className="chat-avatar">
-            {conversation.photo_base64 ? (
-              <img src={conversation.photo_base64} alt={conversation.candidate_name || 'avatar'} loading="lazy" className="chat-avatar-photo img-loaded" />
-            ) : conversation.photo_path ? (
-              <LazyRemoteImage filePath={conversation.photo_path} className="chat-avatar-photo" />
+            {conversation.photobase64 || conversation.photo_base64 ? (
+              <img 
+                src={conversation.photobase64 || conversation.photo_base64} 
+                alt={conversation.candidatename || conversation.candidate_name || 'avatar'} 
+                loading="lazy" 
+                className="chat-avatar-photo img-loaded" 
+              />
+            ) : conversation.photopath || conversation.photo_path ? (
+              <img 
+                src={`file://${conversation.photopath || conversation.photo_path}`} 
+                alt={conversation.candidatename || conversation.candidate_name || 'avatar'} 
+                loading="lazy" 
+                className="chat-avatar-photo" 
+              />
             ) : (
-              conversation.candidate_name?.charAt(0)?.toUpperCase() || '?'
+              (conversation.candidatename || conversation.candidate_name || '?').charAt(0)?.toUpperCase()
             )}
           </div>
           <div className="chat-info">
-            <h3>{conversation.candidate_name || 'Unknown'}</h3>
-            <p className="chat-phone">{conversation.phone_number}</p>
+            <h3>{conversation.candidatename || conversation.candidate_name || 'Unknown'}</h3>
+            <p className="chat-phone">{conversation.phonenumber || conversation.phone_number}</p>
             <p className="chat-status">
               {isConnected ? (
                 <><span className="status-dot online"></span> Online</>
@@ -264,29 +331,33 @@ const ChatWindow = ({ conversation, isConnected }) => {
       </div>
 
       {/* Messages Area */}
-      <div className="messages-container">
-        {loading ? (
-          <div className="loading-messages">
-            <div className="spinner"></div>
-            <p>Loading messages...</p>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="no-messages">
-            <User size={48} className="no-messages-icon" />
-            <p>No messages yet</p>
-            <p className="subtitle">Start the conversation!</p>
-          </div>
-        ) : (
-          <div className="messages-list">
-            {messages.map((message) => (
-              <div key={message.id} onContextMenu={(e) => handleContextMenu(e, message)}>
-                <MessageBubble message={message} />
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
-      </div>
+<div className="messages-container">
+  {loading ? (
+    <div className="loading-messages">
+      <div className="spinner"></div>
+      <p>Loading messages...</p>
+    </div>
+  ) : messages.length === 0 ? (
+    <div className="no-messages">
+      <User size={48} className="no-messages-icon" />
+      <p>No messages yet</p>
+      <p className="subtitle">Start the conversation!</p>
+    </div>
+  ) : (
+    <div className="messages-list">
+      {messages.map((message) => (
+        <div 
+          key={`msg-${message.id}-${message.timestamp}`}  // ✅ FIXED: Compound unique key
+          onContextMenu={(e) => handleContextMenu(e, message)}
+        >
+          <MessageBubble message={message} />
+        </div>
+      ))}
+      <div ref={messagesEndRef} />
+    </div>
+  )}
+</div>
+
 
       {/* Message Input */}
       <div className="chat-input-container">

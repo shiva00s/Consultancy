@@ -221,257 +221,319 @@ ipcMain.handle('whatsapp:archiveConversation', async (event, conversationId) => 
   // ========================================================================
   // SEND MESSAGE
   // ========================================================================
-  ipcMain.handle('whatsapp:sendMessage', async (event, { conversationId, phoneNumber, message, attachments = [] }) => {
-    try {
-      const db = getDatabase();
-      
-      // ✅ Validate inputs
-      if (!phoneNumber) {
-        return { success: false, error: 'Phone number is required' };
-      }
-      if (!message) {
-        return { success: false, error: 'Message content is required' };
-      }
+  ipcMain.handle('whatsapp:sendMessage', async (event, { conversationId, phoneNumber, message, attachments }) => {
+  try {
+    const db = getDatabase();
 
-      console.log('📤 Sending WhatsApp message to:', phoneNumber);
+    // Validate inputs
+    if (!phoneNumber) {
+      return { success: false, error: 'Phone number is required' };
+    }
 
-      // Format phone number for Twilio (must include whatsapp: prefix)
-      let formattedPhone = phoneNumber.replace(/\s+/g, '');
-      if (!formattedPhone.startsWith('+')) {
-        formattedPhone = '+' + formattedPhone;
-      }
-      
-      // Twilio WhatsApp requires whatsapp: prefix
-      const twilioNumber = formattedPhone.startsWith('whatsapp:') 
-        ? formattedPhone 
-        : `whatsapp:${formattedPhone}`;
+    if (!message) {
+      return { success: false, error: 'Message content is required' };
+    }
 
-      // If attachments exist, generate temporary public URLs so Twilio can fetch media
-      let mediaUrls = [];
-      if (Array.isArray(attachments) && attachments.length > 0) {
-        for (const att of attachments) {
-          let filePath = att.path || att.filePath || att.file_path || att.url || null;
-          const documentId = att.id || att.documentId || null;
-          if (!filePath && documentId) {
-            try {
-              const docRow = await dbGet(db, 'SELECT filePath, file_path FROM documents WHERE id = ? LIMIT 1', [documentId]);
-              if (docRow) filePath = docRow.filePath || docRow.file_path || filePath;
-            } catch (e) {
-              console.warn('Could not resolve document path for public URL generation', documentId, e && e.message);
-            }
-          }
+    console.log('📤 Sending WhatsApp message to:', phoneNumber);
 
+    // Format phone number for Twilio (must include whatsapp: prefix)
+    let formattedPhone = phoneNumber.replace(/\D/g, '');
+    if (!formattedPhone.startsWith('+')) {
+      formattedPhone = '+' + formattedPhone;
+    }
+
+    // Twilio WhatsApp requires 'whatsapp:' prefix
+    const twilioNumber = formattedPhone.startsWith('whatsapp:') 
+      ? formattedPhone 
+      : 'whatsapp:' + formattedPhone;
+
+    // ✅ FIXED: Initialize media variables BEFORE conditional blocks
+    let mediaUrls = [];
+    let mediaurl = null;
+    let mediatype = null;
+    let medianame = null;
+
+    // If attachments exist, generate temporary public URLs so Twilio can fetch media
+    if (Array.isArray(attachments) && attachments.length > 0) {
+      for (const att of attachments) {
+        let filePath = att.path || att.filePath || att.filepath || att.url || null;
+        const documentId = att.id || att.documentId || null;
+
+        if (!filePath && documentId) {
           try {
-            const publicUrl = await generatePublicFileUrl(filePath);
-            if (publicUrl) mediaUrls.push(publicUrl);
-          } catch (err) {
-            console.warn('Failed to generate public URL for attachment', filePath, err && err.message);
+            const docRow = await dbGet(
+              db,
+              `SELECT filePath, filepath FROM documents WHERE id = ? LIMIT 1`,
+              documentId
+            );
+            if (docRow) {
+              filePath = docRow.filePath || docRow.filepath;
+            }
+          } catch (e) {
+            console.warn('Could not resolve document path for public URL generation:', documentId, e.message);
           }
+        }
+
+        try {
+          const publicUrl = await generatePublicFileUrl(filePath);
+          if (publicUrl) {
+            mediaUrls.push(publicUrl);
+          }
+        } catch (err) {
+          console.warn('Failed to generate public URL for attachment:', filePath, err.message);
         }
       }
 
-      // Send via Twilio WhatsApp service (include media URLs if any)
-      const twilioResult = await whatsappService.sendMessage(twilioNumber, message, mediaUrls.length ? mediaUrls : undefined);
-      
-      if (!twilioResult.success) {
-        console.error('❌ Twilio send failed:', twilioResult.error);
-        return { 
-          success: false, 
-          error: twilioResult.error || 'Failed to send message via Twilio' 
-        };
-      }
-
-      console.log('✅ Twilio message sent:', twilioResult.messageId);
-
-      // Store in database (support optional attachment metadata)
-      const timestamp = new Date().toISOString();
-      // If attachments provided, save first attachment metadata into message (supporting single-media messages)
-      let media_url = null;
-      let media_type = null;
-      let media_name = null;
-      if (Array.isArray(attachments) && attachments.length > 0) {
+      // Store first attachment metadata
+      if (attachments.length > 0) {
         const att = attachments[0];
-        // normalize possible fields
-        // prefer the public URL if we generated one
-        media_url = (mediaUrls && mediaUrls.length > 0) ? mediaUrls[0] : (att.path || att.filePath || att.file_path || att.url || null);
-        media_type = att.mimeType || att.fileType || att.mime || null;
-        media_name = att.originalName || att.fileName || att.name || null;
+        mediaurl = mediaUrls.length > 0 ? mediaUrls[0] : (att.path || att.filePath || att.filepath || att.url || null);
+        mediatype = att.mimeType || att.fileType || att.mime || null;
+        medianame = att.originalName || att.fileName || att.name || null;
       }
+    }
 
-      const result = await dbRun(db, `
-        INSERT INTO whatsapp_messages (
-          conversation_id,
-          message_sid,
-          direction,
-          body,
-          media_url,
-          media_type,
-          media_name,
-          status,
-          timestamp,
-          from_number,
-          to_number,
-          created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
+    // Send via Twilio WhatsApp service (include media URLs if any)
+    const twilioResult = await whatsappService.sendMessage(
+      twilioNumber, 
+      message, 
+      mediaUrls.length ? mediaUrls : undefined
+    );
+
+    if (!twilioResult.success) {
+      console.error('❌ Twilio send failed:', twilioResult.error);
+      return { 
+        success: false, 
+        error: twilioResult.error || 'Failed to send message via Twilio' 
+      };
+    }
+
+    console.log('✅ Twilio message sent:', twilioResult.messageId);
+
+    // Store in database
+    const timestamp = new Date().toISOString();
+
+    const result = await dbRun(
+      db,
+      `INSERT INTO whatsapp_messages (
+        conversation_id,
+        message_sid,
+        direction,
+        body,
+        media_url,
+        media_type,
+        media_name,
+        status,
+        timestamp,
+        from_number,
+        to_number,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
         conversationId,
         twilioResult.messageId || null,
         'outbound',
         message,
-        media_url,
-        media_type,
-        media_name,
+        mediaurl,
+        mediatype,
+        medianame,
         twilioResult.status || 'sent',
         timestamp,
         whatsappService.whatsappNumber || 'system',
         formattedPhone,
         timestamp
-      ]);
+      ]
+    );
 
-      // Update conversation last message time
-      await dbRun(db, `
-        UPDATE whatsapp_conversations 
-        SET last_message_time = ?,
-            updated_at = ?
-        WHERE id = ?
-      `, [timestamp, timestamp, conversationId]);
+    // Update conversation last message time
+    await dbRun(
+      db,
+      `UPDATE whatsapp_conversations 
+       SET last_message_time = ?, updated_at = ? 
+       WHERE id = ?`,
+      [timestamp, timestamp, conversationId]
+    );
 
-      console.log('✅ Message saved to database');
+    console.log('✅ Message saved to database');
 
-      // Persist attachments to whatsapp_message_attachments table (if any)
-      try {
-        if (Array.isArray(attachments) && attachments.length > 0) {
-          for (const att of attachments) {
-            // If attachment references a document id, resolve file path
-            let documentId = att.id || att.documentId || null;
-            let filePath = att.path || att.filePath || att.file_path || att.url || null;
-            let originalName = att.originalName || att.fileName || att.name || null;
-            let mimeType = att.mimeType || att.fileType || att.mime || null;
+    // ✅ Broadcast via Socket.IO to all connected clients
+    const messageData = {
+      id: result.lastID,
+      conversationid: conversationId,
+      direction: 'outbound',
+      body: message,
+      mediaurl: mediaurl,
+      mediatype: mediatype,
+      medianame: medianame,
+      status: twilioResult.status || 'sent',
+      timestamp: timestamp,
+      fromnumber: whatsappService.whatsappNumber || 'system',
+      tonumber: formattedPhone
+    };
 
-            // If we only have document id, resolve from documents table
-            if (!filePath && documentId) {
-              try {
-                const docRow = await dbGet(db, 'SELECT filePath, file_path FROM documents WHERE id = ? LIMIT 1', [documentId]);
-                if (docRow) filePath = docRow.filePath || docRow.file_path || filePath;
-              } catch (e) {
-                console.warn('Could not resolve document path for attachment', documentId, e && e.message);
-              }
-            }
-
-            await dbRun(db, `
-              INSERT INTO whatsapp_message_attachments (message_id, document_id, file_path, original_name, mime_type, created_at)
-              VALUES (?, ?, ?, ?, ?, ?)
-            `, [result.lastID, documentId, filePath, originalName, mimeType, timestamp]);
-          }
-        }
-      } catch (attachErr) {
-        console.error('Error saving message attachments:', attachErr);
-      }
-      return { 
-        success: true, 
-        data: { 
-          id: result.lastID,
-          messageId: twilioResult.messageId,
-          status: twilioResult.status || 'sent',
-          timestamp: timestamp
-        }
-      };
-    } catch (error) {
-      console.error('❌ Error sending message:', error);
-      return { 
-        success: false, 
-        error: error.message 
-      };
+    if (global.realtimeSync) {
+      global.realtimeSync.broadcast('whatsapp:new-message', messageData);
+      console.log('📡 Broadcasted message via Socket.IO');
+    } else {
+      console.warn('⚠️ global.realtimeSync not available');
     }
-  });
+
+    // Persist attachments to whatsapp_message_attachments table if any
+    try {
+      if (Array.isArray(attachments) && attachments.length > 0) {
+        for (const att of attachments) {
+          // If attachment references a document id, resolve file path
+          let documentId = att.id || att.documentId || null;
+          let filePath = att.path || att.filePath || att.filepath || att.url || null;
+          let originalName = att.originalName || att.fileName || att.name || null;
+          let mimeType = att.mimeType || att.fileType || att.mime || null;
+
+          // If we only have document id, resolve from documents table
+          if (!filePath && documentId) {
+            try {
+              const docRow = await dbGet(
+                db,
+                `SELECT filePath, filepath FROM documents WHERE id = ? LIMIT 1`,
+                documentId
+              );
+              if (docRow) {
+                filePath = docRow.filePath || docRow.filepath;
+              }
+            } catch (e) {
+              console.warn('Could not resolve document path for attachment:', documentId, e.message);
+            }
+          }
+
+          await dbRun(
+            db,
+            `INSERT INTO whatsapp_message_attachments (
+              message_id,
+              document_id,
+              file_path,
+              original_name,
+              mime_type,
+              created_at
+            ) VALUES (?, ?, ?, ?, ?, ?)`,
+            [result.lastID, documentId, filePath, originalName, mimeType, timestamp]
+          );
+        }
+      }
+    } catch (attachErr) {
+      console.error('Error saving message attachments:', attachErr);
+    }
+
+    return { 
+      success: true, 
+      data: { 
+        id: result.lastID, 
+        messageId: twilioResult.messageId, 
+        status: twilioResult.status || 'sent', 
+        timestamp: timestamp 
+      } 
+    };
+  } catch (error) {
+    console.error('❌ Error sending message:', error);
+    return { success: false, error: error.message };
+  }
+});
 
   // ========================================================================
   // CREATE CONVERSATION
   // ========================================================================
   ipcMain.handle('whatsapp:createConversation', async (event, { candidateId, candidateName, phoneNumber }) => {
-    try {
-      const db = getDatabase();
-      
-      console.log('📞 Creating conversation:', { candidateId, candidateName, phoneNumber });
+  try {
+    const db = getDatabase();
+    
+    console.log('📞 Creating conversation:', { candidateId, candidateName, phoneNumber });
 
-      // ✅ Validate phone number
-      if (!phoneNumber) {
-        return { 
-          success: false, 
-          error: 'Phone number is required' 
-        };
-      }
-
-      // Format phone number
-      let formattedPhone = phoneNumber.replace(/\s+/g, '');
-      if (!formattedPhone.startsWith('+')) {
-        formattedPhone = '+' + formattedPhone;
-      }
-
-      // Check if conversation already exists
-      let conversation = await dbGet(db, `
-        SELECT * FROM whatsapp_conversations 
-        WHERE phone_number = ? AND is_deleted = 0
-      `, [formattedPhone]);
-
-      if (!conversation) {
-        console.log('Creating new conversation...');
-        
-        const timestamp = new Date().toISOString();
-        const result = await dbRun(db, `
-          INSERT INTO whatsapp_conversations (
-            candidate_id,
-            candidate_name,
-            phone_number,
-            last_message_time,
-            created_at,
-            updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?)
-        `, [
-          candidateId || null,
-          candidateName || 'Unknown',
-          formattedPhone,
-          timestamp,
-          timestamp,
-          timestamp
-        ]);
-
-        console.log('📊 dbRun result:', { lastID: result.lastID, changes: result.changes });
-
-        conversation = await dbGet(db, `
-          SELECT * FROM whatsapp_conversations 
-          WHERE id = ?
-        `, [result.lastID]);
-
-        console.log('✅ New conversation created:', conversation);
-        
-        if (!conversation) {
-          console.error('❌ ERROR: conversation is still undefined after dbGet. lastID was:', result.lastID);
-        }
-      } else {
-        console.log('✅ Existing conversation found:', conversation);
-      }
-
-      return { 
-        success: true,
-        conversationId: conversation?.id,
-        data: {
-          id: conversation?.id,
-          candidate_id: conversation?.candidate_id,
-          candidate_name: conversation?.candidate_name,
-          phone_number: conversation?.phone_number,
-          last_message_time: conversation?.last_message_time,
-          unread_count: conversation?.unread_count || 0
-        }
-      };
-    } catch (error) {
-      console.error('❌ Error creating conversation:', error);
+    // ✅ Validate phone number
+    if (!phoneNumber) {
       return { 
         success: false, 
-        error: error.message 
+        error: 'Phone number is required' 
       };
     }
-  });
+
+    // ✅ PERMANENT FIX: Auto-add 91 country code
+    let cleanPhone = phoneNumber.replace(/\D/g, ''); // Remove all non-digits
+    
+    console.log('📞 Original phone:', phoneNumber);
+    console.log('📞 Cleaned phone:', cleanPhone);
+    
+    // If 10 digits, add 91 country code
+    if (cleanPhone.length === 10) {
+      cleanPhone = '91' + cleanPhone;
+      console.log('✅ Added country code 91:', cleanPhone);
+    }
+    
+    const formattedPhone = '+' + cleanPhone;
+    console.log('📞 Final formatted phone:', formattedPhone);
+
+    // Check if conversation already exists
+    let conversation = await dbGet(db, `
+      SELECT * FROM whatsapp_conversations 
+      WHERE phone_number = ? AND is_deleted = 0
+    `, [formattedPhone]);
+
+    if (!conversation) {
+      console.log('Creating new conversation...');
+      
+      const timestamp = new Date().toISOString();
+      const result = await dbRun(db, `
+        INSERT INTO whatsapp_conversations (
+          candidate_id,
+          candidate_name,
+          phone_number,
+          last_message_time,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?)
+      `, [
+        candidateId || null,
+        candidateName || 'Unknown',
+        formattedPhone,
+        timestamp,
+        timestamp,
+        timestamp
+      ]);
+
+      console.log('📊 dbRun result:', { lastID: result.lastID, changes: result.changes });
+
+      conversation = await dbGet(db, `
+        SELECT * FROM whatsapp_conversations 
+        WHERE id = ?
+      `, [result.lastID]);
+
+      console.log('✅ New conversation created:', conversation);
+      
+      if (!conversation) {
+        console.error('❌ ERROR: conversation is still undefined after dbGet. lastID was:', result.lastID);
+      }
+    } else {
+      console.log('✅ Existing conversation found:', conversation);
+    }
+
+    return { 
+      success: true,
+      conversationId: conversation?.id,
+      data: {
+        id: conversation?.id,
+        candidate_id: conversation?.candidate_id,
+        candidate_name: conversation?.candidate_name,
+        phone_number: conversation?.phone_number,
+        last_message_time: conversation?.last_message_time,
+        unread_count: conversation?.unread_count || 0
+      }
+    };
+  } catch (error) {
+    console.error('❌ Error creating conversation:', error);
+    return { 
+      success: false, 
+      error: error.message 
+    };
+  }
+});
+
 
   // ========================================================================
   // GET CANDIDATES WITH PHONE

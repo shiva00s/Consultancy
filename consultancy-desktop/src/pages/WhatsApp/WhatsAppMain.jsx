@@ -7,6 +7,14 @@ import ChatWindow from './ChatWindow';
 import NewChatModal from './NewChatModal';
 import TwilioSettingsModal from './TwilioSettingsModal';
 import './WhatsAppMain.css';
+import formatPhoneNumber from '../../utils/phoneFormatter';
+
+const fixPhoneDisplay = (phone) => {
+  if (!phone) return 'No phone number';
+  let digits = phone.replace(/\D/g, '');
+  if (digits.length === 10) digits = '91' + digits;
+  return '+' + digits;
+};
 
 const WhatsAppMain = () => {
   const [conversations, setConversations] = useState([]);
@@ -226,7 +234,7 @@ const WhatsAppMain = () => {
                         </span>
                       )}
                     </div>
-                    <p className="conversation-preview">{conv.phone_number || 'No phone number'}</p>
+                    <p className="conversation-preview">{formatPhoneNumber(conv.phone_number) || 'No phone number'}</p>
                   </div>
                   {conv.unread_count > 0 && (
                     <div className="unread-badge">{conv.unread_count}</div>

@@ -19,6 +19,49 @@ class TwilioWhatsAppService {
     this.whatsappNumber = null; // Format: whatsapp:+14155238886
   }
 
+  // ✅ ADD THIS NEW METHOD HERE
+/**
+ * Normalize phone number to E.164 format
+ * Handles common formatting issues and missing country codes
+ */
+normalizePhoneNumber(phoneNumber) {
+  if (!phoneNumber) return null;
+  
+  // Remove all non-digit characters except leading +
+  let cleaned = phoneNumber.replace(/[^\d+]/g, '');
+  
+  console.log('📞 Normalizing phone:', phoneNumber, '→', cleaned);
+  
+  // Remove + if present
+  cleaned = cleaned.replace(/^\+/, '');
+  
+  // Handle specific cases
+  // Case 1: Number starts with 962 but is only 10 digits (missing 91)
+  if (cleaned.startsWith('962') && cleaned.length === 10) {
+    cleaned = '91' + cleaned;
+    console.log('✅ Fixed: Added country code 91 → +' + cleaned);
+  }
+  
+  // Case 2: Number starts with 0 (remove leading zero)
+  if (cleaned.startsWith('0')) {
+    cleaned = cleaned.substring(1);
+    console.log('✅ Fixed: Removed leading 0 → ' + cleaned);
+  }
+  
+  // Case 3: 10-digit number without country code (assume India +91)
+  if (cleaned.length === 10 && !cleaned.startsWith('91')) {
+    cleaned = '91' + cleaned;
+    console.log('✅ Fixed: Added default country code 91 → +' + cleaned);
+  }
+  
+  // Case 4: Already has 91 prefix (12 digits total)
+  if (cleaned.startsWith('91') && cleaned.length === 12) {
+    console.log('✅ Already formatted correctly: +' + cleaned);
+  }
+  
+  return cleaned;
+}
+
   async initialize() {
     console.log('🔄 Initializing Twilio WhatsApp service...');
 
@@ -142,38 +185,58 @@ async saveCredentials(accountSid, authToken, whatsappNumber) {
     }
   }
 
-  async sendMessage(phoneNumber, content) {
-    if (!this.isReady) {
-      throw new Error('Twilio WhatsApp service is not ready');
+ async sendMessage(phoneNumber, content, mediaUrls = []) {
+  if (!this.isReady) throw new Error('Twilio WhatsApp service is not ready');
+
+  try {
+    // ✅ PERMANENT FIX: Auto-add 91 country code
+    let cleanPhone = phoneNumber.replace(/\D/g, ''); // Remove all non-digits
+    
+    console.log('📞 Original phone:', phoneNumber);
+    console.log('📞 Cleaned phone:', cleanPhone);
+    
+    // If 10 digits, add 91 country code
+    if (cleanPhone.length === 10) {
+      cleanPhone = '91' + cleanPhone;
+      console.log('✅ Added country code 91:', cleanPhone);
+    }
+    
+    const formattedNumber = `whatsapp:+${cleanPhone}`;
+    
+    console.log('📤 Sending WhatsApp message via Twilio to:', formattedNumber);
+
+    // Build message payload
+    const messagePayload = {
+      from: this.whatsappNumber,
+      to: formattedNumber,
+      body: content
+    };
+
+    // Add media if provided
+    if (mediaUrls && mediaUrls.length > 0) {
+      messagePayload.mediaUrl = mediaUrls;
     }
 
-    try {
-      // Format phone number for WhatsApp (must include country code)
-      const formattedNumber = phoneNumber.startsWith('+') 
-        ? `whatsapp:${phoneNumber}` 
-        : `whatsapp:+${phoneNumber.replace(/[^0-9]/g, '')}`;
+    const message = await this.client.messages.create(messagePayload);
 
-      console.log('📤 Sending WhatsApp message via Twilio to:', formattedNumber);
-
-      const message = await this.client.messages.create({
-        from: this.whatsappNumber,
-        to: formattedNumber,
-        body: content
-      });
-
-      console.log('✅ Message sent:', message.sid);
-
-      return {
-        success: true,
-        messageId: message.sid,
-        status: message.status,
-        timestamp: new Date(message.dateCreated).getTime()
-      };
-    } catch (error) {
-      console.error('❌ Error sending message:', error);
-      throw error;
-    }
+    console.log('✅ Message sent successfully!');
+    console.log('   SID:', message.sid);
+    console.log('   Status:', message.status);
+    console.log('   To:', formattedNumber);
+    
+    return {
+      success: true,
+      messageId: message.sid,
+      status: message.status,
+      timestamp: new Date(message.dateCreated).getTime()
+    };
+  } catch (error) {
+    console.error('❌ Error sending message:', error);
+    throw error;
   }
+}
+
+
 
   async handleIncomingMessage(messageData) {
     try {
