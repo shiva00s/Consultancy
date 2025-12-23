@@ -1,37 +1,87 @@
-/* src/pages/WhatsApp/TwilioSettingsModal.css */
+/* TwilioSettingsModal.css - Dark/Light Mode Compatible */
+
+/* Light Mode (Default) */
+:root {
+  --twilio-bg: #ffffff;
+  --twilio-bg-secondary: #f9fafb;
+  --twilio-border: #e5e7eb;
+  --twilio-text: #1f2937;
+  --twilio-text-secondary: #6b7280;
+  --twilio-input-bg: #ffffff;
+  --twilio-input-border: #d1d5db;
+  --twilio-hover-bg: #f3f4f6;
+  --twilio-success-bg: #d1fae5;
+  --twilio-success-text: #065f46;
+  --twilio-error-bg: #fee2e2;
+  --twilio-error-text: #991b1b;
+}
+
+/* Dark Mode */
+[data-theme="dark"] .twilio-modal-overlay,
+.dark-mode .twilio-modal-overlay {
+  --twilio-bg: #1e293b;
+  --twilio-bg-secondary: #0f172a;
+  --twilio-border: #334155;
+  --twilio-text: #f1f5f9;
+  --twilio-text-secondary: #94a3b8;
+  --twilio-input-bg: #0f172a;
+  --twilio-input-border: #475569;
+  --twilio-hover-bg: #334155;
+  --twilio-success-bg: #064e3b;
+  --twilio-success-text: #6ee7b7;
+  --twilio-error-bg: #7f1d1d;
+  --twilio-error-text: #fca5a5;
+}
 
 .twilio-modal-overlay {
   position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.85);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10001;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
   animation: fadeIn 0.2s ease;
-  backdrop-filter: blur(8px);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .twilio-modal {
-  background: var(--bg-card);
+  background: var(--twilio-bg);
   border-radius: 16px;
   width: 90%;
   max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
-  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid var(--border-color);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .twilio-modal-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  border-radius: 16px 16px 0 0;
+  justify-content: space-between;
+  padding: 24px 28px;
+  border-bottom: 1px solid var(--twilio-border);
+  background: var(--twilio-bg);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -39,69 +89,89 @@
 
 .twilio-modal-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--twilio-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .twilio-close-btn {
-  background: transparent;
+  background: none;
   border: none;
   padding: 8px;
-  border-radius: 8px;
   cursor: pointer;
-  color: var(--text-secondary);
-  transition: all 0.2s ease;
+  color: var(--twilio-text-secondary);
+  border-radius: 8px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .twilio-close-btn:hover {
-  background: var(--bg-tertiary);
-  color: #ef4444;
+  background: var(--twilio-hover-bg);
+  color: var(--twilio-text);
 }
 
 .twilio-modal-content {
-  padding: 24px;
+  padding: 28px;
 }
 
+/* Alerts */
 .alert {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  border-radius: 8px;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 10px;
   margin-bottom: 20px;
   font-size: 14px;
+  animation: slideIn 0.3s ease;
 }
 
-.alert-error {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #ef4444;
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .alert-success {
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  color: #22c55e;
+  background: var(--twilio-success-bg);
+  color: var(--twilio-success-text);
 }
 
+.alert-error {
+  background: var(--twilio-error-bg);
+  color: var(--twilio-error-text);
+}
+
+/* Setup Instructions */
 .setup-instructions {
-  background: var(--bg-secondary);
-  padding: 16px;
+  background: var(--twilio-bg-secondary);
+  border: 1px solid var(--twilio-border);
   border-radius: 12px;
+  padding: 20px;
   margin-bottom: 24px;
 }
 
 .setup-instructions h4 {
-  margin: 0 0 12px 0;
+  margin: 0 0 14px;
   font-size: 15px;
-  color: var(--text-primary);
+  font-weight: 600;
+  color: var(--twilio-text);
 }
 
 .setup-instructions ol {
   margin: 0;
   padding-left: 20px;
-  color: var(--text-secondary);
+  color: var(--twilio-text-secondary);
   font-size: 14px;
   line-height: 1.8;
 }
@@ -111,22 +181,22 @@
 }
 
 .external-link {
-  color: #25D366;
+  color: #3b82f6;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  transition: color 0.2s;
 }
 
 .external-link:hover {
-  color: #128C7E;
+  color: #2563eb;
   text-decoration: underline;
 }
 
+/* Form Groups */
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .form-group label {
@@ -134,87 +204,142 @@
   margin-bottom: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--twilio-text);
 }
 
 .form-input {
   width: 100%;
   padding: 12px 16px;
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--twilio-input-border);
   border-radius: 8px;
-  color: var(--text-primary);
   font-size: 14px;
-  font-family: 'Courier New', monospace;
-  transition: all 0.3s ease;
+  color: var(--twilio-text);
+  background: var(--twilio-input-bg);
+  transition: all 0.2s;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #25D366;
-  box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.1);
-}
-
-.form-input::placeholder {
-  color: var(--text-secondary);
-  opacity: 0.5;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .form-hint {
   display: block;
   margin-top: 6px;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--twilio-text-secondary);
   line-height: 1.5;
 }
 
+/* Webhook Info */
 .webhook-info {
-  background: rgba(37, 211, 102, 0.1);
-  border: 1px solid rgba(37, 211, 102, 0.3);
-  padding: 16px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
   border-radius: 12px;
+  padding: 18px;
   margin-top: 24px;
 }
 
+[data-theme="dark"] .webhook-info,
+.dark-mode .webhook-info {
+  background: #1e3a5f;
+  border-color: #2563eb;
+}
+
 .webhook-info h4 {
-  margin: 0 0 8px 0;
+  margin: 0 0 10px;
   font-size: 14px;
-  color: #25D366;
+  font-weight: 600;
+  color: #1e40af;
+}
+
+[data-theme="dark"] .webhook-info h4,
+.dark-mode .webhook-info h4 {
+  color: #60a5fa;
 }
 
 .webhook-info p {
-  margin: 0 0 8px 0;
+  margin: 0 0 8px;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: #1e3a8a;
   line-height: 1.6;
+}
+
+[data-theme="dark"] .webhook-info p,
+.dark-mode .webhook-info p {
+  color: #93c5fd;
 }
 
 .webhook-note {
   font-size: 12px;
+  color: #3730a3;
   font-style: italic;
-  opacity: 0.8;
 }
 
+[data-theme="dark"] .webhook-note,
+.dark-mode .webhook-note {
+  color: #a5b4fc;
+}
+
+/* Footer */
 .twilio-modal-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   gap: 12px;
-  padding: 16px 24px;
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  border-radius: 0 0 16px 16px;
+  padding: 20px 28px;
+  border-top: 1px solid var(--twilio-border);
+  background: var(--twilio-bg-secondary);
   position: sticky;
   bottom: 0;
 }
 
-.btn-secondary,
-.btn-primary {
-  padding: 10px 20px;
+.footer-right {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+}
+
+/* Buttons */
+.btn-onboarding {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  background: linear-gradient(135deg, #25d366 0%, #128c7e 100%);
+  color: white;
+  border: none;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(37, 211, 102, 0.2);
+}
+
+.btn-onboarding:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(37, 211, 102, 0.35);
+}
+
+.btn-onboarding:disabled {
+  background: var(--twilio-border);
+  color: var(--twilio-text-secondary);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary,
+.btn-primary {
+  padding: 11px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
   border: none;
   display: flex;
   align-items: center;
@@ -222,76 +347,46 @@
 }
 
 .btn-secondary {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
+  background: var(--twilio-input-bg);
+  border: 1px solid var(--twilio-border);
+  color: var(--twilio-text);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: var(--bg-input);
+  background: var(--twilio-hover-bg);
+  border-color: var(--twilio-input-border);
 }
 
 .btn-primary {
-  background: #25D366;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
   color: white;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #128C7E;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
 }
 
 .btn-secondary:disabled,
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
 }
 
+/* Loading Spinner */
 .spinner-small {
   width: 16px;
   height: 16px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: white;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  animation: spin 0.6s linear infinite;
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
-}
-
-/* Scrollbar */
-.twilio-modal::-webkit-scrollbar {
-  width: 6px;
-}
-
-.twilio-modal::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.twilio-modal::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 3px;
-}
-
-.twilio-modal::-webkit-scrollbar-thumb:hover {
-  background: #25D366;
 }
 
 /* Responsive */
@@ -301,15 +396,72 @@
     max-height: 95vh;
   }
 
-  .twilio-modal-content {
-    padding: 20px 16px;
-  }
-
-  .setup-instructions {
-    padding: 12px;
+  .twilio-modal-header,
+  .twilio-modal-content,
+  .twilio-modal-footer {
+    padding: 20px;
   }
 
   .twilio-modal-footer {
-    padding: 12px 16px;
+    flex-direction: column;
+    align-items: stretch;
   }
+
+  .footer-right {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .btn-onboarding,
+  .btn-secondary,
+  .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Scrollbar Styling */
+.twilio-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.twilio-modal::-webkit-scrollbar-track {
+  background: var(--twilio-bg-secondary);
+}
+
+.twilio-modal::-webkit-scrollbar-thumb {
+  background: var(--twilio-border);
+  border-radius: 4px;
+}
+
+.twilio-modal::-webkit-scrollbar-thumb:hover {
+  background: var(--twilio-input-border);
+}
+/* Add to TwilioSettingsModal.css */
+
+/* Optional label styling */
+.form-group label .optional {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--twilio-text-secondary);
+  margin-left: 6px;
+  font-style: italic;
+}
+
+/* Code tag styling */
+.form-hint code {
+  background: var(--twilio-bg-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: #e11d48;
+  border: 1px solid var(--twilio-border);
+}
+
+[data-theme="dark"] .form-hint code,
+.dark-mode .form-hint code {
+  background: #334155;
+  color: #f472b6;
+  border-color: #475569;
 }

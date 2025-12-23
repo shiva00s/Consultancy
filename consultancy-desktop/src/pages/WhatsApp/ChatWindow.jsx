@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Send, Smile, Paperclip, MoreVertical, Phone, Video, User, Trash2, Copy, MessageSquare, WifiOff } from 'lucide-react';
-import io from 'socket.io-client'; // ✅ ADDED
+import io from 'socket.io-client';
 import MessageBubble from './MessageBubble';
 import './ChatWindow.css';
 
@@ -11,10 +11,25 @@ const ChatWindow = ({ conversation, isConnected }) => {
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState(null);
   const messagesEndRef = useRef(null);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  
+  // ✅ Store socket in a ref that persists across renders
+  const socketRef = useRef(null);
+  // ✅ Store current conversation ID in ref for socket handler
+  const currentConversationIdRef = useRef(null);
+
+  const emojiList = ['😀','😁','😂','😊','😍','😎','😢','😡','👍','🙏','🎉','🔥'];
+
+  // ✅ Update conversation ref whenever it changes
+  useEffect(() => {
+    currentConversationIdRef.current = conversation?.id;
+  }, [conversation?.id]);
 
   // Load messages when conversation changes
   useEffect(() => {
@@ -30,63 +45,76 @@ const ChatWindow = ({ conversation, isConnected }) => {
     scrollToBottom();
   }, [messages]);
 
-  // ✅ FIXED: Real-time Socket.IO listener
+  // ✅ FIXED: Socket.IO - Connect ONCE and persist across conversation changes
   useEffect(() => {
-    if (!conversation?.id) return;
-
-    console.log('🔌 Setting up Socket.IO for conversation:', conversation.id);
-
-    // ✅ Use imported io
+    console.log('[Socket.IO] 🔌 Initializing persistent connection');
+    
+    // Create socket connection ONCE
     const socket = io('http://localhost:3001', {
-      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
       reconnectionAttempts: 5
     });
 
-    socket.on('connect', () => {
-      console.log('✅ Socket.IO connected to port 3001');
-    });
+    socketRef.current = socket;
 
-    socket.on('whatsapp:new-message', (message) => {
-      console.log('🔔 Real-time message received:', message);
-      console.log('📍 Current conversation ID:', conversation.id);
-      console.log('📍 Message conversation ID:', message.conversationid);
-      
-      if (message.conversationid === conversation.id) {
-        console.log('✅ Message matches current conversation');
-        
-        setMessages(prev => {
-          const exists = prev.some(m => m.id === message.id);
-          if (exists) {
-            console.log('⚠️ Duplicate message detected, skipping');
-            return prev;
-          }
-          
-          console.log('✅ Adding new message to UI');
-          return [...prev, message];
-        });
-        
-        scrollToBottom();
-      } else {
-        console.log('⚠️ Message for different conversation, ignoring');
-      }
+    socket.on('connect', () => {
+      console.log('[Socket.IO] ✅ Connected to webhook server');
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('⚠️ Socket.IO disconnected:', reason);
+      console.log('[Socket.IO] ⚠️ Disconnected:', reason);
     });
 
     socket.on('connect_error', (error) => {
-      console.error('❌ Socket.IO connection error:', error.message);
+      console.error('[Socket.IO] ❌ Connection error:', error);
     });
 
-    return () => {
-      console.log('🔌 Cleaning up Socket.IO connection');
-      socket.disconnect();
+    // ✅ Message handler uses REF to get current conversation
+    const handleNewMessage = (data) => {
+      console.log('[Socket.IO] 📨 Message received:', data);
+      
+      const msgConvId = data.conversation_id || data.conversationid;
+      const currentConvId = currentConversationIdRef.current;
+      
+      // Only add if message belongs to CURRENTLY OPEN conversation
+      if (currentConvId && msgConvId === currentConvId) {
+        setMessages(prev => {
+          // Prevent duplicates
+          const exists = prev.some(m => 
+            m.id === data.id || 
+            (m.message_sid && m.message_sid === data.message_sid)
+          );
+          
+          if (exists) {
+            console.log('[Socket.IO] ⏩ Duplicate detected, skipping');
+            return prev;
+          }
+          
+          console.log('[Socket.IO] ✅ Adding message to chat');
+          return [...prev, data];
+        });
+        
+        // Auto-scroll to new message
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      } else {
+        console.log('[Socket.IO] ⏭️ Message for different conversation, ignoring');
+      }
     };
-  }, [conversation?.id]);
 
+    socket.on('whatsapp:new-message', handleNewMessage);
+
+    // ✅ Cleanup ONLY on component unmount (not on conversation change!)
+    return () => {
+      console.log('[Socket.IO] 🔌 Disconnecting');
+      socket.off('whatsapp:new-message', handleNewMessage);
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, []); // ✅ Empty deps - connect ONCE on mount, disconnect on unmount only
 
   const loadMessages = async () => {
     if (!conversation?.id) return;
@@ -109,85 +137,36 @@ const ChatWindow = ({ conversation, isConnected }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // ✅ Send message - DON'T add to UI, let Socket.IO handle it
   const handleSendMessage = async (e) => {
-    e.preventDefault();
-    
-    // ✅ FIX: Comprehensive validation
-    if (!inputMessage.trim()) {
-      console.warn('Empty message');
-      return;
-    }
-    
-    if (!conversation) {
-      console.error('No conversation selected');
-      alert('Please select a conversation first');
-      return;
-    }
-
-    if (!conversation.phonenumber && !conversation.phone_number) {
-      console.error('No phone number in conversation');
-      alert('Invalid conversation - missing phone number');
-      return;
-    }
-
-    if (!isConnected) {
-      console.error('WhatsApp not connected');
-      alert('WhatsApp is not connected. Please configure your settings.');
-      return;
-    }
-
-    const messageContent = inputMessage.trim();
-    setInputMessage('');
-    setSending(true);
+    e?.preventDefault();
+    if (!inputMessage.trim() && selectedFiles.length === 0) return;
 
     try {
-      const response = await window.electronAPI.whatsapp.sendMessage({
+      setSending(true);
+      setSendError(null);
+
+      const result = await window.electronAPI.whatsapp.sendMessage({
         conversationId: conversation.id,
-        phoneNumber: conversation.phonenumber || conversation.phone_number,
-        message: messageContent,
-        attachments: pendingAttachments || []
+        phoneNumber: conversation?.phone_number,
+        message: inputMessage.trim() || ' ',
+        attachments: selectedFiles.length > 0 ? selectedFiles : undefined
       });
 
-      if (response?.success) {
-        // Add message to UI immediately
-        const newMessage = {
-          id: response.data?.id || Date.now(),
-          conversationid: conversation.id,
-          direction: 'outbound',
-          body: messageContent,
-          mediaurl: (pendingAttachments && pendingAttachments[0]) ? (pendingAttachments[0].path || pendingAttachments[0].filePath || pendingAttachments[0].url) : null,
-          mediatype: (pendingAttachments && pendingAttachments[0]) ? (pendingAttachments[0].mimeType || pendingAttachments[0].fileType) : null,
-          medianame: (pendingAttachments && pendingAttachments[0]) ? (pendingAttachments[0].originalName || pendingAttachments[0].fileName) : null,
-          status: response.data?.status || 'sent',
-          timestamp: new Date().toISOString(),
-          fromnumber: 'You',
-          tonumber: conversation.phonenumber || conversation.phone_number
-        };
-        
-        setMessages(prev => [...prev, newMessage]);
-        setPendingAttachments([]);
-        scrollToBottom();
+      if (result.success) {
+        // ✅ Clear inputs only - Socket.IO will add the message
+        setInputMessage('');
+        setSelectedFiles([]);
+        setSendError(null);
       } else {
-        console.error('Failed to send message:', response?.error);
-        alert(`Failed to send message: ${response?.error || 'Unknown error'}`);
-        // Restore message to input if failed
-        setInputMessage(messageContent);
+        setSendError(result.error || 'Failed to send message');
       }
     } catch (error) {
-      console.error('Error sending message:', error);
-      alert(`Error: ${error.message}`);
-      // Restore message to input if error
-      setInputMessage(messageContent);
+      setSendError(error.message || 'An unexpected error occurred');
     } finally {
       setSending(false);
     }
   };
-
-  // Emoji picker and attachments state
-  const [showEmoji, setShowEmoji] = useState(false);
-  const [pendingAttachments, setPendingAttachments] = useState([]);
-
-  const emojiList = ['😀','😁','😂','😊','😍','😎','😢','😡','👍','🙏','🎉','🔥'];
 
   const handleEmojiClick = (emoji) => {
     setInputMessage(prev => prev + emoji);
@@ -200,19 +179,21 @@ const ChatWindow = ({ conversation, isConnected }) => {
       if (!pick || !pick.success) return;
 
       const uploadRes = await window.electronAPI.uploadDocument({ 
-        candidateId: conversation.candidateid || conversation.candidate_id || null, 
+        candidateId: conversation.candidate_id || conversation.candidateid || null, 
         filePath: pick.filePath, 
         originalName: pick.fileName, 
         meta: { category: 'WhatsApp_Attachment' } 
       });
       
       if (uploadRes && uploadRes.success) {
-        setPendingAttachments([{ 
+        setSelectedFiles([{ 
           id: uploadRes.data.id, 
-          path: uploadRes.data.path, 
-          filePath: uploadRes.data.path, 
-          originalName: uploadRes.data.fileName, 
-          mimeType: uploadRes.data.mimeType || uploadRes.data.fileType 
+          path: uploadRes.data.path || uploadRes.data.filePath, 
+          filePath: uploadRes.data.path || uploadRes.data.filePath, 
+          originalName: uploadRes.data.fileName,
+          fileName: uploadRes.data.fileName,
+          mimeType: uploadRes.data.mimeType || uploadRes.data.fileType,
+          fileType: uploadRes.data.mimeType || uploadRes.data.fileType
         }]);
       } else {
         console.error('Attachment upload failed', uploadRes);
@@ -287,27 +268,27 @@ const ChatWindow = ({ conversation, isConnected }) => {
       <div className="chat-header">
         <div className="chat-header-left">
           <div className="chat-avatar">
-            {conversation.photobase64 || conversation.photo_base64 ? (
+            {conversation.photo_base64 || conversation.photobase64 ? (
               <img 
-                src={conversation.photobase64 || conversation.photo_base64} 
-                alt={conversation.candidatename || conversation.candidate_name || 'avatar'} 
+                src={conversation.photo_base64 || conversation.photobase64} 
+                alt={conversation.candidate_name || conversation.candidatename || 'avatar'} 
                 loading="lazy" 
                 className="chat-avatar-photo img-loaded" 
               />
-            ) : conversation.photopath || conversation.photo_path ? (
+            ) : conversation.photo_path || conversation.photopath ? (
               <img 
-                src={`file://${conversation.photopath || conversation.photo_path}`} 
-                alt={conversation.candidatename || conversation.candidate_name || 'avatar'} 
+                src={`file://${conversation.photo_path || conversation.photopath}`} 
+                alt={conversation.candidate_name || conversation.candidatename || 'avatar'} 
                 loading="lazy" 
                 className="chat-avatar-photo" 
               />
             ) : (
-              (conversation.candidatename || conversation.candidate_name || '?').charAt(0)?.toUpperCase()
+              (conversation.candidate_name || conversation.candidatename || '?').charAt(0)?.toUpperCase()
             )}
           </div>
           <div className="chat-info">
-            <h3>{conversation.candidatename || conversation.candidate_name || 'Unknown'}</h3>
-            <p className="chat-phone">{conversation.phonenumber || conversation.phone_number}</p>
+            <h3>{conversation.candidate_name || conversation.candidatename || 'Unknown'}</h3>
+            <p className="chat-phone">{conversation.phone_number || conversation.phonenumber}</p>
             <p className="chat-status">
               {isConnected ? (
                 <><span className="status-dot online"></span> Online</>
@@ -331,33 +312,32 @@ const ChatWindow = ({ conversation, isConnected }) => {
       </div>
 
       {/* Messages Area */}
-<div className="messages-container">
-  {loading ? (
-    <div className="loading-messages">
-      <div className="spinner"></div>
-      <p>Loading messages...</p>
-    </div>
-  ) : messages.length === 0 ? (
-    <div className="no-messages">
-      <User size={48} className="no-messages-icon" />
-      <p>No messages yet</p>
-      <p className="subtitle">Start the conversation!</p>
-    </div>
-  ) : (
-    <div className="messages-list">
-      {messages.map((message) => (
-        <div 
-          key={`msg-${message.id}-${message.timestamp}`}  // ✅ FIXED: Compound unique key
-          onContextMenu={(e) => handleContextMenu(e, message)}
-        >
-          <MessageBubble message={message} />
-        </div>
-      ))}
-      <div ref={messagesEndRef} />
-    </div>
-  )}
-</div>
-
+      <div className="messages-container">
+        {loading ? (
+          <div className="loading-messages">
+            <div className="spinner"></div>
+            <p>Loading messages...</p>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="no-messages">
+            <User size={48} className="no-messages-icon" />
+            <p>No messages yet</p>
+            <p className="subtitle">Start the conversation!</p>
+          </div>
+        ) : (
+          <div className="messages-list">
+            {messages.map((message) => (
+              <div 
+                key={`msg-${message.id}-${message.message_sid || message.timestamp}`}
+                onContextMenu={(e) => handleContextMenu(e, message)}
+              >
+                <MessageBubble message={message} />
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+      </div>
 
       {/* Message Input */}
       <div className="chat-input-container">
@@ -365,6 +345,18 @@ const ChatWindow = ({ conversation, isConnected }) => {
           <div className="connection-warning">
             <WifiOff size={16} />
             <span>WhatsApp is not connected. Configure settings to send messages.</span>
+          </div>
+        )}
+
+        {selectedFiles && selectedFiles.length > 0 && (
+          <div className="pending-attachments">
+            {selectedFiles.map((att, i) => (
+              <div key={i} className="pending-attachment-item">
+                <Paperclip size={14} />
+                <span>{att.originalName || att.fileName || 'File'}</span>
+                <button type="button" onClick={() => setSelectedFiles([])} className="remove-attachment">✖</button>
+              </div>
+            ))}
           </div>
         )}
         
@@ -403,7 +395,7 @@ const ChatWindow = ({ conversation, isConnected }) => {
           <button 
             type="submit" 
             className="send-btn"
-            disabled={!inputMessage.trim() || !isConnected || sending}
+            disabled={(!inputMessage.trim() && selectedFiles.length === 0) || !isConnected || sending}
             title="Send message"
           >
             {sending ? (
@@ -418,17 +410,6 @@ const ChatWindow = ({ conversation, isConnected }) => {
           <div className="emoji-picker">
             {emojiList.map((em, i) => (
               <button key={i} type="button" className="emoji-btn" onClick={() => handleEmojiClick(em)}>{em}</button>
-            ))}
-          </div>
-        )}
-
-        {pendingAttachments && pendingAttachments.length > 0 && (
-          <div className="pending-attachments">
-            {pendingAttachments.map((att, i) => (
-              <div key={i} className="pending-attachment-item">
-                {att.originalName || att.fileName || att.path}
-                <button type="button" onClick={() => setPendingAttachments([])} className="remove-attachment">✖</button>
-              </div>
             ))}
           </div>
         )}

@@ -1,6 +1,6 @@
 // src/pages/WhatsApp/WhatsAppMain.jsx
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import LazyRemoteImage from '../../components/common/LazyRemoteImage';
 import { MessageSquare, Plus, Settings, Wifi, WifiOff } from 'lucide-react';
 import ChatWindow from './ChatWindow';
@@ -8,13 +8,6 @@ import NewChatModal from './NewChatModal';
 import TwilioSettingsModal from './TwilioSettingsModal';
 import './WhatsAppMain.css';
 import formatPhoneNumber from '../../utils/phoneFormatter';
-
-const fixPhoneDisplay = (phone) => {
-  if (!phone) return 'No phone number';
-  let digits = phone.replace(/\D/g, '');
-  if (digits.length === 10) digits = '91' + digits;
-  return '+' + digits;
-};
 
 const WhatsAppMain = () => {
   const [conversations, setConversations] = useState([]);
@@ -26,11 +19,57 @@ const WhatsAppMain = () => {
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [hasCredentials, setHasCredentials] = useState(false);
 
+  const selectedConversationRef = useRef(null);
+
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation;
+  }, [selectedConversation]);
+
   useEffect(() => {
     checkWhatsAppStatus();
     loadConversations();
     setupEventListeners();
   }, []);
+
+  // ✅ Handle incoming messages (from IPC only - no Socket.IO here)
+  const handleNewMessage = (message) => {
+    console.log('📨 [WhatsAppMain] Processing new message for conversation list update:', message);
+    
+    const conversationId = message.conversation_id || message.conversationid;
+
+    setConversations(prevConversations => {
+      const existingConv = prevConversations.find(c => c.id === conversationId);
+
+      if (existingConv) {
+        // Update existing conversation
+        const updated = prevConversations.map(conv => {
+          if (conv.id === conversationId) {
+            return {
+              ...conv,
+              last_message: message.body || '[Media]',
+              last_message_time: message.timestamp,
+              unread_count: (selectedConversationRef.current?.id === conv.id)
+                ? conv.unread_count
+                : (conv.unread_count || 0) + 1
+            };
+          }
+          return conv;
+        }).sort((a, b) => {
+          const timeA = new Date(a.last_message_time || 0).getTime();
+          const timeB = new Date(b.last_message_time || 0).getTime();
+          return timeB - timeA;
+        });
+
+        console.log('✅ Conversation list updated');
+        return updated;
+      } else {
+        // New conversation - reload to get full data
+        console.log('⚠️ New conversation detected, reloading list');
+        loadConversations();
+        return prevConversations;
+      }
+    });
+  };
 
   const checkWhatsAppStatus = async () => {
     try {
@@ -67,14 +106,10 @@ const WhatsAppMain = () => {
       setConnectionStatus('disconnected');
     });
 
+    // ✅ IPC listener for conversation list updates only
     window.electronAPI.whatsapp.onNewMessage((message) => {
-      console.log('📨 New message received:', message);
-      loadConversations();
-      
-      // If this conversation is selected, it will auto-refresh
-      if (selectedConversation && message.conversation_id === selectedConversation.id) {
-        // Messages will be updated by ChatWindow component
-      }
+      console.log('📨 [IPC] New message received for conversation list update:', message);
+      handleNewMessage(message);
     });
   };
 
@@ -87,19 +122,27 @@ const WhatsAppMain = () => {
           ? response.data 
           : [];
         setConversations(conversationsData);
-        // Prefetch small thumbnails during idle to avoid blocking UI
+        
+        // Prefetch thumbnails
         try {
           const prefetch = () => {
             if (!Array.isArray(conversationsData)) return;
             for (let i = 0; i < Math.min(8, conversationsData.length); i++) {
               const c = conversationsData[i];
               if (c && c.photo_path) {
-                window.electronAPI.getThumbnail({ filePath: c.photo_path, maxWidth: 64, maxHeight: 64 }).catch(() => {});
+                window.electronAPI.getThumbnail({ 
+                  filePath: c.photo_path, 
+                  maxWidth: 64, 
+                  maxHeight: 64 
+                }).catch(() => {});
               }
             }
           };
-          if (typeof window.requestIdleCallback === 'function') requestIdleCallback(prefetch, { timeout: 1000 });
-          else setTimeout(prefetch, 500);
+          if (typeof window.requestIdleCallback === 'function') {
+            requestIdleCallback(prefetch, { timeout: 1000 });
+          } else {
+            setTimeout(prefetch, 500);
+          }
         } catch (e) {}
       }
     } catch (error) {
@@ -107,26 +150,24 @@ const WhatsAppMain = () => {
     }
   };
 
-  // ✅ FIX: Handle new chat properly
   const handleNewChat = (newConversation) => {
     console.log('📝 New conversation created:', newConversation);
     
-    // ✅ Ensure phone_number is set
     const conversationWithPhone = {
       ...newConversation,
       phone_number: newConversation.phone_number || newConversation.phoneNumber
     };
     
-    // Add to conversations list if not already there
     setConversations(prev => {
       const exists = prev.find(c => c.id === conversationWithPhone.id);
       if (exists) {
-        return prev.map(c => c.id === conversationWithPhone.id ? conversationWithPhone : c);
+        return prev.map(c => 
+          c.id === conversationWithPhone.id ? conversationWithPhone : c
+        );
       }
       return [conversationWithPhone, ...prev];
     });
     
-    // Select the new conversation
     setSelectedConversation(conversationWithPhone);
     setShowNewChatModal(false);
   };
@@ -210,14 +251,24 @@ const WhatsAppMain = () => {
               filteredConversations.map((conv) => (
                 <div
                   key={conv.id}
-                  className={`conversation-item ${selectedConversation?.id === conv.id ? 'active' : ''}`}
+                  className={`conversation-item ${
+                    selectedConversation?.id === conv.id ? 'active' : ''
+                  }`}
                   onClick={() => setSelectedConversation(conv)}
                 >
                   <div className="conversation-avatar">
                     {conv.photo_base64 ? (
-                      <img src={conv.photo_base64} alt={conv.candidate_name || 'avatar'} loading="lazy" className="conversation-photo img-loaded" />
+                      <img 
+                        src={conv.photo_base64} 
+                        alt={conv.candidate_name || 'avatar'} 
+                        loading="lazy" 
+                        className="conversation-photo img-loaded" 
+                      />
                     ) : conv.photo_path ? (
-                      <LazyRemoteImage filePath={conv.photo_path} className="conversation-photo" />
+                      <LazyRemoteImage 
+                        filePath={conv.photo_path} 
+                        className="conversation-photo" 
+                      />
                     ) : (
                       conv.candidate_name?.charAt(0).toUpperCase() || '?'
                     )}
@@ -234,7 +285,9 @@ const WhatsAppMain = () => {
                         </span>
                       )}
                     </div>
-                    <p className="conversation-preview">{formatPhoneNumber(conv.phone_number) || 'No phone number'}</p>
+                    <p className="conversation-preview">
+                      {formatPhoneNumber(conv.phone_number) || 'No phone number'}
+                    </p>
                   </div>
                   {conv.unread_count > 0 && (
                     <div className="unread-badge">{conv.unread_count}</div>

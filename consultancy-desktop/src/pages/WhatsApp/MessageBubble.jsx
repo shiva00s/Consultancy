@@ -1,143 +1,309 @@
 // src/pages/WhatsApp/MessageBubble.jsx
 
 import { useState } from 'react';
-import { Check, CheckCheck, Clock, File, X } from 'lucide-react';
+import { Check, CheckCheck, Clock, X, Download, FileText, Image as ImageIcon, Paperclip, AlertCircle } from 'lucide-react';
 import './MessageBubble.css';
-import LazyRemoteImage from '../../components/common/LazyRemoteImage.jsx';
 
 const MessageBubble = ({ message }) => {
   const isUser = message.direction === 'outbound' || message.sender_type === 'user';
   const [selectedImage, setSelectedImage] = useState(null);
+  const [imageError, setImageError] = useState(false);
+  const [mediaLoadError, setMediaLoadError] = useState(false);
 
+  // ✅ Safe time formatter with error handling
   const formatTime = (timestamp) => {
     if (!timestamp) return '';
-    return new Date(timestamp).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getStatusIcon = () => {
-    switch (message.status) {
-      case 'sent':
-        return <Check size={14} />;
-      case 'delivered':
-        return <CheckCheck size={14} />;
-      case 'read':
-        return <CheckCheck size={14} className="read" />;
-      default:
-        return <Clock size={14} />;
+    try {
+      return new Date(timestamp).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      console.warn('⚠️ Invalid timestamp:', timestamp);
+      return '';
     }
   };
 
-  const renderAttachment = () => {
-    // Prefer attachments array (multiple attachments)
-    if (Array.isArray(message.attachments) && message.attachments.length > 0) {
+  // ✅ Status icon with fallback
+  const getStatusIcon = () => {
+    try {
+      switch (message?.status) {
+        case 'sent':
+          return <Check size={16} className="status-icon status-sent" />;
+        case 'delivered':
+          return <CheckCheck size={16} className="status-icon status-delivered" />;
+        case 'read':
+          return <CheckCheck size={16} className="status-icon status-read" />;
+        case 'failed':
+          return <X size={16} className="status-icon status-failed" />;
+        case 'pending':
+          return <Clock size={16} className="status-icon status-pending" />;
+        default:
+          return <Check size={16} className="status-icon status-sent" />;
+      }
+    } catch (error) {
+      console.error('⚠️ Error rendering status icon:', error);
+      return null;
+    }
+  };
+
+  // ✅ Safe media URL getter with multiple fallbacks
+  const getMediaUrl = () => {
+    try {
+      // Try different field names for backward compatibility
       return (
-        <div className="message-attachments">
-          {message.attachments.map((att) => {
-            const url = att.url || att.path || att.file_path || '';
-            const name = att.originalName || (url && url.split(/[\\\/]/).pop()) || 'attachment';
+        message?.media_url ||
+        message?.mediaUrl ||
+        message?.mediaurl ||
+        message?.media_path ||
+        message?.mediaPath ||
+        message?.mediapath ||
+        null
+      );
+    } catch (error) {
+      console.error('⚠️ Error getting media URL:', error);
+      return null;
+    }
+  };
 
-            // Only render if we have a usable URL (http/data/blob)
-            if (!url || (!url.startsWith('http') && !url.startsWith('data:') && !url.startsWith('blob:'))) {
-              return null;
-            }
+  // ✅ Safe media type getter
+  const getMediaType = () => {
+    try {
+      return (
+        message?.media_type ||
+        message?.mediaType ||
+        message?.mediatype ||
+        message?.content_type ||
+        message?.contentType ||
+        null
+      );
+    } catch (error) {
+      console.error('⚠️ Error getting media type:', error);
+      return null;
+    }
+  };
 
-            if (/\.(png|jpe?g|gif|webp)$/i.test(url) || (att.mimeType && att.mimeType.startsWith('image'))) {
-              return (
-                <div key={att.id || name} className="message-attachment image" onClick={() => setSelectedImage(url)}>
-                  {url && url.startsWith('http') ? (
-                    <img src={url} alt={name} loading="lazy" className="img-loading" onLoad={(e) => { try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {} }} style={{ cursor: 'pointer' }} />
-                  ) : (
-                    <div style={{ cursor: 'pointer' }}>
-                      <LazyRemoteImage filePath={url} />
-                    </div>
-                  )}
-                </div>
-              );
-            }
+  // ✅ Safe file name getter
+  const getFileName = () => {
+    try {
+      return (
+        message?.file_name ||
+        message?.fileName ||
+        message?.filename ||
+        message?.media_name ||
+        message?.mediaName ||
+        message?.medianame ||
+        'Attachment'
+      );
+    } catch (error) {
+      return 'Attachment';
+    }
+  };
 
-            return (
-              <div key={att.id || name} className="message-attachment file">
-                <a href={url} target="_blank" rel="noreferrer">
-                  <File size={18} /> {name}
-                </a>
-              </div>
-            );
-          })}
+  // ✅ Render media attachment with error boundaries
+  const renderAttachment = () => {
+    try {
+      const mediaUrl = getMediaUrl();
+      const mediaType = getMediaType();
+
+      // If no media URL, skip rendering
+      if (!mediaUrl) {
+        return null;
+      }
+
+      // If media failed to load, show fallback
+      if (mediaLoadError) {
+        return (
+          <div className="message-attachment-fallback">
+            <AlertCircle size={16} />
+            <span>Media unavailable</span>
+          </div>
+        );
+      }
+
+      // ✅ Render IMAGE
+      if (mediaType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(mediaUrl)) {
+        return (
+          <div className="message-image-container">
+            <img
+              src={mediaUrl}
+              alt="Attachment"
+              className="message-image"
+              onClick={() => setSelectedImage(mediaUrl)}
+              onError={() => {
+                console.warn('⚠️ Image failed to load:', mediaUrl);
+                setMediaLoadError(true);
+              }}
+              loading="lazy"
+            />
+          </div>
+        );
+      }
+
+      // ✅ Render DOCUMENT/FILE
+      const fileName = getFileName();
+      const fileExt = fileName.split('.').pop()?.toUpperCase() || 'FILE';
+
+      return (
+        <div className="message-attachment">
+          <div className="attachment-icon-wrapper">
+            {mediaType?.startsWith('application/pdf') ? (
+              <FileText size={20} className="attachment-icon" />
+            ) : (
+              <Paperclip size={20} className="attachment-icon" />
+            )}
+          </div>
+          <div className="attachment-info">
+            <span className="attachment-name" title={fileName}>
+              {fileName}
+            </span>
+            <span className="attachment-type">{fileExt}</span>
+          </div>
+          <a
+            href={mediaUrl}
+            download={fileName}
+            className="attachment-download-btn"
+            title="Download"
+            onClick={(e) => {
+              // If download fails, prevent default
+              if (mediaLoadError) {
+                e.preventDefault();
+                alert('This file is no longer available');
+              }
+            }}
+          >
+            <Download size={16} />
+          </a>
+        </div>
+      );
+    } catch (error) {
+      console.error('⚠️ Error rendering attachment:', error);
+      return (
+        <div className="message-attachment-fallback">
+          <AlertCircle size={16} />
+          <span>Unable to load media</span>
         </div>
       );
     }
-
-    // Fallback: single media_url on message
-    if (!message.media_url) return null;
-    const url = message.media_url;
-    const name = message.media_name || url.split(/[\\\/]/).pop();
-    if (/\.(png|jpe?g|gif|webp)$/i.test(url) || (message.media_type && message.media_type.startsWith('image'))) {
-      // If it's a local path, renderer can display it directly, or it may already be a data URI
-      return (
-          <div className="message-attachment image" onClick={() => setSelectedImage(url)}>
-            {url && url.startsWith('http') ? (
-              <img src={url} alt={name} loading="lazy" className="img-loading" onLoad={(e) => { try { e.currentTarget.classList.remove('img-loading'); e.currentTarget.classList.add('img-loaded'); } catch (err) {} }} style={{ cursor: 'pointer' }} />
-            ) : (
-              <div style={{ cursor: 'pointer' }}>
-                <LazyRemoteImage filePath={url} />
-              </div>
-            )}
-          </div>
-        );
-    }
-
-    // Fallback: file link
-    return (
-      <div className="message-attachment file">
-        <a href={url} target="_blank" rel="noreferrer">
-          <File size={18} /> {name}
-        </a>
-      </div>
-    );
   };
 
-  return (
-    <div className={`message-bubble ${isUser ? 'user' : 'other'}`}>
-      <div className="message-content">
-        {message.body && <p className="message-text">{message.body}</p>}
-        {renderAttachment()}
-        <div className="message-meta">
-          <span className="message-time">{formatTime(message.timestamp)}</span>
-          {isUser && (
-            <span className="message-status">
-              {getStatusIcon()}
-            </span>
-          )}
-          {message.edited && (
-            <span className="edited-label">edited</span>
-          )}
-        </div>
-      </div>
+  // ✅ Render database attachments (if available)
+  const renderDatabaseAttachments = () => {
+    try {
+      const attachments = message?.attachments;
+      if (!attachments || !Array.isArray(attachments) || attachments.length === 0) {
+        return null;
+      }
 
-      {/* Image Preview Modal */}
-      {selectedImage && (
-        <div className="image-preview-modal" onClick={() => setSelectedImage(null)}>
-          <div className="image-preview-container" onClick={(e) => e.stopPropagation()}>
-            <button 
-              className="image-preview-close"
-              onClick={() => setSelectedImage(null)}
-              title="Close"
+      return attachments.map((att, index) => {
+        const fileName = att?.fileName || att?.file_name || att?.originalName || 'File';
+        const filePath = att?.filePath || att?.file_path || att?.path;
+        const fileType = att?.fileType || att?.file_type || att?.mimeType || 'application/octet-stream';
+
+        if (!filePath) {
+          return null; // Skip broken attachments
+        }
+
+        const fileExt = fileName.split('.').pop()?.toUpperCase() || 'FILE';
+
+        return (
+          <div key={`att-${index}`} className="message-attachment">
+            <div className="attachment-icon-wrapper">
+              <Paperclip size={20} className="attachment-icon" />
+            </div>
+            <div className="attachment-info">
+              <span className="attachment-name" title={fileName}>
+                {fileName}
+              </span>
+              <span className="attachment-type">{fileExt}</span>
+            </div>
+            <a
+              href={`file://${filePath}`}
+              download={fileName}
+              className="attachment-download-btn"
+              title="Download"
             >
-              <X size={24} />
-            </button>
-            {selectedImage.startsWith('http') ? (
-              <img src={selectedImage} alt="preview" className="image-preview-img" />
-            ) : (
-              <LazyRemoteImage filePath={selectedImage} className="image-preview-img" />
-            )}
+              <Download size={16} />
+            </a>
+          </div>
+        );
+      });
+    } catch (error) {
+      console.error('⚠️ Error rendering database attachments:', error);
+      return null;
+    }
+  };
+
+  // ✅ Main render with error boundary
+  try {
+    return (
+      <>
+        <div className={`message-bubble ${isUser ? 'user-message' : 'contact-message'}`}>
+          <div className="message-content">
+            {/* Message text */}
+            {message?.body && <p className="message-text">{message.body}</p>}
+
+            {/* Media attachment from message fields */}
+            {renderAttachment()}
+
+            {/* Database attachments */}
+            {renderDatabaseAttachments()}
+
+            {/* Message metadata */}
+            <div className="message-meta">
+              <span className="message-time">{formatTime(message?.timestamp)}</span>
+              {isUser && getStatusIcon()}
+            </div>
           </div>
         </div>
-      )}
-    </div>
-  );
+
+        {/* Image Lightbox */}
+        {selectedImage && !imageError && (
+          <div className="image-lightbox" onClick={() => setSelectedImage(null)}>
+            <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+              <button
+                className="lightbox-close"
+                onClick={() => setSelectedImage(null)}
+                title="Close"
+              >
+                <X size={24} />
+              </button>
+              <img
+                src={selectedImage}
+                alt="Full size"
+                className="lightbox-image"
+                onError={() => {
+                  console.warn('⚠️ Lightbox image failed to load');
+                  setImageError(true);
+                  setSelectedImage(null);
+                }}
+              />
+              <a
+                href={selectedImage}
+                download
+                className="lightbox-download"
+                title="Download"
+              >
+                <Download size={20} />
+              </a>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  } catch (error) {
+    console.error('❌ Critical error rendering message bubble:', error);
+    return (
+      <div className="message-bubble contact-message">
+        <div className="message-content">
+          <div className="message-attachment-fallback">
+            <AlertCircle size={16} />
+            <span>Message unavailable</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 };
 
 export default MessageBubble;

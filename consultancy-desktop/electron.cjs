@@ -26,7 +26,6 @@ if (process.env.NODE_ENV !== 'production') {
 // Try to load auto-updater
 let AutoUpdater = null;
 let hasAutoUpdater = false;
-
 try {
   const updaterModule = require('./src-electron/utils/autoUpdater.cjs');
   AutoUpdater = updaterModule.AutoUpdater;
@@ -37,6 +36,7 @@ try {
 
 let mainWindow = null;
 let updater = null;
+let whatsappService = null;
 
 /**
  * Global permission context holder
@@ -78,7 +78,6 @@ function createWindow() {
 
   mainWindow.webContents.on('console-message', (event) => {
     const { level, message, lineNumber, sourceId } = event;
-
     const suppressPatterns = [
       'Autofill.enable failed',
       'Autofill.setAddresses failed',
@@ -94,7 +93,7 @@ function createWindow() {
       case 'error':
         console.error(`[Renderer Error] ${message}`);
         if (lineNumber && sourceId) {
-          console.error(`  at ${sourceId}:${lineNumber}`);
+          console.error(` at ${sourceId}:${lineNumber}`);
         }
         break;
       case 'warning':
@@ -125,7 +124,6 @@ function createWindow() {
         if (window.chrome && window.chrome.autofill) {
           delete window.chrome.autofill;
         }
-        
         if (typeof window.__REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object') {
           for (let [key, value] of Object.entries(window.__REACT_DEVTOOLS_GLOBAL_HOOK__)) {
             if (typeof value === 'function') {
@@ -139,9 +137,7 @@ function createWindow() {
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
     const allowedOrigins = ['http://localhost:5173', 'http://localhost:3000', 'file://'];
-
     const isAllowed = allowedOrigins.some((origin) => url.startsWith(origin));
-
     if (!isAllowed) {
       event.preventDefault();
       console.warn('⚠️ Navigation blocked:', url);
@@ -155,7 +151,6 @@ function createWindow() {
   if (hasAutoUpdater && AutoUpdater) {
     try {
       updater = new AutoUpdater(mainWindow);
-
       setTimeout(() => {
         if (updater) {
           updater.checkForUpdatesAndNotify();
@@ -192,7 +187,9 @@ app.whenReady().then(async () => {
     if (process.env.NODE_ENV !== 'production') {
       console.log('📦 Initializing database...');
     }
+
     const db = await initializeDatabase(); // ✅ STORE DB REFERENCE
+
     if (process.env.NODE_ENV !== 'production') {
       console.log('✅ Database initialized');
     }
@@ -200,7 +197,9 @@ app.whenReady().then(async () => {
     if (process.env.NODE_ENV !== 'production') {
       console.log('📁 Initializing file manager...');
     }
+
     await fileManager.initialize();
+
     if (process.env.NODE_ENV !== 'production') {
       console.log('✅ File manager initialized');
     }
@@ -208,12 +207,14 @@ app.whenReady().then(async () => {
     if (process.env.NODE_ENV !== 'production') {
       console.log('🔌 Registering IPC handlers...');
     }
+
     registerIpcHandlers(app, {
       permissionContext,
       ROLES,
       FEATURES,
       PermissionEngine,
     });
+
     if (process.env.NODE_ENV !== 'production') {
       console.log('✅ IPC handlers registered');
     }
@@ -221,42 +222,40 @@ app.whenReady().then(async () => {
     if (process.env.NODE_ENV !== 'production') {
       console.log('🪟 Creating main window...');
     }
+
     mainWindow = createWindow();
 
     // ✅ ADD WHATSAPP + REAL-TIME SYNC INITIALIZATION
-if (process.env.NODE_ENV !== 'production') {
-  console.log('📱 Initializing WhatsApp service...');
-}
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('📱 Initializing WhatsApp service...');
+    }
 
-try {
-  whatsappService = new TwilioWhatsAppService(mainWindow, db);
-  initializeWhatsAppHandlers(db, whatsappService);
-  initializeCommunicationHandlers();
+    try {
+      whatsappService = new TwilioWhatsAppService(mainWindow, db);
+      initializeWhatsAppHandlers(db, whatsappService);
+      initializeCommunicationHandlers();
 
-  // ✅ FIXED: Initialize WhatsApp first
-  await whatsappService.initialize();
+      // ✅ FIXED: Initialize WhatsApp first
+      await whatsappService.initialize();
 
-  // ✅ NEW: Attach Socket.IO to the webhook HTTP server
-  if (whatsappService.webhookServer && whatsappService.webhookServer.server) {
-    const RealtimeSync = require('./src-electron/services/realtimeSync.cjs');
-    
-    // Get the HTTP server from Express
-    const httpServer = whatsappService.webhookServer.server;
-    
-    global.realtimeSync = new RealtimeSync(httpServer);
-    console.log('✅ Real-time sync initialized with webhook server');
-  } else {
-    console.error('❌ Webhook server not available for Socket.IO');
-  }
+      // ✅ NEW: Attach Socket.IO to the webhook HTTP server
+      if (whatsappService.webhookServer && whatsappService.webhookServer.server) {
+        const RealtimeSync = require('./src-electron/services/realtimeSync.cjs');
+        // Get the HTTP server from Express
+        const httpServer = whatsappService.webhookServer.server;
+        global.realtimeSync = new RealtimeSync(httpServer);
+        console.log('✅ Real-time sync initialized with webhook server');
+      } else {
+        console.error('❌ Webhook server not available for Socket.IO');
+      }
 
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('✅ WhatsApp service initialized');
-  }
-} catch (whatsappError) {
-  console.error('⚠️ WhatsApp initialization failed:', whatsappError.message);
-  console.error('Stack:', whatsappError.stack);
-}
-
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('✅ WhatsApp service initialized');
+      }
+    } catch (whatsappError) {
+      console.error('⚠️ WhatsApp initialization failed:', whatsappError.message);
+      console.error('Stack:', whatsappError.stack);
+    }
 
     startReminderScheduler(mainWindow);
 
@@ -266,12 +265,10 @@ try {
   } catch (error) {
     console.error('❌ Failed to initialize application:', error);
     console.error('Error stack:', error.stack);
-
     dialog.showErrorBox(
       'Initialization Error',
       `Failed to start application:\n\n${error.message}\n\nPlease check the console logs for more details.`
     );
-
     app.quit();
   }
 });
@@ -334,13 +331,11 @@ const IGNORED_STARTUP_TABLE_ERRORS = [
 // Global error handlers
 process.on('uncaughtException', (error) => {
   const message = String(error && error.message);
-
   if (IGNORED_STARTUP_TABLE_ERRORS.some((p) => message.includes(p))) {
     return;
   }
 
   console.error('❌ Uncaught Exception:', message);
-
   if (process.env.NODE_ENV === 'production' && mainWindow) {
     dialog.showErrorBox(
       'Application Error',
@@ -351,13 +346,11 @@ process.on('uncaughtException', (error) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   const message = String(reason && reason.message ? reason.message : reason);
-
   if (IGNORED_STARTUP_TABLE_ERRORS.some((p) => message.includes(p))) {
     return;
   }
 
   console.error('❌ Unhandled Rejection:', message);
-
   if (process.env.NODE_ENV === 'production' && mainWindow) {
     dialog.showErrorBox(
       'Application Error',
