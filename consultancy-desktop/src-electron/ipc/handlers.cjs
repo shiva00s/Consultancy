@@ -2665,94 +2665,280 @@ ipcMain.handle('upload-document', async (event, { candidateId, filePath, origina
 });
 
 
-ipcMain.handle("getCommunicationLogs", async (event, { candidateId }) => {
-  console.log("📞 getCommunicationLogs called:", { candidateId });
+ipcMain.handle("getCommunicationLogs", async (event, params = {}) => {
+  const { 
+    candidateId, 
+    type = 'all', 
+    startDate, 
+    endDate, 
+    limit = 50, 
+    offset = 0 
+  } = params;
+  
+  console.log("📞 getCommunicationLogs called:", { candidateId, type, startDate, endDate, limit, offset });
 
   try {
-    const parsedId = parseInt(candidateId, 10);
+    const parsedId = candidateId ? parseInt(candidateId, 10) : null;
+    const resultLogs = [];
 
-    // Start with non-WhatsApp communication logs from communication_logs table
-    const base = await queries.getCommunicationLogs(parsedId);
-    const resultLogs = Array.isArray(base.data) ? base.data.slice() : [];
+    // Fetch non-WhatsApp communication logs if needed
+    if (type === 'all' || type !== 'whatsapp') {
+      if (parsedId) {
+        const base = await queries.getCommunicationLogs(parsedId);
+        if (Array.isArray(base.data)) {
+          resultLogs.push(...base.data.map(row => ({
+            ...row,
+            candidatename: row.candidate_name || 'Unknown',
+            phonenumber: row.phone_number,
+            message: row.details,
+            timestamp: row.createdAt
+          })));
+        }
+      } else {
+        // Get all communication logs
+        const db = getDatabase();
+        let sql = `
+          SELECT 
+            cl.id,
+            cl.candidate_id,
+            cl.communication_type,
+            cl.details,
+            cl.createdAt,
+            cl.metadata,
+            c.name as candidate_name,
+            c.contact as phone_number,
+            u.username
+          FROM communication_logs cl
+          LEFT JOIN candidates c ON cl.candidate_id = c.id
+          LEFT JOIN users u ON cl.user_id = u.id
+          WHERE (c.isDeleted = 0 OR c.isDeleted IS NULL)
+        `;
+        const sqlParams = [];
 
-    // Now include WhatsApp messages and attachments (if any)
-    try {
-      const db = getDatabase();
-      const fs = require('fs');
-      const path = require('path');
+        // Apply type filter
+        if (type !== 'all' && type !== 'whatsapp') {
+          sql += ` AND cl.communication_type = ?`;
+          sqlParams.push(type);
+        }
 
-      const convs = await dbAll(db, `SELECT id FROM whatsapp_conversations WHERE candidate_id = ?`, [parsedId]);
-      const convIds = (convs || []).map((c) => c.id);
-      if (convIds.length > 0) {
-        const placeholders = convIds.map(() => '?').join(',');
-        const messages = await dbAll(db, `SELECT id, body, timestamp, sender_name, from_number, context_json, reason FROM whatsapp_messages WHERE conversation_id IN (${placeholders}) AND is_deleted = 0 ORDER BY timestamp DESC LIMIT 500`, convIds);
+        // Apply date filters
+        if (startDate) {
+          sql += ` AND cl.createdAt >= ?`;
+          sqlParams.push(startDate);
+        }
+        if (endDate) {
+          sql += ` AND cl.createdAt <= ?`;
+          sqlParams.push(endDate);
+        }
 
-        if (Array.isArray(messages) && messages.length > 0) {
-          const ids = messages.map((m) => m.id);
-          const ph = ids.map(() => '?').join(',');
+        sql += ` ORDER BY cl.createdAt DESC`;
 
-          // fetch media and legacy attachments for these message ids
-          const medias = await dbAll(db, `SELECT id, message_id, media_url, local_path, file_name, content_type FROM whatsapp_media WHERE message_id IN (${ph})`, ids);
-          const attachments = await dbAll(db, `SELECT id, message_id, file_path, original_name, mime_type FROM whatsapp_message_attachments WHERE message_id IN (${ph})`, ids);
-
-          const mapMed = {};
-          for (const r of medias || []) {
-            if (!mapMed[r.message_id]) mapMed[r.message_id] = [];
-            let url = r.media_url || null;
-            try {
-              if (!url && r.local_path && fs.existsSync(r.local_path)) {
-                url = `file://${path.resolve(r.local_path)}`;
-              }
-            } catch (e) {
-              // ignore
-            }
-            mapMed[r.message_id].push({ id: r.id, url, path: r.local_path || null, originalName: r.file_name || null, mimeType: r.content_type || null });
-          }
-
-          const mapAttach = {};
-          for (const a of attachments || []) {
-            if (!mapAttach[a.message_id]) mapAttach[a.message_id] = [];
-            let url = null;
-            try {
-              if (a.file_path && fs.existsSync(a.file_path)) url = `file://${path.resolve(a.file_path)}`;
-            } catch (e) { }
-            mapAttach[a.message_id].push({ id: a.id, url, path: a.file_path || null, originalName: a.original_name || null, mimeType: a.mime_type || null });
-          }
-
-          for (const m of messages) {
-            const combined = [];
-            for (const mm of (mapMed[m.id] || [])) combined.push(mm);
-            for (const at of (mapAttach[m.id] || [])) combined.push(at);
-
-            const metadata = m.context_json ? (() => { try { return JSON.parse(m.context_json); } catch { return { raw: m.context_json }; } })() : { reason: m.reason || null };
-
-            resultLogs.push({
-              id: `wa-${m.id}`,
-              communication_type: 'WhatsApp',
-              username: m.sender_name || m.from_number || null,
-              metadata,
-              details: m.body || '',
-              createdAt: m.timestamp || null,
-              attachments: combined,
-              raw: m,
-            });
-          }
+        const rows = await dbAll(db, sql, sqlParams);
+        if (Array.isArray(rows)) {
+          resultLogs.push(...rows.map(row => ({
+            id: `log-${row.id}`,
+            candidate_id: row.candidate_id,
+            candidatename: row.candidate_name || 'Unknown',
+            phonenumber: row.phone_number,
+            communication_type: row.communication_type,
+            type: row.communication_type,
+            details: row.details,
+            message: row.details,
+            createdAt: row.createdAt,
+            timestamp: row.createdAt,
+            username: row.username,
+            metadata: row.metadata ? (() => { 
+              try { return JSON.parse(row.metadata); } 
+              catch { return {}; } 
+            })() : {}
+          })));
         }
       }
-    } catch (waErr) {
-      console.warn('Error fetching WhatsApp messages for combined logs:', waErr && waErr.message ? waErr.message : waErr);
     }
 
-    // Sort by createdAt desc
+    // Fetch WhatsApp messages if needed
+    if (type === 'all' || type === 'whatsapp') {
+      try {
+        const db = getDatabase();
+        const fs = require('fs');
+        const path = require('path');
+
+        let convsSql = `SELECT id, candidate_id, candidate_name, phone_number FROM whatsapp_conversations WHERE 1=1`;
+        const convsParams = [];
+
+        if (parsedId) {
+          convsSql += ` AND candidate_id = ?`;
+          convsParams.push(parsedId);
+        }
+
+        const convs = await dbAll(db, convsSql, convsParams);
+        const convIds = (convs || []).map((c) => c.id);
+
+        if (convIds.length > 0) {
+          const placeholders = convIds.map(() => '?').join(',');
+          let msgSql = `
+            SELECT 
+              wm.id, 
+              wm.conversation_id,
+              wm.body, 
+              wm.timestamp, 
+              wm.sender_name, 
+              wm.from_number,
+              wm.to_number,
+              wm.direction,
+              wm.status,
+              wm.context_json, 
+              wm.reason,
+              wc.candidate_id,
+              wc.candidate_name,
+              wc.phone_number
+            FROM whatsapp_messages wm
+            LEFT JOIN whatsapp_conversations wc ON wm.conversation_id = wc.id
+            WHERE wm.conversation_id IN (${placeholders}) 
+            AND wm.is_deleted = 0
+          `;
+          const msgParams = [...convIds];
+
+          // Apply date filters for WhatsApp
+          if (startDate) {
+            msgSql += ` AND wm.timestamp >= ?`;
+            msgParams.push(startDate);
+          }
+          if (endDate) {
+            msgSql += ` AND wm.timestamp <= ?`;
+            msgParams.push(endDate);
+          }
+
+          msgSql += ` ORDER BY wm.timestamp DESC LIMIT 1000`;
+
+          const messages = await dbAll(db, msgSql, msgParams);
+
+          if (Array.isArray(messages) && messages.length > 0) {
+            const ids = messages.map((m) => m.id);
+            const ph = ids.map(() => '?').join(',');
+
+            // Fetch media and attachments
+            const medias = await dbAll(
+              db,
+              `SELECT id, message_id, media_url, local_path, file_name, content_type 
+               FROM whatsapp_media 
+               WHERE message_id IN (${ph})`,
+              ids
+            );
+            
+            const attachments = await dbAll(
+              db,
+              `SELECT id, message_id, file_path, original_name, mime_type 
+               FROM whatsapp_message_attachments 
+               WHERE message_id IN (${ph})`,
+              ids
+            );
+
+            // Map media by message_id
+            const mapMed = {};
+            for (const r of medias || []) {
+              if (!mapMed[r.message_id]) mapMed[r.message_id] = [];
+              let url = r.media_url || null;
+              try {
+                if (!url && r.local_path && fs.existsSync(r.local_path)) {
+                  url = `file://${path.resolve(r.local_path)}`;
+                }
+              } catch (e) {
+                // ignore
+              }
+              mapMed[r.message_id].push({
+                id: r.id,
+                url,
+                path: r.local_path || null,
+                originalName: r.file_name || null,
+                mimeType: r.content_type || null
+              });
+            }
+
+            // Map attachments by message_id
+            const mapAttach = {};
+            for (const a of attachments || []) {
+              if (!mapAttach[a.message_id]) mapAttach[a.message_id] = [];
+              let url = null;
+              try {
+                if (a.file_path && fs.existsSync(a.file_path)) {
+                  url = `file://${path.resolve(a.file_path)}`;
+                }
+              } catch (e) { }
+              mapAttach[a.message_id].push({
+                id: a.id,
+                url,
+                path: a.file_path || null,
+                originalName: a.original_name || null,
+                mimeType: a.mime_type || null
+              });
+            }
+
+            // Format WhatsApp messages
+            for (const m of messages) {
+              const combined = [];
+              for (const mm of (mapMed[m.id] || [])) combined.push(mm);
+              for (const at of (mapAttach[m.id] || [])) combined.push(at);
+
+              const metadata = m.context_json
+                ? (() => {
+                    try {
+                      return JSON.parse(m.context_json);
+                    } catch {
+                      return { raw: m.context_json };
+                    }
+                  })()
+                : { reason: m.reason || null };
+
+              resultLogs.push({
+                id: `wa-${m.id}`,
+                candidate_id: m.candidate_id,
+                candidatename: m.candidate_name || 'Unknown',
+                phonenumber: m.phone_number || m.from_number || m.to_number,
+                communication_type: 'whatsapp',
+                type: 'whatsapp',
+                direction: m.direction,
+                status: m.status || 'sent',
+                username: m.sender_name || m.from_number || null,
+                metadata,
+                details: m.body || '',
+                message: m.body || '',
+                createdAt: m.timestamp || null,
+                timestamp: m.timestamp || null,
+                attachments: combined,
+                media: combined.length > 0 ? combined[0] : null,
+                raw: m,
+              });
+            }
+          }
+        }
+      } catch (waErr) {
+        console.warn('Error fetching WhatsApp messages:', waErr?.message || waErr);
+      }
+    }
+
+    // Sort by createdAt/timestamp desc
     resultLogs.sort((a, b) => {
-      const ta = new Date(a.createdAt || 0).getTime();
-      const tb = new Date(b.createdAt || 0).getTime();
+      const ta = new Date(a.createdAt || a.timestamp || 0).getTime();
+      const tb = new Date(b.createdAt || b.timestamp || 0).getTime();
       return tb - ta;
     });
 
-    return { success: true, data: resultLogs };
+    // Apply pagination
+    const total = resultLogs.length;
+    const paginatedData = resultLogs.slice(offset, offset + limit);
+    const hasMore = (offset + limit) < total;
+
+    console.log(`✅ Returning ${paginatedData.length} of ${total} communications (hasMore: ${hasMore})`);
+
+    return {
+      success: true,
+      data: paginatedData,
+      total,
+      hasMore
+    };
   } catch (err) {
-    console.error('getCommunicationLogs (combined) error:', err);
+    console.error('getCommunicationLogs error:', err);
     return { success: false, error: err.message, data: [] };
   }
 });
@@ -3602,6 +3788,114 @@ async function saveReceivedDocument(message, candidateId) {
   `).run(message.id, candidateId, filePath, message.mime_type, message.file_size);
 }
 
+async function getCommunicationLogsWithFilters({ candidateId, type, startDate, endDate, limit = 50, offset = 0 }) {
+  const db = getDatabase();
+  
+  let sql = `
+    SELECT 
+      cl.id, 
+      cl.candidateid, 
+      cl.userid, 
+      cl.communicationtype as type, 
+      cl.details as message, 
+      cl.createdAt as timestamp, 
+      cl.metadata,
+      c.name as candidatename, 
+      c.contact as phonenumber,
+      u.username
+    FROM communicationlogs cl
+    LEFT JOIN candidates c ON cl.candidateid = c.id
+    LEFT JOIN users u ON cl.userid = u.id
+    WHERE c.isDeleted = 0
+  `;
+  
+  const params = [];
+  
+  // Apply filters
+  if (candidateId) {
+    sql += ` AND cl.candidateid = ?`;
+    params.push(candidateId);
+  }
+  
+  if (type && type !== 'all') {
+    sql += ` AND cl.communicationtype = ?`;
+    params.push(type);
+  }
+  
+  if (startDate) {
+    sql += ` AND cl.createdAt >= ?`;
+    params.push(startDate);
+  }
+  
+  if (endDate) {
+    sql += ` AND cl.createdAt <= ?`;
+    params.push(endDate);
+  }
+  
+  sql += ` ORDER BY cl.createdAt DESC LIMIT ? OFFSET ?`;
+  params.push(limit, offset);
+  
+  try {
+    const rows = await dbAll(db, sql, params);
+    
+    // Get total count for pagination
+    let countSql = `
+      SELECT COUNT(*) as total
+      FROM communicationlogs cl
+      LEFT JOIN candidates c ON cl.candidateid = c.id
+      WHERE c.isDeleted = 0
+    `;
+    
+    const countParams = [];
+    if (candidateId) {
+      countSql += ` AND cl.candidateid = ?`;
+      countParams.push(candidateId);
+    }
+    if (type && type !== 'all') {
+      countSql += ` AND cl.communicationtype = ?`;
+      countParams.push(type);
+    }
+    if (startDate) {
+      countSql += ` AND cl.createdAt >= ?`;
+      countParams.push(startDate);
+    }
+    if (endDate) {
+      countSql += ` AND cl.createdAt <= ?`;
+      countParams.push(endDate);
+    }
+    
+    const countResult = await dbGet(db, countSql, countParams);
+    
+    return {
+      success: true,
+      data: rows.map(log => {
+        let metadata = {};
+        try {
+          metadata = log.metadata ? JSON.parse(log.metadata) : {};
+        } catch (e) { }
+        
+        return {
+          id: log.id,
+          candidateid: log.candidateid,
+          candidatename: log.candidatename || 'Unknown',
+          phonenumber: log.phonenumber,
+          type: log.type,
+          message: log.message,
+          details: log.message,
+          status: metadata.status || 'completed',
+          timestamp: log.timestamp,
+          username: log.username,
+          metadata
+        };
+      }),
+      total: countResult?.total || 0,
+      hasMore: (offset + limit) < (countResult?.total || 0)
+    };
+  } catch (err) {
+    console.error('getCommunicationLogsWithFilters error:', err);
+    return { success: false, error: mapErrorToFriendly(err) };
+  }
+}
 
     module.exports = { registerIpcHandlers , saveDocumentFromApi  , 
-      registerAnalyticsHandlers , getDatabase,startReminderScheduler  };
+      registerAnalyticsHandlers , getDatabase,startReminderScheduler , getCommunicationLogsWithFilters };

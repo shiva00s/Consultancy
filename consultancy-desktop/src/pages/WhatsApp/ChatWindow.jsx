@@ -1,7 +1,7 @@
 // src/pages/WhatsApp/ChatWindow.jsx
 
-import { useState, useEffect, useRef } from 'react';
-import { Send, Smile, Paperclip, MoreVertical, Phone, Video, User, Trash2, Copy, MessageSquare, WifiOff } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Send, Smile, Paperclip, MoreVertical, Phone, Video, User, Trash2, Copy, MessageSquare, WifiOff, X } from 'lucide-react';
 import io from 'socket.io-client';
 import MessageBubble from './MessageBubble';
 import './ChatWindow.css';
@@ -19,12 +19,14 @@ const ChatWindow = ({ conversation, isConnected }) => {
   const [showEmoji, setShowEmoji] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
   
-  // ✅ Store socket in a ref that persists across renders
+  // Store socket in a ref that persists across renders
   const socketRef = useRef(null);
-  // ✅ Store current conversation ID in ref for socket handler
+  // Store current conversation ID in ref for socket handler
   const currentConversationIdRef = useRef(null);
+  // ✅ Track if user is at bottom for smart scrolling
+  const isAtBottomRef = useRef(true);
 
-  const emojiList = ['😀','😁','😂','😊','😍','😎','😢','😡','👍','🙏','🎉','🔥'];
+  const emojiList = ['😀','😁','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥳','😏','😒','😞','😔','😟','😕','🙁','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','💩','👻','💀','☠️','👽','👾','🤖','🎃','😺','😸','😹','😻','😼','😽','🙀','😿','😾','👋','🤚','🖐️','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🧠','🫀','🫁','🦷','🦴','👀','👁️','👅','👄','💋'];
 
   // ✅ Update conversation ref whenever it changes
   useEffect(() => {
@@ -40,16 +42,17 @@ const ChatWindow = ({ conversation, isConnected }) => {
     }
   }, [conversation?.id]);
 
-  // Auto-scroll when messages update
+  // ✅ OPTIMIZED: Smart auto-scroll (only if user is at bottom)
   useEffect(() => {
-    scrollToBottom();
+    if (isAtBottomRef.current) {
+      scrollToBottom();
+    }
   }, [messages]);
 
-  // ✅ FIXED: Socket.IO - Connect ONCE and persist across conversation changes
+  // ✅ Socket.IO - Connect ONCE and persist across conversation changes
   useEffect(() => {
     console.log('[Socket.IO] 🔌 Initializing persistent connection');
     
-    // Create socket connection ONCE
     const socket = io('http://localhost:3001', {
       reconnection: true,
       reconnectionDelay: 1000,
@@ -71,7 +74,7 @@ const ChatWindow = ({ conversation, isConnected }) => {
       console.error('[Socket.IO] ❌ Connection error:', error);
     });
 
-    // ✅ Message handler uses REF to get current conversation
+    // Message handler uses REF to get current conversation
     const handleNewMessage = (data) => {
       console.log('[Socket.IO] 📨 Message received:', data);
       
@@ -96,9 +99,11 @@ const ChatWindow = ({ conversation, isConnected }) => {
           return [...prev, data];
         });
         
-        // Auto-scroll to new message
+        // Auto-scroll to new message (only if user was at bottom)
         setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          if (isAtBottomRef.current) {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }
         }, 100);
       } else {
         console.log('[Socket.IO] ⏭️ Message for different conversation, ignoring');
@@ -107,14 +112,14 @@ const ChatWindow = ({ conversation, isConnected }) => {
 
     socket.on('whatsapp:new-message', handleNewMessage);
 
-    // ✅ Cleanup ONLY on component unmount (not on conversation change!)
+    // Cleanup ONLY on component unmount
     return () => {
       console.log('[Socket.IO] 🔌 Disconnecting');
       socket.off('whatsapp:new-message', handleNewMessage);
       socket.disconnect();
       socketRef.current = null;
     };
-  }, []); // ✅ Empty deps - connect ONCE on mount, disconnect on unmount only
+  }, []);
 
   const loadMessages = async () => {
     if (!conversation?.id) return;
@@ -133,12 +138,19 @@ const ChatWindow = ({ conversation, isConnected }) => {
     }
   };
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
-  // ✅ Send message - DON'T add to UI, let Socket.IO handle it
-  const handleSendMessage = async (e) => {
+  // ✅ Track scroll position to detect if user is at bottom
+  const handleScroll = useCallback((e) => {
+    const element = e.target;
+    const isBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 100;
+    isAtBottomRef.current = isBottom;
+  }, []);
+
+  // ✅ OPTIMIZED: Send message with loading state
+  const handleSendMessage = useCallback(async (e) => {
     e?.preventDefault();
     if (!inputMessage.trim() && selectedFiles.length === 0) return;
 
@@ -154,7 +166,6 @@ const ChatWindow = ({ conversation, isConnected }) => {
       });
 
       if (result.success) {
-        // ✅ Clear inputs only - Socket.IO will add the message
         setInputMessage('');
         setSelectedFiles([]);
         setSendError(null);
@@ -166,14 +177,14 @@ const ChatWindow = ({ conversation, isConnected }) => {
     } finally {
       setSending(false);
     }
-  };
+  }, [inputMessage, selectedFiles, conversation]);
 
-  const handleEmojiClick = (emoji) => {
+  const handleEmojiClick = useCallback((emoji) => {
     setInputMessage(prev => prev + emoji);
     setShowEmoji(false);
-  };
+  }, []);
 
-  const handleAttachClick = async () => {
+  const handleAttachClick = useCallback(async () => {
     try {
       const pick = await window.electronAPI.openFileDialog({ filters: [] });
       if (!pick || !pick.success) return;
@@ -201,30 +212,30 @@ const ChatWindow = ({ conversation, isConnected }) => {
     } catch (err) {
       console.error('Attach error', err);
     }
-  };
+  }, [conversation]);
 
-  const handleKeyPress = (e) => {
+  const handleKeyPress = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage(e);
     }
-  };
+  }, [handleSendMessage]);
 
-  const handleContextMenu = (e, message) => {
+  const handleContextMenu = useCallback((e, message) => {
     e.preventDefault();
     setSelectedMessage(message);
     setContextMenuPosition({ x: e.clientX, y: e.clientY });
     setShowContextMenu(true);
-  };
+  }, []);
 
-  const handleCopyMessage = () => {
+  const handleCopyMessage = useCallback(() => {
     if (selectedMessage?.body) {
       navigator.clipboard.writeText(selectedMessage.body);
       setShowContextMenu(false);
     }
-  };
+  }, [selectedMessage]);
 
-  const handleDeleteMessage = async () => {
+  const handleDeleteMessage = useCallback(async () => {
     if (!selectedMessage) return;
 
     try {
@@ -239,7 +250,11 @@ const ChatWindow = ({ conversation, isConnected }) => {
       setShowContextMenu(false);
       setSelectedMessage(null);
     }
-  };
+  }, [selectedMessage]);
+
+  const removeAttachment = useCallback((index) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  }, []);
 
   // Close context menu when clicking outside
   useEffect(() => {
@@ -249,6 +264,17 @@ const ChatWindow = ({ conversation, isConnected }) => {
       return () => document.removeEventListener('click', handleClick);
     }
   }, [showContextMenu]);
+
+  // ✅ Memoized conversation display
+  const conversationName = useMemo(() => 
+    conversation?.candidate_name || conversation?.candidatename || 'Unknown',
+    [conversation]
+  );
+
+  const conversationPhone = useMemo(() => 
+    conversation?.phone_number || conversation?.phonenumber,
+    [conversation]
+  );
 
   if (!conversation) {
     return (
@@ -271,24 +297,24 @@ const ChatWindow = ({ conversation, isConnected }) => {
             {conversation.photo_base64 || conversation.photobase64 ? (
               <img 
                 src={conversation.photo_base64 || conversation.photobase64} 
-                alt={conversation.candidate_name || conversation.candidatename || 'avatar'} 
+                alt={conversationName} 
                 loading="lazy" 
                 className="chat-avatar-photo img-loaded" 
               />
             ) : conversation.photo_path || conversation.photopath ? (
               <img 
                 src={`file://${conversation.photo_path || conversation.photopath}`} 
-                alt={conversation.candidate_name || conversation.candidatename || 'avatar'} 
+                alt={conversationName} 
                 loading="lazy" 
                 className="chat-avatar-photo" 
               />
             ) : (
-              (conversation.candidate_name || conversation.candidatename || '?').charAt(0)?.toUpperCase()
+              conversationName.charAt(0)?.toUpperCase()
             )}
           </div>
           <div className="chat-info">
-            <h3>{conversation.candidate_name || conversation.candidatename || 'Unknown'}</h3>
-            <p className="chat-phone">{conversation.phone_number || conversation.phonenumber}</p>
+            <h3>{conversationName}</h3>
+            <p className="chat-phone">{conversationPhone}</p>
             <p className="chat-status">
               {isConnected ? (
                 <><span className="status-dot online"></span> Online</>
@@ -312,7 +338,7 @@ const ChatWindow = ({ conversation, isConnected }) => {
       </div>
 
       {/* Messages Area */}
-      <div className="messages-container">
+      <div className="messages-container" onScroll={handleScroll}>
         {loading ? (
           <div className="loading-messages">
             <div className="spinner"></div>
@@ -348,13 +374,27 @@ const ChatWindow = ({ conversation, isConnected }) => {
           </div>
         )}
 
+        {sendError && (
+          <div className="send-error">
+            <span>❌ {sendError}</span>
+            <button onClick={() => setSendError(null)}>×</button>
+          </div>
+        )}
+
         {selectedFiles && selectedFiles.length > 0 && (
           <div className="pending-attachments">
             {selectedFiles.map((att, i) => (
               <div key={i} className="pending-attachment-item">
                 <Paperclip size={14} />
                 <span>{att.originalName || att.fileName || 'File'}</span>
-                <button type="button" onClick={() => setSelectedFiles([])} className="remove-attachment">✖</button>
+                <button 
+                  type="button" 
+                  onClick={() => removeAttachment(i)} 
+                  className="remove-attachment"
+                  title="Remove attachment"
+                >
+                  <X size={16} />
+                </button>
               </div>
             ))}
           </div>
@@ -409,7 +449,14 @@ const ChatWindow = ({ conversation, isConnected }) => {
         {showEmoji && (
           <div className="emoji-picker">
             {emojiList.map((em, i) => (
-              <button key={i} type="button" className="emoji-btn" onClick={() => handleEmojiClick(em)}>{em}</button>
+              <button 
+                key={i} 
+                type="button" 
+                className="emoji-btn" 
+                onClick={() => handleEmojiClick(em)}
+              >
+                {em}
+              </button>
             ))}
           </div>
         )}

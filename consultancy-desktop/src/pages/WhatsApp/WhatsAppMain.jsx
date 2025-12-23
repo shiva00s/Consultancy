@@ -1,8 +1,8 @@
 // src/pages/WhatsApp/WhatsAppMain.jsx
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import LazyRemoteImage from '../../components/common/LazyRemoteImage';
-import { MessageSquare, Plus, Settings, Wifi, WifiOff } from 'lucide-react';
+import { MessageSquare, Plus, Settings, Wifi, WifiOff, Sun, Moon } from 'lucide-react'; // ✅ ADD Sun, Moon
 import ChatWindow from './ChatWindow';
 import NewChatModal from './NewChatModal';
 import TwilioSettingsModal from './TwilioSettingsModal';
@@ -18,12 +18,29 @@ const WhatsAppMain = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [hasCredentials, setHasCredentials] = useState(false);
+  const [theme, setTheme] = useState('dark'); // ✅ ADD THIS
 
   const selectedConversationRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
 
   useEffect(() => {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
+
+  // ✅ ADD THIS: Apply theme to document
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    // Optional: Save to localStorage
+    localStorage.setItem('whatsapp-theme', theme);
+  }, [theme]);
+
+  // ✅ ADD THIS: Load saved theme on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('whatsapp-theme');
+    if (savedTheme) {
+      setTheme(savedTheme);
+    }
+  }, []);
 
   useEffect(() => {
     checkWhatsAppStatus();
@@ -31,8 +48,13 @@ const WhatsAppMain = () => {
     setupEventListeners();
   }, []);
 
-  // ✅ Handle incoming messages (from IPC only - no Socket.IO here)
-  const handleNewMessage = (message) => {
+  // ✅ ADD THIS: Toggle theme function
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  }, []);
+
+  // Handle incoming messages (from IPC only - no Socket.IO here)
+  const handleNewMessage = useCallback((message) => {
     console.log('📨 [WhatsAppMain] Processing new message for conversation list update:', message);
     
     const conversationId = message.conversation_id || message.conversationid;
@@ -69,7 +91,7 @@ const WhatsAppMain = () => {
         return prevConversations;
       }
     });
-  };
+  }, []);
 
   const checkWhatsAppStatus = async () => {
     try {
@@ -92,7 +114,7 @@ const WhatsAppMain = () => {
     }
   };
 
-  const setupEventListeners = () => {
+  const setupEventListeners = useCallback(() => {
     window.electronAPI.whatsapp.onReady(() => {
       console.log('✅ WhatsApp connected!');
       setIsConnected(true);
@@ -106,12 +128,12 @@ const WhatsAppMain = () => {
       setConnectionStatus('disconnected');
     });
 
-    // ✅ IPC listener for conversation list updates only
+    // IPC listener for conversation list updates only
     window.electronAPI.whatsapp.onNewMessage((message) => {
       console.log('📨 [IPC] New message received for conversation list update:', message);
       handleNewMessage(message);
     });
-  };
+  }, [handleNewMessage]);
 
   const loadConversations = async () => {
     try {
@@ -123,7 +145,7 @@ const WhatsAppMain = () => {
           : [];
         setConversations(conversationsData);
         
-        // Prefetch thumbnails
+        // Optimized thumbnail prefetch
         try {
           const prefetch = () => {
             if (!Array.isArray(conversationsData)) return;
@@ -150,7 +172,39 @@ const WhatsAppMain = () => {
     }
   };
 
-  const handleNewChat = (newConversation) => {
+  // Add this new function after the handleNewMessage function
+
+// ✅ NEW: Mark conversation as read when selected
+const handleConversationSelect = useCallback(async (conv) => {
+  console.log('📖 Opening conversation:', conv.id);
+  
+  // Set as selected
+  setSelectedConversation(conv);
+  
+  // If conversation has unread messages, mark as read
+  if (conv.unread_count > 0) {
+    try {
+      // Call backend to mark messages as read
+      await window.electronAPI.whatsapp.markAsRead(conv.id);
+      
+      // Update local state immediately for better UX
+      setConversations(prevConversations => 
+        prevConversations.map(c => 
+          c.id === conv.id 
+            ? { ...c, unread_count: 0 }
+            : c
+        )
+      );
+      
+      console.log('✅ Marked conversation as read:', conv.id);
+    } catch (error) {
+      console.error('❌ Failed to mark conversation as read:', error);
+    }
+  }
+}, []);
+
+
+  const handleNewChat = useCallback((newConversation) => {
     console.log('📝 New conversation created:', newConversation);
     
     const conversationWithPhone = {
@@ -170,18 +224,54 @@ const WhatsAppMain = () => {
     
     setSelectedConversation(conversationWithPhone);
     setShowNewChatModal(false);
-  };
+  }, []);
 
-  const handleSettingsSaved = () => {
+  const handleSettingsSaved = useCallback(() => {
     setShowSettingsModal(false);
     checkWhatsAppStatus();
     loadConversations();
-  };
+  }, []);
 
-  const filteredConversations = conversations.filter(conv =>
-    conv.candidate_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    conv.phone_number?.includes(searchTerm)
-  );
+  // OPTIMIZED: Memoized filtered conversations
+  const filteredConversations = useMemo(() => {
+    if (!searchTerm.trim()) return conversations;
+    
+    const query = searchTerm.toLowerCase();
+    return conversations.filter(conv =>
+      conv.candidate_name?.toLowerCase().includes(query) ||
+      conv.phone_number?.includes(searchTerm)
+    );
+  }, [conversations, searchTerm]);
+
+  // OPTIMIZED: Debounced search handler
+  const handleSearchChange = useCallback((e) => {
+    const value = e.target.value;
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+    }, 200);
+  }, []);
+
+  // OPTIMIZED: Format time (memoized)
+  const formatTime = useCallback((timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffDays === 0) {
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    } else if (diffDays === 1) {
+      return 'Yesterday';
+    } else if (diffDays < 7) {
+      return date.toLocaleDateString('en-US', { weekday: 'short' });
+    } else {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+  }, []);
 
   return (
     <div className="whatsapp-container">
@@ -212,6 +302,15 @@ const WhatsAppMain = () => {
             )}
           </div>
 
+          {/* ✅ THEME TOGGLE BUTTON - ADD HERE */}
+          <button 
+            className="theme-toggle"
+            onClick={toggleTheme}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+
           {/* Settings Button */}
           <button 
             onClick={() => setShowSettingsModal(true)} 
@@ -227,13 +326,27 @@ const WhatsAppMain = () => {
         {/* Conversations Sidebar */}
         <div className="conversations-sidebar">
           <div className="sidebar-header">
-            <input
-              type="text"
-              placeholder="🔍 Search conversations..."
-              className="search-input"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+            <div className="search-wrapper">
+              <input
+                type="text"
+                placeholder="🔍 Search conversations..."
+                className="search-input"
+                defaultValue={searchTerm}
+                onChange={handleSearchChange}
+              />
+              {searchTerm && (
+                <button 
+                  className="clear-search-btn"
+                  onClick={() => {
+                    setSearchTerm('');
+                    document.querySelector('.search-input').value = '';
+                  }}
+                  title="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="conversations-list">
@@ -244,7 +357,9 @@ const WhatsAppMain = () => {
                 <p className="subtitle">
                   {!hasCredentials 
                     ? 'Configure Twilio to start messaging' 
-                    : 'Click + to start a new chat!'}
+                    : searchTerm 
+                      ? 'No results found'
+                      : 'Click + to start a new chat!'}
                 </p>
               </div>
             ) : (
@@ -254,7 +369,7 @@ const WhatsAppMain = () => {
                   className={`conversation-item ${
                     selectedConversation?.id === conv.id ? 'active' : ''
                   }`}
-                  onClick={() => setSelectedConversation(conv)}
+                  onClick={() => handleConversationSelect(conv)}
                 >
                   <div className="conversation-avatar">
                     {conv.photo_base64 ? (
@@ -270,28 +385,35 @@ const WhatsAppMain = () => {
                         className="conversation-photo" 
                       />
                     ) : (
-                      conv.candidate_name?.charAt(0).toUpperCase() || '?'
+                      <span className="avatar-fallback">
+                        {conv.candidate_name?.charAt(0).toUpperCase() || '?'}
+                      </span>
+                    )}
+                    {/* Online indicator */}
+                    {isConnected && conv.is_online && (
+                      <span className="online-indicator"></span>
                     )}
                   </div>
                   <div className="conversation-details">
                     <div className="conversation-header">
-                      <h4>{conv.candidate_name || 'Unknown'}</h4>
+                      <h4 className="conversation-name">
+                        {conv.candidate_name || 'Unknown'}
+                      </h4>
                       {conv.last_message_time && (
                         <span className="conversation-time">
-                          {new Date(conv.last_message_time).toLocaleTimeString('en-US', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
+                          {formatTime(conv.last_message_time)}
                         </span>
                       )}
                     </div>
-                    <p className="conversation-preview">
-                      {formatPhoneNumber(conv.phone_number) || 'No phone number'}
-                    </p>
+                    <div className="conversation-footer">
+                      <p className="conversation-preview">
+                        {conv.last_message || formatPhoneNumber(conv.phone_number) || 'No messages'}
+                      </p>
+                      {conv.unread_count > 0 && (
+                        <div className="unread-badge">{conv.unread_count}</div>
+                      )}
+                    </div>
                   </div>
-                  {conv.unread_count > 0 && (
-                    <div className="unread-badge">{conv.unread_count}</div>
-                  )}
                 </div>
               ))
             )}

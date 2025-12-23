@@ -3617,9 +3617,6 @@ async function logCommunication({ candidateId, userId, type, details, metadata }
   }
 }
 
-/**
- * Get all communication logs for a candidate
- */
 async function getCommunicationLogs(candidateId) {
   const db = getDatabase();
   try {
@@ -3629,7 +3626,7 @@ async function getCommunicationLogs(candidateId) {
 
     const sql = hasMetadata
       ? `
-        SELECT 
+        SELECT
           cl.id,
           cl.communication_type,
           cl.details,
@@ -3640,9 +3637,9 @@ async function getCommunicationLogs(candidateId) {
         LEFT JOIN users u ON cl.user_id = u.id
         WHERE cl.candidate_id = ?
         ORDER BY cl.createdAt DESC
-      `
+        `
       : `
-        SELECT 
+        SELECT
           cl.id,
           cl.communication_type,
           cl.details,
@@ -3652,10 +3649,9 @@ async function getCommunicationLogs(candidateId) {
         LEFT JOIN users u ON cl.user_id = u.id
         WHERE cl.candidate_id = ?
         ORDER BY cl.createdAt DESC
-      `;
+        `;
 
     const rows = await dbAll(db, sql, [candidateId]);
-
     const parsed = (rows || []).map((r) => {
       let meta = null;
       try {
@@ -3669,13 +3665,13 @@ async function getCommunicationLogs(candidateId) {
         metadata: meta,
       };
     });
-
     return { success: true, data: parsed };
   } catch (err) {
     console.error('getCommunicationLogs error:', err);
     return { success: false, error: mapErrorToFriendly(err), data: [] };
   }
 }
+
 
 async function createReminder({ userId, candidateId, module, title, message, remindAt }) {
   const db = getDatabase();

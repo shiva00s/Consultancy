@@ -387,6 +387,9 @@ getStatus: () => ipcRenderer.invoke('whatsapp:getStatus'),
   onMessageAck: (callback) => ipcRenderer.on('whatsapp:message-ack', (_, data) => callback(data)),
 
 whatsapp: {
+
+  markAsRead: async (conversationId) => {
+  return ipcRenderer.invoke('whatsapp:mark-as-read', conversationId);},
   // ========== Conversations ==========
   getConversations: () => ipcRenderer.invoke('whatsapp:getConversations'),
   createConversation: (data) => ipcRenderer.invoke('whatsapp:createConversation', data),
@@ -421,6 +424,7 @@ whatsapp: {
   
   getNgrokUrl: () => ipcRenderer.invoke('whatsapp:getNgrokUrl'),
   saveNgrokUrl: (ngrokUrl) => ipcRenderer.invoke('whatsapp:saveNgrokUrl', ngrokUrl),
+  
 
   // ========== Event Listeners ==========
   onReady: (callback) => {    ipcRenderer.on('whatsapp:ready', () => callback());  },  

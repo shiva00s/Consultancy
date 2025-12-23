@@ -768,6 +768,15 @@ dbInstance.run(`
         dbInstance.run(`
           CREATE INDEX IF NOT EXISTS idx_comm_logs_created ON communication_logs(createdAt DESC);
         `);
+        // Add metadata column to communication_logs if it doesn't exist
+dbInstance.run(`
+  ALTER TABLE communication_logs 
+  ADD COLUMN metadata TEXT;
+`, (err) => {
+  if (err && !err.message.includes('duplicate column')) {
+    console.warn('Note: metadata column may already exist');
+  }
+});
 
         // ========================================================================
         // 25. BUSINESS THEME

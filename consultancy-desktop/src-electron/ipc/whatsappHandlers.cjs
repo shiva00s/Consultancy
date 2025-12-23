@@ -789,6 +789,38 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
     }
   });
 
+  // Mark conversation messages as read
+ipcMain.handle('whatsapp:mark-as-read', async (event, conversationId) => {
+  try {
+    console.log('📖 Marking conversation as read:', conversationId);
+    
+    // Update database: set all unread messages to read
+    await new Promise((resolve, reject) => {
+      const query = `
+        UPDATE whatsapp_messages 
+        SET is_read = 1 
+        WHERE conversation_id = ? AND is_read = 0
+      `;
+      
+      mainDb.run(query, [conversationId], function(err) {
+        if (err) {
+          console.error('❌ Failed to mark messages as read:', err);
+          reject(err);
+        } else {
+          console.log(`✅ Marked ${this.changes} messages as read`);
+          resolve();
+        }
+      });
+    });
+    
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error marking as read:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+
   ipcMain.handle('whatsapp:setWhatsAppNumber', async (event, whatsappNumber) => {
     try {
       const db = getDatabase();

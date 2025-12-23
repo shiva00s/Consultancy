@@ -8,6 +8,154 @@ const { getDatabase, dbAll, dbGet, dbRun } = require('../db/database.cjs');
 
 function initializeCommunicationHandlers() {
   
+  // NEW: Filtered and paginated communications
+  ipcMain.handle('communication:getFiltered', async (event, filters) => {
+    try {
+      const db = getDatabase();
+      const { candidateId, type, startDate, endDate, limit = 50, offset = 0 } = filters;
+
+      // Build WhatsApp query with filters
+      let whatsappSql = `
+        SELECT 
+          wm.id, 
+          wm.conversationid, 
+          wm.direction, 
+          wm.body as message, 
+          wm.mediaurl, 
+          wm.mediatype, 
+          wm.status, 
+          wm.timestamp, 
+          wm.fromnumber, 
+          wm.tonumber,
+          wc.candidateid, 
+          wc.candidatename, 
+          wc.phonenumber,
+          'whatsapp' as type
+        FROM whatsappmessages wm
+        LEFT JOIN whatsappconversations wc ON wm.conversationid = wc.id
+        WHERE wm.isdeleted = 0
+      `;
+      const whatsappParams = [];
+
+      if (candidateId) {
+        whatsappSql += ` AND wc.candidateid = ?`;
+        whatsappParams.push(candidateId);
+      }
+      if (startDate) {
+        whatsappSql += ` AND wm.timestamp >= ?`;
+        whatsappParams.push(startDate);
+      }
+      if (endDate) {
+        whatsappSql += ` AND wm.timestamp <= ?`;
+        whatsappParams.push(endDate);
+      }
+
+      whatsappSql += ` ORDER BY wm.timestamp DESC`;
+
+      // Build Communication Logs query with filters
+      let commLogsSql = `
+        SELECT 
+          cl.id, 
+          cl.candidateid, 
+          cl.userid, 
+          cl.communicationtype as type, 
+          cl.details as message, 
+          cl.createdAt as timestamp, 
+          cl.metadata,
+          c.name as candidatename, 
+          c.contact as phonenumber,
+          u.username
+        FROM communicationlogs cl
+        LEFT JOIN candidates c ON cl.candidateid = c.id
+        LEFT JOIN users u ON cl.userid = u.id
+        WHERE c.isDeleted = 0
+      `;
+      const commLogsParams = [];
+
+      if (candidateId) {
+        commLogsSql += ` AND cl.candidateid = ?`;
+        commLogsParams.push(candidateId);
+      }
+      if (type && type !== 'all' && type !== 'whatsapp') {
+        commLogsSql += ` AND cl.communicationtype = ?`;
+        commLogsParams.push(type);
+      }
+      if (startDate) {
+        commLogsSql += ` AND cl.createdAt >= ?`;
+        commLogsParams.push(startDate);
+      }
+      if (endDate) {
+        commLogsSql += ` AND cl.createdAt <= ?`;
+        commLogsParams.push(endDate);
+      }
+
+      commLogsSql += ` ORDER BY cl.createdAt DESC`;
+
+      // Fetch data
+      const whatsappMessages = (type === 'all' || type === 'whatsapp') 
+        ? await dbAll(db, whatsappSql, whatsappParams) 
+        : [];
+      
+      const commLogs = (type === 'all' || type !== 'whatsapp') 
+        ? await dbAll(db, commLogsSql, commLogsParams) 
+        : [];
+
+      // Combine and format
+      const allComms = [
+        ...whatsappMessages.map(msg => ({
+          id: `wa-${msg.id}`,
+          candidateid: msg.candidateid,
+          candidatename: msg.candidatename || 'Unknown',
+          phonenumber: msg.phonenumber || msg.fromnumber || msg.tonumber,
+          type: 'whatsapp',
+          direction: msg.direction,
+          message: msg.message,
+          details: msg.message,
+          status: msg.status || 'sent',
+          timestamp: msg.timestamp,
+          media: msg.mediaurl ? { url: msg.mediaurl, type: msg.mediatype } : null
+        })),
+        ...commLogs.map(log => {
+          let metadata = {};
+          try {
+            metadata = log.metadata ? JSON.parse(log.metadata) : {};
+          } catch (e) { }
+          
+          return {
+            id: `log-${log.id}`,
+            candidateid: log.candidateid,
+            candidatename: log.candidatename || 'Unknown',
+            phonenumber: log.phonenumber,
+            type: log.type || 'other',
+            message: log.message,
+            details: log.message,
+            status: metadata.status || 'completed',
+            timestamp: log.timestamp,
+            username: log.username,
+            metadata
+          };
+        })
+      ];
+
+      // Sort by timestamp
+      allComms.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      // Apply pagination
+      const paginatedData = allComms.slice(offset, offset + limit);
+      const hasMore = (offset + limit) < allComms.length;
+
+      return { 
+        success: true, 
+        data: paginatedData,
+        total: allComms.length,
+        hasMore
+      };
+    } catch (error) {
+      console.error('Error fetching filtered communications:', error);
+      return { success: false, error: error.message, data: [] };
+    }
+  });
+
   // ========================================================================
   // GET ALL COMMUNICATIONS (WhatsApp + Logs)
   // ========================================================================

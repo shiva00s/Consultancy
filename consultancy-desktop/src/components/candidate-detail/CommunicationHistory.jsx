@@ -1,631 +1,438 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { FiMail, FiClock, FiPhone, FiMessageSquare, FiRefreshCw, FiUser } from 'react-icons/fi';
-import toast from 'react-hot-toast';
-import { LoadingSpinner } from '../LoadingSpinner';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import '../../css/CommunicationHistory.css';
-import CommunicationLog from '../CommunicationLog.jsx';
-import LazyRemoteImage from '../common/LazyRemoteImage.jsx';
-import CommunicationDetailsModal from '../modals/CommunicationDetailsModal.jsx';
 
-const formatTimestamp = (isoString) => {
-  if (!isoString) return 'N/A';
-  try {
-    const date = new Date(isoString.replace(' ', 'T'));
-    if (isNaN(date.getTime())) return isoString;
+const CommunicationHistory = ({ candidateId }) => {
+  const [communications, setCommunications] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(0);
+  const [stats, setStats] = useState(null);
+  
+  // Filters
+  const [filters, setFilters] = useState({
+    candidateId: candidateId || null,
+    type: 'all',
+    startDate: '',
+    endDate: '',
+    searchTerm: ''
+  });
 
-    return date.toLocaleString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
-  } catch (err) {
-    console.error('Date parsing error:', err);
-    return isoString;
-  }
-};
+  const observerTarget = useRef(null);
+  const limit = 50;
 
-function CommunicationHistory({ candidateId, user }) {
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [attachmentUrls, setAttachmentUrls] = useState({});
-  const [whatsappConv, setWhatsappConv] = useState(null);
-  const [whatsappMessages, setWhatsappMessages] = useState([]);
-  const [richView, setRichView] = useState(false);
-  const [detailsModal, setDetailsModal] = useState({ open: false, payload: null });
-
-  const loadCommunicationHistory = useCallback(async () => {
+  // Fetch communications with filters
+  const fetchCommunications = useCallback(async (reset = false) => {
+    if (loading) return;
+    
     setLoading(true);
     try {
-      const res = await window.electronAPI.getCommunicationLogs({ candidateId });
-      if (res.success) {
-        setLogs(res.data || []);
+      const currentOffset = reset ? 0 : offset;
+      
+      const result = await window.electronAPI.getCommunicationLogs({
+        ...filters,
+        limit,
+        offset: currentOffset
+      });
+
+      if (result.success) {
+        setCommunications(prev => 
+          reset ? result.data : [...prev, ...result.data]
+        );
+        setHasMore(result.hasMore || false);
+        setOffset(currentOffset + limit);
       } else {
-        toast.error(res.error || 'Failed to load communication logs.');
+        console.error('Failed to fetch communications:', result.error);
       }
     } catch (error) {
-      console.error('❌ Error loading communication history:', error);
-      toast.error('Error loading communication history.');
+      console.error('Error fetching communications:', error);
     } finally {
       setLoading(false);
     }
-  }, [candidateId]);
+  }, [filters, offset, loading]);
 
-  useEffect(() => {
-    loadCommunicationHistory();
-  }, [loadCommunicationHistory]);
-
-  // Load WhatsApp conversation & messages for this candidate (if any)
-  useEffect(() => {
-    let mounted = true;
-    const loadWhatsapp = async () => {
-      try {
-        if (!candidateId || !window.electronAPI?.whatsapp?.getConversations) return;
-        const convRes = await window.electronAPI.whatsapp.getConversations();
-        if (!mounted) return;
-        if (convRes && convRes.success) {
-          const conv = (convRes.data || []).find(
-            (c) => c.candidate_id === parseInt(candidateId)
-          );
-          if (conv) {
-            setWhatsappConv(conv);
-            try {
-              const messagesRes = await window.electronAPI.whatsapp.getMessages(conv.id);
-              if (messagesRes && messagesRes.success) {
-                setWhatsappMessages(messagesRes.data || []);
-              }
-            } catch (e) {
-              console.warn(
-                'Could not load whatsapp messages for conv',
-                conv.id,
-                e && e.message
-              );
-            }
-          } else {
-            setWhatsappConv(null);
-            setWhatsappMessages([]);
-          }
-        }
-      } catch (err) {
-        console.warn('Error loading whatsapp convs:', err);
-      }
-    };
-    loadWhatsapp();
-    return () => {
-      mounted = false;
-    };
-  }, [candidateId]);
-
-  // Build preview URLs for attachments if needed
-  useEffect(() => {
-    let cancelled = false;
-    const fetchUrls = async () => {
-      const map = {};
-      for (const log of logs) {
-        if (!log.attachments || log.attachments.length === 0) continue;
-        map[log.id] = [];
-        for (const att of log.attachments) {
-          try {
-            if (att.url) {
-              map[log.id].push({ ...att, url: att.url });
-            } else {
-              const candidatePath =
-                att.path || att.filePath || att.file_path || att.filepath;
-              if (candidatePath) {
-                const res = await window.electronAPI.getFileUrl({ path: candidatePath });
-                if (res && res.success && !cancelled) {
-                  map[log.id].push({
-                    ...att,
-                    url: res.fileUrl || res.data || null,
-                  });
-                } else if (!cancelled) {
-                  map[log.id].push({ ...att, path: candidatePath });
-                }
-              } else {
-                map[log.id].push(att);
-              }
-            }
-          } catch (err) {
-            console.error('Error fetching attachment url:', err);
-            map[log.id].push(att);
-          }
-        }
-      }
-      if (!cancelled) setAttachmentUrls(map);
-    };
-    fetchUrls();
-    return () => {
-      cancelled = true;
-    };
-  }, [logs]);
-
-  const getIcon = (type) => {
-    if (type === 'WhatsApp') return <FiMessageSquare />;
-    if (type === 'Call') return <FiPhone />;
-    if (type === 'Email') return <FiMail />;
-    return <FiMessageSquare />;
-  };
-
-  const getTypeClass = (type) => {
-    if (type === 'WhatsApp') return 'comm-type-whatsapp';
-    if (type === 'Call') return 'comm-type-call';
-    if (type === 'Email') return 'comm-type-email';
-    return 'comm-type-other';
-  };
-
-  const renderAvatar = (log) => {
-    const src =
-      (log.metadata && (log.metadata.photo_path || log.metadata.photoPath)) ||
-      log.avatar ||
-      null;
-    if (!src) return null;
-    return (
-      <div className="comm-avatar-wrap">
-        <LazyRemoteImage filePath={src} className="comm-avatar-img" />
-      </div>
-    );
-  };
-
-  const renderReactions = (log) => {
-    if (!log.metadata) return null;
-    const reactions = log.metadata.reactions || log.reaction || log.reactions;
-    if (!reactions || reactions.length === 0) return null;
+  // Fetch statistics
+  const fetchStats = async () => {
     try {
-      const list = Array.isArray(reactions) ? reactions : JSON.parse(reactions);
-      return (
-        <div className="comm-reactions">
-          {list.slice(0, 5).map((r, idx) => (
-            <span key={idx} className="comm-reaction">
-              {typeof r === 'string' ? r : r.emoji || ''}
-            </span>
-          ))}
-        </div>
-      );
-    } catch (e) {
-      return null;
+      const result = await window.electronAPI.getCommunicationLogs({
+        candidateId: candidateId || null,
+        type: 'all',
+        limit: 10000,
+        offset: 0
+      });
+      
+      if (result.success) {
+        const data = result.data || [];
+        const stats = {
+          total: data.length,
+          whatsapp: data.filter(c => c.type === 'whatsapp').length,
+          calls: data.filter(c => c.type === 'call').length,
+          emails: data.filter(c => c.type === 'email').length
+        };
+        setStats(stats);
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="communication-loading-container">
-        <LoadingSpinner />
-        <p style={{ marginTop: '16px' }}>Loading communication history...</p>
-      </div>
-    );
-  }
+  // Update filters when candidateId prop changes
+  useEffect(() => {
+    setFilters(prev => ({ ...prev, candidateId: candidateId || null }));
+  }, [candidateId]);
 
-  if (logs.length === 0) {
-    return (
-      <div className="communication-empty-state">
-        <FiClock size={48} />
-        <h3>No interactions recorded yet</h3>
-        <p>WhatsApp messages, calls, and emails will appear here once logged.</p>
-        <button onClick={loadCommunicationHistory} className="communication-refresh-btn">
-          <FiRefreshCw size={16} />
-          Refresh
-        </button>
-      </div>
+  // Initial load
+  useEffect(() => {
+    fetchStats();
+    fetchCommunications(true);
+  }, []);
+
+  // Reload when filters change
+  useEffect(() => {
+    setOffset(0);
+    setCommunications([]);
+    fetchCommunications(true);
+  }, [filters.candidateId, filters.type, filters.startDate, filters.endDate]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          fetchCommunications();
+        }
+      },
+      { threshold: 0.1 }
     );
-  }
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => {
+      if (observerTarget.current) {
+        observer.unobserve(observerTarget.current);
+      }
+    };
+  }, [hasMore, loading, fetchCommunications]);
+
+  // Export functionality
+  const handleExport = async () => {
+    try {
+      const result = await window.electronAPI.getCommunicationLogs({
+        ...filters,
+        limit: 100000,
+        offset: 0
+      });
+
+      if (result.success && result.data) {
+        const headers = ['ID', 'Date', 'Time', 'Candidate', 'Phone', 'Type', 'Direction', 'Message', 'Status'];
+        const rows = result.data.map(comm => {
+          const date = new Date(comm.timestamp);
+          return [
+            comm.id,
+            date.toLocaleDateString('en-IN'),
+            date.toLocaleTimeString('en-IN'),
+            comm.candidatename || 'Unknown',
+            comm.phonenumber || 'N/A',
+            comm.type,
+            comm.direction || 'N/A',
+            (comm.message || '').replace(/"/g, '""'),
+            comm.status || 'completed'
+          ];
+        });
+
+        const csvContent = [
+          headers.join(','),
+          ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `communications_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        alert('Communications exported successfully!');
+      } else {
+        alert(`Export failed: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Export failed. Check console for details.');
+    }
+  };
+
+  // Filter handlers
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      candidateId: candidateId || null,
+      type: 'all',
+      startDate: '',
+      endDate: '',
+      searchTerm: ''
+    });
+  };
+
+  // Search filter (client-side)
+  const filteredCommunications = communications.filter(comm => {
+    if (!filters.searchTerm) return true;
+    const searchLower = filters.searchTerm.toLowerCase();
+    return (
+      comm.candidatename?.toLowerCase().includes(searchLower) ||
+      comm.phonenumber?.includes(searchLower) ||
+      comm.message?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  const formatDate = (timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('en-IN', { 
+      day: '2-digit', 
+      month: 'short', 
+      year: 'numeric' 
+    });
+  };
+
+  const formatTime = (timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('en-IN', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
+  const getTypeIcon = (type) => {
+    switch(type?.toLowerCase()) {
+      case 'whatsapp': return '💬';
+      case 'call': return '📞';
+      case 'email': return '✉️';
+      case 'meeting': return '🤝';
+      default: return '📝';
+    }
+  };
+
+  const getTypeColor = (type) => {
+    switch(type?.toLowerCase()) {
+      case 'whatsapp': return '#25D366';
+      case 'call': return '#4A90E2';
+      case 'email': return '#EA4335';
+      case 'meeting': return '#FBBC05';
+      default: return '#999';
+    }
+  };
 
   return (
     <div className="communication-history-container">
-      {/* Header with compact controls */}
-      <div className="communication-history-header">
-        <h3>
-          <span role="img" aria-label="sparkles">
-            ✨
-          </span>
-          Communication Hub
-          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            ({logs.length} touchpoints)
-          </span>
-        </h3>
+      {/* Header Section */}
+      <div className="comm-header">
+        <div className="comm-title-section">
+          <h2>📞 Communication History</h2>
+          <p className="comm-subtitle">
+            {candidateId ? 'Candidate communications' : 'Track all candidate communications in one place'}
+          </p>
+        </div>
+        
+        <button className="export-btn" onClick={handleExport}>
+          📥 Export to CSV
+        </button>
+      </div>
 
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+      {/* Statistics Cards */}
+      {stats && (
+        <div className="comm-stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon" style={{ background: '#E3F2FD' }}>📊</div>
+            <div className="stat-content">
+              <div className="stat-value">{stats.total}</div>
+              <div className="stat-label">Total Communications</div>
+            </div>
+          </div>
           
+          <div className="stat-card">
+            <div className="stat-icon" style={{ background: '#E8F5E9' }}>💬</div>
+            <div className="stat-content">
+              <div className="stat-value">{stats.whatsapp}</div>
+              <div className="stat-label">WhatsApp Messages</div>
+            </div>
+          </div>
+          
+          <div className="stat-card">
+            <div className="stat-icon" style={{ background: '#FFF3E0' }}>📞</div>
+            <div className="stat-content">
+              <div className="stat-value">{stats.calls}</div>
+              <div className="stat-label">Phone Calls</div>
+            </div>
+          </div>
+          
+          <div className="stat-card">
+            <div className="stat-icon" style={{ background: '#FCE4EC' }}>✉️</div>
+            <div className="stat-content">
+              <div className="stat-value">{stats.emails}</div>
+              <div className="stat-label">Emails</div>
+            </div>
+          </div>
+        </div>
+      )}
 
-          
+      {/* Filter Section */}
+      <div className="comm-filters">
+        <div className="filter-row">
+          <div className="filter-group">
+            <label>🔍 Search</label>
+            <input
+              type="text"
+              placeholder="Search by name, phone, or message..."
+              value={filters.searchTerm}
+              onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
+              className="filter-input search-input"
+            />
+          </div>
+
+          <div className="filter-group">
+            <label>📋 Type</label>
+            <select
+              value={filters.type}
+              onChange={(e) => handleFilterChange('type', e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">All Types</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="call">Phone Call</option>
+              <option value="email">Email</option>
+              <option value="meeting">Meeting</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label>📅 From Date</label>
+            <input
+              type="date"
+              value={filters.startDate}
+              onChange={(e) => handleFilterChange('startDate', e.target.value)}
+              className="filter-input"
+            />
+          </div>
+
+          <div className="filter-group">
+            <label>📅 To Date</label>
+            <input
+              type="date"
+              value={filters.endDate}
+              onChange={(e) => handleFilterChange('endDate', e.target.value)}
+              className="filter-input"
+            />
+          </div>
+
+          <button 
+            className="clear-filters-btn" 
+            onClick={handleClearFilters}
+            title="Clear all filters"
+          >
+            🔄 Clear
+          </button>
         </div>
       </div>
 
-      {/* WhatsApp conversation summary */}
-      {whatsappConv && (
-        <div
-          className="communication-whatsapp-summary"
-          style={{
-            marginBottom: 16,
-            padding: 14,
-            borderRadius: 14,
-            border: '1px solid var(--border-color)',
-            background:
-              'linear-gradient(135deg, rgba(16,185,129,0.08), var(--bg-secondary))',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-          
-        >
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              opacity: 0.1,
-              pointerEvents: 'none',
-              background:
-                'radial-gradient(circle at top left, #22c55e 0, transparent 55%)',
-            }}
-          />
-          <div style={{ position: 'relative', zIndex: 1 }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 6,
-              }}
-            >
-              <h4
-                style={{
-                  margin: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontSize: 15,
-                }}
-              >
-                <span role="img" aria-label="whatsapp">
-                  💬
-                </span>
-                WhatsApp Chat
-              </h4>
-              <span
-                style={{
-                  fontSize: 11,
-                  padding: '4px 8px',
-                  borderRadius: 999,
-                  background: 'rgba(15,23,42,0.2)',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                {whatsappConv.unread_count > 0
-                  ? `${whatsappConv.unread_count} unread`
-                  : 'All caught up ✅'}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              {whatsappConv.photo_base64 ? (
-                <img
-                  src={whatsappConv.photo_base64}
-                  alt="photo"
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 16,
-                    objectFit: 'cover',
-                    boxShadow: '0 6px 18px rgba(15,118,110,0.4)',
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 16,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: 'rgba(15,23,42,0.6)',
-                    color: '#22c55e',
-                    fontSize: 24,
-                  }}
-                >
-                  💬
-                </div>
-              )}
-
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>
-                  {whatsappConv.candidate_name || 'Contact'} —{' '}
-                  <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
-                    {whatsappConv.phone_number}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: 'var(--text-muted)',
-                    marginTop: 3,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  “{whatsappConv.last_message || 'No recent message'}”
-                </div>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 6,
-                    marginTop: 8,
-                    fontSize: 11,
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  <span
-                    style={{
-                      padding: '4px 8px',
-                      borderRadius: 999,
-                      background: 'rgba(15,23,42,0.4)',
-                    }}
-                  >
-                    ⏱ Last: {formatTimestamp(whatsappConv.last_message_time)}
-                  </span>
-                  <span
-                    style={{
-                      padding: '4px 8px',
-                      borderRadius: 999,
-                      background: 'rgba(15,23,42,0.35)',
-                    }}
-                  >
-                    📅 Created: {formatTimestamp(whatsappConv.created_at)}
-                  </span>
-                  <span
-                    style={{
-                      padding: '4px 8px',
-                      borderRadius: 999,
-                      background: 'rgba(15,23,42,0.3)',
-                    }}
-                  >
-                    ♻ Updated: {formatTimestamp(whatsappConv.updated_at)}
-                  </span>
-                </div>
-              </div>
-            </div>
+      {/* Communications Timeline */}
+      <div className="comm-timeline">
+        {filteredCommunications.length === 0 && !loading ? (
+          <div className="empty-state">
+            <div className="empty-icon">📭</div>
+            <h3>No Communications Found</h3>
+            <p>Try adjusting your filters or check back later.</p>
           </div>
-
-          {/* Recent WhatsApp messages as compact chat bubbles */}
-          {whatsappMessages && whatsappMessages.length > 0 && (
-            <div
-              style={{
-                position: 'relative',
-                zIndex: 1,
-                marginTop: 4,
-                paddingTop: 8,
-                borderTop: '1px dashed rgba(15,23,42,0.3)',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: 6,
-                }}
+        ) : (
+          filteredCommunications.map((comm, index) => (
+            <div key={comm.id || index} className="comm-timeline-item">
+              <div 
+                className="comm-timeline-marker"
+                style={{ borderColor: getTypeColor(comm.type) }}
               >
-                <strong style={{ fontSize: 13 }}>Recent messages</strong>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  Showing latest {Math.min(5, whatsappMessages.length)}
-                </span>
+                <span className="comm-type-icon">{getTypeIcon(comm.type)}</span>
               </div>
-
-              <div>
-                {whatsappMessages
-                  .slice(-5)
-                 
-                  .map((m) => {
-                    const isOutbound = m.direction === 'outbound';
-                    return (
-                      <div
-                        key={m.id}
-                        style={{
-                          display: 'flex',
-                          justifyContent: isOutbound ? 'flex-end' : 'flex-start',
-                        }}
+              
+              <div className="comm-timeline-content">
+                <div className="comm-card">
+                  <div className="comm-card-header">
+                    <div className="comm-meta-left">
+                      <span 
+                        className="comm-type-badge"
+                        style={{ background: getTypeColor(comm.type) }}
                       >
-                        <div
-                          style={{
-                            maxWidth: '82%',
-                            padding: 8,
-                            borderRadius: 12,
-                            border: '1px solid rgba(15,23,42,0.35)',
-                            background: isOutbound
-                              ? 'linear-gradient(135deg, #22c55e1a, #22c55e0a)'
-                              : 'linear-gradient(135deg, rgba(15,23,42,0.7), rgba(15,23,42,0.5))',
-                            color: 'var(--text-primary)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 4,
-                            boxShadow: isOutbound
-                              ? '0 4px 12px rgba(34,197,94,0.25)'
-                              : '0 4px 12px rgba(15,23,42,0.45)',
-                            transform: 'translateY(0)',
-                            transition: 'transform 0.2s ease',
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              gap: 8,
-                              alignItems: 'center',
-                            }}
-                          >
-                            <div
-                              style={{
-                                fontSize: 12,
-                                fontWeight: 600,
-                                color: isOutbound ? '#22c55e' : '#e5e7eb',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 4,
-                              }}
-                            >
-                              {isOutbound ? '📤 Out' : '📥 In'}
-                            </div>
-                            <div
-                              style={{
-                                fontSize: 11,
-                                color: 'var(--text-muted)',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {formatTimestamp(m.timestamp)}
-                            </div>
-                          </div>
-
-                          {m.body && (
-                            <div
-                              style={{
-                                fontSize: 13,
-                                lineHeight: 1.4,
-                                whiteSpace: 'pre-wrap',
-                                color: 'var(--text-secondary)',
-                              }}
-                            >
-                              {m.body}
-                            </div>
-                          )}
-
-                          {m.attachments && m.attachments.length > 0 && (
-                            <div
-                              style={{
-                                display: 'flex',
-                                gap: 6,
-                                marginTop: 4,
-                                flexWrap: 'wrap',
-                              }}
-                            >
-                              {m.attachments.map((a) => (
-                                <div
-                                  key={a.id}
-                                  style={{
-                                    textAlign: 'center',
-                                    borderRadius: 10,
-                                    overflow: 'hidden',
-                                    background: 'rgba(15,23,42,0.7)',
-                                  }}
-                                >
-                                  {a.url &&
-                                  /\.(png|jpe?g|gif|webp)$/i.test(a.originalName || '') ? (
-                                    <img
-                                      src={a.url}
-                                      alt={a.originalName || ''}
-                                      style={{
-                                        width: 120,
-                                        height: 80,
-                                        objectFit: 'cover',
-                                        cursor: 'pointer',
-                                        display: 'block',
-                                      }}
-                                      onClick={() => window.open(a.url, '_blank')}
-                                    />
-                                  ) : a.path ? (
-                                    <div
-                                      style={{
-                                        width: 120,
-                                        height: 80,
-                                        cursor: 'pointer',
-                                      }}
-                                      onClick={async () => {
-                                        const target = a.path;
-                                        try {
-                                          if (
-                                            window.electronAPI &&
-                                            typeof window.electronAPI.openFileExternally ===
-                                              'function'
-                                          ) {
-                                            await window.electronAPI.openFileExternally({
-                                              path: target,
-                                            });
-                                          } else if (
-                                            window.electronAPI &&
-                                            typeof window.electronAPI.getFileUrl === 'function'
-                                          ) {
-                                            const res =
-                                              await window.electronAPI.getFileUrl({
-                                                path: target,
-                                              });
-                                            const url = res?.fileUrl || res?.data || target;
-                                            window.open(url, '_blank');
-                                          } else {
-                                            window.open(target, '_blank');
-                                          }
-                                        } catch (err) {
-                                          console.error('Error opening attachment:', err);
-                                        }
-                                      }}
-                                    >
-                                      <LazyRemoteImage filePath={a.path} />
-                                    </div>
-                                  ) : (
-                                    <div
-                                      style={{
-                                        fontSize: 12,
-                                        padding: 6,
-                                        color: 'var(--text-secondary)',
-                                      }}
-                                    >
-                                      {a.originalName || 'attachment'}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          <div
-                            style={{
-                              marginTop: 2,
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              fontSize: 11,
-                              color: 'var(--text-muted)',
-                            }}
-                          >
-                            <span>{m.status ? `⚙ ${m.status}` : '⚙ n/a'}</span>
-                            <span>
-                              {m.from_number} → {m.to_number}
-                            </span>
-                          </div>
-                        </div>
+                        {(comm.type || 'OTHER').toUpperCase()}
+                      </span>
+                      <span className="comm-candidate-name">
+                        {comm.candidatename || 'Unknown'}
+                      </span>
+                      {comm.phonenumber && (
+                        <span className="comm-phone">📱 {comm.phonenumber}</span>
+                      )}
+                      {comm.direction && (
+                        <span className={`comm-direction ${comm.direction}`}>
+                          {comm.direction === 'inbound' ? '↓' : '↑'} {comm.direction}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="comm-meta-right">
+                      <span className="comm-date">{formatDate(comm.timestamp)}</span>
+                      <span className="comm-time">{formatTime(comm.timestamp)}</span>
+                      <span className={`comm-status status-${comm.status || 'completed'}`}>
+                        {comm.status || 'completed'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="comm-card-body">
+                    <p className="comm-message">{comm.message || comm.details || 'No message'}</p>
+                    
+                    {comm.media && (
+                      <div className="comm-media-indicator">
+                        📎 {comm.media.type || 'Attachment'}
                       </div>
-                    );
-                  })}
+                    )}
+                    
+                    {comm.username && (
+                      <div className="comm-user-tag">
+                        By: {comm.username}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Rich view uses CommunicationLog, compact chip otherwise removed for now */}
-      {richView && (
-        <div style={{ marginTop: 12 }}>
-          <CommunicationLog
-            candidateId={candidateId}
-            user={user}
-            whatsappConv={whatsappConv}
-            whatsappMessages={whatsappMessages}
-          />
-        </div>
-      )}
-
-      {detailsModal.open && (
-        <CommunicationDetailsModal
-          payload={detailsModal.payload}
-          onClose={() => setDetailsModal({ open: false, payload: null })}
-        />
-      )}
+          ))
+        )}
+        
+        {/* Infinite Scroll Trigger */}
+        {hasMore && (
+          <div ref={observerTarget} className="scroll-trigger">
+            {loading && (
+              <div className="loading-indicator">
+                <div className="spinner"></div>
+                <span>Loading more communications...</span>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {!hasMore && communications.length > 0 && (
+          <div className="end-of-list">
+            <span>🎉 You've reached the end!</span>
+          </div>
+        )}
+      </div>
     </div>
   );
-}
+};
 
 export default CommunicationHistory;

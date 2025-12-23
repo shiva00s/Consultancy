@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiCalendar, FiPlus, FiTrash2, FiBriefcase, FiEdit2, FiClock, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import { FiCalendar, FiPlus, FiTrash2, FiBriefcase, FiEdit2, FiCheck, FiX, FiClock, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import InterviewEditModal from '../modals/InterviewEditModal';
-import ConfirmDialog from '../common/ConfirmDialog';
+import CustomDropdown from '../common/CustomDropdown';
 import useDataStore from '../../store/dataStore';
 import '../../css/CandidateInterview.css';
 import useNotificationStore from '../../store/useNotificationStore';
 
 const interviewStatusOptions = ['Scheduled', 'Passed', 'Failed', 'Cancelled'];
+const roundOptions = ['1st Round', '2nd Round', '3rd Round', 'Final Round'];
 
 const initialInterviewForm = {
   job_order_id: '',
@@ -17,21 +17,50 @@ const initialInterviewForm = {
   notes: '',
 };
 
+// 🎯 Enhanced Confirm Dialog Component
+const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText, type = 'danger' }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="confirm-overlay" onClick={onClose}>
+      <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className={`confirm-icon ${type}`}>
+          {type === 'danger' && '🗑️'}
+          {type === 'warning' && '⚠️'}
+          {type === 'info' && 'ℹ️'}
+        </div>
+        <h3 className="confirm-title">{title}</h3>
+        <p className="confirm-message">{message}</p>
+        <div className="confirm-actions">
+          <button className="btn-confirm-cancel" onClick={onClose}>
+            <FiX /> Cancel
+          </button>
+          <button className={`btn-confirm-${type}`} onClick={onConfirm}>
+            <FiCheck /> {confirmText || 'Confirm'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function CandidateInterview({ user, candidateId, candidateName }) {
   const [interviewEntries, setInterviewEntries] = useState([]);
   const jobOrders = useDataStore((state) => state.jobs);
   const [loading, setLoading] = useState(true);
   const [interviewForm, setInterviewForm] = useState(initialInterviewForm);
   const [isSaving, setIsSaving] = useState(false);
-  const [editingInterview, setEditingInterview] = useState(null);
   
-  // ✅ CONFIRM DIALOG STATE
+  // ✅ INLINE EDIT STATE
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
     title: '',
     message: '',
     onConfirm: null,
-    variant: 'danger'
+    type: 'danger'
   });
 
   const createNotification = useNotificationStore((s) => s.createNotification);
@@ -52,8 +81,29 @@ function CandidateInterview({ user, candidateId, candidateName }) {
     setInterviewForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  // ✅ GET JOB POSITION OPTIONS
+  const jobPositionOptions = jobOrders.map((job) => job.positionTitle);
+
+  // ✅ GET JOB POSITION NAME
+  const getJobPositionName = (jobOrderId) => {
+    const job = jobOrders.find((j) => j.id === parseInt(jobOrderId));
+    return job ? job.positionTitle : '';
+  };
+
+  // ✅ HANDLE CUSTOM DROPDOWN CHANGE
+  const handleJobPositionChange = (e) => {
+    const selectedPositionTitle = e.target.value;
+    const selectedJob = jobOrders.find((job) => job.positionTitle === selectedPositionTitle);
+    
+    setInterviewForm((prev) => ({
+      ...prev,
+      job_order_id: selectedJob ? selectedJob.id.toString() : ''
+    }));
+  };
+
   const handleAddEntry = async (e) => {
     e.preventDefault();
+
     if (!interviewForm.job_order_id || !interviewForm.interview_date) {
       toast.error('⚠️ Job and Date are required.');
       return;
@@ -91,7 +141,7 @@ function CandidateInterview({ user, candidateId, candidateName }) {
             remindAt: new Date(interviewForm.interview_date).toISOString(),
           });
         } catch (err) {
-          console.error('createReminder (interview) failed:', err);
+          console.error('createReminder failed:', err);
         }
       } else {
         toast.error('❌ ' + (res.error || 'Failed to schedule interview'), { id: toastId });
@@ -104,37 +154,96 @@ function CandidateInterview({ user, candidateId, candidateName }) {
     }
   };
 
-  const handleUpdateInterview = (updatedInterviewData) => {
-    setInterviewEntries((prev) =>
-      prev.map((i) => (i.id === updatedInterviewData.id ? updatedInterviewData : i))
-    );
-    setEditingInterview(null);
-
-    createNotification({
-      title: '✅ Interview updated',
-      message: `${candidateName || 'Candidate'} interview updated (${updatedInterviewData.status})`,
-      type: 'success',
-      priority: 'normal',
-      link: `/candidates/${candidateId}/interview`,
+  // ✅ START INLINE EDIT
+  const startEdit = (entry) => {
+    setEditingId(entry.id);
+    setEditForm({
+      job_order_id: entry.job_order_id.toString(),
+      interview_date: entry.interview_date,
+      round: entry.round,
+      status: entry.status,
+      notes: entry.notes || '',
     });
   };
 
-  // ✅ CONFIRM DIALOG INTEGRATION
+  // ✅ CANCEL INLINE EDIT
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditForm({});
+  };
+
+  // ✅ HANDLE EDIT FORM CHANGE
+  const handleEditFormChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // ✅ HANDLE EDIT DROPDOWN CHANGE
+  const handleEditJobPositionChange = (e) => {
+    const selectedPositionTitle = e.target.value;
+    const selectedJob = jobOrders.find((job) => job.positionTitle === selectedPositionTitle);
+    
+    setEditForm((prev) => ({
+      ...prev,
+      job_order_id: selectedJob ? selectedJob.id.toString() : ''
+    }));
+  };
+
+  // ✅ SAVE INLINE EDIT
+  const saveEdit = async () => {
+    if (!editForm.job_order_id || !editForm.interview_date) {
+      toast.error('⚠️ Job and Date are required.');
+      return;
+    }
+
+    const toastId = toast.loading('⏳ Updating interview...');
+
+    try {
+      const res = await window.electronAPI.updateInterviewEntry({
+        user,
+        id: editingId,
+        data: editForm,
+      });
+
+      if (res.success) {
+        setInterviewEntries((prev) =>
+          prev.map((i) => (i.id === editingId ? { ...i, ...editForm } : i))
+        );
+        toast.success('✅ Interview updated successfully!', { id: toastId });
+        cancelEdit();
+
+        createNotification({
+          title: '✅ Interview updated',
+          message: `${candidateName || 'Candidate'} interview updated (${editForm.status})`,
+          type: 'success',
+          priority: 'normal',
+          link: `/candidates/${candidateId}/interview`,
+        });
+      } else {
+        toast.error('❌ ' + (res.error || 'Failed to update interview'), { id: toastId });
+      }
+    } catch (err) {
+      console.error('updateInterviewEntry error:', err);
+      toast.error('❌ Failed to update interview', { id: toastId });
+    }
+  };
+
   const handleDeleteEntry = async (id, position) => {
     setConfirmDialog({
       open: true,
       title: '🗑️ Delete Interview Entry',
-      message: `Are you sure you want to move the interview entry for "${position}" to the Recycle Bin? This action can be undone from the Recycle Bin.`,
+      message: `Are you sure you want to delete the interview entry for "${position}"? This action cannot be undone.`,
+      confirmText: 'Delete',
       onConfirm: async () => {
         try {
           const res = await window.electronAPI.deleteInterviewEntry({ user, id });
           if (res.success) {
             setInterviewEntries((prev) => prev.filter((e) => e.id !== id));
-            toast.success('✅ Interview entry moved to Recycle Bin.');
+            toast.success('✅ Interview entry deleted.');
 
             createNotification({
               title: '🗑️ Interview deleted',
-              message: `Interview for "${position}" moved to Recycle Bin.`,
+              message: `Interview for "${position}" has been deleted.`,
               type: 'warning',
               priority: 'high',
               actionRequired: false,
@@ -146,9 +255,10 @@ function CandidateInterview({ user, candidateId, candidateName }) {
           console.error('deleteInterviewEntry error:', err);
           toast.error('❌ Failed to delete interview entry');
         }
+
         setConfirmDialog({ ...confirmDialog, open: false });
       },
-      variant: 'danger'
+      type: 'danger'
     });
   };
 
@@ -183,10 +293,7 @@ function CandidateInterview({ user, candidateId, candidateName }) {
   if (loading) {
     return (
       <div className="interview-tracking-content">
-        <div className="interview-loading">
-          <div className="loading-spinner"></div>
-          <p>⏳ Loading interview tracking...</p>
-        </div>
+        <div className="loading-state">⏳ Loading interview tracking...</div>
       </div>
     );
   }
@@ -194,72 +301,63 @@ function CandidateInterview({ user, candidateId, candidateName }) {
   return (
     <div className="interview-tracking-content">
       {/* ✅ ADD INTERVIEW FORM */}
-      <div className="form-container">
+      <div className="detail-card">
         <h3>
-          <FiPlus /> ➕ Schedule New Interview
+          <FiCalendar /> Schedule New Interview
         </h3>
-        <form onSubmit={handleAddEntry} className="interview-form form-grid">
-          <div className="form-group">
+
+        <form className="visa-form form-grid" onSubmit={handleAddEntry}>
+          <div className="form-field">
             <label>
-              <FiBriefcase /> 💼 Job Position *
+              <FiBriefcase /> Job Position *
             </label>
-            <select
-              name="job_order_id"
-              value={interviewForm.job_order_id}
+            <CustomDropdown
+              value={getJobPositionName(interviewForm.job_order_id)}
+              onChange={handleJobPositionChange}
+              options={jobPositionOptions}
+              placeholder="Select job position..."
+              name="job_position"
+              allowCustom={false}
+            />
+          </div>
+
+          <div className="form-field">
+            <label>
+              <FiCalendar /> Interview Date *
+            </label>
+            <input
+              type="date"
+              name="interview_date"
+              className="form-input"
+              value={interviewForm.interview_date}
               onChange={handleFormChange}
               required
+            />
+          </div>
+
+          <div className="form-field">
+            <label>Round</label>
+            <select
+              name="round"
               className="form-input"
+              value={interviewForm.round}
+              onChange={handleFormChange}
             >
-              <option value="">Select Job Position...</option>
-              {jobOrders.map((job) => (
-                <option key={job.id} value={job.id}>
-                  {job.company} - {job.position}
+              {roundOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
                 </option>
               ))}
             </select>
           </div>
 
-          <div className="form-group">
-            <label>
-              <FiCalendar /> 📅 Interview Date *
-            </label>
-            <input
-              type="date"
-              name="interview_date"
-              value={interviewForm.interview_date}
-              onChange={handleFormChange}
-              required
-              className="form-input"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>
-              <FiClock /> 🔄 Interview Round
-            </label>
-            <select
-              name="round"
-              value={interviewForm.round}
-              onChange={handleFormChange}
-              className="form-input"
-            >
-              <option value="1st Round">1st Round</option>
-              <option value="2nd Round">2nd Round</option>
-              <option value="3rd Round">3rd Round</option>
-              <option value="Final Round">Final Round</option>
-              <option value="HR Round">HR Round</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>
-              <FiCheckCircle /> ✅ Status
-            </label>
+          <div className="form-field">
+            <label>Status</label>
             <select
               name="status"
+              className="form-input"
               value={interviewForm.status}
               onChange={handleFormChange}
-              className="form-input"
             >
               {interviewStatusOptions.map((opt) => (
                 <option key={opt} value={opt}>
@@ -269,95 +367,176 @@ function CandidateInterview({ user, candidateId, candidateName }) {
             </select>
           </div>
 
-          <div className="form-group full-width">
-            <label>📝 Notes / Feedback (Optional)</label>
+          <div className="form-field full-width">
+            <label>Notes / Feedback</label>
             <textarea
               name="notes"
+              className="form-input"
               value={interviewForm.notes}
               onChange={handleFormChange}
-              placeholder="Add interview notes or feedback..."
+              placeholder="Add any notes or feedback here..."
               rows="3"
-              className="form-input notes-textarea auto-resize"
             />
           </div>
 
-          <button type="submit" disabled={isSaving} className="btn-full-width btn-add" style={{ gridColumn: '1 / -1' }}>
-            <FiPlus />
-            {isSaving ? 'Scheduling...' : '➕ Schedule Interview'}
+          <button type="submit" className="btn-full-width" disabled={isSaving}>
+            <FiPlus /> {isSaving ? 'Scheduling...' : 'Schedule Interview'}
           </button>
         </form>
       </div>
 
-      {/* ✅ INTERVIEW LIST */}
-      <div className="list-container">
+      {/* ✅ INTERVIEW HISTORY */}
+      <div className="visa-list-container">
         <h3>
-          <FiCalendar /> 📋 Interview History ({interviewEntries.length})
+          <FiCalendar /> Interview History
         </h3>
 
         {interviewEntries.length === 0 ? (
-          <div className="interview-empty">
-            <div className="empty-icon">📋</div>
+          <div className="empty-state">
+            <FiCalendar size={60} />
             <p>ℹ️ No interview history found.</p>
-            <small>Schedule your first interview above ⬆️</small>
           </div>
         ) : (
-          <div className="interview-list">
-            {interviewEntries.map((entry) => (
-              <div key={entry.id} className="interview-item">
-                <div className="item-icon">
-                  <FiBriefcase />
-                </div>
+          <div className="visa-list">
+            {interviewEntries.map((entry) => {
+              const jobPosition = getJobPositionName(entry.job_order_id);
+              const isEditing = editingId === entry.id;
 
-                <div className="item-details">
-                  <strong>{entry.company} - {entry.position}</strong>
-                  <p>
-                    🔄 Round: {entry.round} | 📅 Date: {entry.interview_date}
-                  </p>
-                  {entry.notes && (
-                    <small>
-                      📝 Feedback: {entry.notes}
-                    </small>
-                  )}
-                </div>
+              if (isEditing) {
+                // ✅ INLINE EDIT MODE
+                return (
+                  <div key={entry.id} className="module-list-item editing-mode">
+                    <div className="inline-edit-container">
+                      <div className="edit-form-grid">
+                        <div className="edit-field">
+                          <label>
+                            <FiBriefcase /> Job Position *
+                          </label>
+                          <CustomDropdown
+                            value={getJobPositionName(editForm.job_order_id)}
+                            onChange={handleEditJobPositionChange}
+                            options={jobPositionOptions}
+                            placeholder="Select job position..."
+                            name="job_position"
+                            allowCustom={false}
+                          />
+                        </div>
 
-                <div className="item-status">
-                  <span className={`status-badge ${getStatusBadgeClass(entry.status)}`}>
-                    {getStatusIcon(entry.status)}
-                    {entry.status}
-                  </span>
-                </div>
+                        <div className="edit-field">
+                          <label>
+                            <FiCalendar /> Interview Date *
+                          </label>
+                          <input
+                            type="date"
+                            name="interview_date"
+                            className="edit-input"
+                            value={editForm.interview_date}
+                            onChange={handleEditFormChange}
+                            required
+                          />
+                        </div>
 
-                <div className="item-actions">
-                  <button
-                    onClick={() => setEditingInterview(entry)}
-                    title="Edit Interview"
-                    className="btn-edit"
-                  >
-                    <FiEdit2 />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteEntry(entry.id, entry.position)}
-                    title="Delete Interview"
-                    className="btn-delete"
-                  >
-                    <FiTrash2 />
-                  </button>
+                        <div className="edit-field">
+                          <label>Round</label>
+                          <select
+                            name="round"
+                            className="edit-input"
+                            value={editForm.round}
+                            onChange={handleEditFormChange}
+                          >
+                            {roundOptions.map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="edit-field">
+                          <label>Status</label>
+                          <select
+                            name="status"
+                            className="edit-input"
+                            value={editForm.status}
+                            onChange={handleEditFormChange}
+                          >
+                            {interviewStatusOptions.map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="edit-field edit-field-full">
+                          <label>Notes / Feedback</label>
+                          <textarea
+                            name="notes"
+                            className="edit-input"
+                            value={editForm.notes}
+                            onChange={handleEditFormChange}
+                            placeholder="Add any notes or feedback here..."
+                            rows="3"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="edit-actions">
+                        <button className="btn-cancel" onClick={cancelEdit}>
+                          <FiX /> Cancel
+                        </button>
+                        <button className="btn-save" onClick={saveEdit}>
+                          <FiCheck /> Save Changes
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // ✅ VIEW MODE
+              return (
+                <div key={entry.id} className="module-list-item">
+                  <div className="item-icon">
+                    <FiBriefcase />
+                  </div>
+
+                  <div className="item-details">
+                    <strong>{jobPosition || 'Unknown Position'}</strong>
+                    <p>
+                      🔄 Round: {entry.round} | 📅 Date: {entry.interview_date}
+                    </p>
+                    {entry.notes && <small>📝 {entry.notes}</small>}
+                  </div>
+
+                  <div className="item-status">
+                    <span className={`status-badge ${getStatusBadgeClass(entry.status)}`}>
+                      {getStatusIcon(entry.status)} {entry.status}
+                    </span>
+                  </div>
+
+                  <div className="item-actions">
+                    <button
+                      onClick={() => startEdit(entry)}
+                      title="Edit Interview"
+                      className="btn-icon"
+                    >
+                      <FiEdit2 />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteEntry(entry.id, jobPosition)}
+                      title="Delete Interview"
+                      className="btn-icon btn-danger"
+                    >
+                      <FiTrash2 />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
-
-      {/* ✅ EDIT MODAL */}
-      {editingInterview && (
-        <InterviewEditModal
-          user={user}
-          interview={editingInterview}
-          onClose={() => setEditingInterview(null)}
-          onUpdate={handleUpdateInterview}
-        />
-      )}
 
       {/* ✅ CONFIRM DIALOG */}
       {confirmDialog.open && (
@@ -365,11 +544,10 @@ function CandidateInterview({ user, candidateId, candidateName }) {
           isOpen={confirmDialog.open}
           title={confirmDialog.title}
           message={confirmDialog.message}
-          confirmText="Delete"
-          cancelText="Cancel"
+          confirmText={confirmDialog.confirmText}
           onConfirm={confirmDialog.onConfirm}
-          onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
-          variant={confirmDialog.variant}
+          onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}
+          type={confirmDialog.type}
         />
       )}
     </div>
