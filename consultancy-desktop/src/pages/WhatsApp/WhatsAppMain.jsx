@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import LazyRemoteImage from '../../components/common/LazyRemoteImage';
-import { MessageSquare, Plus, Settings, Wifi, WifiOff, Sun, Moon } from 'lucide-react'; // ✅ ADD Sun, Moon
+import { MessageSquare, Plus, Settings, Wifi, WifiOff } from 'lucide-react';
 import ChatWindow from './ChatWindow';
 import NewChatModal from './NewChatModal';
 import TwilioSettingsModal from './TwilioSettingsModal';
@@ -18,7 +18,6 @@ const WhatsAppMain = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [hasCredentials, setHasCredentials] = useState(false);
-  const [theme, setTheme] = useState('dark'); // ✅ ADD THIS
 
   const selectedConversationRef = useRef(null);
   const searchTimeoutRef = useRef(null);
@@ -27,20 +26,6 @@ const WhatsAppMain = () => {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
 
-  // ✅ ADD THIS: Apply theme to document
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    // Optional: Save to localStorage
-    localStorage.setItem('whatsapp-theme', theme);
-  }, [theme]);
-
-  // ✅ ADD THIS: Load saved theme on mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('whatsapp-theme');
-    if (savedTheme) {
-      setTheme(savedTheme);
-    }
-  }, []);
 
   useEffect(() => {
     checkWhatsAppStatus();
@@ -48,10 +33,7 @@ const WhatsAppMain = () => {
     setupEventListeners();
   }, []);
 
-  // ✅ ADD THIS: Toggle theme function
-  const toggleTheme = useCallback(() => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-  }, []);
+  // No local theme toggle: use application-level theme
 
   // Handle incoming messages (from IPC only - no Socket.IO here)
   const handleNewMessage = useCallback((message) => {
@@ -302,14 +284,7 @@ const handleConversationSelect = useCallback(async (conv) => {
             )}
           </div>
 
-          {/* ✅ THEME TOGGLE BUTTON - ADD HERE */}
-          <button 
-            className="theme-toggle"
-            onClick={toggleTheme}
-            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          >
-            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
+          {/* Theme controlled by application-level toggle; no local switch here */}
 
           {/* Settings Button */}
           <button 

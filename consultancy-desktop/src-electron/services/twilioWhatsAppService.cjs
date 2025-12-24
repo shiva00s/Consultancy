@@ -261,8 +261,9 @@ async saveCredentials(accountSid, authToken, whatsappNumber) {
     }
   }
 
-  // ========================================
-// SEND MESSAGE WITH MEDIA (NGROK VERSION)
+
+// ========================================
+// SEND MESSAGE WITH MEDIA (ImgBB + Catbox - ALL FILE TYPES)
 // ========================================
 async sendMessage(phoneNumber, content, localMediaPaths, ngrokUrl = null) {
   if (!this.isReady) {
@@ -279,59 +280,145 @@ async sendMessage(phoneNumber, content, localMediaPaths, ngrokUrl = null) {
     const messageOptions = {
       from: this.whatsappNumber,
       to: formattedNumber,
-      body: content || '📎 Media'
+      body: content || ''
     };
 
-    // ✅ Add media URLs if provided and ngrok is configured
+    // ✅ HANDLE MEDIA: Auto-upload to ImgBB (images) or Catbox (all files)
     if (Array.isArray(localMediaPaths) && localMediaPaths.length > 0) {
-      if (!ngrokUrl) {
-        console.warn('⚠️  Media files detected but no ngrok URL configured');
-        console.warn('⚠️  Message will be sent without media');
-        console.warn('⚠️  Please configure ngrok URL in WhatsApp settings');
+      const fs = require('fs');
+      const path = require('path');
+      
+      console.log('🔍 Checking for media files...');
+      console.log('🔍 Media paths:', localMediaPaths);
+      
+      // Get the first media file (WhatsApp supports 1 per message)
+      const localPath = localMediaPaths[0];
+      console.log('📂 Processing file:', localPath);
+      
+      if (!fs.existsSync(localPath)) {
+        console.error('❌ File not found:', localPath);
       } else {
-        const publicUrls = [];
-        const fs = require('fs');
-        const path = require('path');
-        const jwt = require('jsonwebtoken');
+        const fileStats = fs.statSync(localPath);
+        const fileSizeMB = fileStats.size / (1024 * 1024);
+        console.log('📊 File size:', fileSizeMB.toFixed(2), 'MB');
         
-        const SECRET = '12023e5cf451cc4fc225b09f1543bd6c43c735c71db89f20c63cd6860430fc395b88778254ccbba2043df5989c0e61968cbf4ef6e4c6a6924f90fbe4c75cbb60';
-        
-        for (const localPath of localMediaPaths) {
-          if (!fs.existsSync(localPath)) {
-            console.warn('⚠️  File not found:', localPath);
-            continue;
+        try {
+          const ext = path.extname(localPath).toLowerCase();
+          console.log('🔍 File extension:', ext);
+          
+          const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+          const isImage = imageExts.includes(ext);
+          
+          console.log('🔍 Is image?', isImage);
+          
+          let uploadSuccess = false;
+          
+          // Strategy: Try ImgBB first for images, then Catbox for all files
+          if (isImage) {
+            console.log('📸 Image detected - trying ImgBB first...');
+            
+            // Get ImgBB API key from database
+            let imgbbApiKey = null;
+            try {
+              const setting = await dbGet(
+                this.db,
+                `SELECT value FROM system_settings WHERE key = 'imgbbApiKey' LIMIT 1`
+              );
+              imgbbApiKey = setting ? setting.value : null;
+            } catch (err) {
+              console.warn('⚠️ Could not load ImgBB API key');
+            }
+            
+            if (imgbbApiKey) {
+              const ImgBBUploader = require('./imgbbUploader.cjs');
+              console.log('🌐 Uploading image to ImgBB...');
+              
+              const uploader = new ImgBBUploader(imgbbApiKey);
+              const uploadResult = await uploader.upload(localPath);
+              
+              if (uploadResult.success) {
+                messageOptions.mediaUrl = [uploadResult.url];
+                console.log('✅ ✅ ImgBB SUCCESS! Media URL:', uploadResult.url);
+                uploadSuccess = true;
+              } else {
+                console.error('❌ ImgBB upload failed:', uploadResult.error);
+              }
+            } else {
+              console.warn('⚠️ ImgBB API key not configured');
+            }
           }
           
-          // Generate public URL using ngrok
-          const token = jwt.sign({ path: localPath }, SECRET, { expiresIn: '24h' });
-          const filename = path.basename(localPath);
-          const publicUrl = `${ngrokUrl}/public/files/${token}/${filename}`;
+          // If ImgBB failed or not applicable, try Catbox (works for ALL files)
+          if (!uploadSuccess) {
+            console.log('🌐 Uploading to Catbox.moe (supports all file types)...');
+            
+            const CatboxUploader = require('./catboxUploader.cjs');
+            const catboxUploader = new CatboxUploader();
+            
+            const uploadResult = await catboxUploader.upload(localPath);
+            
+            if (uploadResult.success) {
+              messageOptions.mediaUrl = [uploadResult.url];
+              console.log('✅ ✅ Catbox SUCCESS! Media URL:', uploadResult.url);
+              uploadSuccess = true;
+            } else {
+              console.error('❌ Catbox upload failed:', uploadResult.error);
+            }
+          }
           
-          publicUrls.push(publicUrl);
-          console.log('✅ Generated public media URL:', publicUrl);
+          // Final fallback: ngrok (if available)
+          if (!uploadSuccess) {
+            console.warn('⚠️ All upload services failed, trying ngrok fallback...');
+            
+            if (ngrokUrl && ngrokUrl !== 'http://127.0.0.1:3001') {
+              const jwt = require('jsonwebtoken');
+              const SECRET = '12023e5cf451cc4fc225b09f1543bd6c43c735c71db89f20c63cd6860430fc395b88778254ccbba2043df5989c0e61968cbf4ef6e4c6a6924f90fbe4c75cbb60';
+              
+              const token = jwt.sign({ path: localPath }, SECRET, { expiresIn: '7d' });
+              const filename = path.basename(localPath);
+              const cleanNgrokUrl = ngrokUrl.replace(/\/$/, '');
+              const publicUrl = `${cleanNgrokUrl}/public/files/${token}/${encodeURIComponent(filename)}`;
+              
+              messageOptions.mediaUrl = [publicUrl];
+              console.log('📎 Using ngrok fallback:', publicUrl);
+            } else {
+              console.error('❌ No valid upload method available');
+              console.error('💡 Please configure ImgBB API key or ensure Catbox.moe is accessible');
+            }
+          }
           
-          break; // WhatsApp supports 1 media per message
-        }
-        
-        if (publicUrls.length > 0) {
-          messageOptions.mediaUrl = publicUrls;
-          console.log('✅ Including media URL in Twilio message');
+        } catch (mediaError) {
+          console.error('❌ Media processing error:', mediaError);
+          console.error('Stack trace:', mediaError.stack);
         }
       }
+    } else {
+      console.log('ℹ️ No media files provided');
+    }
+
+    // Ensure message has content
+    if (!messageOptions.body && !messageOptions.mediaUrl) {
+      messageOptions.body = '👋';
+    }
+
+    // Status callback for delivery tracking
+    try {
+      const callbackBase = ngrokUrl || 'http://127.0.0.1:3001';
+      messageOptions.statusCallback = `${callbackBase.replace(/\/$/, '')}/whatsapp/status`;
+    } catch (cbErr) {
+      console.warn('⚠️ Could not set statusCallback:', cbErr?.message);
     }
 
     // Send message via Twilio
-    // Ensure Twilio will POST status updates back to our webhook server
-    try {
-      if (!messageOptions.statusCallback) {
-        const callbackBase = ngrokUrl || this.ngrokUrl || 'http://127.0.0.1:3001';
-        messageOptions.statusCallback = `${callbackBase.replace(/\/$/, '')}/whatsapp/status`;
-        console.log('🔔 Using statusCallback for message delivery updates:', messageOptions.statusCallback);
-      }
-    } catch (cbErr) {
-      console.warn('⚠️ Could not set statusCallback:', cbErr?.message || cbErr);
-    }
-
+    console.log('🚀 Sending to Twilio API...');
+    console.log('📋 Message options:', {
+      from: messageOptions.from,
+      to: messageOptions.to,
+      hasBody: !!messageOptions.body,
+      hasMedia: !!messageOptions.mediaUrl,
+      mediaUrl: messageOptions.mediaUrl
+    });
+    
     const message = await this.client.messages.create(messageOptions);
     
     console.log('✅ Message sent:', message.sid);
@@ -345,13 +432,226 @@ async sendMessage(phoneNumber, content, localMediaPaths, ngrokUrl = null) {
       timestamp: new Date(message.dateCreated).toISOString()
     };
   } catch (error) {
-    console.error('❌ Error sending message:', error);
+    console.error('❌ ❌ ❌ Error sending message:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      status: error.status
+    });
+    
     return {
       success: false,
-      error: error.message
+      error: error.message,
+      code: error.code
     };
   }
 }
+
+/*
+// ========================================
+// SEND MESSAGE WITH MEDIA imggbb(ENHANCED LOGGING)
+// ========================================
+async sendMessage(phoneNumber, content, localMediaPaths, ngrokUrl = null) {
+  if (!this.isReady) {
+    throw new Error('Twilio WhatsApp service is not ready');
+  }
+
+  try {
+    const formattedNumber = phoneNumber.startsWith('+')
+      ? `whatsapp:${phoneNumber}`
+      : `whatsapp:+${phoneNumber.replace(/[^0-9]/g, '')}`;
+
+    console.log('📤 Sending WhatsApp message via Twilio to:', formattedNumber);
+
+    const messageOptions = {
+      from: this.whatsappNumber,
+      to: formattedNumber,
+      body: content || ''
+    };
+
+    // ✅ HANDLE MEDIA: Auto-upload to ImgBB (FREE)
+    if (Array.isArray(localMediaPaths) && localMediaPaths.length > 0) {
+      const fs = require('fs');
+      const path = require('path');
+      const ImgBBUploader = require('./imgbbUploader.cjs');
+      
+      console.log('🔍 Checking for media files...');
+      console.log('🔍 Media paths:', localMediaPaths);
+      
+      // Get ImgBB API key from database
+      let imgbbApiKey = null;
+      try {
+        const setting = await dbGet(
+          this.db,
+          `SELECT value FROM system_settings WHERE key = 'imgbbApiKey' LIMIT 1`
+        );
+        imgbbApiKey = setting ? setting.value : null;
+        
+        if (imgbbApiKey) {
+          console.log('✅ ImgBB API key found:', imgbbApiKey.substring(0, 10) + '...');
+        } else {
+          console.log('❌ ImgBB API key NOT found in database');
+        }
+      } catch (err) {
+        console.error('❌ Error loading ImgBB API key:', err);
+      }
+
+      // Get the first media file (WhatsApp supports 1 per message)
+      const localPath = localMediaPaths[0];
+      console.log('📂 Processing file:', localPath);
+      
+      if (!fs.existsSync(localPath)) {
+        console.error('❌ File not found:', localPath);
+      } else {
+        const fileStats = fs.statSync(localPath);
+        console.log('📊 File size:', fileStats.size, 'bytes');
+        
+        try {
+          console.log('📤 Processing media for WhatsApp...');
+          
+          // Check if it's an image
+          const ext = path.extname(localPath).toLowerCase();
+          console.log('🔍 File extension:', ext);
+          
+          const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+          const isImage = imageExts.includes(ext);
+          
+          console.log('🔍 Is image?', isImage);
+          console.log('🔍 Has ImgBB key?', !!imgbbApiKey);
+          
+          if (isImage && imgbbApiKey) {
+            // ✅ Upload to ImgBB (FREE, no ngrok needed)
+            console.log('🌐 Starting ImgBB upload...');
+            
+            const uploader = new ImgBBUploader(imgbbApiKey);
+            const uploadResult = await uploader.upload(localPath);
+            
+            console.log('📊 ImgBB upload result:', uploadResult);
+            
+            if (uploadResult.success) {
+              messageOptions.mediaUrl = [uploadResult.url];
+              console.log('✅ ✅ ✅ ImgBB SUCCESS! Media URL:', uploadResult.url);
+              console.log('🎉 This URL should work with Twilio!');
+            } else {
+              console.error('❌ ImgBB upload FAILED:', uploadResult.error);
+              console.log('⚠️ Will try ngrok fallback...');
+              
+              // Fallback to ngrok
+              if (ngrokUrl && ngrokUrl !== 'http://127.0.0.1:3001') {
+                const jwt = require('jsonwebtoken');
+                const SECRET = '12023e5cf451cc4fc225b09f1543bd6c43c735c71db89f20c63cd6860430fc395b88778254ccbba2043df5989c0e61968cbf4ef6e4c6a6924f90fbe4c75cbb60';
+                
+                const token = jwt.sign({ path: localPath }, SECRET, { expiresIn: '7d' });
+                const filename = path.basename(localPath);
+                const cleanNgrokUrl = ngrokUrl.replace(/\/$/, '');
+                const publicUrl = `${cleanNgrokUrl}/public/files/${token}/${encodeURIComponent(filename)}`;
+                
+                messageOptions.mediaUrl = [publicUrl];
+                console.log('📎 Using ngrok fallback:', publicUrl);
+              } else {
+                console.log('❌ No valid ngrok URL available');
+              }
+            }
+          } else if (!imgbbApiKey) {
+            console.warn('⚠️ ⚠️ ⚠️ ImgBB API key NOT configured');
+            console.log('💡 Add ImgBB API key to system_settings table');
+            console.log('💡 Key: imgbbApiKey');
+            console.log('💡 Get free key from: https://api.imgbb.com/');
+            
+            // Try ngrok fallback
+            if (ngrokUrl && ngrokUrl !== 'http://127.0.0.1:3001') {
+              const jwt = require('jsonwebtoken');
+              const SECRET = '12023e5cf451cc4fc225b09f1543bd6c43c735c71db89f20c63cd6860430fc395b88778254ccbba2043df5989c0e61968cbf4ef6e4c6a6924f90fbe4c75cbb60';
+              
+              const token = jwt.sign({ path: localPath }, SECRET, { expiresIn: '7d' });
+              const filename = path.basename(localPath);
+              const cleanNgrokUrl = ngrokUrl.replace(/\/$/, '');
+              const publicUrl = `${cleanNgrokUrl}/public/files/${token}/${encodeURIComponent(filename)}`;
+              
+              messageOptions.mediaUrl = [publicUrl];
+              console.log('📎 Using ngrok URL (ImgBB not configured):', publicUrl);
+            }
+          } else {
+            console.log('📎 Non-image file, using ngrok URL');
+            
+            // Non-image files: use ngrok
+            if (ngrokUrl && ngrokUrl !== 'http://127.0.0.1:3001') {
+              const jwt = require('jsonwebtoken');
+              const SECRET = '12023e5cf451cc4fc225b09f1543bd6c43c735c71db89f20c63cd6860430fc395b88778254ccbba2043df5989c0e61968cbf4ef6e4c6a6924f90fbe4c75cbb60';
+              
+              const token = jwt.sign({ path: localPath }, SECRET, { expiresIn: '7d' });
+              const filename = path.basename(localPath);
+              const cleanNgrokUrl = ngrokUrl.replace(/\/$/, '');
+              const publicUrl = `${cleanNgrokUrl}/public/files/${token}/${encodeURIComponent(filename)}`;
+              
+              messageOptions.mediaUrl = [publicUrl];
+              console.log('📎 Media URL:', publicUrl);
+            }
+          }
+          
+        } catch (mediaError) {
+          console.error('❌ Media processing error:', mediaError);
+          console.error('Stack trace:', mediaError.stack);
+        }
+      }
+    } else {
+      console.log('ℹ️ No media files provided');
+    }
+
+    // Ensure message has content
+    if (!messageOptions.body && !messageOptions.mediaUrl) {
+      messageOptions.body = '👋';
+    }
+
+    // Status callback for delivery tracking
+    try {
+      const callbackBase = ngrokUrl || 'http://127.0.0.1:3001';
+      messageOptions.statusCallback = `${callbackBase.replace(/\/$/, '')}/whatsapp/status`;
+    } catch (cbErr) {
+      console.warn('⚠️ Could not set statusCallback:', cbErr?.message);
+    }
+
+    // Send message via Twilio
+    console.log('🚀 Sending to Twilio API...');
+    console.log('📋 Message options:', {
+      from: messageOptions.from,
+      to: messageOptions.to,
+      hasBody: !!messageOptions.body,
+      hasMedia: !!messageOptions.mediaUrl,
+      mediaUrl: messageOptions.mediaUrl
+    });
+    
+    const message = await this.client.messages.create(messageOptions);
+    
+    console.log('✅ Message sent:', message.sid);
+    console.log('Status:', message.status);
+    console.log('Error code:', message.errorCode);
+    console.log('Error message:', message.errorMessage);
+
+    return {
+      success: true,
+      messageId: message.sid,
+      messagesid: message.sid,
+      status: message.status,
+      timestamp: new Date(message.dateCreated).toISOString()
+    };
+  } catch (error) {
+    console.error('❌ ❌ ❌ Error sending message:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      status: error.status,
+      moreInfo: error.moreInfo
+    });
+    
+    return {
+      success: false,
+      error: error.message,
+      code: error.code
+    };
+  }
+}
+
 
 async generatePublicFileUrl(filePath) {
   const jwt = require('jsonwebtoken');
@@ -384,6 +684,7 @@ async generatePublicFileUrl(filePath) {
     throw error;
   }
 }
+*/
 
   // ========================================
   // Handle incoming message (unchanged)

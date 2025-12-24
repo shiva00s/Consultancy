@@ -148,108 +148,104 @@ class TwilioWebhookServer {
   }
 
   async serveFile(req, res) {
+  try {
+    const { token, filename } = req.params;
+    const decodedFilename = decodeURIComponent(filename);
+    
+    console.log('📂 File request from:', req.get('User-Agent'));
+    console.log('📂 Requested file:', decodedFilename);
+    
+    // ✅ CRITICAL: Set headers BEFORE any response
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+    res.setHeader('ngrok-skip-browser-warning', 'true');
+    
+    // Handle OPTIONS preflight
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+    
+    // ✅ Verify JWT token
+    let decoded;
     try {
-      const { token, filename } = req.params;
-      const decodedFilename = decodeURIComponent(filename);
-      
-      console.log('📂 File request:', decodedFilename);
-      
-      // ✅ Add ngrok bypass headers FIRST
-      res.setHeader('ngrok-skip-browser-warning', 'true');
-      res.setHeader('User-Agent', 'WhatsAppClient');
-      
-      // ✅ Verify JWT token
-      let decoded;
-      try {
-        decoded = jwt.verify(token, SECRET);
-      } catch (error) {
-        if (error.name === 'TokenExpiredError') {
-          console.error('❌ JWT token expired for file:', decodedFilename);
-          return res.status(401).json({ 
-            error: 'Token expired',
-            message: 'File access token has expired. Please refresh the conversation.'
-          });
-        }
-        if (error.name === 'JsonWebTokenError') {
-          console.error('❌ Invalid JWT token for file:', decodedFilename);
-          return res.status(401).json({ error: 'Invalid token' });
-        }
-        throw error;
-      }
-
-      const filePath = decoded.path;
-      
-      // ✅ Check if file exists
-      if (!fs.existsSync(filePath)) {
-        console.error('❌ File not found:', filePath);
-        return res.status(404).json({ 
-          error: 'File not found',
-          path: filePath 
-        });
-      }
-
-      // ✅ Verify filename matches
-      const actualFilename = path.basename(filePath);
-      if (actualFilename !== decodedFilename) {
-        console.error('❌ Filename mismatch:', { 
-          expected: decodedFilename, 
-          actual: actualFilename 
-        });
-        return res.status(400).json({ error: 'Invalid filename' });
-      }
-
-      console.log('✅ Serving file:', filePath);
-      
-      const ext = path.extname(decodedFilename).toLowerCase();
-      const contentTypes = {
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.png': 'image/png',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp',
-        '.pdf': 'application/pdf',
-        '.mp4': 'video/mp4',
-        '.mp3': 'audio/mpeg',
-        '.wav': 'audio/wav',
-        '.doc': 'application/msword',
-        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        '.xls': 'application/vnd.ms-excel',
-        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        '.txt': 'text/plain'
-      };
-      const contentType = contentTypes[ext] || 'application/octet-stream';
-
-      // ✅ Set all required headers including ngrok bypass
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET');
-      res.setHeader('Content-Type', contentType);
-      res.setHeader('Cache-Control', 'public, max-age=86400');
-      res.setHeader('Content-Disposition', `inline; filename="${decodedFilename}"`);
-      res.setHeader('ngrok-skip-browser-warning', 'true');
-      
-      const stat = fs.statSync(filePath);
-      res.setHeader('Content-Length', stat.size);
-
-      const fileStream = fs.createReadStream(filePath);
-      fileStream.pipe(res);
-      
-      fileStream.on('error', (error) => {
-        console.error('❌ Error streaming file:', error);
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Error serving file' });
-        }
-      });
-
-      fileStream.on('end', () => {
-        console.log('✅ File served successfully:', decodedFilename);
-      });
+      decoded = jwt.verify(token, SECRET);
     } catch (error) {
-      console.error('❌ Error serving file:', error);
+      console.error('❌ Invalid token:', error.message);
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+
+    const filePath = decoded.path;
+    
+    // ✅ Security check
+    if (!fs.existsSync(filePath)) {
+      console.error('❌ File not found:', filePath);
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const actualFilename = path.basename(filePath);
+    if (actualFilename !== decodedFilename) {
+      console.error('❌ Filename mismatch');
+      return res.status(400).json({ error: 'Invalid filename' });
+    }
+
+    console.log('✅ Serving file:', filePath);
+    
+    // Determine content type
+    const ext = path.extname(decodedFilename).toLowerCase();
+    const contentTypes = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.pdf': 'application/pdf',
+      '.mp4': 'video/mp4',
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav'
+    };
+    const contentType = contentTypes[ext] || 'application/octet-stream';
+
+    // Get file stats
+    const stat = fs.statSync(filePath);
+    
+    // ✅ Set all required headers
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Length', stat.size);
+    res.setHeader('Content-Disposition', `inline; filename="${decodedFilename}"`);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Accept-Ranges', 'bytes');
+    
+    // Handle HEAD requests (Twilio checks before downloading)
+    if (req.method === 'HEAD') {
+      console.log('✅ HEAD request successful');
+      return res.status(200).end();
+    }
+
+    // Stream file
+    const fileStream = fs.createReadStream(filePath);
+    
+    fileStream.on('error', (error) => {
+      console.error('❌ Error streaming file:', error);
       if (!res.headersSent) {
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Error serving file' });
       }
+    });
+
+    fileStream.on('end', () => {
+      console.log('✅ File served successfully:', decodedFilename);
+    });
+    
+    fileStream.pipe(res);
+    
+  } catch (error) {
+    console.error('❌ Error in serveFile:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
+}
+
 
   async downloadMediaFromTwilio(mediaUrl, mediaType, messageSid) {
     try {

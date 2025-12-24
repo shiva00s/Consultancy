@@ -1,13 +1,21 @@
-// FILE: electron.cjs (UPDATED - Smart Tunnel Detection)
+// FILE: electron.cjs (PRODUCTION-READY - SINGLE EXE MODE)
 
 const { app, BrowserWindow, dialog, session } = require('electron');
 const path = require('path');
+const fs = require('fs');
 let ngrok = null;
+
+// ✅ PRODUCTION: Load ngrok conditionally
 try {
-  ngrok = require('ngrok');
+  ngrok = require('@ngrok/ngrok');
 } catch (err) {
-  console.warn('⚠️ Optional dependency "ngrok" not installed.');
+  try {
+    ngrok = require('ngrok');
+  } catch (err2) {
+    console.warn('⚠️ Ngrok not available in this build');
+  }
 }
+
 const { exec } = require('child_process');
 const util = require('util');
 const { initializeCommunicationHandlers } = require('./src-electron/ipc/communicationHandlers.cjs');
@@ -25,65 +33,204 @@ const {
 
 const execPromise = util.promisify(exec);
 
-// ✅ CHECK FOR EXISTING NGROK TUNNEL
-async function getExistingNgrokTunnel() {
-  try {
-    const response = await fetch('http://127.0.0.1:4040/api/tunnels');
-    const data = await response.json();
-    
-    if (data.tunnels && data.tunnels.length > 0) {
-      // Find the first HTTP/HTTPS tunnel
-      const httpTunnel = data.tunnels.find(t => 
-        t.proto === 'https' && t.config && t.config.addr
-      );
+// ✅ PRODUCTION MODE DETECTION
+const isDevelopment = !app.isPackaged;
+const isProduction = app.isPackaged;
+
+// ✅ RESOURCE PATHS FOR PRODUCTION
+function getResourcePath(relativePath) {
+  if (isProduction) {
+    // In production, resources are in the app.asar or extraResources
+    return path.join(process.resourcesPath, relativePath);
+  }
+  return path.join(__dirname, relativePath);
+}
+
+// ✅ NGROK TUNNEL MANAGER (PRODUCTION-SAFE) - FIXED VERSION
+class NgrokTunnelManager {
+  constructor() {
+    this.tunnel = null;
+    this.url = null;
+    this.isConnected = false;
+  }
+
+  /**
+   * Check if ngrok API is accessible (already running)
+   */
+  async checkExistingTunnel() {
+    try {
+      const response = await fetch('http://127.0.0.1:4040/api/tunnels', {
+        signal: AbortSignal.timeout(2000) // 2 second timeout
+      });
+      const data = await response.json();
       
-      if (httpTunnel) {
-        console.log('✅ Found existing ngrok tunnel:', httpTunnel.public_url);
-        return httpTunnel.public_url;
+      if (data.tunnels && data.tunnels.length > 0) {
+        const httpTunnel = data.tunnels.find(t => 
+          t.proto === 'https' && t.config && t.config.addr
+        );
+        
+        if (httpTunnel) {
+          this.url = httpTunnel.public_url;
+          this.isConnected = true;
+          return httpTunnel.public_url;
+        }
       }
+      return null;
+    } catch (error) {
+      // Ngrok not running or API not accessible
+      return null;
     }
-    return null;
-  } catch (error) {
-    // Ngrok API not available
-    return null;
+  }
+
+  /**
+   * Start fresh ngrok tunnel (embedded in app)
+   */
+  async startTunnel(port, authToken) {
+    if (!ngrok) {
+      throw new Error('Ngrok module not available');
+    }
+
+    try {
+      console.log(`🌐 Starting ngrok tunnel for port ${port}...`);
+
+      // Configure authtoken if provided
+      if (authToken) {
+        try {
+          if (typeof ngrok.authtoken === 'function') {
+            await ngrok.authtoken(authToken);
+          } else if (typeof ngrok.setAuthtoken === 'function') {
+            await ngrok.setAuthtoken(authToken);
+          }
+          console.log('✅ Ngrok auth token configured');
+        } catch (authError) {
+          console.warn('⚠️ Could not set auth token:', authError.message);
+        }
+      }
+
+      // Start tunnel
+      const tunnel = await ngrok.connect({
+        addr: port,
+        authtoken: authToken || undefined,
+        region: 'in',
+        onStatusChange: (status) => {
+          console.log(`📡 Ngrok status: ${status}`);
+        },
+        onLogEvent: (log) => {
+          if (isDevelopment) {
+            console.log(`[Ngrok] ${log}`);
+          }
+        }
+      });
+
+      // ✅ FIX: Extract URL string from tunnel object
+      let url;
+      
+      // Handle different ngrok module versions
+      if (typeof tunnel === 'string') {
+        // Old ngrok module returns string directly
+        url = tunnel;
+      } else if (tunnel && typeof tunnel.url === 'function') {
+        // New @ngrok/ngrok module returns object with url() method
+        url = await tunnel.url();
+      } else if (tunnel && tunnel.url && typeof tunnel.url === 'string') {
+        // Some versions have url as property
+        url = tunnel.url;
+      } else if (tunnel && tunnel.public_url) {
+        // Fallback to public_url property
+        url = tunnel.public_url;
+      } else {
+        // Last resort: check ngrok API
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 sec
+        const apiUrl = await this.checkExistingTunnel();
+        if (apiUrl) {
+          url = apiUrl;
+        } else {
+          throw new Error('Could not extract URL from ngrok tunnel');
+        }
+      }
+
+      if (!url || url === '[object Object]') {
+        throw new Error('Invalid ngrok URL received');
+      }
+
+      this.tunnel = tunnel;
+      this.url = url;
+      this.isConnected = true;
+
+      console.log('✅ Ngrok tunnel created:', url);
+      return url;
+
+    } catch (error) {
+      console.error('❌ Failed to start ngrok tunnel:', error.message);
+      this.isConnected = false;
+      throw error;
+    }
+  }
+
+  /**
+   * Ensure tunnel exists (reuse or create new)
+   */
+  async ensureTunnel(port, authToken) {
+    try {
+      // Step 1: Check for existing tunnel
+      const existingUrl = await this.checkExistingTunnel();
+      if (existingUrl) {
+        console.log('♻️ Reusing existing ngrok tunnel:', existingUrl);
+        return { url: existingUrl, isNew: false };
+      }
+
+      // Step 2: No existing tunnel, create new one
+      const newUrl = await this.startTunnel(port, authToken);
+      return { url: newUrl, isNew: true };
+
+    } catch (error) {
+      console.error('❌ Tunnel creation failed:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Disconnect tunnel on shutdown
+   */
+  async disconnect() {
+    if (!this.isConnected || !ngrok) {
+      return;
+    }
+
+    try {
+      console.log('🔄 Disconnecting ngrok tunnel...');
+      
+      if (typeof ngrok.disconnect === 'function') {
+        await ngrok.disconnect();
+      } else if (typeof ngrok.kill === 'function') {
+        await ngrok.kill();
+      }
+      
+      this.isConnected = false;
+      this.url = null;
+      console.log('✅ Ngrok tunnel disconnected');
+    } catch (error) {
+      console.error('⚠️ Error disconnecting ngrok:', error.message);
+    }
+  }
+
+  /**
+   * Get current tunnel URL
+   */
+  getUrl() {
+    return this.url;
+  }
+
+  /**
+   * Check connection status
+   */
+  isActive() {
+    return this.isConnected;
   }
 }
 
-// ✅ START OR REUSE NGROK TUNNEL
-async function ensureNgrokTunnel(port, authToken) {
-  try {
-    // First, check if ngrok is already running with a tunnel
-    const existingUrl = await getExistingNgrokTunnel();
-    if (existingUrl) {
-      console.log('♻️ Reusing existing ngrok tunnel:', existingUrl);
-      return { url: existingUrl, isNew: false };
-    }
 
-    // No existing tunnel, start a new one
-    console.log(`🌐 Starting fresh ngrok tunnel for port ${port}...`);
-    
-    if (authToken) {
-      await ngrok.authtoken(authToken);
-      console.log('✅ Ngrok auth token configured');
-    }
-
-    const url = await ngrok.connect({
-      addr: port,
-      authtoken: authToken || undefined,
-      onStatusChange: status => {
-        console.log(`📡 Ngrok status: ${status}`);
-      }
-    });
-
-    console.log('✅ New ngrok tunnel created:', url);
-    return { url, isNew: true };
-
-  } catch (error) {
-    console.error('❌ Failed to ensure ngrok tunnel:', error.message);
-    throw error;
-  }
-}
-
+// ✅ SINGLE INSTANCE LOCK
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
@@ -98,10 +245,12 @@ if (!gotTheLock) {
   });
 }
 
-if (process.env.NODE_ENV !== 'production') {
+// ✅ DISABLE SECURITY WARNINGS IN DEVELOPMENT
+if (isDevelopment) {
   process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 }
 
+// ✅ AUTO-UPDATER (PRODUCTION ONLY)
 let AutoUpdater = null;
 let hasAutoUpdater = false;
 try {
@@ -109,13 +258,14 @@ try {
   AutoUpdater = updaterModule.AutoUpdater;
   hasAutoUpdater = updaterModule.hasElectronUpdater;
 } catch (error) {
-  console.log('⚠️ Auto-updater module not loaded:', error.message);
+  console.log('⚠️ Auto-updater module not loaded');
 }
 
+// ✅ GLOBAL STATE
 let mainWindow = null;
 let updater = null;
 let whatsappService = null;
-let ngrokUrl = null;
+let ngrokManager = new NgrokTunnelManager();
 let db = null;
 
 const permissionContext = {
@@ -131,10 +281,11 @@ const permissionContext = {
   },
 };
 
+// ✅ CREATE MAIN WINDOW
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
+    width: 1366, // Optimized for your target resolution
+    height: 768,
     minWidth: 1024,
     minHeight: 768,
     webPreferences: {
@@ -142,17 +293,19 @@ function createWindow() {
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
-      webSecurity: process.env.NODE_ENV === 'production',
-      devTools: process.env.NODE_ENV !== 'production',
+      webSecurity: isProduction,
+      devTools: isDevelopment,
     },
     show: false,
     backgroundColor: '#1a1d2e',
+    icon: path.join(__dirname, 'assets', 'icon.ico'),
   });
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
 
+  // ✅ SUPPRESS UNNECESSARY CONSOLE NOISE
   mainWindow.webContents.on('console-message', (event) => {
     const { level, message, lineNumber, sourceId } = event;
     const suppressPatterns = [
@@ -176,17 +329,18 @@ function createWindow() {
         }
         break;
       case 'warning':
-        if (process.env.NODE_ENV !== 'production') {
+        if (isDevelopment) {
           console.warn(`[Renderer Warning] ${message}`);
         }
         break;
       default:
-        if (process.env.NODE_ENV !== 'production' && level === 'info') {
+        if (isDevelopment && level === 'info') {
           console.info(`[Renderer Info] ${message}`);
         }
     }
   });
 
+  // ✅ INJECT CONSOLE CLEANUP
   mainWindow.webContents.once('did-finish-load', () => {
     mainWindow.webContents
       .executeJavaScript(`
@@ -204,8 +358,14 @@ function createWindow() {
       .catch(() => {});
   });
 
+  // ✅ NAVIGATION SECURITY
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    const allowedOrigins = ['http://localhost:5173', 'http://localhost:3000', 'file://'];
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'file://',
+      ...(isDevelopment ? ['http://localhost'] : [])
+    ];
     const isAllowed = allowedOrigins.some((origin) => url.startsWith(origin));
     if (!isAllowed) {
       event.preventDefault();
@@ -217,7 +377,8 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  if (hasAutoUpdater && AutoUpdater) {
+  // ✅ AUTO-UPDATER (PRODUCTION ONLY)
+  if (isProduction && hasAutoUpdater && AutoUpdater) {
     try {
       updater = new AutoUpdater(mainWindow);
       setTimeout(() => {
@@ -230,13 +391,25 @@ function createWindow() {
     }
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
+  // ✅ LOAD APP CONTENT
+  if (isProduction) {
+    const indexPath = path.join(__dirname, 'dist', 'index.html');
+    if (fs.existsSync(indexPath)) {
+      mainWindow.loadFile(indexPath);
+    } else {
+      console.error('❌ Production build not found at:', indexPath);
+      dialog.showErrorBox(
+        'Build Error',
+        'Production files not found. Please run "npm run build" first.'
+      );
+      app.quit();
+    }
   } else {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   }
 
+  // ✅ WINDOW CLOSE BEHAVIOR
   mainWindow.on('close', (event) => {
     if (process.platform === 'darwin' && !app.isQuitting) {
       event.preventDefault();
@@ -247,7 +420,9 @@ function createWindow() {
   return mainWindow;
 }
 
+// ✅ APP READY - INITIALIZATION SEQUENCE
 app.whenReady().then(async () => {
+  // ✅ NGROK HEADER INJECTION FOR BYPASS
   session.defaultSession.webRequest.onBeforeSendHeaders(
     { urls: ['https://*.ngrok-free.dev/*', 'https://*.ngrok.io/*', 'https://*.ngrok-free.app/*'] },
     (details, callback) => {
@@ -273,13 +448,17 @@ app.whenReady().then(async () => {
 
   try {
     console.log('🚀 Starting Consultancy Desktop App...');
+    console.log(`📦 Mode: ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
 
+    // ✅ STEP 1: Initialize Database
     db = await initializeDatabase();
     console.log('✅ Database initialized');
 
+    // ✅ STEP 2: Initialize File Manager
     await fileManager.initialize();
     console.log('✅ File manager initialized');
 
+    // ✅ STEP 3: Register IPC Handlers
     registerIpcHandlers(app, {
       permissionContext,
       ROLES,
@@ -288,14 +467,15 @@ app.whenReady().then(async () => {
     });
     console.log('✅ IPC handlers registered');
 
+    // ✅ STEP 4: Create Main Window
     mainWindow = createWindow();
     console.log('✅ Main window created');
 
+    // ✅ STEP 5: Initialize WhatsApp Service
     console.log('📱 Initializing WhatsApp service...');
     
     try {
-      console.log('🔑 Loading Twilio credentials from database...');
-      
+      // Load Twilio credentials from database
       const twilioSettings = await dbAll(
         db,
         `SELECT key, value FROM system_settings 
@@ -314,46 +494,42 @@ app.whenReady().then(async () => {
       const whatsappNumber = settings.twiliowhatsappnumber;
       const ngrokAuthToken = settings.ngrokAuthToken;
 
+      // Initialize WhatsApp service
       whatsappService = new TwilioWhatsAppService(mainWindow, db);
-      
       initializeWhatsAppHandlers(db, whatsappService);
       initializeCommunicationHandlers();
 
       if (accountSid && authToken) {
         await whatsappService.initialize(accountSid, authToken, whatsappNumber);
-        console.log('✅ WhatsApp service initialized with database credentials');
+        console.log('✅ WhatsApp service initialized');
       } else {
         console.warn('⚠️ No Twilio credentials configured yet');
         await whatsappService.initialize();
       }
 
-      // ✅ SMART NGROK TUNNEL MANAGEMENT
+      // ✅ STEP 6: Setup Ngrok Tunnel (PRODUCTION-SAFE)
       if (ngrok && whatsappService && whatsappService.webhookServer && whatsappService.webhookServer.server) {
         try {
           const webhookPort = whatsappService.webhookServer.port || 3001;
 
-          const tunnelResult = await ensureNgrokTunnel(webhookPort, ngrokAuthToken);
-          ngrokUrl = tunnelResult.url;
+          const tunnelResult = await ngrokManager.ensureTunnel(webhookPort, ngrokAuthToken);
+          const ngrokUrl = tunnelResult.url;
           
-          if (tunnelResult.isNew) {
-            console.log('🎉 Created new ngrok tunnel');
-          } else {
-            console.log('♻️ Using existing ngrok tunnel');
-          }
+          console.log(tunnelResult.isNew ? '🎉 New ngrok tunnel created' : '♻️ Existing tunnel reused');
           
-          // ✅ Save to database
+          // Save to database
           await dbRun(
             db,
             `INSERT OR REPLACE INTO system_settings (key, value) VALUES ('twilioNgrokUrl', ?)`,
             [ngrokUrl]
           );
           
-          // ✅ Update webhook server
+          // Update webhook server
           if (whatsappService.webhookServer) {
             whatsappService.webhookServer.setNgrokUrl(ngrokUrl);
           }
           
-          // ✅ Update Twilio webhook
+          // Update Twilio webhook
           if (accountSid && authToken && whatsappNumber) {
             console.log('🔄 Updating Twilio webhook URLs...');
             const updateResult = await whatsappService.updateWebhookUrl(ngrokUrl);
@@ -381,14 +557,10 @@ app.whenReady().then(async () => {
           }
         }
       } else {
-        if (!ngrok) {
-          console.warn('⚠️ Ngrok module not available');
-        } else {
-          console.warn('⚠️ Webhook server not available');
-        }
+        console.warn('⚠️ Ngrok or webhook server not available');
       }
 
-      // ✅ INITIALIZE SOCKET.IO
+      // ✅ STEP 7: Initialize Socket.IO Real-time Sync
       if (whatsappService.webhookServer && whatsappService.webhookServer.server) {
         const RealtimeSync = require('./src-electron/services/realtimeSync.cjs');
         const httpServer = whatsappService.webhookServer.server;
@@ -401,8 +573,11 @@ app.whenReady().then(async () => {
       console.error('⚠️ WhatsApp initialization failed:', whatsappError.message);
     }
 
+    // ✅ STEP 8: Start Reminder Scheduler
     startReminderScheduler(mainWindow);
+    
     console.log('✅ Application ready!');
+    console.log('═'.repeat(60));
 
   } catch (error) {
     console.error('❌ Failed to initialize application:', error);
@@ -414,6 +589,7 @@ app.whenReady().then(async () => {
   }
 });
 
+// ✅ APP LIFECYCLE EVENTS
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
@@ -424,32 +600,32 @@ app.on('activate', () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    closeDatabase()
-      .then(() => app.quit())
-      .catch((err) => {
-        console.error('Error closing database:', err);
-        app.quit();
-      });
+    cleanup().then(() => app.quit());
   }
 });
 
 app.on('before-quit', async (event) => {
   app.isQuitting = true;
+  event.preventDefault();
+  await cleanup();
+  setImmediate(() => app.quit());
+});
 
-  if (ngrok && ngrokUrl) {
-    console.log('🔄 Disconnecting ngrok tunnel...');
-    event.preventDefault();
-    
+// ✅ CLEANUP FUNCTION
+async function cleanup() {
+  console.log('🧹 Cleaning up application resources...');
+
+  // Disconnect ngrok tunnel
+  if (ngrokManager && ngrokManager.isActive()) {
     try {
-      await ngrok.disconnect();
-      console.log('✅ Ngrok tunnel disconnected');
+      await ngrokManager.disconnect();
     } catch (error) {
       console.error('Error disconnecting ngrok:', error);
     }
   }
 
+  // Cleanup WhatsApp service
   if (whatsappService) {
-    console.log('🔄 Cleaning up WhatsApp service...');
     try {
       await whatsappService.destroy();
       console.log('✅ WhatsApp service cleaned up');
@@ -458,18 +634,18 @@ app.on('before-quit', async (event) => {
     }
   }
 
+  // Close database
   try {
     await closeDatabase();
     console.log('✅ Database closed');
   } catch (err) {
-    console.error('Error during cleanup:', err);
+    console.error('Error closing database:', err);
   }
-  
-  if (event.defaultPrevented) {
-    setImmediate(() => app.quit());
-  }
-});
 
+  console.log('✅ Cleanup complete');
+}
+
+// ✅ ERROR HANDLERS
 const IGNORED_STARTUP_TABLE_ERRORS = [
   'no such table: main.license_activation',
   'no such table: main.activation_requests',
@@ -488,7 +664,7 @@ process.on('uncaughtException', (error) => {
   }
 
   console.error('❌ Uncaught Exception:', message);
-  if (process.env.NODE_ENV === 'production' && mainWindow) {
+  if (isProduction && mainWindow) {
     dialog.showErrorBox('Application Error', `An unexpected error occurred.\n\nDetails: ${message}`);
   }
 });
@@ -500,7 +676,7 @@ process.on('unhandledRejection', (reason, promise) => {
   }
 
   console.error('❌ Unhandled Rejection:', message);
-  if (process.env.NODE_ENV === 'production' && mainWindow) {
+  if (isProduction && mainWindow) {
     dialog.showErrorBox('Application Error', `An unexpected error occurred.\n\nDetails: ${message}`);
   }
 });
