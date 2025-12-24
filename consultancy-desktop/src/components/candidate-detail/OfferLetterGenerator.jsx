@@ -61,10 +61,9 @@ function OfferLetterGenerator({user, candidateId, jobId }) {
   }
 
   return (
-    <div style={{ padding: '1.5rem', background: 'var(--bg-secondary)', borderRadius: 'var(--border-radius)' }}>
+    <div className="detail-card">
       <h3><FiFileText /> 📜 Generate Job Offer Letter</h3>
-      
-      <div className="form-grid" style={{ gap: '15px' }}>
+      <div className="form-grid">
         <div className="form-group">
           <label>💰 Monthly Salary (Required)</label>
           <input type="number" name="monthlySalary" value={formData.monthlySalary} onChange={handleFormChange} />

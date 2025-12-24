@@ -789,29 +789,39 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
     }
   });
 
-  // Mark conversation messages as read
+ // Mark conversation messages as read
 ipcMain.handle('whatsapp:mark-as-read', async (event, conversationId) => {
   try {
     console.log('📖 Marking conversation as read:', conversationId);
     
-    // Update database: set all unread messages to read
-    await new Promise((resolve, reject) => {
-      const query = `
-        UPDATE whatsapp_messages 
-        SET is_read = 1 
-        WHERE conversation_id = ? AND is_read = 0
-      `;
-      
-      mainDb.run(query, [conversationId], function(err) {
-        if (err) {
-          console.error('❌ Failed to mark messages as read:', err);
-          reject(err);
-        } else {
-          console.log(`✅ Marked ${this.changes} messages as read`);
-          resolve();
-        }
+    const db = getDatabase(); // ✅ FIX: Get database instance
+    
+    // ✅ FIX: Use dbRun instead of mainDb.run
+    const result = await dbRun(
+      db,
+      `UPDATE whatsapp_messages 
+       SET is_read = 1 
+       WHERE conversation_id = ? AND is_read = 0`,
+      [conversationId]
+    );
+    
+    // ✅ Also reset unread count in conversation
+    await dbRun(
+      db,
+      `UPDATE whatsapp_conversations 
+       SET unread_count = 0, updated_at = datetime('now', 'localtime')
+       WHERE id = ?`,
+      [conversationId]
+    );
+    
+    console.log(`✅ Marked messages as read for conversation ${conversationId}`);
+    
+    // ✅ Broadcast update via Socket.IO
+    if (global.realtimeSync) {
+      global.realtimeSync.broadcast('whatsapp:conversation-read', { 
+        conversationId 
       });
-    });
+    }
     
     return { success: true };
   } catch (error) {
@@ -819,6 +829,7 @@ ipcMain.handle('whatsapp:mark-as-read', async (event, conversationId) => {
     return { success: false, error: error.message };
   }
 });
+
 
 
   ipcMain.handle('whatsapp:setWhatsAppNumber', async (event, whatsappNumber) => {

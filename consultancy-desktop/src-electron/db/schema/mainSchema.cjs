@@ -100,6 +100,7 @@ dbInstance.run(`
     read_at TEXT,
     reaction_json TEXT,
     error_message TEXT,
+    is_read TEXT,
     created_at TEXT DEFAULT (datetime('now', 'localtime')),
     is_deleted INTEGER DEFAULT 0,
     FOREIGN KEY (conversation_id) REFERENCES whatsapp_conversations(id) ON DELETE CASCADE

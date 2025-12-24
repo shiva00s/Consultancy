@@ -20,6 +20,16 @@ class NotificationService {
 
       this.enabled = true;
 
+      // Prompt for desktop notification permission once (developer-friendly)
+      try {
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+          const granted = await this.requestPermission();
+          if (granted) console.log('Desktop notification permission granted');
+        }
+      } catch (permErr) {
+        console.warn('Requesting notification permission failed', permErr);
+      }
+
       if (typeof api.getNotifications === 'function') {
         await this.loadNotifications();
       }
@@ -213,7 +223,25 @@ async checkReminders() {
       this.unreadCount += 1;
     }
     this.notifyListeners();
-    // desktop toast removed here as well
+    // show a desktop notification when permission granted
+    try {
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        const title = notification.title || 'Notification';
+        const body = notification.message || '';
+        try {
+          const n = new Notification(title, { body });
+          n.onclick = () => {
+            try {
+              if (window && window.focus) window.focus();
+            } catch (e) {}
+          };
+        } catch (e) {
+          console.warn('Failed to show desktop notification', e);
+        }
+      }
+    } catch (err) {
+      console.warn('Desktop notification check failed', err);
+    }
   }
 
   subscribe(callback) {

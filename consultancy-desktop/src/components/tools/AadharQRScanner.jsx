@@ -88,25 +88,22 @@ const AadharQRScanner = forwardRef(({ onQRData }, ref) => { // ✅ Changed from 
     <div>
       <div id="reader-hidden" style={{ display: 'none' }}></div>
 
-      <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '12px' }}>
+      <div style={{ textAlign: 'center', marginBottom: '12px' }}>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', marginBottom: '8px' }}>
           Upload an image of the Aadhaar QR Code to verify details and auto-fill.
         </p>
 
         {previewUrl && (
-          <div style={{ marginBottom: '12px' }}>
+          <div style={{ marginBottom: '6px', textAlign: 'center' }}>
             <img 
               src={previewUrl} 
               alt="Aadhaar Preview" 
+              className="scanner-preview-img"
               style={{ 
-                maxWidth: '220px', 
-                maxHeight: '160px', 
-                borderRadius: '12px', 
-                border: '2px solid var(--border-color)',
-                objectFit: 'contain'
+                border: '2px solid var(--border-color)'
               }} 
             />
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '6px' }}>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
               Preview.
             </p>
           </div>
@@ -126,19 +123,19 @@ const AadharQRScanner = forwardRef(({ onQRData }, ref) => { // ✅ Changed from 
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            padding: '10px 20px',
+            padding: '8px 14px',
             background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
             color: '#ffffff',
             borderRadius: '999px',
             fontWeight: '600',
-            fontSize: '0.9rem',
+            fontSize: '0.85rem',
             cursor: 'pointer',
             border: 'none',
-            boxShadow: '0 6px 20px rgba(59, 130, 246, 0.4)',
-            transition: 'all 0.25s ease'
+            boxShadow: '0 6px 14px rgba(59, 130, 246, 0.32)',
+            transition: 'all 0.2s ease'
           }}
         >
-          <FiCamera size={18} />
+          <FiCamera size={16} />
           Choose QR File
         </label>
       </div>
@@ -160,24 +157,18 @@ const AadharQRScanner = forwardRef(({ onQRData }, ref) => { // ✅ Changed from 
       )}
 
       {scanResult && !error && (
-        <div style={{ 
-          padding: '16px', 
-          background: 'rgba(34, 197, 94, 0.1)', 
-          borderRadius: '12px', 
-          border: '1px solid rgba(34, 197, 94, 0.3)',
-          marginTop: '12px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-            <FiCheckCircle size={20} color="#22c55e" />
-            <strong style={{ color: '#22c55e', fontSize: '1rem' }}>Data Verified from QR</strong>
+        <div className="scanner-verified">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <FiCheckCircle size={16} color="#22c55e" />
+            <strong style={{ color: '#22c55e', fontSize: '0.95rem' }}>Data Verified from QR</strong>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.88rem' }}>
+          <div className="scanner-result-grid">
             <div><strong>UID (Last 4):</strong> ...{scanResult.uid?.slice(-4)}</div>
             <div><strong>Name:</strong> {scanResult.name}</div>
             <div><strong>YOB:</strong> {scanResult.yob}</div>
             <div><strong>Gender:</strong> {scanResult.gender}</div>
-            <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ gridColumn: '1 / -1', fontSize: '0.8rem' }}>
               <strong>Address:</strong> {scanResult.co}, {scanResult.vtc}, {scanResult.pc}
             </div>
           </div>

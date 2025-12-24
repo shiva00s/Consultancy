@@ -1,4 +1,4 @@
-// src-electron/services/twilioWebhookServer.cjs
+// FILE: src-electron/services/twilioWebhookServer.cjs
 
 const express = require('express');
 const crypto = require('crypto');
@@ -21,7 +21,13 @@ class TwilioWebhookServer {
     this.server = null;
     this.authToken = null;
     this.accountSid = null;
-    this.ngrokUrl = null;
+    this.ngrokUrl = null; // ✅ Will be set from electron.cjs
+  }
+
+  // ✅ NEW: Method to set ngrok URL from electron.cjs
+  setNgrokUrl(url) {
+    this.ngrokUrl = url;
+    console.log('🌐 Public URL updated in webhook server:', this.ngrokUrl);
   }
 
   async loadNgrokUrl() {
@@ -32,7 +38,7 @@ class TwilioWebhookServer {
       );
       if (result && result.value) {
         this.ngrokUrl = result.value;
-        console.log('✅ Loaded ngrok URL:', this.ngrokUrl);
+        console.log('✅ Loaded ngrok URL from database:', this.ngrokUrl);
       } else {
         console.log('⚠️ No ngrok URL configured, will use localhost');
         this.ngrokUrl = 'http://127.0.0.1:3001';
@@ -70,16 +76,16 @@ class TwilioWebhookServer {
       this.authToken = authToken;
       this.accountSid = accountSid;
       
+      // ✅ Load existing ngrok URL from database (if available)
       await this.loadNgrokUrl();
       
       this.app = express();
       
-      // ✅ CRITICAL FIX 1: ADD CORS MIDDLEWARE FIRST
+      // ✅ CORS MIDDLEWARE FIRST
       this.app.use((req, res, next) => {
-        // Allow requests from any origin (for Electron app)
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, ngrok-skip-browser-warning');
         res.setHeader('Access-Control-Allow-Credentials', 'true');
         
         // Handle preflight requests
@@ -99,11 +105,12 @@ class TwilioWebhookServer {
         res.json({ 
           status: 'ok', 
           message: 'Twilio webhook server running',
-          ngrokUrl: this.ngrokUrl 
+          ngrokUrl: this.ngrokUrl,
+          timestamp: new Date().toISOString()
         });
       });
 
-      // ✅ CRITICAL FIX 2: JWT-secured file serving with CORS
+      // ✅ JWT-secured file serving with CORS
       this.app.get('/public/files/:token/:filename', (req, res) => {
         this.serveFile(req, res);
       });
@@ -118,13 +125,22 @@ class TwilioWebhookServer {
         this.handleStatusCallback(req, res);
       });
 
+      // ✅ Create HTTP server (no ngrok initialization here)
       this.server = this.app.listen(this.port, '0.0.0.0', () => {
         console.log(`✅ Twilio webhook server listening on port ${this.port}`);
         console.log(`📍 Health check: http://localhost:${this.port}/health`);
         console.log(`📍 File server: http://localhost:${this.port}/public/files/`);
-        console.log(`🌐 Public URL: ${this.ngrokUrl}`);
+        
+        if (this.ngrokUrl) {
+          console.log(`🌐 Public URL: ${this.ngrokUrl}`);
+        } else {
+          console.log(`⚠️ Public URL not yet configured (waiting for ngrok)`);
+        }
+        
         console.log(`✅ CORS enabled for all origins`);
       });
+
+      return this.server; // ✅ Return server for Socket.IO attachment in electron.cjs
     } catch (error) {
       console.error('❌ Failed to initialize webhook server:', error);
       throw error;
@@ -137,6 +153,10 @@ class TwilioWebhookServer {
       const decodedFilename = decodeURIComponent(filename);
       
       console.log('📂 File request:', decodedFilename);
+      
+      // ✅ Add ngrok bypass headers FIRST
+      res.setHeader('ngrok-skip-browser-warning', 'true');
+      res.setHeader('User-Agent', 'WhatsAppClient');
       
       // ✅ Verify JWT token
       let decoded;
@@ -194,16 +214,18 @@ class TwilioWebhookServer {
         '.doc': 'application/msword',
         '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         '.xls': 'application/vnd.ms-excel',
-        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        '.txt': 'text/plain'
       };
       const contentType = contentTypes[ext] || 'application/octet-stream';
 
-      // ✅ CRITICAL: Set CORS headers for images
+      // ✅ Set all required headers including ngrok bypass
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET');
       res.setHeader('Content-Type', contentType);
       res.setHeader('Cache-Control', 'public, max-age=86400');
       res.setHeader('Content-Disposition', `inline; filename="${decodedFilename}"`);
+      res.setHeader('ngrok-skip-browser-warning', 'true');
       
       const stat = fs.statSync(filePath);
       res.setHeader('Content-Length', stat.size);
@@ -383,7 +405,7 @@ class TwilioWebhookServer {
       );
 
       if (!candidate) {
-        console.warn('⚠️ No candidate found');
+        console.warn('⚠️ No candidate found for phone:', phoneNumber);
         return res.status(200).send('OK');
       }
 
@@ -536,9 +558,10 @@ class TwilioWebhookServer {
   }
 
   getWebhookUrl(publicUrl) {
+    const baseUrl = publicUrl || this.ngrokUrl || `http://localhost:${this.port}`;
     return {
-      incoming: `${publicUrl}/whatsapp/webhook`,
-      status: `${publicUrl}/whatsapp/status`
+      incoming: `${baseUrl}/whatsapp/webhook`,
+      status: `${baseUrl}/whatsapp/status`
     };
   }
 }

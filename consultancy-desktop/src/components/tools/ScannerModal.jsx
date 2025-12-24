@@ -1,10 +1,48 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { FiX } from 'react-icons/fi';
 import AadharQRScanner from './AadharQRScanner';
 import PassportScanner from './PassportScanner';
 import '../../css/ScannerModal.css';
 
 function ScannerModal({ type, resetKey, onClose, onQRData, onPassportData }) {
+  const [aadhaarResult, setAadhaarResult] = useState(null);
+  const [passportResult, setPassportResult] = useState(null);
+
+  const aadhaarRef = useRef(null);
+  const passportRef = useRef(null);
+
+  const handleAadhaar = (data, file) => {
+    // collect result but do NOT call parent yet
+    setAadhaarResult({ data, file });
+  };
+
+  const handlePassport = (payload) => {
+    // collect result but do NOT call parent yet
+    setPassportResult(payload);
+  };
+
+  const resetCollected = () => {
+    setAadhaarResult(null);
+    setPassportResult(null);
+    // also reset child scanner UI/previews
+    try { aadhaarRef.current && aadhaarRef.current.reset && aadhaarRef.current.reset(); } catch(e) {}
+    try { passportRef.current && passportRef.current.reset && passportRef.current.reset(); } catch(e) {}
+  };
+
+  const confirmAndClose = () => {
+    // call original callbacks (preserve existing logic) then close
+    if (aadhaarResult && onQRData) onQRData(aadhaarResult.data, aadhaarResult.file);
+    if (passportResult && onPassportData) onPassportData(passportResult);
+    onClose && onClose();
+  };
+
+  const canConfirm = (() => {
+    if (type === 'aadhaar') return !!aadhaarResult;
+    if (type === 'passport') return !!passportResult;
+    // if other or both modes, require at least one present
+    return !!aadhaarResult || !!passportResult;
+  })();
+
   return (
     <div className="scanner-modal-overlay" onClick={onClose}>
       <div className="scanner-modal-content" onClick={(e) => e.stopPropagation()}>
@@ -23,8 +61,14 @@ function ScannerModal({ type, resetKey, onClose, onQRData, onPassportData }) {
             </div>
             <AadharQRScanner 
               key={`aadhaar-modal-${resetKey}`} 
-              onQRData={onQRData}
+              onQRData={handleAadhaar}
+              ref={aadhaarRef}
             />
+
+            <div className="scanner-actions">
+              <button className="btn btn-outline" onClick={resetCollected} type="button">Reset</button>
+              <button className="btn btn-primary" onClick={confirmAndClose} type="button" disabled={!canConfirm}>Confirm & Proceed</button>
+            </div>
           </div>
         )}
 
@@ -39,8 +83,14 @@ function ScannerModal({ type, resetKey, onClose, onQRData, onPassportData }) {
             </div>
             <PassportScanner 
               key={`passport-modal-${resetKey}`} 
-              onScanSuccess={onPassportData}
+              onScanSuccess={handlePassport}
+              ref={passportRef}
             />
+
+            <div className="scanner-actions">
+              <button className="btn btn-outline" onClick={resetCollected} type="button">Reset</button>
+              <button className="btn btn-primary" onClick={confirmAndClose} type="button" disabled={!canConfirm}>Confirm & Proceed</button>
+            </div>
           </div>
         )}
       </div>

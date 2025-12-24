@@ -385,9 +385,8 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
           </div>
           <button
             type="submit"
-            className="btn-full-width"
+            className="btn-full-width btn-span-2"
             disabled={isSavingPayment}
-            style={{ gridColumn: 'span 2' }}
           >
             <FiPlus />
             {isSavingPayment ? '⏳ Adding...' : '➕ Add Payment Record'}

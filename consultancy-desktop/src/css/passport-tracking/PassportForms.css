@@ -58,6 +58,29 @@
   margin-bottom: 24px;
 }
 
+/* Keep the candidate info header/bar in a single horizontal row.
+   Use no-wrap with horizontal scrolling if the container isn't wide enough. */
+.candidate-info-section .candidate-info-header,
+.candidate-info-section .candidate-info-bar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.candidate-info-section .candidate-info-header .header-label,
+.candidate-info-section .candidate-info-bar .info-item {
+  flex: 0 0 auto; /* prevent items from shrinking below their content */
+  min-width: 200px; /* adjust as needed to keep label + value readable */
+}
+
+/* Hide extra left-border on info-items when scrolled */
+.candidate-info-section .candidate-info-bar .info-item:first-child {
+  border-left-width: 3px;
+}
+
 .candidate-info-header {
   display: grid;
   grid-template-columns: repeat(5, 1fr);

@@ -24,6 +24,8 @@ const initialTextData = {
   passportNo: '',
   passportExpiry: '',
   contact: '',
+  nationality: '',
+  gender: '',
   aadhar: '',
   status: 'New',
   notes: '',
@@ -108,9 +110,12 @@ function AddCandidatePage() {
     if (!data || !data.passport || !data.passport.passportNo) return;
     setTextData((prev) => ({
       ...prev,
+      name: data.passport.name || prev.name,
       passportNo: data.passport.passportNo || prev.passportNo,
       passportExpiry: sanitizeDate(data.passport.expiry) || prev.passportExpiry,
       dob: sanitizeDate(data.passport.dob) || prev.dob,
+      nationality: data.passport.nationality || prev.nationality,
+      gender: data.passport.gender || prev.gender,
     }));
 
     if (data.fileObject) {
@@ -249,23 +254,28 @@ function AddCandidatePage() {
     <div className="add-candidate-container fade-in">
       <header className="add-candidate-header">
         <div className="header-left">
-          <div className="avatar-circle">
-            {profilePreview ? (
-              <img src={profilePreview} alt="Profile preview" className="avatar-preview" />
-            ) : (
-              <FiUser size={20} />
-            )}
-
-            <label htmlFor="profile-photo-input" className="profile-upload-overlay" title="Upload profile photo">
-              <span>📸</span>
-            </label>
-            <input id="profile-photo-input" type="file" accept="image/*" onChange={handleProfileFileChange} style={{ display: 'none' }} />
-          </div>
           <div>
             <h1>New Candidate 🚀</h1>
             <p className="header-subtitle">
               Scan documents or manually fill the form. All data auto-saved below.
             </p>
+          </div>
+        </div>
+
+        <div className="header-center">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div className="avatar-circle">
+              {profilePreview ? (
+                <img src={profilePreview} alt="Profile preview" className="avatar-preview" />
+              ) : (
+                <FiUser size={20} />
+              )}
+
+              <label htmlFor="profile-photo-input" className="profile-upload-overlay" title="Upload profile photo">
+                <span>📸</span>
+              </label>
+              <input id="profile-photo-input" type="file" accept="image/*" onChange={handleProfileFileChange} style={{ display: 'none' }} />
+            </div>
           </div>
         </div>
 
@@ -414,14 +424,14 @@ function AddCandidatePage() {
             </select>
           </div>
 
-          <div className="form-group full-width">
+          <div className="form-group" style={{ gridColumn: 'span 2' }}>
             <label>📝 Notes</label>
-            <textarea
+            <input
+              type="text"
               name="notes"
               value={textData.notes}
               onChange={handleTextChange}
               placeholder="Additional information..."
-              rows={3}
             />
           </div>
         </div>

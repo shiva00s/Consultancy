@@ -116,7 +116,7 @@
 }
 
 .detail-header {
-  padding: 1.25rem 1.5rem;
+  padding: 0.9rem 1rem;
   background: var(--bg-secondary);
   border-bottom: 2px solid var(--border-color);
   display: flex;
@@ -147,10 +147,10 @@
 }
 
 .detail-card .form-grid {
-  padding: 1.5rem;
+  padding: 0.9rem 0.9rem 1rem 0.9rem;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 0.75rem 0.9rem;
   align-items: start;
 }
 
@@ -158,7 +158,7 @@
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 
 /* Allow full-width form items (e.g., notes, textareas) */
@@ -180,9 +180,9 @@
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--border-color);
-  padding: 10px 0;
+  padding: 6px 0;
   color: var(--text);
-  font-size: 1rem;
+  font-size: 0.95rem;
   cursor: default;
   box-shadow: none;
   border-radius: 0;
@@ -191,11 +191,20 @@
 .form-group:has(input:read-only) label,
 .form-group:has(textarea:read-only) label {
   color: var(--primary-color);
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.6px;
   font-weight: 700;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+/* Compact inputs when editing/viewing */
+.form-group input,
+.form-group textarea,
+.form-group select {
+  padding: 6px 8px;
+  font-size: 0.95rem;
+  border-radius: 6px;
 }
 
 /* === Delete Zone === */
@@ -311,6 +320,156 @@
   display: flex;
   gap: 6px;
 }
+
+/* Ensure all candidate-detail forms use the compact 4-column grid */
+.form-grid,
+.edit-form-grid,
+.visa-form,
+.travel-form,
+.finance-form,
+.offer-form,
+.profile-form {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 0.75rem 0.9rem;
+  align-items: start;
+}
+
+/* Ensure visa/interview specific form uses strict 4-column layout and fields can shrink */
+.detail-card .visa-form.form-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.detail-card .form-field {
+  min-width: 0; /* allow grid items to shrink and avoid wrapping */
+}
+
+.detail-card .form-field .form-input,
+.detail-card .form-field select,
+.detail-card .form-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Responsive: collapse columns on narrower screens */
+@media (max-width: 1100px) {
+  .form-grid,
+  .edit-form-grid,
+  .visa-form,
+  .travel-form,
+  .finance-form,
+  .offer-form,
+  .profile-form {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .form-grid,
+  .edit-form-grid,
+  .visa-form,
+  .travel-form,
+  .finance-form,
+  .offer-form,
+  .profile-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Ensure form groups and inputs don't cause column wrapping */
+.detail-card .form-group {
+  min-width: 0;
+}
+
+.detail-card .form-group input,
+.detail-card .form-group select,
+.detail-card .form-group textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Utility classes for candidate-detail components */
+.hidden-input {
+  display: none !important;
+}
+
+.file-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.file-progress-wrapper {
+  flex: 1;
+  margin-left: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.progress-bar-bg {
+  height: 8px;
+  background: #1f2937;
+  border-radius: 6px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: #3b82f6;
+  width: 0%;
+  transition: width 0.25s ease;
+}
+
+.progress-meta {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 6px;
+}
+
+.btn-full-width {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+/* span utilities */
+.btn-span-2 {
+  grid-column: span 2;
+}
+
+/* Alias older form-field to new form-group styles for consistency */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* Allow full-width items when using the older `form-field` class */
+.form-field.full-width {
+  grid-column: 1 / -1;
+}
+
+/* Inline edit helpers */
+.edit-field-full {
+  grid-column: 1 / -1;
+}
+
+/* Inputs inside .form-field should match compact styles */
+.form-field input,
+.form-field textarea,
+.form-field select {
+  padding: 6px 8px;
+  font-size: 0.95rem;
+  border-radius: 6px;
+}
+
+/* Communication stat icons backgrounds (used in CommunicationHistory) */
+.stat-icon.total { background: #E3F2FD; }
+.stat-icon.whatsapp { background: #E8F5E9; }
+.stat-icon.calls { background: #FFF3E0; }
+.stat-icon.emails { background: #FCE4EC; }
 
 /* === Payment Item (Financial Specific) === */
 .payment-item {
@@ -584,9 +743,11 @@
     padding: 1.25rem;
   }
 
+  /* Keep profile form at 4 columns on large screens (down to 1100px).
+     The narrower breakpoints below will switch to 2 and 1 columns. */
   .detail-card .form-grid {
     padding: 1.25rem;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(220px, 1fr));
   }
 
   .module-list {

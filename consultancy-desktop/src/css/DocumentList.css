@@ -65,8 +65,27 @@
 /* ===== GRID LAYOUT ===== */
 .doclist-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1.25rem;
+}
+
+/* Responsive: 3 cols, 2 cols, then 1 */
+@media (max-width: 1400px) {
+  .doclist-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .doclist-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .doclist-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ===== CATEGORY CARD ===== */
@@ -76,6 +95,8 @@
   border: 1px solid var(--border-color);
   padding: 1rem;
   transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .doclist-category:hover {
@@ -124,6 +145,14 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  flex: 1 1 auto;
+}
+
+/* Make doclist-item stretch so category cards align heights */
+.doclist-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .doclist-item {

@@ -343,14 +343,14 @@ function CandidateTravel({ user, candidateId, candidateName }) {
                 ref={fileInputRef}
                 accept=".pdf,.jpg,.jpeg,.png"
                 onChange={handleFileChange}
-                style={{ display: 'none' }}
+                className="hidden-input"
               />
               <label htmlFor="ticket_file" className="file-input-label">
                 <FiSend /> Choose File
               </label>
 
               {travelForm.ticket_file && (
-                <div className="file-preview-row" style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                <div className="file-preview-row">
                   {ticketPreview ? (
                     ticketPreview.type && ticketPreview.type.startsWith('image/') ? (
                       <div className="du-file-thumb">
@@ -369,11 +369,14 @@ function CandidateTravel({ user, candidateId, candidateName }) {
                   </div>
                   {/* Inline progress for ticket upload */}
                   {travelFileProgress && (travelFileProgress.fileName === travelForm.ticket_file.name || travelUploadId) && (
-                    <div style={{ flex: 1, marginLeft: 12 }}>
-                      <div style={{ height: 8, background: '#1f2937', borderRadius: 6, overflow: 'hidden' }}>
-                        <div style={{ width: `${travelFileProgress.total ? Math.round((travelFileProgress.transferred / travelFileProgress.total) * 100) : 0}%`, height: '100%', background: '#3b82f6' }} />
+                    <div className="file-progress-wrapper">
+                      <div className="progress-bar-bg">
+                        <div
+                          className="progress-bar-fill"
+                          style={{ width: `${travelFileProgress.total ? Math.round((travelFileProgress.transferred / travelFileProgress.total) * 100) : 0}%` }}
+                        />
                       </div>
-                      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>{travelFileProgress.total ? `${Math.round((travelFileProgress.transferred / travelFileProgress.total) * 100)}%` : ''} {travelFileProgress.status === 'error' ? ' • Error' : travelFileProgress.status === 'completed' ? ' • Done' : ''}</div>
+                      <div className="progress-meta">{travelFileProgress.total ? `${Math.round((travelFileProgress.transferred / travelFileProgress.total) * 100)}%` : ''} {travelFileProgress.status === 'error' ? ' • Error' : travelFileProgress.status === 'completed' ? ' • Done' : ''}</div>
                     </div>
                   )}
                     {/* Cancel button for ticket upload */}
@@ -415,7 +418,7 @@ function CandidateTravel({ user, candidateId, candidateName }) {
             />
           </div>
 
-          <button type="submit" className="btn-full-width" disabled={isSaving} style={{ gridColumn: '1 / -1' }}>
+          <button type="submit" className="btn-full-width" disabled={isSaving}>
             <FiPlus /> {isSaving ? 'Saving...' : 'Add Travel Entry'}
           </button>
         </form>

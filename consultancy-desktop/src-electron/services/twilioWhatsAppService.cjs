@@ -321,6 +321,17 @@ async sendMessage(phoneNumber, content, localMediaPaths, ngrokUrl = null) {
     }
 
     // Send message via Twilio
+    // Ensure Twilio will POST status updates back to our webhook server
+    try {
+      if (!messageOptions.statusCallback) {
+        const callbackBase = ngrokUrl || this.ngrokUrl || 'http://127.0.0.1:3001';
+        messageOptions.statusCallback = `${callbackBase.replace(/\/$/, '')}/whatsapp/status`;
+        console.log('🔔 Using statusCallback for message delivery updates:', messageOptions.statusCallback);
+      }
+    } catch (cbErr) {
+      console.warn('⚠️ Could not set statusCallback:', cbErr?.message || cbErr);
+    }
+
     const message = await this.client.messages.create(messageOptions);
     
     console.log('✅ Message sent:', message.sid);
@@ -491,12 +502,81 @@ async getStatus() {
   }
 
   // ========================================
-  // Get webhook URL
-  // ========================================
-  getWebhookUrl(publicUrl = 'http://localhost:3001') {
-    if (!this.webhookServer) return null;
-    return this.webhookServer.getWebhookUrl(publicUrl);
+// Get webhook URL
+// ========================================
+getWebhookUrl(publicUrl = 'http://localhost:3001') {
+  if (!this.webhookServer) return null;
+  return this.webhookServer.getWebhookUrl(publicUrl);
+}
+
+// ========================================
+// 🆕 UPDATE TWILIO WEBHOOK URL
+// ========================================
+async updateWebhookUrl(ngrokUrl) {
+  try {
+    if (!this.client || !this.whatsappNumber) {
+      console.warn('⚠️ Cannot update webhook: Twilio not initialized');
+      return { success: false, error: 'Twilio not initialized' };
+    }
+
+    const webhookUrls = {
+      incoming: `${ngrokUrl}/whatsapp/webhook`,
+      status: `${ngrokUrl}/whatsapp/status`
+    };
+
+    console.log('🔄 Updating Twilio webhook URLs...');
+    console.log('  Incoming:', webhookUrls.incoming);
+    console.log('  Status:', webhookUrls.status);
+
+    // Get the phone number SID
+    const phoneNumbers = await this.client
+      .incomingPhoneNumbers
+      .list({ phoneNumber: this.whatsappNumber.replace('whatsapp:', '') });
+
+    if (phoneNumbers.length === 0) {
+      throw new Error('Phone number not found in Twilio account');
+    }
+
+    const phoneNumberSid = phoneNumbers[0].sid;
+
+    // Update the webhook URLs
+    await this.client
+      .incomingPhoneNumbers(phoneNumberSid)
+      .update({
+        smsUrl: webhookUrls.incoming,
+        smsMethod: 'POST',
+        statusCallback: webhookUrls.status,
+        statusCallbackMethod: 'POST'
+      });
+
+    console.log('✅ Webhook URLs updated successfully');
+    
+    // Save to database
+    await dbRun(
+      this.db,
+      `INSERT OR REPLACE INTO system_settings (key, value) VALUES ('twilioNgrokUrl', ?)`,
+      [ngrokUrl]
+    );
+
+    // Update webhook server's ngrok URL
+    if (this.webhookServer) {
+      this.webhookServer.ngrokUrl = ngrokUrl;
+    }
+
+    return { 
+      success: true, 
+      webhookUrls 
+    };
+  } catch (error) {
+    console.error('❌ Failed to update webhook URLs:', error.message);
+    return { 
+      success: false, 
+      error: error.message 
+    };
   }
+}
+
+
 }
 
 module.exports = TwilioWhatsAppService;

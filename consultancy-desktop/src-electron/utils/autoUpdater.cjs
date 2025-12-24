@@ -84,23 +84,7 @@ class AutoUpdater {
     this.mainWindow.webContents.send('auto-updater:downloaded', info);
   }
 
-  // Allow renderer to request updater actions back to main (download or install)
-  ipcMain.handle('auto-updater-action', async (event, { action }) => {
-    try {
-      if (!autoUpdater) return { success: false, error: 'Auto-updater not available' };
-      if (action === 'download') {
-        autoUpdater.downloadUpdate();
-        return { success: true };
-      }
-      if (action === 'install') {
-        autoUpdater.quitAndInstall(false, true);
-        return { success: true };
-      }
-      return { success: false, error: 'Unknown action' };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
-  });
+ 
 
   sendStatusToWindow(text) {
     console.log(text);
@@ -130,7 +114,25 @@ class AutoUpdater {
       }
     }
   }
-}
+} 
+
+// Allow renderer to request updater actions back to main (download or install)
+ipcMain.handle('auto-updater-action', async (event, { action }) => {
+  try {
+    if (!autoUpdater) return { success: false, error: 'Auto-updater not available' };
+    if (action === 'download') {
+      autoUpdater.downloadUpdate();
+      return { success: true };
+    }
+    if (action === 'install') {
+      autoUpdater.quitAndInstall(false, true);
+      return { success: true };
+    }
+    return { success: false, error: 'Unknown action' };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
 
 module.exports = { AutoUpdater, hasElectronUpdater };
  

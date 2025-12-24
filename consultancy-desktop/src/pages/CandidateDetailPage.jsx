@@ -517,14 +517,15 @@ function CandidateDetailPage({ user, flags }) {
               readOnly={!isEditing}
             />
           </div>
-          <div className="form-group full-width">
+          <div className="form-group span-2">
             <label>📝 Notes</label>
-            <textarea
+            <input
+              type="text"
               name="notes"
-              value={formData.notes || ""}
+              value={formData.notes || formData.dob || ""}
               onChange={handleTextChange}
               readOnly={!isEditing}
-            ></textarea>
+            />
           </div>
         </div>
       </div>

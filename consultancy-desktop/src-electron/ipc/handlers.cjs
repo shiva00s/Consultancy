@@ -2371,38 +2371,73 @@ ipcMain.handle('get-activation-status', async () => {
         return `${fullYear}-${month}-${day}`;
     };
     const parsePassportDataRobust = (rawText) => {
-        if (!rawText) return null;
-// 1. Aggressive Cleanup: Remove spaces and special chars, keep only Alphanumeric and <
-        const cleanText = rawText.toUpperCase().replace(/[^A-Z0-9<]/g, '');
-        /**
-         * PASSPORT (TD3) REGEX PATTERN:
-         * Group 1: Passport No (9 chars) -> [A-Z0-9<]{9}
-         * Followed by: Check Digit (1) -> [\dO] (Allow 'O' error)
-         * Followed by: Nationality (3) -> [A-Z<]{3}
-         * Group 2: DOB (6 chars) -> [\dO]{6}
-         * Followed by: Check Digit (1) -> [\dO]
-    
-         * Followed by: Sex (1) -> [FM<]
-         * Group 3: Expiry (6 chars) -> [\dO]{6}
-         */
-        const pattern = /([A-Z0-9<]{9})[\dO][A-Z<]{3}([\dO]{6})[\dO][FM<]([\dO]{6})[\dO]/;
-        const match = cleanText.match(pattern);
+      if (!rawText) return null;
 
-        if (match) {
-            const rawPassport = match[1].replace(/</g, '');
-// Remove padding '<'
-            const rawDob = match[2];
-            const rawExpiry = match[3];
+      // Try to find explicit MRZ lines first (TD3 = 2 lines, ~44 chars each)
+      const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      let l1 = null, l2 = null;
 
-            return {
-                documentType: 'PASSPORT',
-                passportNo: rawPassport,
-                dob: convertMRZDate(rawDob),
-                expiry: convertMRZDate(rawExpiry),
-            };
+      for (let i = 0; i < lines.length - 1; i++) {
+        const a = lines[i].replace(/\s+/g, '').toUpperCase();
+        const b = lines[i + 1].replace(/\s+/g, '').toUpperCase();
+        if (/[A-Z0-9<]{30,}/.test(a) && /[A-Z0-9<]{30,}/.test(b)) {
+          l1 = a; l2 = b; break;
         }
-        
-        return null;
+      }
+
+      // If found MRZ-like pair, parse fields using TD3 offsets
+      if (l1 && l2) {
+        try {
+          const passportNoRaw = (l2.slice(0, 9) || '').replace(/</g, '').trim();
+          const nationalityRaw = (l2.slice(10, 13) || '').replace(/</g, '').trim();
+          const dobRaw = (l2.slice(13, 19) || '').replace(/O/g, '0');
+          const sexRaw = (l2.slice(20, 21) || '').replace(/</g, '').trim();
+          const expiryRaw = (l2.slice(21, 27) || '').replace(/O/g, '0');
+
+          // Name parsing from line1 (P<ISSUINGCOUNTRYSURNAME<<GIVENNAMES)
+          let name = '';
+          if (l1.startsWith('P<')) {
+            const issuer = l1.slice(2, 5);
+            const namePortion = l1.slice(5) || '';
+            const parts = namePortion.split('<<');
+            const surname = (parts[0] || '').replace(/</g, ' ').trim();
+            const given = (parts[1] || '').replace(/</g, ' ').trim();
+            name = (given ? given + ' ' + surname : surname).trim();
+          }
+
+          return {
+            documentType: 'PASSPORT',
+            passportNo: passportNoRaw || null,
+            name: name || null,
+            nationality: nationalityRaw || null,
+            gender: (sexRaw === 'M' || sexRaw === 'F') ? sexRaw : null,
+            dob: convertMRZDate(dobRaw),
+            expiry: convertMRZDate(expiryRaw),
+          };
+        } catch (e) {
+          // fall through to fallback parser
+        }
+      }
+
+      // Fallback: aggressive clean and regex for minimal fields (passportNo, dob, expiry)
+      const cleanText = rawText.toUpperCase().replace(/[^A-Z0-9<]/g, '');
+      const pattern = /([A-Z0-9<]{9})[\dO][A-Z<]{3}([\dO]{6})[\dO][FM<]([\dO]{6})[\dO]/;
+      const match = cleanText.match(pattern);
+
+      if (match) {
+        const rawPassport = match[1].replace(/</g, '');
+        const rawDob = match[2];
+        const rawExpiry = match[3];
+
+        return {
+          documentType: 'PASSPORT',
+          passportNo: rawPassport || null,
+          dob: convertMRZDate(rawDob),
+          expiry: convertMRZDate(rawExpiry),
+        };
+      }
+
+      return null;
     };
     ipcMain.handle('ocr-scan-passport', async (event, { fileBuffer }) => { 
         if (!fileBuffer) { 
@@ -3415,8 +3450,24 @@ ipcMain.handle('create-notification', async (event, data) => {
       actionRequired: !!data.actionRequired,
     });
 
-    // Inform renderer so Zustand store can update
-    event.sender.send('notification-created', saved);
+    // Inform all renderer windows so Zustand stores update across app
+    try {
+      const { BrowserWindow } = require('electron');
+      BrowserWindow.getAllWindows().forEach((win) => {
+        try {
+          win.webContents.send('notification-created', saved);
+        } catch (sendErr) {
+          console.warn('Failed to send notification-created to a window', sendErr);
+        }
+      });
+    } catch (err) {
+      // Fallback to sender if anything unexpected happens
+      try {
+        event.sender.send('notification-created', saved);
+      } catch (sendErr) {
+        console.error('Failed to broadcast notification-created:', sendErr);
+      }
+    }
 
     return { success: true, notification: saved };
   } catch (err) {
@@ -3466,6 +3517,44 @@ ipcMain.handle('clear-all-notifications', async () => {
     return { success: true };
   } catch (err) {
     console.error('clear-all-notifications failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Dev helper: trigger a test notification and persist it via DB, then broadcast
+ipcMain.handle('debug-trigger-notification', async (event, payload = {}) => {
+  try {
+    const saved = await queries.createNotification({
+      title: payload.title || 'Test Notification',
+      message: payload.message || 'This is a test notification',
+      type: payload.type || 'info',
+      priority: payload.priority || 'normal',
+      link: payload.link || null,
+      candidateId: payload.candidateId || null,
+      actionRequired: !!payload.actionRequired,
+    });
+
+    // Broadcast to all windows
+    try {
+      const { BrowserWindow } = require('electron');
+      BrowserWindow.getAllWindows().forEach((win) => {
+        try {
+          win.webContents.send('notification-created', saved);
+        } catch (sendErr) {
+          console.warn('debug-trigger: failed to send to a window', sendErr);
+        }
+      });
+    } catch (bErr) {
+      try {
+        event.sender.send('notification-created', saved);
+      } catch (sendErr) {
+        console.error('debug-trigger: failed to broadcast', sendErr);
+      }
+    }
+
+    return { success: true, notification: saved };
+  } catch (err) {
+    console.error('debug-trigger-notification failed', err);
     return { success: false, error: err.message };
   }
 });

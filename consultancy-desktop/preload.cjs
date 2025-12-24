@@ -340,6 +340,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('notification-created', handler);
     return () => ipcRenderer.removeListener('notification-created', handler);
   },
+
+  // Developer: trigger a test notification (useful for integration checks)
+  debugTriggerNotification: (payload) => ipcRenderer.invoke('debug-trigger-notification', payload),
   
   // Reminders
   onReminderDue: (callback) => {

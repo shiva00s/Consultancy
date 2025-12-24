@@ -486,7 +486,7 @@ function CandidateMedical({ user, candidateId, candidateName }) {
       id="certificate_file"
       accept=".pdf,.jpg,.jpeg,.png"
       onChange={handleFileChange}
-      style={{ display: 'none' }}
+      className="hidden-input"
     />
     <label htmlFor="certificate_file" className="file-input-label">
       <FiFileText />

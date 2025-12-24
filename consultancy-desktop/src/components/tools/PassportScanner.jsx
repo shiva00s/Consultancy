@@ -69,25 +69,22 @@ const PassportScanner = forwardRef(({ onScanSuccess }, ref) => {
 
   return (
     <div>
-      <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '12px' }}>
+      <div style={{ textAlign: 'center', marginBottom: '12px' }}>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', marginBottom: '8px' }}>
           Upload a clear image of the passport (MRZ Zone). AI will extract the data.
         </p>
 
         {previewUrl && (
-          <div style={{ marginBottom: '12px' }}>
+          <div style={{ marginBottom: '6px', textAlign: 'center' }}>
             <img 
               src={previewUrl} 
               alt="Passport Preview" 
+              className="scanner-preview-img"
               style={{ 
-                maxWidth: '280px', 
-                maxHeight: '200px', 
-                borderRadius: '12px', 
-                border: '2px solid var(--border-color)',
-                objectFit: 'contain'
+                border: '2px solid var(--border-color)'
               }} 
             />
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '6px' }}>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
               Preview.
             </p>
           </div>
@@ -107,25 +104,25 @@ const PassportScanner = forwardRef(({ onScanSuccess }, ref) => {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            padding: '10px 20px',
+            padding: '8px 14px',
             background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
             color: '#ffffff',
             borderRadius: '999px',
             fontWeight: '600',
-            fontSize: '0.9rem',
+            fontSize: '0.85rem',
             cursor: 'pointer',
             border: 'none',
-            boxShadow: '0 6px 20px rgba(59, 130, 246, 0.4)',
-            transition: 'all 0.25s ease'
+            boxShadow: '0 6px 14px rgba(59, 130, 246, 0.32)',
+            transition: 'all 0.2s ease'
           }}
         >
-          <FiCamera size={18} />
+          <FiCamera size={16} />
           {scanning ? 'Scanning...' : 'Select Passport Image'}
         </label>
       </div>
 
       {scanning && (
-        <div style={{ textAlign: 'center', padding: '16px' }}>
+        <div style={{ textAlign: 'center', padding: '10px' }}>
           <FiLoader className="spin-icon" size={24} color="#3b82f6" />
           <p style={{ marginTop: '8px', color: 'var(--text-secondary)' }}>Processing...</p>
         </div>
@@ -148,19 +145,13 @@ const PassportScanner = forwardRef(({ onScanSuccess }, ref) => {
       )}
 
       {scanResult && !error && (
-        <div style={{ 
-          padding: '16px', 
-          background: 'rgba(34, 197, 94, 0.1)', 
-          borderRadius: '12px', 
-          border: '1px solid rgba(34, 197, 94, 0.3)',
-          marginTop: '12px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-            <FiCheckCircle size={20} color="#22c55e" />
-            <strong style={{ color: '#22c55e', fontSize: '1rem' }}>Passport Data Extracted</strong>
+        <div className="scanner-verified">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <FiCheckCircle size={16} color="#22c55e" />
+            <strong style={{ color: '#22c55e', fontSize: '0.95rem' }}>Passport Data Extracted</strong>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.88rem' }}>
+          <div className="scanner-result-grid">
             <div><strong>Passport No:</strong> {scanResult.passportNo}</div>
             <div><strong>Name:</strong> {scanResult.name}</div>
             <div><strong>DOB:</strong> {scanResult.dob}</div>

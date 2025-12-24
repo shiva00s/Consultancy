@@ -1,9 +1,17 @@
-// FILE: electron.cjs
+// FILE: electron.cjs (UPDATED - Smart Tunnel Detection)
 
-const { app, BrowserWindow, dialog, session } = require('electron'); // ✅ ADD session HERE
+const { app, BrowserWindow, dialog, session } = require('electron');
 const path = require('path');
+let ngrok = null;
+try {
+  ngrok = require('ngrok');
+} catch (err) {
+  console.warn('⚠️ Optional dependency "ngrok" not installed.');
+}
+const { exec } = require('child_process');
+const util = require('util');
 const { initializeCommunicationHandlers } = require('./src-electron/ipc/communicationHandlers.cjs');
-const { initializeDatabase, closeDatabase, dbAll } = require('./src-electron/db/database.cjs');
+const { initializeDatabase, closeDatabase, dbAll, dbRun } = require('./src-electron/db/database.cjs');
 const { registerIpcHandlers, startReminderScheduler } = require('./src-electron/ipc/handlers.cjs');
 const { fileManager } = require('./src-electron/utils/fileManager.cjs');
 const TwilioWhatsAppService = require('./src-electron/services/twilioWhatsAppService.cjs');
@@ -14,6 +22,81 @@ const {
   ROLES,
   FEATURES,
 } = require('./src-electron/ipc/security/permissionEngine.cjs');
+
+const execPromise = util.promisify(exec);
+
+// ✅ CHECK FOR EXISTING NGROK TUNNEL
+async function getExistingNgrokTunnel() {
+  try {
+    const response = await fetch('http://127.0.0.1:4040/api/tunnels');
+    const data = await response.json();
+    
+    if (data.tunnels && data.tunnels.length > 0) {
+      // Find the first HTTP/HTTPS tunnel
+      const httpTunnel = data.tunnels.find(t => 
+        t.proto === 'https' && t.config && t.config.addr
+      );
+      
+      if (httpTunnel) {
+        console.log('✅ Found existing ngrok tunnel:', httpTunnel.public_url);
+        return httpTunnel.public_url;
+      }
+    }
+    return null;
+  } catch (error) {
+    // Ngrok API not available
+    return null;
+  }
+}
+
+// ✅ START OR REUSE NGROK TUNNEL
+async function ensureNgrokTunnel(port, authToken) {
+  try {
+    // First, check if ngrok is already running with a tunnel
+    const existingUrl = await getExistingNgrokTunnel();
+    if (existingUrl) {
+      console.log('♻️ Reusing existing ngrok tunnel:', existingUrl);
+      return { url: existingUrl, isNew: false };
+    }
+
+    // No existing tunnel, start a new one
+    console.log(`🌐 Starting fresh ngrok tunnel for port ${port}...`);
+    
+    if (authToken) {
+      await ngrok.authtoken(authToken);
+      console.log('✅ Ngrok auth token configured');
+    }
+
+    const url = await ngrok.connect({
+      addr: port,
+      authtoken: authToken || undefined,
+      onStatusChange: status => {
+        console.log(`📡 Ngrok status: ${status}`);
+      }
+    });
+
+    console.log('✅ New ngrok tunnel created:', url);
+    return { url, isNew: true };
+
+  } catch (error) {
+    console.error('❌ Failed to ensure ngrok tunnel:', error.message);
+    throw error;
+  }
+}
+
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  console.log('⚠️ Another instance is already running. Exiting...');
+  app.quit();
+} else {
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
 
 if (process.env.NODE_ENV !== 'production') {
   process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
@@ -32,6 +115,8 @@ try {
 let mainWindow = null;
 let updater = null;
 let whatsappService = null;
+let ngrokUrl = null;
+let db = null;
 
 const permissionContext = {
   role: null,
@@ -95,14 +180,9 @@ function createWindow() {
           console.warn(`[Renderer Warning] ${message}`);
         }
         break;
-      case 'info':
-        if (process.env.NODE_ENV !== 'production') {
-          console.info(`[Renderer Info] ${message}`);
-        }
-        break;
       default:
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`[Renderer] ${message}`);
+        if (process.env.NODE_ENV !== 'production' && level === 'info') {
+          console.info(`[Renderer Info] ${message}`);
         }
     }
   });
@@ -168,19 +248,17 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
-  // ✅ FIX: Bypass ngrok browser warning for all image/media requests
   session.defaultSession.webRequest.onBeforeSendHeaders(
-    { urls: ['https://*.ngrok-free.dev/*', 'https://*.ngrok.io/*'] },
+    { urls: ['https://*.ngrok-free.dev/*', 'https://*.ngrok.io/*', 'https://*.ngrok-free.app/*'] },
     (details, callback) => {
       details.requestHeaders['ngrok-skip-browser-warning'] = 'true';
-      details.requestHeaders['User-Agent'] = 'ConsultancyApp/1.0'; // ✅ Changed to match app name
+      details.requestHeaders['User-Agent'] = 'ConsultancyApp/1.0';
       callback({ requestHeaders: details.requestHeaders });
     }
   );
 
-  // ✅ FIX: Add CORS headers to responses
   session.defaultSession.webRequest.onHeadersReceived(
-    { urls: ['https://*.ngrok-free.dev/*', 'https://*.ngrok.io/*'] },
+    { urls: ['https://*.ngrok-free.dev/*', 'https://*.ngrok.io/*', 'https://*.ngrok-free.app/*'] },
     (details, callback) => {
       callback({
         responseHeaders: {
@@ -196,15 +274,12 @@ app.whenReady().then(async () => {
   try {
     console.log('🚀 Starting Consultancy Desktop App...');
 
-    // ✅ INITIALIZE DATABASE
-    const db = await initializeDatabase();
+    db = await initializeDatabase();
     console.log('✅ Database initialized');
 
-    // ✅ INITIALIZE FILE MANAGER
     await fileManager.initialize();
     console.log('✅ File manager initialized');
 
-    // ✅ REGISTER IPC HANDLERS
     registerIpcHandlers(app, {
       permissionContext,
       ROLES,
@@ -213,21 +288,18 @@ app.whenReady().then(async () => {
     });
     console.log('✅ IPC handlers registered');
 
-    // ✅ CREATE MAIN WINDOW
     mainWindow = createWindow();
     console.log('✅ Main window created');
 
-    // ✅ INITIALIZE WHATSAPP SERVICE
     console.log('📱 Initializing WhatsApp service...');
     
     try {
-      // ✅ LOAD TWILIO CREDENTIALS FROM DATABASE
       console.log('🔑 Loading Twilio credentials from database...');
       
       const twilioSettings = await dbAll(
         db,
         `SELECT key, value FROM system_settings 
-         WHERE key IN ('twilioaccountsid', 'twilioauthtoken', 'twiliowhatsappnumber', 'twilioNgrokUrl')`
+         WHERE key IN ('twilioaccountsid', 'twilioauthtoken', 'twiliowhatsappnumber', 'twilioNgrokUrl', 'ngrokAuthToken')`
       );
 
       const settings = {};
@@ -240,18 +312,14 @@ app.whenReady().then(async () => {
       const accountSid = settings.twilioaccountsid;
       const authToken = settings.twilioauthtoken;
       const whatsappNumber = settings.twiliowhatsappnumber;
-      const ngrokUrl = settings.twilioNgrokUrl;
+      const ngrokAuthToken = settings.ngrokAuthToken;
 
-      // ✅ CREATE WHATSAPP SERVICE (NO AUTO-INIT)
       whatsappService = new TwilioWhatsAppService(mainWindow, db);
       
-      // ✅ REGISTER HANDLERS
       initializeWhatsAppHandlers(db, whatsappService);
       initializeCommunicationHandlers();
 
-      // ✅ INITIALIZE WITH CREDENTIALS
       if (accountSid && authToken) {
-        console.log('✅ Loaded ngrok URL from database:', ngrokUrl || 'NOT SET');
         await whatsappService.initialize(accountSid, authToken, whatsappNumber);
         console.log('✅ WhatsApp service initialized with database credentials');
       } else {
@@ -259,14 +327,73 @@ app.whenReady().then(async () => {
         await whatsappService.initialize();
       }
 
-      // ✅ INITIALIZE SOCKET.IO REAL-TIME SYNC
+      // ✅ SMART NGROK TUNNEL MANAGEMENT
+      if (ngrok && whatsappService && whatsappService.webhookServer && whatsappService.webhookServer.server) {
+        try {
+          const webhookPort = whatsappService.webhookServer.port || 3001;
+
+          const tunnelResult = await ensureNgrokTunnel(webhookPort, ngrokAuthToken);
+          ngrokUrl = tunnelResult.url;
+          
+          if (tunnelResult.isNew) {
+            console.log('🎉 Created new ngrok tunnel');
+          } else {
+            console.log('♻️ Using existing ngrok tunnel');
+          }
+          
+          // ✅ Save to database
+          await dbRun(
+            db,
+            `INSERT OR REPLACE INTO system_settings (key, value) VALUES ('twilioNgrokUrl', ?)`,
+            [ngrokUrl]
+          );
+          
+          // ✅ Update webhook server
+          if (whatsappService.webhookServer) {
+            whatsappService.webhookServer.setNgrokUrl(ngrokUrl);
+          }
+          
+          // ✅ Update Twilio webhook
+          if (accountSid && authToken && whatsappNumber) {
+            console.log('🔄 Updating Twilio webhook URLs...');
+            const updateResult = await whatsappService.updateWebhookUrl(ngrokUrl);
+            if (updateResult.success) {
+              console.log('✅ Twilio webhook updated successfully');
+              if (mainWindow) {
+                mainWindow.webContents.send('ngrok-status', {
+                  status: 'connected',
+                  url: ngrokUrl,
+                  isNew: tunnelResult.isNew
+                });
+              }
+            } else {
+              console.warn('⚠️ Failed to update Twilio webhook:', updateResult.error);
+            }
+          }
+          
+        } catch (ngrokError) {
+          console.error('⚠️ Ngrok setup failed:', ngrokError.message);
+          if (mainWindow) {
+            mainWindow.webContents.send('ngrok-status', {
+              status: 'error',
+              error: ngrokError.message
+            });
+          }
+        }
+      } else {
+        if (!ngrok) {
+          console.warn('⚠️ Ngrok module not available');
+        } else {
+          console.warn('⚠️ Webhook server not available');
+        }
+      }
+
+      // ✅ INITIALIZE SOCKET.IO
       if (whatsappService.webhookServer && whatsappService.webhookServer.server) {
         const RealtimeSync = require('./src-electron/services/realtimeSync.cjs');
         const httpServer = whatsappService.webhookServer.server;
         global.realtimeSync = new RealtimeSync(httpServer);
         console.log('✅ Real-time sync initialized');
-      } else {
-        console.warn('⚠️ Webhook server not available for Socket.IO');
       }
 
       console.log('✅ WhatsApp service ready');
@@ -274,7 +401,6 @@ app.whenReady().then(async () => {
       console.error('⚠️ WhatsApp initialization failed:', whatsappError.message);
     }
 
-    // ✅ START REMINDER SCHEDULER
     startReminderScheduler(mainWindow);
     console.log('✅ Application ready!');
 
@@ -310,6 +436,18 @@ app.on('window-all-closed', () => {
 app.on('before-quit', async (event) => {
   app.isQuitting = true;
 
+  if (ngrok && ngrokUrl) {
+    console.log('🔄 Disconnecting ngrok tunnel...');
+    event.preventDefault();
+    
+    try {
+      await ngrok.disconnect();
+      console.log('✅ Ngrok tunnel disconnected');
+    } catch (error) {
+      console.error('Error disconnecting ngrok:', error);
+    }
+  }
+
   if (whatsappService) {
     console.log('🔄 Cleaning up WhatsApp service...');
     try {
@@ -322,12 +460,16 @@ app.on('before-quit', async (event) => {
 
   try {
     await closeDatabase();
+    console.log('✅ Database closed');
   } catch (err) {
     console.error('Error during cleanup:', err);
   }
+  
+  if (event.defaultPrevented) {
+    setImmediate(() => app.quit());
+  }
 });
 
-// ✅ IGNORED STARTUP ERRORS
 const IGNORED_STARTUP_TABLE_ERRORS = [
   'no such table: main.license_activation',
   'no such table: main.activation_requests',

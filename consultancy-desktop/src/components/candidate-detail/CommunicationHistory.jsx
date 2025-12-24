@@ -249,7 +249,7 @@ const CommunicationHistory = ({ candidateId }) => {
       {stats && (
         <div className="comm-stats-grid">
           <div className="stat-card">
-            <div className="stat-icon" style={{ background: '#E3F2FD' }}>📊</div>
+            <div className="stat-icon total">📊</div>
             <div className="stat-content">
               <div className="stat-value">{stats.total}</div>
               <div className="stat-label">Total Communications</div>
@@ -257,7 +257,7 @@ const CommunicationHistory = ({ candidateId }) => {
           </div>
           
           <div className="stat-card">
-            <div className="stat-icon" style={{ background: '#E8F5E9' }}>💬</div>
+            <div className="stat-icon whatsapp">💬</div>
             <div className="stat-content">
               <div className="stat-value">{stats.whatsapp}</div>
               <div className="stat-label">WhatsApp Messages</div>
@@ -265,7 +265,7 @@ const CommunicationHistory = ({ candidateId }) => {
           </div>
           
           <div className="stat-card">
-            <div className="stat-icon" style={{ background: '#FFF3E0' }}>📞</div>
+            <div className="stat-icon calls">📞</div>
             <div className="stat-content">
               <div className="stat-value">{stats.calls}</div>
               <div className="stat-label">Phone Calls</div>
@@ -273,7 +273,7 @@ const CommunicationHistory = ({ candidateId }) => {
           </div>
           
           <div className="stat-card">
-            <div className="stat-icon" style={{ background: '#FCE4EC' }}>✉️</div>
+            <div className="stat-icon emails">✉️</div>
             <div className="stat-content">
               <div className="stat-value">{stats.emails}</div>
               <div className="stat-label">Emails</div>
