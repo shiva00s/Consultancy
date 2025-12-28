@@ -13,15 +13,15 @@
 }
 
 .new-chat-modal {
-  background: var(--bg-card);
-  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-radius: 14px;
   width: 90%;
   max-width: 500px;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
-  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-md);
+  animation: slideUp 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   border: 1px solid var(--border-color);
   overflow: hidden;
 }
@@ -30,10 +30,10 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
+  padding: 16px 18px;
   border-bottom: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  border-radius: 16px 16px 0 0;
+  background: linear-gradient(90deg, rgba(0,0,0,0.02), rgba(0,0,0,0.01));
+  border-radius: 14px 14px 0 0;
 }
 
 .modal-header h3 {
@@ -77,13 +77,13 @@
 
 .modal-search input {
   flex: 1;
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
+  background: linear-gradient(180deg,var(--bg-input), rgba(0,0,0,0.02));
+  border: 1px solid var(--border-primary);
   padding: 10px 14px;
-  border-radius: 20px;
+  border-radius: 14px;
   color: var(--text-primary);
   font-size: 14px;
-  transition: all 0.3s ease;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
 }
 
 .modal-search input:focus {
@@ -160,22 +160,22 @@
 }
 
 .candidate-item:hover {
-  background: var(--bg-tertiary);
-  border-color: #25D366;
-  transform: translateX(4px);
+  background: linear-gradient(90deg, rgba(88,166,255,0.03), rgba(16,185,129,0.02));
+  border-color: rgba(88,166,255,0.12);
+  transform: translateX(6px) scale(1.01);
 }
 
 .candidate-avatar {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #25D366, #128C7E);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+  box-shadow: var(--shadow-sm);
 }
 
 .candidate-avatar .candidate-photo-thumb {

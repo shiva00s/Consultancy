@@ -13,6 +13,7 @@ const ChatWindow = ({ conversation, isConnected }) => {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState(null);
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
@@ -25,6 +26,8 @@ const ChatWindow = ({ conversation, isConnected }) => {
   const currentConversationIdRef = useRef(null);
   // ✅ Track if user is at bottom for smart scrolling
   const isAtBottomRef = useRef(true);
+  // Track initial load so we can force-scroll to bottom on open
+  const justLoadedRef = useRef(false);
 
   const emojiList = ['😀','😁','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥳','😏','😒','😞','😔','😟','😕','🙁','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','💩','👻','💀','☠️','👽','👾','🤖','🎃','😺','😸','😹','😻','😼','😽','🙀','😿','😾','👋','🤚','🖐️','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🧠','🫀','🫁','🦷','🦴','👀','👁️','👅','👄','💋'];
 
@@ -122,14 +125,34 @@ const ChatWindow = ({ conversation, isConnected }) => {
   }, []);
 
   const loadMessages = async () => {
-    if (!conversation?.id) return;
+    if (!conversation?.id) {
+      setMessages([]);
+      return;
+    }
 
     setLoading(true);
     try {
+      // Mark this as an initial load so we can force-scroll afterwards
+      justLoadedRef.current = true;
+
       const response = await window.electronAPI.whatsapp.getMessages(conversation.id);
-      
+
       if (response?.success) {
         setMessages(response.data || []);
+
+        // Force-scroll to bottom on initial load/open (use 'auto' for immediate position)
+        setTimeout(() => {
+          try {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+            isAtBottomRef.current = true;
+          } catch (e) {
+            // ignore
+          } finally {
+            // After initial jump, also attach image load handlers so media doesn't push view up
+            try { attachImageLoadHandlers(); } catch (err) {}
+            justLoadedRef.current = false;
+          }
+        }, 40);
       }
     } catch (error) {
       console.error('Error loading messages:', error);
@@ -140,6 +163,62 @@ const ChatWindow = ({ conversation, isConnected }) => {
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  // Attach load listeners to images inside messages container and force-scroll
+  const attachImageLoadHandlers = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const imgs = Array.from(container.querySelectorAll('img'));
+    if (imgs.length === 0) {
+      // Nothing to wait for — ensure at bottom
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+        isAtBottomRef.current = true;
+      }, 40);
+      return;
+    }
+
+    let remaining = imgs.length;
+    let cleaned = false;
+    const onLoaded = () => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        if (!cleaned) {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+          isAtBottomRef.current = true;
+          cleaned = true;
+        }
+      }
+    };
+
+    const cleanup = () => {
+      imgs.forEach((img) => {
+        img.removeEventListener('load', onLoaded);
+        img.removeEventListener('error', onLoaded);
+      });
+      clearedTimeout && clearTimeout(clearedTimeout);
+    };
+
+    imgs.forEach((img) => {
+      if (img.complete && img.naturalHeight !== 0) {
+        onLoaded();
+      } else {
+        img.addEventListener('load', onLoaded);
+        img.addEventListener('error', onLoaded);
+      }
+    });
+
+    // Fallback in case some images never fire load/error
+    const clearedTimeout = setTimeout(() => {
+      if (!cleaned) {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+        isAtBottomRef.current = true;
+        cleaned = true;
+      }
+      cleanup();
+    }, 900);
   }, []);
 
   // ✅ Track scroll position to detect if user is at bottom
@@ -338,7 +417,7 @@ const ChatWindow = ({ conversation, isConnected }) => {
       </div>
 
       {/* Messages Area */}
-      <div className="messages-container" onScroll={handleScroll}>
+      <div className="messages-container" onScroll={handleScroll} ref={messagesContainerRef}>
         {loading ? (
           <div className="loading-messages">
             <div className="spinner"></div>

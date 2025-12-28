@@ -305,7 +305,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       webSecurity: isProduction,
-      devTools: isDevelopment,
+      devTools: true, // ✅ ALWAYS ENABLE DEVTOOLS FOR DEBUGGING
     },
     show: false,
     backgroundColor: '#1a1d2e',
@@ -314,6 +314,10 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    // ✅ AUTO-OPEN DEVTOOLS IN PRODUCTION FOR DEBUGGING
+    if (isProduction) {
+      mainWindow.webContents.openDevTools();
+    }
   });
 
   // ✅ SUPPRESS UNNECESSARY CONSOLE NOISE
@@ -402,18 +406,73 @@ function createWindow() {
     }
   }
 
-  // ✅ LOAD APP CONTENT
+  // ✅ LOAD APP CONTENT - ENHANCED DEBUGGING
   if (isProduction) {
-    const indexPath = path.join(__dirname, 'dist', 'index.html');
-    if (fs.existsSync(indexPath)) {
-      mainWindow.loadFile(indexPath);
+    console.log('═'.repeat(60));
+    console.log('🔍 PRODUCTION MODE - DEBUG INFO');
+    console.log('═'.repeat(60));
+    console.log('📂 __dirname:', __dirname);
+    console.log('📂 process.resourcesPath:', process.resourcesPath);
+    console.log('📂 app.getAppPath():', app.getAppPath());
+    console.log('📂 process.cwd():', process.cwd());
+    console.log('═'.repeat(60));
+
+    // Try multiple possible paths
+    const possiblePaths = [
+      path.join(__dirname, 'dist', 'index.html'),
+      path.join(app.getAppPath(), 'dist', 'index.html'),
+      path.join(process.resourcesPath, 'app.asar', 'dist', 'index.html'),
+      path.join(process.resourcesPath, 'app', 'dist', 'index.html'),
+    ];
+
+    console.log('🔍 Checking possible index.html locations:');
+    let foundPath = null;
+    
+    for (const testPath of possiblePaths) {
+      const exists = fs.existsSync(testPath);
+      console.log(`${exists ? '✅' : '❌'} ${testPath}`);
+      if (exists && !foundPath) {
+        foundPath = testPath;
+      }
+    }
+
+    if (foundPath) {
+      console.log('✅ Using path:', foundPath);
+      mainWindow.loadFile(foundPath)
+        .then(() => {
+          console.log('✅ Successfully loaded index.html');
+        })
+        .catch(err => {
+          console.error('❌ Failed to load index.html:', err);
+          dialog.showErrorBox(
+            'Loading Error',
+            `Failed to load application:\n\n${err.message}\n\nPath: ${foundPath}`
+          );
+        });
     } else {
-      console.error('❌ Production build not found at:', indexPath);
+      console.error('❌ index.html not found in any location!');
+      
+      // List all files in __dirname to debug
+      console.log('\n📁 Files in __dirname:');
+      try {
+        const files = fs.readdirSync(__dirname);
+        files.forEach(file => console.log(`  - ${file}`));
+        
+        // Check if dist folder exists
+        const distPath = path.join(__dirname, 'dist');
+        if (fs.existsSync(distPath)) {
+          console.log('\n📁 Files in dist folder:');
+          const distFiles = fs.readdirSync(distPath);
+          distFiles.forEach(file => console.log(`  - ${file}`));
+        }
+      } catch (err) {
+        console.error('Could not read directories:', err);
+      }
+      
       dialog.showErrorBox(
         'Build Error',
-        'Production files not found. Please run "npm run build" first.'
+        'Production files not found.\n\nCheck console for details.'
       );
-      app.quit();
     }
   } else {
     mainWindow.loadURL('http://localhost:5173');

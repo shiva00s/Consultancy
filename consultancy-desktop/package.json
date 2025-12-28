@@ -7,12 +7,12 @@
     "react-dev": "vite",
     "electron-dev": "electron .",
     "dev": "concurrently \"npm run react-dev\" \"npm run electron-dev\"",
-    "build": "vite build",
+    "build": "vite build && node fix-paths.cjs",
     "postinstall": "electron-builder install-app-deps",
     "package": "npm run build && electron-builder",
-    "package:win": "npm run build && electron-builder --win --x64",
-    "package:portable": "npm run build && electron-builder --win portable --x64",
-    "package:production": "npm run build && electron-builder --win nsis portable --x64"
+    "build:win": "npm run build && electron-builder --win nsis --x64",
+    "build:portable": "npm run build && electron-builder --win portable --x64",
+    "build:production": "npm run build && electron-builder --win nsis portable --x64"
   },
   "build": {
     "appId": "com.consultancy.app",

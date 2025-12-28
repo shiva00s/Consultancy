@@ -4,7 +4,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: var(--bg-primary);
+  background: linear-gradient(180deg, var(--bg-primary), var(--bg-secondary));
   overflow: hidden;
 }
 
@@ -47,8 +47,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px; /* Reduced from 14px 20px */
-  background: linear-gradient(180deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+  padding: 12px 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
   border-bottom: 1px solid var(--border-primary);
   box-shadow: var(--shadow-sm);
   z-index: 5;
@@ -61,10 +61,10 @@
 }
 
 .chat-avatar {
-  width: 42px; /* Reduced from 48px */
-  height: 42px; /* Reduced from 48px */
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #25D366, #128C7E);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -181,16 +181,9 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 12px 16px; /* Reduced from 20px */
-  background: var(--bg-primary);
-  background-image:
-    repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 10px,
-      rgba(134, 150, 160, 0.02) 10px,
-      rgba(134, 150, 160, 0.02) 20px
-    );
+  padding: 16px 18px;
+  background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.01) 100%);
+  background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.01) 0px, rgba(255,255,255,0.01) 10px, transparent 10px, transparent 20px);
 }
 
 /* Custom Scrollbar */
@@ -225,7 +218,7 @@
   width: 40px;
   height: 40px;
   border: 3px solid var(--border-primary);
-  border-top-color: #25D366;
+  border-top-color: var(--accent-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -267,9 +260,9 @@
 
 /* Chat Input - COMPACT */
 .chat-input-container {
-  background: var(--bg-secondary);
+  background: linear-gradient(180deg, var(--bg-secondary), rgba(0,0,0,0.01));
   border-top: 1px solid var(--border-primary);
-  padding: 10px 16px; /* Reduced from 12px 20px */
+  padding: 12px 16px;
 }
 
 .connection-warning {
@@ -329,14 +322,14 @@
 .chat-input-form {
   display: flex;
   align-items: center;
-  gap: 6px; /* Reduced from 8px */
+  gap: 8px;
 }
 
 .emoji-picker {
   display: flex;
   gap: 4px;
   padding: 12px;
-  background: var(--bg-tertiary);
+  background: linear-gradient(180deg, var(--bg-tertiary), rgba(0,0,0,0.02));
   border: 1px solid var(--border-primary);
   border-radius: 12px;
   margin-top: 8px;

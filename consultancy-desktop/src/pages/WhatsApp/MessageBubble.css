@@ -1,9 +1,9 @@
 /* src/pages/WhatsApp/MessageBubble.css */
 
 .message-bubble {
-  max-width: 65%;
-  margin-bottom: 2px;
-  animation: messageSlideIn 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  max-width: 72%;
+  margin-bottom: 6px;
+  animation: messageSlideIn 0.16s cubic-bezier(0.22, 1, 0.36, 1);
   clear: both;
   display: block;
 }
@@ -34,12 +34,12 @@
    ======================================== */
 .message-content {
   display: inline-block;
-  padding: 4px 6px 6px 8px;
-  border-radius: 6px;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+  padding: 8px 12px;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.12);
   position: relative;
   max-width: 100%;
-  transition: box-shadow 0.2s ease;
+  transition: box-shadow 0.18s ease, transform 0.12s ease;
 }
 
 .message-content:hover {
@@ -48,13 +48,15 @@
 
 /* Light mode colors */
 .user-message .message-content {
-  background: linear-gradient(135deg, #d9fdd3 0%, #cef9c7 100%);
-  border: 1px solid rgba(0, 168, 132, 0.08);
+  background: linear-gradient(135deg, var(--accent-primary), rgba(16,185,129,0.06));
+  border: 1px solid rgba(16,185,129,0.08);
+  color: var(--text-primary);
 }
 
 .contact-message .message-content {
-  background: #ffffff;
-  border: 1px solid rgba(17, 27, 33, 0.06);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
 }
 
 /* Dark mode colors */
@@ -75,9 +77,9 @@
   margin: 0;
   word-wrap: break-word;
   white-space: pre-wrap;
-  font-size: 13.5px;
-  line-height: 18px;
-  color: #111b21;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-primary);
   padding: 0;
   font-weight: 400;
   letter-spacing: 0.01em;
@@ -155,8 +157,8 @@
 }
 
 .message-image {
-  max-width: 300px;
-  max-height: 300px;
+  max-width: 420px;
+  max-height: 420px;
   width: auto;
   height: auto;
   display: block;
@@ -177,14 +179,14 @@
 .message-attachment {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  background: rgba(17, 27, 33, 0.04);
-  border-radius: 6px;
-  margin-top: 2px;
-  max-width: 280px;
-  transition: background-color 0.2s, transform 0.15s;
-  border: 1px solid rgba(17, 27, 33, 0.06);
+  gap: 10px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-radius: 12px;
+  margin-top: 6px;
+  max-width: 420px;
+  transition: background-color 0.18s, transform 0.15s, box-shadow 0.18s;
+  border: 1px solid var(--border-primary);
 }
 
 .message-attachment:hover {
@@ -261,10 +263,10 @@
 /* Compact action buttons */
 .attachment-preview-btn,
 .attachment-download-btn {
-  padding: 6px;
-  background: linear-gradient(135deg, #00a884 0%, #008069 100%);
+  padding: 8px 10px;
+  background: linear-gradient(135deg, var(--accent-primary), rgba(16,185,129,0.8));
   color: white;
-  border-radius: 4px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -272,7 +274,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   flex-shrink: 0;
-  box-shadow: 0 1px 3px rgba(0, 168, 132, 0.3);
+  box-shadow: 0 8px 20px rgba(16,185,129,0.08);
 }
 
 .attachment-preview-btn:hover,

@@ -2,6 +2,62 @@
    Removed local :root/[data-theme] variable declarations so the
    component inherits colors from the app-level theme toggle. */
 
+/* Fallback theme variables (light/dark aware). These keep UI consistent
+   even if the global app variables are not present. Prefer system theme. */
+:root {
+  --bg-primary: #0f1724; /* dark slate */
+  --bg-secondary: #0b1220;
+  --bg-tertiary: rgba(255,255,255,0.02);
+  --bg-card: rgba(255,255,255,0.02);
+  --bg-input: rgba(255,255,255,0.03);
+  --bg-hover: rgba(255,255,255,0.03);
+  --bg-active: rgba(88,166,255,0.06);
+
+  --text-primary: #e6eef8;
+  --text-secondary: #a9b7c7;
+  --text-tertiary: #7f98a8;
+
+  --border-primary: rgba(255,255,255,0.04);
+  --border-secondary: rgba(255,255,255,0.02);
+  --border-color: rgba(255,255,255,0.04);
+
+  --accent-primary: #58a6ff;
+  --accent-secondary: #6ee7b7;
+  --accent-success: #3fb950;
+  --accent-error: #f87171;
+
+  --shadow-sm: 0 4px 12px rgba(2,6,23,0.5);
+  --shadow-md: 0 8px 30px rgba(2,6,23,0.55);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-primary: #f6f9fc;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: rgba(2,6,23,0.02);
+    --bg-card: #ffffff;
+    --bg-input: #f1f5f9;
+    --bg-hover: rgba(2,6,23,0.02);
+    --bg-active: rgba(88,166,255,0.08);
+
+    --text-primary: #0b1b2b;
+    --text-secondary: #475569;
+    --text-tertiary: #64748b;
+
+    --border-primary: rgba(11,22,34,0.06);
+    --border-secondary: rgba(11,22,34,0.03);
+    --border-color: rgba(11,22,34,0.06);
+
+    --accent-primary: #1765ff;
+    --accent-secondary: #10b981;
+    --accent-success: #16a34a;
+    --accent-error: #dc2626;
+
+    --shadow-sm: 0 6px 18px rgba(2,6,23,0.06);
+    --shadow-md: 0 12px 40px rgba(2,6,23,0.08);
+  }
+}
+
 /* ==================== CONTAINER ==================== */
 .whatsapp-container {
   display: flex;
