@@ -187,44 +187,42 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
       `);
 
       const fs = require('fs');
+      const fsp = fs.promises;
       const path = require('path');
 
-      const conversationsEnriched = Array.isArray(conversations) ? await Promise.all(
-        conversations.map(async (conv) => {
-          try {
-            if (!conv || !conv.candidate_id) return conv;
+      // Use async, non-blocking file operations to avoid freezing the main thread.
+      const conversationsEnriched = Array.isArray(conversations)
+        ? await Promise.all(conversations.map(async (conv) => {
+            try {
+              if (!conv || !conv.candidate_id) return conv;
 
-            const candidate = await dbGet(db, 
-              `SELECT id, photo_path FROM candidates WHERE id = ? LIMIT 1`, 
-              [conv.candidate_id]
-            );
+              const candidate = await dbGet(db,
+                `SELECT id, photo_path FROM candidates WHERE id = ? LIMIT 1`,
+                [conv.candidate_id]
+              );
 
-            if (candidate && candidate.photo_path) {
-              const photoPath = candidate.photo_path;
-              try {
-                if (fs.existsSync(photoPath)) {
-                  const buffer = fs.readFileSync(photoPath);
-                  const ext = (path.extname(photoPath) || '').toLowerCase();
-                  let mime = 'image/png';
-                  if (ext === '.jpg' || ext === '.jpeg') mime = 'image/jpeg';
-                  else if (ext === '.gif') mime = 'image/gif';
-                  else if (ext === '.webp') mime = 'image/webp';
-
-                  const dataUri = `data:${mime};base64,${buffer.toString('base64')}`;
-                  return { ...conv, photo_base64: dataUri, photo_path: photoPath };
+              if (candidate && candidate.photo_path) {
+                const photoPath = candidate.photo_path;
+                try {
+                  // Async check for file existence
+                  await fsp.access(photoPath);
+                  // Do NOT eagerly convert every file to base64 here; instead keep photo_path
+                  // so the renderer can lazily request base64 for visible items.
+                  return { ...conv, photo_path: photoPath };
+                } catch (fsErr) {
+                  // File doesn't exist or is inaccessible
+                  // Keep conversation object intact
+                  return conv;
                 }
-              } catch (fsErr) {
-                console.error('Error reading candidate photo:', fsErr);
               }
-            }
 
-            return conv;
-          } catch (err) {
-            console.error('Error enriching conversation:', err);
-            return conv;
-          }
-        })
-      ) : [];
+              return conv;
+            } catch (err) {
+              console.error('Error enriching conversation:', err);
+              return conv;
+            }
+          }))
+        : [];
 
       return {
         success: true,
@@ -251,32 +249,34 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
       `, [conversationId]);
 
       const fs = require('fs');
-      
-      // ✅ Generate fresh public URLs with proper encoding
+      const fsp = fs.promises;
+
+      // ✅ Generate fresh public URLs with proper encoding (non-blocking checks)
       for (const msg of messages) {
-  if (msg.media_url) {
-    const isUrl = msg.media_url.startsWith('http://') || msg.media_url.startsWith('https://');
-    
-    // ✅ NEW: Check if URL has wrong base URL
-    const hasWrongBase = msg.media_url.includes('192.168.') || 
-                         msg.media_url.includes('127.0.0.1') ||
-                         msg.media_url.includes('localhost');
-    
-    if (!isUrl || hasWrongBase) {
-      // Wrong/local URL - regenerate
-      console.log('🔄 Fixing wrong URL for message', msg.id);
-      if (fs.existsSync(msg.media_url)) {
-        const publicUrl = await generatePublicFileUrl(msg.media_url);
-        msg.mediaurl = publicUrl;
-      } else {
-        msg.mediaurl = null;
-      }
-    } else {
-      // Correct URL
-      msg.mediaurl = msg.media_url;
-    }
-  }
-        
+        if (msg.media_url) {
+          const isUrl = msg.media_url.startsWith('http://') || msg.media_url.startsWith('https://');
+
+          // ✅ NEW: Check if URL has wrong base URL
+          const hasWrongBase = msg.media_url.includes('192.168.') ||
+                               msg.media_url.includes('127.0.0.1') ||
+                               msg.media_url.includes('localhost');
+
+          if (!isUrl || hasWrongBase) {
+            // Wrong/local URL - regenerate if file exists (async)
+            console.log('🔄 Fixing wrong URL for message', msg.id);
+            try {
+              await fsp.access(msg.media_url);
+              const publicUrl = await generatePublicFileUrl(msg.media_url);
+              msg.mediaurl = publicUrl;
+            } catch (accessErr) {
+              msg.mediaurl = null;
+            }
+          } else {
+            // Correct URL
+            msg.mediaurl = msg.media_url;
+          }
+        }
+
         // Map all fields for compatibility
         msg.conversationid = msg.conversation_id;
         msg.messagesid = msg.message_sid;
@@ -303,7 +303,8 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
 
           let fileUrl = null;
           try {
-            if (a.file_path && fs.existsSync(a.file_path)) {
+            if (a.file_path) {
+              await fsp.access(a.file_path);
               fileUrl = await generatePublicFileUrl(a.file_path);
             }
           } catch (e) {
@@ -582,27 +583,22 @@ function initializeWhatsAppHandlers(database, whatsappServiceInstance) {
 
       const candidatesArray = Array.isArray(candidates) ? candidates : [];
       const fs = require('fs');
+      const fsp = fs.promises;
       const path = require('path');
 
-      for (let i = 0; i < candidatesArray.length; i++) {
-        const c = candidatesArray[i];
+      // Check files asynchronously and avoid converting to base64 for every candidate.
+      await Promise.all(candidatesArray.map(async (c) => {
         if (c && c.photo_path) {
           try {
-            if (fs.existsSync(c.photo_path)) {
-              const buffer = fs.readFileSync(c.photo_path);
-              const ext = (path.extname(c.photo_path) || '').toLowerCase();
-              let mime = 'image/png';
-              if (ext === '.jpg' || ext === '.jpeg') mime = 'image/jpeg';
-              else if (ext === '.gif') mime = 'image/gif';
-              else if (ext === '.webp') mime = 'image/webp';
-
-              c.photo_base64 = `data:${mime};base64,${buffer.toString('base64')}`;
-            }
+            await fsp.access(c.photo_path);
+            // Keep photo_path only; renderer's LazyRemoteImage will request base64 lazily.
+            // This avoids heavy CPU + memory usage when there are many candidates.
           } catch (err) {
-            console.error('Error reading candidate photo:', err);
+            // File missing / inaccessible - clear photo_path so renderer won't try to load.
+            delete c.photo_path;
           }
         }
-      }
+      }));
 
       return { success: true, data: candidatesArray };
     } catch (error) {
