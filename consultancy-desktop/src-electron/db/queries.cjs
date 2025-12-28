@@ -1,5 +1,5 @@
 const { getDatabase } = require("./database.cjs");
-const bcrypt = require("bcrypt");
+const bcrypt = require('bcrypt');
 const {
   getPassportMovements,
   addPassportMovement,
