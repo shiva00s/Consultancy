@@ -238,7 +238,7 @@ if (!gotTheLock) {
   app.quit();
 } else {
   app.on('second-instance', (event, commandLine, workingDirectory) => {
-    if (mainWindow) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
     }
@@ -280,6 +280,17 @@ const permissionContext = {
     });
   },
 };
+
+// ✅ NEW: SAFE WINDOW COMMUNICATION HELPER
+function sendToRenderer(channel, data) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    try {
+      mainWindow.webContents.send(channel, data);
+    } catch (err) {
+      console.error(`Error sending to renderer [${channel}]:`, err.message);
+    }
+  }
+}
 
 // ✅ CREATE MAIN WINDOW
 function createWindow() {
@@ -417,6 +428,11 @@ function createWindow() {
     }
   });
 
+  // ✅ NEW: Handle window destruction
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+
   return mainWindow;
 }
 
@@ -535,13 +551,11 @@ app.whenReady().then(async () => {
             const updateResult = await whatsappService.updateWebhookUrl(ngrokUrl);
             if (updateResult.success) {
               console.log('✅ Twilio webhook updated successfully');
-              if (mainWindow) {
-                mainWindow.webContents.send('ngrok-status', {
-                  status: 'connected',
-                  url: ngrokUrl,
-                  isNew: tunnelResult.isNew
-                });
-              }
+              sendToRenderer('ngrok-status', {
+                status: 'connected',
+                url: ngrokUrl,
+                isNew: tunnelResult.isNew
+              });
             } else {
               console.warn('⚠️ Failed to update Twilio webhook:', updateResult.error);
             }
@@ -549,12 +563,10 @@ app.whenReady().then(async () => {
           
         } catch (ngrokError) {
           console.error('⚠️ Ngrok setup failed:', ngrokError.message);
-          if (mainWindow) {
-            mainWindow.webContents.send('ngrok-status', {
-              status: 'error',
-              error: ngrokError.message
-            });
-          }
+          sendToRenderer('ngrok-status', {
+            status: 'error',
+            error: ngrokError.message
+          });
         }
       } else {
         console.warn('⚠️ Ngrok or webhook server not available');
@@ -593,7 +605,7 @@ app.whenReady().then(async () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
-  } else if (mainWindow) {
+  } else if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.show();
   }
 });
@@ -614,6 +626,11 @@ app.on('before-quit', async (event) => {
 // ✅ CLEANUP FUNCTION
 async function cleanup() {
   console.log('🧹 Cleaning up application resources...');
+
+  // ✅ NEW: Prevent multiple cleanups
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.removeAllListeners();
+  }
 
   // Disconnect ngrok tunnel
   if (ngrokManager && ngrokManager.isActive()) {
@@ -664,7 +681,7 @@ process.on('uncaughtException', (error) => {
   }
 
   console.error('❌ Uncaught Exception:', message);
-  if (isProduction && mainWindow) {
+  if (isProduction && mainWindow && !mainWindow.isDestroyed()) {
     dialog.showErrorBox('Application Error', `An unexpected error occurred.\n\nDetails: ${message}`);
   }
 });
@@ -676,7 +693,7 @@ process.on('unhandledRejection', (reason, promise) => {
   }
 
   console.error('❌ Unhandled Rejection:', message);
-  if (isProduction && mainWindow) {
+  if (isProduction && mainWindow && !mainWindow.isDestroyed()) {
     dialog.showErrorBox('Application Error', `An unexpected error occurred.\n\nDetails: ${message}`);
   }
 });
