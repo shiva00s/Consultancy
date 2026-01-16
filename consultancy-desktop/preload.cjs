@@ -4,9 +4,16 @@
 // SECURITY: Uses contextIsolation to prevent direct access to Node.js/Electron
 // ============================================================================
 
+
 const { contextBridge, ipcRenderer } = require('electron');
 
+
 contextBridge.exposeInMainWorld('electronAPI', {
+  
+  // ==========================================================================
+  // 🔧 GENERIC INVOKE METHOD
+  // ==========================================================================
+  invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
   
   // ==========================================================================
   // 🔐 AUTHENTICATION & USER MANAGEMENT
@@ -24,6 +31,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteUser: (args) => ipcRenderer.invoke('delete-user', args),
   getUserRole: (args) => ipcRenderer.invoke('get-user-role', args),
   getUsers: (data) => ipcRenderer.invoke('get-users', data),
+
 
   // ==========================================================================
   // 🔑 PERMISSIONS & FEATURE FLAGS
@@ -44,6 +52,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAdminAssignedFeatures: (payload) => ipcRenderer.invoke('get-admin-assigned-features', payload),
   getAdminEffectiveFlags: (payload) => ipcRenderer.invoke('get-admin-effective-flags', payload),
 
+
   // ==========================================================================
   // 👥 CANDIDATE MANAGEMENT
   // ==========================================================================
@@ -56,6 +65,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteCandidate: (args) => ipcRenderer.invoke('delete-candidate', args),
   getCandidateJobPlacements: (data) => ipcRenderer.invoke('get-candidate-job-placements', data),
 
+
   // ==========================================================================
   // 📄 DOCUMENT MANAGEMENT
   // ==========================================================================
@@ -64,6 +74,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addDocuments: (args) => ipcRenderer.invoke('add-documents', args),
   cancelUpload: (args) => ipcRenderer.invoke('cancel-upload', args),
   deleteDocument: (id) => ipcRenderer.invoke('delete-document', id),
+  deleteDocumentsBulk: (args) => ipcRenderer.invoke('delete-documents-bulk', args),
   getDocumentBase64: (args) => ipcRenderer.invoke('get-document-base64', args),
   openFileExternally: (args) => ipcRenderer.invoke('open-file-externally', args),
   uploadDocument: (data) => ipcRenderer.invoke('upload-document', data),
@@ -102,7 +113,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteRequiredDocument: (args) => ipcRenderer.invoke('delete-required-document', args),
   getDeletedRequiredDocuments: () => ipcRenderer.invoke('get-deleted-required-documents'),
   restoreRequiredDocument: (args) => ipcRenderer.invoke('restore-required-document', args),
-   readTextFile: (args) => ipcRenderer.invoke('readTextFile', args),
+  readTextFile: (args) => ipcRenderer.invoke('readTextFile', args),
+
+  // Write HTML to a temp file and return the path
+  writeTempHtml: (args) => ipcRenderer.invoke('write-temp-html', args),
+  // Return CandidateJobs CSS content for inlining into generated previews
+  getCandidateJobsCss: () => ipcRenderer.invoke('get-candidate-jobs-css'),
+
 
   // ==========================================================================
   // 🏢 EMPLOYER & JOB ORDER MANAGEMENT
@@ -113,6 +130,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addEmployer: (args) => ipcRenderer.invoke('add-employer', args),
   updateEmployer: (args) => ipcRenderer.invoke('update-employer', args),
   deleteEmployer: (args) => ipcRenderer.invoke('delete-employer', args),
+  // Company setup
+  getCompanySetup: () => ipcRenderer.invoke('get-company-setup'),
+  getCompanySetupById: (id) => ipcRenderer.invoke('get-company-setup-by-id', id),
+  addCompanySetup: (args) => ipcRenderer.invoke('add-company-setup', args),
+  updateCompanySetup: (args) => ipcRenderer.invoke('update-company-setup', args),
+  deleteCompanySetup: (id) => ipcRenderer.invoke('delete-company-setup', id),
   
   // Job Orders
   getJobOrders: () => ipcRenderer.invoke('get-job-orders'),
@@ -120,6 +143,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addJobOrder: (args) => ipcRenderer.invoke('add-job-order', args),
   updateJobOrder: (args) => ipcRenderer.invoke('update-job-order', args),
   deleteJobOrder: (args) => ipcRenderer.invoke('delete-job-order', args),
+
 
   // ==========================================================================
   // 📌 PLACEMENTS
@@ -130,6 +154,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   assignCandidateToJob: (args) => ipcRenderer.invoke('assign-candidate-to-job', args),
   removeCandidateFromJob: (args) => ipcRenderer.invoke('remove-candidate-from-job', args),
 
+
   // ==========================================================================
   // 🛂 PASSPORT TRACKING (UNIFIED SYSTEM)
   // ==========================================================================
@@ -139,17 +164,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPassportMovementPhotos: (data) => ipcRenderer.invoke('get-passport-movement-photos', data),
   // Add Movement (RECEIVE or SEND)
   addPassportMovement: (data) => ipcRenderer.invoke('add-passport-movement', data),
-  getAllDeletedPassportMovements: (user) =>    ipcRenderer.invoke('get-all-deleted-passport-movements', { user }),
+  getAllDeletedPassportMovements: (user) => ipcRenderer.invoke('get-all-deleted-passport-movements', { user }),
   // Add Photos to Movement
   addPassportMovementPhotos: (data) => ipcRenderer.invoke('add-passport-movement-photos', data),
   deletePassportMovementPhoto: (data) => ipcRenderer.invoke('delete-passport-movement-photo', data),
-  permanentDeletePassportMovement: (user, id) =>    ipcRenderer.invoke('permanent-delete-passport-movement', { user, id }),
+  permanentDeletePassportMovement: (user, id) => ipcRenderer.invoke('permanent-delete-passport-movement', { user, id }),
   // Delete Movement
   deletePassportMovement: (data) => ipcRenderer.invoke('delete-passport-movement', data),
-  getPassportMovementPhotos: (movementId) =>     ipcRenderer.invoke('get-passport-movement-photos', movementId),
   // Recycle Bin
   getDeletedPassportMovements: (data) => ipcRenderer.invoke('get-deleted-passport-movements', data),
   restorePassportMovement: (params) => ipcRenderer.invoke('restore-passport-movement', params),
+
 
   // ==========================================================================
   // 🌍 VISA TRACKING
@@ -162,6 +187,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAllActiveVisas: () => ipcRenderer.invoke('get-all-active-visas'),
   updateVisaStatus: (args) => ipcRenderer.invoke('update-visa-status', args),
 
+
   // ==========================================================================
   // 🏥 MEDICAL TRACKING
   // ==========================================================================
@@ -170,6 +196,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addMedicalEntry: (args) => ipcRenderer.invoke('add-medical-entry', args),
   updateMedicalEntry: (args) => ipcRenderer.invoke('update-medical-entry', args),
   deleteMedicalEntry: (args) => ipcRenderer.invoke('delete-medical-entry', args),
+
 
   // ==========================================================================
   // ✈️ TRAVEL TRACKING
@@ -180,6 +207,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateTravelEntry: (args) => ipcRenderer.invoke('update-travel-entry', args),
   deleteTravelEntry: (args) => ipcRenderer.invoke('delete-travel-entry', args),
 
+
   // ==========================================================================
   // 🎤 INTERVIEW TRACKING
   // ==========================================================================
@@ -189,6 +217,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateInterviewEntry: (args) => ipcRenderer.invoke('update-interview-entry', args),
   deleteInterviewEntry: (args) => ipcRenderer.invoke('delete-interview-entry', args),
 
+
   // ==========================================================================
   // 💰 FINANCE & PAYMENTS
   // ==========================================================================
@@ -197,6 +226,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addPayment: (args) => ipcRenderer.invoke('add-payment', args),
   updatePayment: (args) => ipcRenderer.invoke('update-payment', args),
   deletePayment: (args) => ipcRenderer.invoke('delete-payment', args),
+
 
   // ==========================================================================
   // 🗑️ RECYCLE BIN
@@ -241,6 +271,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Permanent Delete
   deletePermanently: (payload) => ipcRenderer.invoke('delete-permanently', payload),
 
+
   // ==========================================================================
   // 📊 REPORTING & ANALYTICS
   // ==========================================================================
@@ -255,6 +286,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAuditLogForCandidate: (args) => ipcRenderer.invoke('get-audit-log-for-candidate', args),
   logAuditEvent: (payload) => ipcRenderer.invoke('log-audit-event', payload),
 
+
   // ==========================================================================
   // 📝 PDF & OFFER LETTER GENERATION
   // ==========================================================================
@@ -262,7 +294,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readOfferTemplate: (args) => ipcRenderer.invoke('read-offer-template', args),
   writeOfferTemplate: (args) => ipcRenderer.invoke('write-offer-template', args),
   generateOfferLetter: (args) => ipcRenderer.invoke('generate-offer-letter', args),
-  printToPDF: (url) => ipcRenderer.invoke('print-to-pdf', url),
+  // `printToPDF` accepts either a string URL or an object `{ url, suggestedName }`
+  printToPDF: (urlOrOptions, suggestedName) => {
+    if (typeof urlOrOptions === 'string') {
+      // maintain backwards compatibility: allow two-arg (url, suggestedName)
+      if (suggestedName) return ipcRenderer.invoke('print-to-pdf', { url: urlOrOptions, suggestedName });
+      return ipcRenderer.invoke('print-to-pdf', urlOrOptions);
+    }
+    return ipcRenderer.invoke('print-to-pdf', urlOrOptions);
+  },
+
 
   // ==========================================================================
   // 💬 COMMUNICATION
@@ -278,6 +319,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getMediaSignedUrl: (params) => ipcRenderer.invoke('whatsapp:getMediaSignedUrl', params),
   getCommLogs: (args) => ipcRenderer.invoke('get-comm-logs', args),
 
+
   // ==========================================================================
   // 📧 EMAIL SETTINGS
   // ==========================================================================
@@ -287,12 +329,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSmtpSettings: (args) => ipcRenderer.invoke('save-smtp-settings', args),
   testSmtpConnection: (args) => ipcRenderer.invoke('test-smtp-connection', args),
 
+
   // ==========================================================================
   // 🤖 AI & OCR INTELLIGENCE
   // ==========================================================================
   
   scanPassport: (params) => ipcRenderer.invoke('ocr-scan-passport', params),
   ocrScanPassport: (params) => ipcRenderer.invoke('ocr-scan-passport', params),
+
 
   // ==========================================================================
   // ☁️ CLOUD SYNC & BACKUP
@@ -322,6 +366,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   importDatabase: (sourcePath) => ipcRenderer.invoke('import-database', sourcePath),
   backupDatabase: (user, destinationPath) => ipcRenderer.invoke('backupDatabase', { user, destinationPath }),
 
+
   // ==========================================================================
   // 🔔 NOTIFICATIONS & REMINDERS
   // ==========================================================================
@@ -333,6 +378,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteNotification: (args) => ipcRenderer.invoke('delete-notification', args),
   clearAllNotifications: () => ipcRenderer.invoke('clear-all-notifications'),
   createNotification: (data) => ipcRenderer.invoke('create-notification', data),
+  checkReminders: () => ipcRenderer.invoke('check-reminders'),
   
   // Notification Listener
   onNotification: (callback) => {
@@ -340,6 +386,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('notification-created', handler);
     return () => ipcRenderer.removeListener('notification-created', handler);
   },
+
 
   // Developer: trigger a test notification (useful for integration checks)
   debugTriggerNotification: (payload) => ipcRenderer.invoke('debug-trigger-notification', payload),
@@ -356,10 +403,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getUserReminders: (params) => ipcRenderer.invoke('get-user-reminders', params),
   createReminder: (params) => ipcRenderer.invoke('create-reminder', params),
 
+
   // ==========================================================================
   // 🔧 SYSTEM UTILITIES
   // ==========================================================================
   getFileUrl: async (data) => ipcRenderer.invoke('get-file-url', data),
+
+  // Key manager: renderer helper to receive one-time key requests and provide keys
+  onKeyManagerRequest: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('keyManager:request-key', handler);
+    return () => ipcRenderer.removeListener('keyManager:request-key', handler);
+  },
+  provideKey: (payload) => ipcRenderer.send('keyManager:provide-key', payload),
+  // Allow renderer to set the authenticated user on the main-session (one-time after login)
+  setSessionUser: (user) => ipcRenderer.send('set-session-user', user),
+  clearSessionUser: () => ipcRenderer.send('clear-session-user'),
+  // System settings (keys) management (permission guarded)
+  getAllSystemKeys: () => ipcRenderer.invoke('system:get-all-keys'),
+  getSystemKey: (key) => ipcRenderer.invoke('system:get-key', key),
+  setSystemKey: (payload) => ipcRenderer.invoke('system:set-key', payload),
+  deleteSystemKey: (key) => ipcRenderer.invoke('system:delete-key', key),
+  // Unguarded variants for Super Admins (renderer will call when session indicates super)
+  setSystemKeyUnguarded: (payload, senderUser) => ipcRenderer.invoke('system:set-key-unguarded', payload, senderUser),
+  deleteSystemKeyUnguarded: (key, senderUser) => ipcRenderer.invoke('system:delete-key-unguarded', key, senderUser),
+  // Debug fallback: returns all system keys without permission checks (for diagnostics)
+  getAllSystemKeysDebug: () => ipcRenderer.invoke('system:get-all-keys-debug'),
+  updateSystemKey: (payload) => ipcRenderer.invoke('system:set-key', payload),
+
 
   // Dialogs
   showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
@@ -378,8 +449,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   activateLicense: (args) => ipcRenderer.invoke('license:activate', args),
   requestActivationCode: () => ipcRenderer.invoke('request-activation-code'),
 
-getStatus: () => ipcRenderer.invoke('whatsapp:getStatus'),
+
+  getStatus: () => ipcRenderer.invoke('whatsapp:getStatus'),
   logout: () => ipcRenderer.invoke('whatsapp:logout'),
+  
+    // Documents (deleted documents in Recycle Bin)
+    getDeletedDocuments: () => ipcRenderer.invoke('get-deleted-documents'),
+    restoreDocument: (args) => ipcRenderer.invoke('restore-document', args),
   
   // Listen to WhatsApp events
   onQR: (callback) => ipcRenderer.on('whatsapp:qr', (_, data) => callback(data)),
@@ -389,76 +465,102 @@ getStatus: () => ipcRenderer.invoke('whatsapp:getStatus'),
   onNewMessage: (callback) => ipcRenderer.on('whatsapp:new-message', (_, message) => callback(message)),
   onMessageAck: (callback) => ipcRenderer.on('whatsapp:message-ack', (_, data) => callback(data)),
 
-whatsapp: {
 
-  markAsRead: async (conversationId) => {
-  return ipcRenderer.invoke('whatsapp:mark-as-read', conversationId);},
-  // ========== Conversations ==========
-  getConversations: () => ipcRenderer.invoke('whatsapp:getConversations'),
-  createConversation: (data) => ipcRenderer.invoke('whatsapp:createConversation', data),
-  deleteConversation: (conversationId) => ipcRenderer.invoke('whatsapp:deleteConversation', conversationId),
-  editMessage: (messageId, newContent) => ipcRenderer.invoke('whatsapp:editMessage', messageId, newContent),
-  archiveConversation: (conversationId) => ipcRenderer.invoke('whatsapp:archiveConversation', conversationId),
-  
-  // ========== Messages ==========
-  getMessages: (conversationId) => ipcRenderer.invoke('whatsapp:getMessages', conversationId),
-  sendMessage: (data) => ipcRenderer.invoke('whatsapp:sendMessage', data),
-  deleteMessage: (messageId) => ipcRenderer.invoke('whatsapp:deleteMessage', messageId),
-  
-  // ========== Candidates ==========
-  getCandidatesWithPhone: () => ipcRenderer.invoke('whatsapp:getCandidatesWithPhone'),
-  seedCandidates: () => ipcRenderer.invoke('whatsapp:seedCandidates'),
-  debugCandidates: () => ipcRenderer.invoke('whatsapp:debugCandidates'),
-  importCandidatesFromFile: (filePath) => ipcRenderer.invoke('whatsapp:importCandidatesFromFile', filePath),
- 
-  // Webhook & Production
-  getWebhookInfo: () => ipcRenderer.invoke('whatsapp:getWebhookInfo'),
-  saveWebhookUrl: (url) => ipcRenderer.invoke('whatsapp:saveWebhookUrl', url),
-  
-  // ========== Settings & Status ==========
-  getStatus: () => ipcRenderer.invoke('whatsapp:getStatus'),
-  saveCredentials: (credentials) => ipcRenderer.invoke('whatsapp:saveCredentials', credentials),
-  testConnection: (credentials) => ipcRenderer.invoke('whatsapp:testConnection', credentials),
-  logout: () => ipcRenderer.invoke('whatsapp:logout'),
-  
-  // ========== Configuration ==========
-  verifyConfig: () => ipcRenderer.invoke('whatsapp:verifyConfig'),
-  setWhatsAppNumber: (number) => ipcRenderer.invoke('whatsapp:setWhatsAppNumber', number),
-  
-  getNgrokUrl: () => ipcRenderer.invoke('whatsapp:getNgrokUrl'),
-  saveNgrokUrl: (ngrokUrl) => ipcRenderer.invoke('whatsapp:saveNgrokUrl', ngrokUrl),
-  
+  whatsapp: {
 
-  // ========== Event Listeners ==========
-  onReady: (callback) => {    ipcRenderer.on('whatsapp:ready', () => callback());  },  
-  onAuthenticated: (callback) => {    ipcRenderer.on('whatsapp:authenticated', () => callback());  },  
-  onDisconnected: (callback) => {    ipcRenderer.on('whatsapp:disconnected', (_, reason) => callback(reason));  },  
-  onNewMessage: (callback) => {    ipcRenderer.on('whatsapp:new-message', (_, message) => callback(message));  },  
-  onMessageAck: (callback) => {    ipcRenderer.on('whatsapp:message-ack', (_, data) => callback(data));  },
 
-  // ✅ NEW: Real-Time Socket.IO Subscription
-  subscribeRealtimeMessages: (callback) => {
-    const io = require('socket.io-client');
-    const socket = io('http://localhost:3001', {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionDelay: 1000
-    });
+    markAsRead: async (conversationId) => {
+      return ipcRenderer.invoke('whatsapp:mark-as-read', conversationId);
+    },
+    // ========== Conversations ==========
+    getConversations: () => ipcRenderer.invoke('whatsapp:getConversations'),
+    createConversation: (data) => ipcRenderer.invoke('whatsapp:createConversation', data),
+    deleteConversation: (conversationId) => ipcRenderer.invoke('whatsapp:deleteConversation', conversationId),
+    editMessage: (messageId, newContent) => ipcRenderer.invoke('whatsapp:editMessage', messageId, newContent),
+    archiveConversation: (conversationId) => ipcRenderer.invoke('whatsapp:archiveConversation', conversationId),
     
-    socket.on('whatsapp:new-message', (message) => {
-      console.log('🔔 Real-time message via Socket.IO:', message);
-      callback(message);
-    });
+    // ========== Messages ==========
+    getMessages: (conversationId) => ipcRenderer.invoke('whatsapp:getMessages', conversationId),
+    sendMessage: (data) => ipcRenderer.invoke('whatsapp:sendMessage', data),
+    deleteMessage: (messageId) => ipcRenderer.invoke('whatsapp:deleteMessage', messageId),
     
-    socket.on('connect', () => console.log('✅ Socket.IO connected'));
-    socket.on('disconnect', () => console.log('⚠️ Socket.IO disconnected'));
+    // ========== Candidates ==========
+    getCandidatesWithPhone: () => ipcRenderer.invoke('whatsapp:getCandidatesWithPhone'),
+    seedCandidates: () => ipcRenderer.invoke('whatsapp:seedCandidates'),
+    debugCandidates: () => ipcRenderer.invoke('whatsapp:debugCandidates'),
+    importCandidatesFromFile: (filePath) => ipcRenderer.invoke('whatsapp:importCandidatesFromFile', filePath),
+   
+    // Webhook & Production
+    getWebhookInfo: () => ipcRenderer.invoke('whatsapp:getWebhookInfo'),
+    saveWebhookUrl: (url) => ipcRenderer.invoke('whatsapp:saveWebhookUrl', url),
     
-    return () => {
-      socket.disconnect();
-      console.log('🔌 Socket.IO cleaned up');
-    };
+    // ========== Settings & Status ==========
+    getStatus: () => ipcRenderer.invoke('whatsapp:getStatus'),
+    saveCredentials: (credentials) => ipcRenderer.invoke('whatsapp:saveCredentials', credentials),
+    testConnection: (credentials) => ipcRenderer.invoke('whatsapp:testConnection', credentials),
+    logout: () => ipcRenderer.invoke('whatsapp:logout'),
+    
+    // ========== Configuration ==========
+    verifyConfig: () => ipcRenderer.invoke('whatsapp:verifyConfig'),
+    setWhatsAppNumber: (number) => ipcRenderer.invoke('whatsapp:setWhatsAppNumber', number),
+    
+    getNgrokUrl: () => ipcRenderer.invoke('whatsapp:getNgrokUrl'),
+    saveNgrokUrl: (ngrokUrl) => ipcRenderer.invoke('whatsapp:saveNgrokUrl', ngrokUrl),
+    
+// Optimized methods
+  getCandidateDetailsOptimized: (args) => 
+    ipcRenderer.invoke('get-candidate-details-optimized', args),
+  searchCandidatesOptimized: (args) => 
+    ipcRenderer.invoke('search-candidates-optimized', args),
+  getReportingDataOptimized: (args) => 
+    ipcRenderer.invoke('get-reporting-data-optimized', args),
+  getCandidatesBatch: (candidateIds) => 
+    ipcRenderer.invoke('get-candidates-batch', candidateIds),
+  runPerformanceMigration: () => 
+    ipcRenderer.invoke('run-performance-migration'),
+
+    // ========== Event Listeners ==========
+    onReady: (callback) => {
+      ipcRenderer.on('whatsapp:ready', () => callback());
+    },  
+    onAuthenticated: (callback) => {
+      ipcRenderer.on('whatsapp:authenticated', () => callback());
+    },  
+    onDisconnected: (callback) => {
+      ipcRenderer.on('whatsapp:disconnected', (_, reason) => callback(reason));
+    },  
+    onNewMessage: (callback) => {
+      ipcRenderer.on('whatsapp:new-message', (_, message) => callback(message));
+    },  
+    onMessageAck: (callback) => {
+      ipcRenderer.on('whatsapp:message-ack', (_, data) => callback(data));
+    },
+
+
+    // ✅ NEW: Real-Time Socket.IO Subscription
+    subscribeRealtimeMessages: (callback) => {
+      const io = require('socket.io-client');
+      const socket = io('http://localhost:3001', {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionDelay: 1000
+      });
+      
+      socket.on('whatsapp:new-message', (message) => {
+        console.log('🔔 Real-time message via Socket.IO:', message);
+        callback(message);
+      });
+      
+      socket.on('connect', () => console.log('✅ Socket.IO connected'));
+      socket.on('disconnect', () => console.log('⚠️ Socket.IO disconnected'));
+      
+      return () => {
+        socket.disconnect();
+        console.log('🔌 Socket.IO cleaned up');
+      };
+    }
   }
-}
+
 
 
 
@@ -466,9 +568,11 @@ whatsapp: {
 });
 
 
+
 // ==========================================================================
 // 🔐 PERMISSION VISIBILITY (OPTIONAL UI HELPER)
 // ==========================================================================
+
 
 contextBridge.exposeInMainWorld('permission', {
   can: async (feature) => {

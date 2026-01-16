@@ -3,14 +3,27 @@ import { FiFileText, FiDownload, FiAlertTriangle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const initialFormData = {
-  monthlySalary: '40000',
+  monthlySalary: '',
   joiningDate: new Date().toISOString().slice(0, 10),
   acceptanceDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), 
 };
 
-function OfferLetterGenerator({user, candidateId, jobId }) {
+function OfferLetterGenerator({user, candidateId, jobId, jobSalary }) {
   const [formData, setFormData] = useState(initialFormData);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Prefill monthlySalary from selected job when jobId or jobSalary changes.
+  React.useEffect(() => {
+    if (jobId) {
+      setFormData((prev) => ({
+        ...prev,
+        monthlySalary: jobSalary || prev.monthlySalary || ''
+      }));
+    } else {
+      // clear when no job selected
+      setFormData((prev) => ({ ...prev, monthlySalary: '' }));
+    }
+  }, [jobId, jobSalary]);
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
@@ -25,11 +38,15 @@ function OfferLetterGenerator({user, candidateId, jobId }) {
     
     setIsGenerating(true);
     
+    // If monthlySalary is empty, don't send it so server can default to job's salary
+    const templateDataToSend = { ...formData };
+    if (!templateDataToSend.monthlySalary) delete templateDataToSend.monthlySalary;
+
     const genRes = await window.electronAPI.generateOfferLetter({
       user,
       candidateId: candidateId,
       jobId: jobId,
-      templateData: formData, 
+      templateData: templateDataToSend,
     });
 
     if (genRes.success) {

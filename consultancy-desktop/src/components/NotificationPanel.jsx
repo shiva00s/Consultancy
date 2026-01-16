@@ -114,6 +114,13 @@ const filteredNotifications = useMemo(() => {
     return date.toLocaleDateString();
   };
 
+  const formatMetaWhen = (val) => {
+    if (!val) return '';
+    const d = new Date(val);
+    if (!isNaN(d)) return d.toLocaleString();
+    return String(val);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -224,9 +231,33 @@ const filteredNotifications = useMemo(() => {
 
                   <div className="notification-content">
                     <h4>{notification.title}</h4>
-                    <p>{notification.message}</p>
+                    <p>
+                      {notification.actorName ? (
+                        <strong className="notification-actor">{notification.actorName}</strong>
+                      ) : null}
+                      {notification.actorName ? ' — ' : ''}
+                      {notification.message}
+                    </p>
+                    {notification.meta ? (
+                      <div className="notification-meta-extra">
+                        {typeof notification.meta === 'string' ? (
+                          <small>{notification.meta}</small>
+                        ) : (
+                          <div className="meta-grid">
+                            <div className="meta-row"><strong>Who:</strong> {notification.meta.who || notification.actor || '—'}</div>
+                            <div className="meta-row"><strong>Name:</strong> {notification.meta.name || notification.meta.subject_name || '—'}</div>
+                            <div className="meta-row"><strong>ID:</strong> {notification.meta.id || notification.meta.subject_id || '—'}</div>
+                            <div className="meta-row"><strong>Where:</strong> {notification.meta.where || notification.meta.location || '—'}</div>
+                            <div className="meta-row"><strong>How:</strong> {notification.meta.how || notification.meta.method || '—'}</div>
+                            <div className="meta-row"><strong>Contact:</strong> {notification.meta.contact || notification.meta.phone || notification.meta.email || '—'}</div>
+                            <div className="meta-row"><strong>When:</strong> {formatMetaWhen(notification.meta.when) || notification.meta.time || notification.createdAt || notification.date || '—'}</div>
+                            <div className="meta-row"><strong>Message:</strong> {notification.meta.message || notification.message || '—'}</div>
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
                     <div className="notification-meta">
-                      <span className="notification-time">
+                      <span className="notification-time" title={new Date(notification.createdAt).toLocaleString()}>
                         {formatTime(notification.createdAt)}
                       </span>
                       {notification.actionRequired && (

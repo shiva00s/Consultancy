@@ -37,6 +37,15 @@ const useAuthStore = create((set, get) => ({
     sessionStorage.setItem("user", JSON.stringify(userData));
     set({ user: userData, isAuthenticated: true });
 
+    // Populate main-process session user so IPC handlers correctly detect super-admin
+    try {
+      if (window && window.electronAPI && typeof window.electronAPI.setSessionUser === 'function') {
+        window.electronAPI.setSessionUser(userData);
+      }
+    } catch (e) {
+      console.warn('Failed to set session user in main process:', e && e.message);
+    }
+
     try {
       let finalFlags = {};
 
@@ -110,6 +119,13 @@ const useAuthStore = create((set, get) => ({
     sessionStorage.removeItem("user");
     sessionStorage.removeItem("featureFlags");
     set({ user: null, featureFlags: null, isAuthenticated: false });
+    try {
+      if (window && window.electronAPI && typeof window.electronAPI.clearSessionUser === 'function') {
+        window.electronAPI.clearSessionUser();
+      }
+    } catch (e) {
+      console.warn('Failed to clear session user in main process:', e && e.message);
+    }
   },
 
   refreshFlags: async () => {

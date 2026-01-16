@@ -1,6 +1,7 @@
 const twilio = require('twilio');
 const { dbAll, dbGet, dbRun } = require('../db/database.cjs');
 const TwilioWebhookServer = require('./twilioWebhookServer.cjs');
+const keyManager = require('./keyManager.cjs');
 
 class TwilioWhatsAppService {
   constructor(mainWindow, db) {
@@ -369,16 +370,15 @@ async sendMessage(phoneNumber, content, localMediaPaths, ngrokUrl = null) {
           // Final fallback: ngrok (if available)
           if (!uploadSuccess) {
             console.warn('⚠️ All upload services failed, trying ngrok fallback...');
-            
+
             if (ngrokUrl && ngrokUrl !== 'http://127.0.0.1:3001') {
               const jwt = require('jsonwebtoken');
-              const SECRET = '12023e5cf451cc4fc225b09f1543bd6c43c735c71db89f20c63cd6860430fc395b88778254ccbba2043df5989c0e61968cbf4ef6e4c6a6924f90fbe4c75cbb60';
-              
-              const token = jwt.sign({ path: localPath }, SECRET, { expiresIn: '7d' });
+              const secret = await keyManager.getKey('twilioJwtSecret') || process.env.TWILIO_JWT_SECRET || null;
+              const token = jwt.sign({ path: localPath }, secret || 'dev-temporary-secret', { expiresIn: '7d' });
               const filename = path.basename(localPath);
               const cleanNgrokUrl = ngrokUrl.replace(/\/$/, '');
               const publicUrl = `${cleanNgrokUrl}/public/files/${token}/${encodeURIComponent(filename)}`;
-              
+
               messageOptions.mediaUrl = [publicUrl];
               console.log('📎 Using ngrok fallback:', publicUrl);
             } else {
@@ -539,7 +539,7 @@ async sendMessage(phoneNumber, content, localMediaPaths, ngrokUrl = null) {
               // Fallback to ngrok
               if (ngrokUrl && ngrokUrl !== 'http://127.0.0.1:3001') {
                 const jwt = require('jsonwebtoken');
-                const SECRET = '12023e5cf451cc4fc225b09f1543bd6c43c735c71db89f20c63cd6860430fc395b88778254ccbba2043df5989c0e61968cbf4ef6e4c6a6924f90fbe4c75cbb60';
+                const SECRET = await keyManager.getKey('twilioJwtSecret') || process.env.TWILIO_JWT_SECRET || 'dev-temporary-secret';
                 
                 const token = jwt.sign({ path: localPath }, SECRET, { expiresIn: '7d' });
                 const filename = path.basename(localPath);
@@ -561,7 +561,7 @@ async sendMessage(phoneNumber, content, localMediaPaths, ngrokUrl = null) {
             // Try ngrok fallback
             if (ngrokUrl && ngrokUrl !== 'http://127.0.0.1:3001') {
               const jwt = require('jsonwebtoken');
-              const SECRET = '12023e5cf451cc4fc225b09f1543bd6c43c735c71db89f20c63cd6860430fc395b88778254ccbba2043df5989c0e61968cbf4ef6e4c6a6924f90fbe4c75cbb60';
+              const SECRET = await keyManager.getKey('twilioJwtSecret') || process.env.TWILIO_JWT_SECRET || 'dev-temporary-secret';
               
               const token = jwt.sign({ path: localPath }, SECRET, { expiresIn: '7d' });
               const filename = path.basename(localPath);
@@ -577,7 +577,7 @@ async sendMessage(phoneNumber, content, localMediaPaths, ngrokUrl = null) {
             // Non-image files: use ngrok
             if (ngrokUrl && ngrokUrl !== 'http://127.0.0.1:3001') {
               const jwt = require('jsonwebtoken');
-              const SECRET = '12023e5cf451cc4fc225b09f1543bd6c43c735c71db89f20c63cd6860430fc395b88778254ccbba2043df5989c0e61968cbf4ef6e4c6a6924f90fbe4c75cbb60';
+              const SECRET = await keyManager.getKey('twilioJwtSecret') || process.env.TWILIO_JWT_SECRET || 'dev-temporary-secret';
               
               const token = jwt.sign({ path: localPath }, SECRET, { expiresIn: '7d' });
               const filename = path.basename(localPath);
@@ -670,7 +670,7 @@ async generatePublicFileUrl(filePath) {
 
     // Use ngrok URL if available, otherwise fallback to localhost
     const BASE_URL = setting?.value || 'http://127.0.0.1:3001';
-    const SECRET = '12023e5cf451cc4fc225b09f1543bd6c43c735c71db89f20c63cd6860430fc395b88778254ccbba2043df5989c0e61968cbf4ef6e4c6a6924f90fbe4c75cbb60';
+    const SECRET = await keyManager.getKey('twilioJwtSecret') || process.env.TWILIO_JWT_SECRET || 'dev-temporary-secret';
 
     const normalizedPath = path.resolve(filePath);
     const token = jwt.sign({ path: normalizedPath }, SECRET, { expiresIn: '24h' });

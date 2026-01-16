@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { notificationService } from '../services/NotificationService';
+import { notificationService } from '../services/notificationService';
 
 const useNotificationStore = create((set, get) => ({
   notifications: [],

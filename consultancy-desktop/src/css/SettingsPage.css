@@ -358,3 +358,33 @@ html[data-theme='light'] .user-item-actions .doc-btn:hover {
   position: relative; /* 🔥 Required for absolute modal positioning */
 }
   
+/* Keys table styling to avoid header overlap and ensure readability */
+.keys-table {
+  width: 100%;
+  overflow: auto;
+  border-radius: 8px;
+}
+.keys-table table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+}
+.keys-table th,
+.keys-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  color: var(--text-primary);
+}
+.keys-table thead th {
+  position: sticky;
+  top: 0; /* stick to top of the scrolling container */
+  background: var(--bg-secondary);
+  z-index: 6;
+  font-weight: 600;
+}
+.keys-table tbody tr:hover td {
+  background: rgba(255,255,255,0.02);
+}
+
+  

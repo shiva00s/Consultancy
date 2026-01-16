@@ -13,7 +13,7 @@ import {
   FiAlertCircle,
 } from "react-icons/fi";
 import "../css/DocumentList.css";
-import ConfirmDialog from './common/ConfirmDialog';
+// ConfirmDialog removed: parent (`CandidateDocuments`) handles confirmations
 import LazyRemoteImage from './common/LazyRemoteImage';
 import {
   cleanCategory,
@@ -29,19 +29,23 @@ function DocumentList({
   onView,
   onDelete,
   onRename,
+  onDeleteGroup,
+  onDeleteAll,
 }) {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageCache, setImageCache] = useState({});
   const [pdfCache, setPdfCache] = useState({});
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmTarget, setConfirmTarget] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editingValue, setEditingValue] = useState('');
   const [localNames, setLocalNames] = useState({});
 
   const hasDocuments =
     groupedDocuments && Object.keys(groupedDocuments).length > 0;
+
+  const totalDocumentCount = hasDocuments
+    ? Object.values(groupedDocuments).reduce((sum, arr) => sum + (arr?.length || 0), 0)
+    : 0;
 
   // Get all images for gallery
   const getAllImages = () => {
@@ -139,6 +143,17 @@ function DocumentList({
             <p>Quickly review, preview, and manage all files.</p>
           </div>
         </div>
+        <div className="doclist-header-actions">
+          {typeof onDeleteAll === 'function' && totalDocumentCount > 1 && (
+            <button
+              className="doclist-btn doclist-btn-danger"
+              title="Delete all documents for this candidate"
+              onClick={() => onDeleteAll()}
+            >
+              <FiTrash2 />
+            </button>
+          )}
+        </div>
       </header>
 
       {!hasDocuments ? (
@@ -161,6 +176,17 @@ function DocumentList({
                     <small>
                       {docs.length} file{docs.length > 1 ? "s" : ""}
                     </small>
+                  </div>
+                  <div className="doclist-category-actions">
+                    {typeof onDeleteGroup === 'function' && docs.length > 1 && (
+                      <button
+                        className="doclist-btn doclist-btn-danger"
+                        title={`Delete ${docs.length} files in ${cleanedCategory}`}
+                        onClick={() => onDeleteGroup(cleanedCategory, docs)}
+                      >
+                        <FiTrash2 />
+                      </button>
+                    )}
                   </div>
                 </header>
 
@@ -249,17 +275,20 @@ function DocumentList({
                               <FiEye />
                             </button>
 
-                            <button
-                              type="button"
-                              className="doclist-btn doclist-btn-danger"
-                              title="Delete"
-                              onClick={() => {
-                                setConfirmTarget({ id: doc.id, name: localNames[doc.id] || doc.fileName });
-                                setConfirmOpen(true);
-                              }}
-                            >
-                              <FiTrash2 />
-                            </button>
+                            {docs.length === 1 && (
+                              <button
+                                type="button"
+                                className="doclist-btn doclist-btn-danger"
+                                title="Delete"
+                                onClick={() => {
+                                  // Delegate confirmation to parent to avoid duplicate dialogs
+                                  if (typeof onDelete === 'function') onDelete(doc.id, localNames[doc.id] || doc.fileName);
+                                }}
+                              >
+                                <FiTrash2 />
+                              </button>
+                            )}
+                            {/* download button removed per request */}
                           </div>
                         </div>
                       </div>
@@ -343,28 +372,9 @@ function DocumentList({
         </div>
       )}
 
-      {/* Confirm Delete Dialog */}
-      <ConfirmDialog
-        isOpen={confirmOpen}
-        title={confirmTarget ? `Delete ${confirmTarget.name}?` : 'Delete Document?'}
-        message={confirmTarget ? `Are you sure you want to permanently delete "${confirmTarget.name}"? This action cannot be undone. 🗑️` : 'Are you sure?'}
-        isDanger={true}
-        confirmText="Delete"
-        cancelText="Cancel"
-        confirmIcon="🗑️"
-        cancelIcon="❌"
-        onConfirm={async () => {
-          if (confirmTarget) {
-            await onDelete(confirmTarget.id, confirmTarget.name);
-          }
-          setConfirmOpen(false);
-          setConfirmTarget(null);
-        }}
-        onCancel={() => {
-          setConfirmOpen(false);
-          setConfirmTarget(null);
-        }}
-      />
+      {/* ConfirmDialog removed from here to avoid duplicate dialogs.
+          Parent component (`CandidateDocuments`) controls confirmation for
+          single / group / all deletes via props `onDelete`, `onDeleteGroup`, `onDeleteAll`. */}
 
       {/* Inline rename input overlay (keeps existing API intact) */}
       {editingId && (

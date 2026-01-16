@@ -483,3 +483,21 @@ html[data-theme="light"] .recycle-item:hover {
   transform: translateY(-1px);
   box-shadow: 0 8px 18px rgba(248, 113, 113, 0.7);
 }
+
+/* Fixes: ensure grid items don't overlap and reserve space for floating buttons */
+.recycle-grid {
+  align-items: start; /* keep cards aligned to top so varying heights don't overlap */
+  grid-auto-rows: minmax(0, auto);
+  box-sizing: border-box;
+}
+
+.recycle-item {
+  box-sizing: border-box;
+  width: 100%;
+  word-break: break-word;
+}
+
+.recycle-list-content {
+  /* leave extra bottom padding so floating FABs or system overlays don't cover the last rows */
+  padding-bottom: 120px;
+}

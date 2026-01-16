@@ -4,6 +4,7 @@ import { FiPlus, FiTrash2, FiUser, FiRefreshCw } from 'react-icons/fi';
 import ProfilePhotoDisplay from '../components/ProfilePhotoDisplay';
 import toast from 'react-hot-toast';
 import useAuthStore from '../store/useAuthStore';
+import useDataStore from '../store/dataStore';
 import { useShallow } from 'zustand/react/shallow';
 import ScannerModal from '../components/tools/ScannerModal';
 import '../css/AddCandidatePage.css';
@@ -43,6 +44,7 @@ function AddCandidatePage() {
   const [modalType, setModalType] = useState(null);
   const [jobPositions, setJobPositions] = useState([]);
   const { user } = useAuthStore(useShallow((state) => ({ user: state.user })));
+  const addCandidateToCache = useDataStore(state => state.addCandidate);
 
   // ✅ FETCH JOB POSITIONS ON LOAD
   useEffect(() => {
@@ -236,6 +238,26 @@ function AddCandidatePage() {
 
       if (result.success) {
         toast.success(`Candidate saved ✅ ID: ${result.id}`);
+        try {
+          // Try to fetch the newly created candidate record and add to cache
+          const detailRes = await window.electronAPI.getCandidateDetails({ id: result.id });
+          // normalize: handler returns { success: true, data: { candidate, documents } }
+          if (detailRes && detailRes.success) {
+            const candidateRecord = detailRes.data?.candidate || detailRes.candidate || detailRes.data;
+            if (candidateRecord && candidateRecord.id) {
+              addCandidateToCache(candidateRecord);
+            } else {
+              // unexpected shape: fallback to clearing cache so list will refresh
+              console.warn('getCandidateDetails returned unexpected shape', detailRes);
+              useDataStore.getState().clearCandidatesCache();
+            }
+          }
+        } catch (e) {
+          // non-fatal — fall back to clearing cache so list will refresh later
+          console.warn('Failed to fetch created candidate for cache update', e);
+          useDataStore.getState().clearCandidatesCache();
+        }
+
         handleReset();
       } else if (result.errors) {
         setErrors(result.errors);

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FiPackage, FiTrash2, FiPlus, FiEdit2, FiCheck, FiX, FiGlobe, FiCalendar, FiUser, FiMapPin, FiInfo } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import '../../css/CandidateVisa.css';
+import useNotificationStore from '../../store/useNotificationStore';
 
 const visaStatusOptions = [
   'Pending',
@@ -61,6 +62,7 @@ function CandidateVisa({ user, candidateId }) {
   const [autoFillData, setAutoFillData] = useState(null);
   const [isLoadingAutoFill, setIsLoadingAutoFill] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, visaId: null });
+  const createNotification = useNotificationStore((s) => s.createNotification);
 
   // Fetch auto-fill data from candidate profile and job placements
   const fetchAutoFillData = useCallback(async () => {
@@ -186,6 +188,18 @@ function CandidateVisa({ user, candidateId }) {
         setEditingId(null);
         setEditForm({});
         toast.success('✅ Visa entry updated successfully!', { id: toastId });
+        try {
+          createNotification({
+            title: '✈️ Visa entry updated',
+            message: `Visa entry updated for candidate ${candidateId} (${editForm?.country || ''})`,
+            type: 'info',
+            priority: 'normal',
+            link: `/candidate/${candidateId}?tab=visa`,
+            actor: { id: user?.id, name: user?.name || user?.username },
+            target: { type: 'visa', id: entryId },
+            meta: { candidateId },
+          });
+        } catch (e) {}
       } else {
         const errorMessage =
           res.errors && Object.values(res.errors).join(', ')
@@ -225,6 +239,18 @@ function CandidateVisa({ user, candidateId }) {
           passport_number: autoFillData?.passport_number || '',
         });
         toast.success('✅ Visa entry added successfully!', { id: toastId });
+        try {
+          createNotification({
+            title: '✈️ Visa entry added',
+            message: `Visa entry added for candidate ${candidateId} (${res.data?.country || ''})`,
+            type: 'info',
+            priority: 'normal',
+            link: `/candidate/${candidateId}?tab=visa`,
+            actor: { id: user?.id, name: user?.name || user?.username },
+            target: { type: 'visa', id: res.data?.id },
+            meta: { candidateId },
+          });
+        } catch (e) {}
       } else {
         const errorMessage =
           res.errors && Object.values(res.errors).join(', ')
@@ -251,6 +277,18 @@ function CandidateVisa({ user, candidateId }) {
     if (res.success) {
       setVisaEntries((prev) => prev.filter((v) => v.id !== visaId));
       toast.success('✅ Visa entry moved to Recycle Bin.');
+      try {
+        createNotification({
+          title: '🗑️ Visa entry deleted',
+          message: `Visa entry moved to Recycle Bin for candidate ${candidateId}`,
+          type: 'warning',
+          priority: 'high',
+          link: `/candidate/${candidateId}?tab=visa`,
+          actor: { id: user?.id, name: user?.name || user?.username },
+          target: { type: 'visa', id: visaId },
+          meta: { candidateId },
+        });
+      } catch (e) {}
     } else {
       toast.error('❌ ' + res.error);
     }
@@ -388,17 +426,19 @@ function CandidateVisa({ user, candidateId }) {
             </select>
           </div>
 
-          <div className="form-field">
-            <label>📞 Agent Contact</label>
-            <input
-              type="text"
-              name="agent_contact"
-              value={visaForm.agent_contact}
-              onChange={handleVisaFormChange}
-              placeholder="Agent name or contact details"
-              className="compact-input"
-            />
-          </div>
+          {visaForm.contact_type === 'Agency' && (
+            <div className="form-field">
+              <label>📞 Agent Contact</label>
+              <input
+                type="text"
+                name="agent_contact"
+                value={visaForm.agent_contact}
+                onChange={handleVisaFormChange}
+                placeholder="Agent name or contact details"
+                className="compact-input"
+              />
+            </div>
+          )}
 
           <div className="form-field full-width">
             <label>📝 Notes</label>
@@ -537,16 +577,18 @@ function CandidateVisa({ user, candidateId }) {
                           </select>
                         </div>
 
-                        <div className="edit-field">
-                          <label>📞 Agent Contact</label>
-                          <input
-                            type="text"
-                            name="agent_contact"
-                            value={editForm.agent_contact}
-                            onChange={handleEditFormChange}
-                            className="edit-input compact-input"
-                          />
-                        </div>
+                        {editForm.contact_type === 'Agency' && (
+                          <div className="edit-field">
+                            <label>📞 Agent Contact</label>
+                            <input
+                              type="text"
+                              name="agent_contact"
+                              value={editForm.agent_contact}
+                              onChange={handleEditFormChange}
+                              className="edit-input compact-input"
+                            />
+                          </div>
+                        )}
 
                         <div className="edit-field">
                           <label>📝 Notes</label>

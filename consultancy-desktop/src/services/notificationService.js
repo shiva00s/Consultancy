@@ -1,4 +1,5 @@
 import { sanitizeText } from '../utils/sanitize';
+import useAuthStore from '../store/useAuthStore';
 
 class NotificationService {
   constructor() {
@@ -164,7 +165,41 @@ class NotificationService {
         link: data.link || null,
         candidateId: data.candidateId || null,
         actionRequired: !!data.actionRequired,
+        // Optional richer fields: actor, target, meta
+        actorId: data.actorId || (data.actor && data.actor.id) || null,
+        actorName: data.actorName || (data.actor && data.actor.name) || (data.actor && data.actor.username) || null,
+        targetType: data.targetType || (data.target && data.target.type) || null,
+        targetId: data.targetId || (data.target && data.target.id) || null,
+        // Build a normalized meta payload so UI can reliably display details
+        meta: Object.assign(
+          {},
+          data.meta || {},
+          // common fields used across modules
+          {
+            who: (data.actor && (data.actor.name || data.actor.username)) || data.actorName || null,
+            where: data.place || data.location || data.send_to || data.received_from || null,
+            how: data.method || null,
+            when: data.when || data.timestamp || data.date || data.created_at || null,
+            name: data.name || data.send_to_name || data.send_to_contact_name || null,
+            id: data.id || data.targetId || (data.target && data.target.id) || null,
+            contact: data.contact || data.send_to_contact || data.send_to_contact_number || null,
+          }
+        ),
+        category: data.category || data.type || null,
       };
+
+      // If actor info not provided, pick from current authenticated user (if available)
+      try {
+        const currentUser = useAuthStore.getState().user;
+        if (!sanitizedData.actorId && currentUser) {
+          sanitizedData.actorId = currentUser.id || null;
+        }
+        if (!sanitizedData.actorName && currentUser) {
+          sanitizedData.actorName = currentUser.companyName || currentUser.name || currentUser.username || null;
+        }
+      } catch (e) {
+        // ignore if store not available
+      }
 
       const result = await window.electronAPI.createNotification(sanitizedData);
 

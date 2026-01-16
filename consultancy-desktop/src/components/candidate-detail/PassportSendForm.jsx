@@ -16,7 +16,7 @@ function PassportSendForm({ candidateId, user, staffList, onSuccess }) {
     send_to: 'Candidate',
     send_to_name: '',
     send_to_contact: '',
-    method: 'By Hand',
+    method: 'By Courier',
     courier_number: '',
     date: new Date().toISOString().split('T')[0],
     sent_by: user?.fullName || '',
@@ -255,23 +255,22 @@ function PassportSendForm({ candidateId, user, staffList, onSuccess }) {
             </select>
           </div>
 
-          {formData.method === 'By Courier' && (
-            <div className="form-group">
-              <label>
-                <FiPackage /> Courier Number *
-              </label>
-              <input
-                type="text"
-                value={formData.courier_number}
-                onChange={(e) => setFormData({ ...formData, courier_number: e.target.value })}
-                placeholder="Tracking number"
-                className="form-input"
-                required
-              />
-            </div>
-          )}
+          <div className="form-group courier-number">
+            <label>
+              <FiPackage /> Courier Number *
+            </label>
+            <input
+              type="text"
+              value={formData.courier_number}
+              onChange={(e) => setFormData({ ...formData, courier_number: e.target.value })}
+              placeholder="Tracking number"
+              className="form-input"
+              required={formData.method === 'By Courier'}
+              disabled={formData.method !== 'By Courier'}
+            />
+          </div>
 
-          <div className="form-group">
+          <div className="form-group date">
             <label>
               <FiCalendar /> Date *
             </label>
@@ -284,27 +283,28 @@ function PassportSendForm({ candidateId, user, staffList, onSuccess }) {
             />
           </div>
 
-          <StaffSelector
-            value={formData.sent_by}
-            onChange={(value) => setFormData({ ...formData, sent_by: value })}
-            staffList={staffList}
-            currentUser={user}
-            required={true}
-            label="SENT BY"
-          />
-        </div>
-
-        <div className="form-group full-width">
-          <label>
-            <FiFileText /> Notes
-          </label>
-          <textarea
-            value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            placeholder="Optional notes..."
-            className="form-textarea"
-            rows="3"
-          />
+          <div className="form-group sent-by">
+            <StaffSelector
+              value={formData.sent_by}
+              onChange={(value) => setFormData({ ...formData, sent_by: value })}
+              staffList={staffList}
+              currentUser={user}
+              required={true}
+              label="SENT BY"
+            />
+          </div>
+          <div className="form-group send-notes">
+            <label>
+              <FiFileText /> Notes
+            </label>
+            <textarea
+              rows={1}
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              placeholder="Optional notes..."
+              className="form-textarea"
+            />
+          </div>
         </div>
 
         <div className="form-group full-width">

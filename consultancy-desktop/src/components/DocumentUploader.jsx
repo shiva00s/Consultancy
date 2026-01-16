@@ -378,7 +378,7 @@ function DocumentUploader({ user, candidateId, onUploaded }) {
                 <FiTrash2 /> 🗑️ Clear All
               </button>
             </div>
-            <ul className="du-files-list">
+            <ul className={`du-files-list ${files.length > 3 ? 'du-grid-3' : 'du-grid-1'}`}>
               {files.map((f, idx) => (
                 <li key={`${f.name}-${idx}`}>
                   <div className="du-file-info">

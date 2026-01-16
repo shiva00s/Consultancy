@@ -2,11 +2,12 @@
   background-color: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-  padding: 1.75rem;
+  padding: 1.25rem;
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
   transition: transform 0.2s, box-shadow 0.2s;
+  min-width: 0; /* allow children to shrink */
 }
 .report-widget-card:hover {
   transform: translateY(-4px);
@@ -14,26 +15,36 @@
 }
 
 .report-widget-icon {
-  font-size: 2.5rem;
-  padding: 16px;
+  font-size: 2rem;
+  padding: 12px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
+}
+
+.report-widget-info {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .report-widget-info p {
-  margin: 0 0 4px 0;
-  font-size: 1rem;
+  margin: 0 0 6px 0;
+  font-size: 0.95rem;
   color: var(--text-secondary);
-  font-weight: 500;
-  white-space: nowrap;
+  font-weight: 600;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .report-widget-info span {
-  font-size: 2.25rem;
-  font-weight: 600;
+  font-size: clamp(1.2rem, 3.5vw, 2.25rem);
+  font-weight: 700;
   color: var(--text-primary);
+  display: block;
+  line-height: 1.05;
+  word-break: break-word;
 }
 
 /* Icon Colors */
@@ -52,6 +63,12 @@
 .report-widget-card.yellow .report-widget-icon {
   color: var(--warning-color);
   background-color: rgba(var(--warning-rgb), 0.08);
+}
+/* responsive adjustments to prevent overlap */
+@media (max-width: 900px) {
+  .report-widget-card { padding: 1rem; }
+  .report-widget-icon { font-size: 1.6rem; padding: 10px; }
+  .report-widget-info span { font-size: 1.1rem; }
 }
 /* === UI POLISH ADDITIONS (APPEND) === */
 .report-widget-card { border-radius: var(--border-radius); }

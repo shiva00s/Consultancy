@@ -907,3 +907,94 @@
   transform: scale(1.1) translateY(-3px);
   box-shadow: 0 8px 28px rgba(59, 130, 246, 0.6);
 }
+
+/* ============================================
+   NOTIFICATION BELL IN SIDEBAR HEADER
+   ============================================ */
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-header .notification-bell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+  margin-left: auto; /* Push to right before theme toggle */
+}
+
+.sidebar-header .notification-bell:hover {
+  background-color: var(--bg-hover);
+}
+
+.sidebar-header .notification-bell svg {
+  width: 20px;
+  height: 20px;
+  color: var(--text-primary);
+}
+
+.sidebar-header .notification-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  animation: badge-pop 0.3s ease;
+}
+
+@keyframes badge-pop {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ============================================
+   THEME TOGGLE - Adjust spacing
+   ============================================ */
+
+.theme-icon-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.theme-icon-toggle:hover {
+  background-color: var(--bg-hover);
+}
+
+.theme-icon-toggle svg {
+  width: 20px;
+  height: 20px;
+  color: var(--text-primary);
+}

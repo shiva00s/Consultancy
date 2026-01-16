@@ -39,7 +39,9 @@
 .report-filter-bar .filter-field {
   display: flex;
   align-items: center;
-  flex-grow: 1;
+  /* prefer a sensible minimum and allow wrapping instead of squeezing */
+  flex: 1 1 220px;
+  min-width: 160px;
   background: var(--bg-input);
   border-radius: var(--radius-md);
   padding: 0 10px;
@@ -113,7 +115,9 @@
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
   background: var(--bg-card);
-  overflow: hidden; /* rounded corners only */
+  /* allow horizontal scroll on small screens to avoid layout break */
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Table */
@@ -229,7 +233,8 @@
 
 .report-widget-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  /* slightly smaller min width to better fit on narrow screens */
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--space-md);
 }
 
@@ -266,5 +271,27 @@
 
   .reports-title {
     font-size: 1.6rem;
+  }
+}
+
+/* Additional small-screen tweaks for the report table and widgets */
+@media (max-width: 900px) {
+  .report-table th,
+  .report-table td {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+
+  .report-table th {
+    font-size: 0.65rem;
+  }
+
+  /* ensure table stays readable: allow horizontal scroll by setting a sensible min width */
+  .report-table {
+    min-width: 800px;
+  }
+
+  .report-widget-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   }
 }

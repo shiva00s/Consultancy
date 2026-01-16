@@ -321,6 +321,37 @@
   -webkit-box-orient: vertical;
 }
 
+.notification-actor {
+  display: inline-block;
+  margin-right: 6px;
+  color: var(--text-primary);
+}
+
+.notification-meta-extra small {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  margin-top: 6px;
+  display: block;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 12px;
+  margin-top: 6px;
+}
+
+.meta-row {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.meta-row strong {
+  color: var(--text-primary);
+  margin-right: 6px;
+  font-weight: 600;
+}
+
 .notification-meta {
   display: flex;
   align-items: center;

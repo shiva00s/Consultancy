@@ -158,9 +158,77 @@ async function getSuperAdminFeatureFlags() {
   }
 }
 
+// ====================================================================
+// COMPANY SETUP QUERIES
+// ====================================================================
+
+async function getCompanySetup() {
+  const db = getDatabase();
+  try {
+    const rows = await dbAll(db, `SELECT id, company_name, address, contact, created_at, updated_at, isDeleted FROM company_setup WHERE isDeleted = 0 ORDER BY id DESC`, []);
+    return { success: true, data: rows };
+  } catch (err) {
+    console.error('getCompanySetup DB Error:', err.message);
+    return { success: false, error: mapErrorToFriendly(err) };
+  }
+}
+
+async function getCompanySetupById(id) {
+  const db = getDatabase();
+  try {
+    const row = await dbGet(db, `SELECT id, company_name, address, contact, created_at, updated_at, isDeleted FROM company_setup WHERE id = ?`, [id]);
+    return { success: true, data: row };
+  } catch (err) {
+    console.error('getCompanySetupById DB Error:', err.message);
+    return { success: false, error: mapErrorToFriendly(err) };
+  }
+}
+
+async function addCompanySetup(payload) {
+  const db = getDatabase();
+  try {
+    const sql = `INSERT INTO company_setup (company_name, address, contact, created_by, updated_by) VALUES (?, ?, ?, ?, ?)`;
+    const res = await dbRun(db, sql, [payload.company_name, payload.address || null, payload.contact || null, payload.userId || null, payload.userId || null]);
+    return { success: true, id: res.lastID };
+  } catch (err) {
+    console.error('addCompanySetup DB Error:', err.message);
+    return { success: false, error: mapErrorToFriendly(err) };
+  }
+}
+
+async function updateCompanySetup(payload) {
+  const db = getDatabase();
+  try {
+    const sql = `UPDATE company_setup SET company_name = ?, address = ?, contact = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+    await dbRun(db, sql, [payload.company_name, payload.address || null, payload.contact || null, payload.userId || null, payload.id]);
+    return { success: true };
+  } catch (err) {
+    console.error('updateCompanySetup DB Error:', err.message);
+    return { success: false, error: mapErrorToFriendly(err) };
+  }
+}
+
+async function deleteCompanySetup(id, soft = true) {
+  const db = getDatabase();
+  try {
+    if (soft) {
+      await dbRun(db, `UPDATE company_setup SET isDeleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [id]);
+    } else {
+      await dbRun(db, `DELETE FROM company_setup WHERE id = ?`, [id]);
+    }
+    return { success: true };
+  } catch (err) {
+    console.error('deleteCompanySetup DB Error:', err.message);
+    return { success: false, error: mapErrorToFriendly(err) };
+  }
+}
+
 // --- NEW FUNCTION: Enforces Delegation for Admin & Staff (Replaces checkAdminFeatureAccess for CRUD) ---
 async function checkUserDelegatedAccess(user, featureKey) {
-  if (!user || user.role === "super_admin") return { success: true };
+  // Treat missing user OR any user that indicates super admin as having full access
+  if (!user) return { success: true };
+  const roleStr = String(user.role || '').toLowerCase();
+  if (roleStr.includes('super') || user.is_super_admin || user.isSuperAdmin) return { success: true };
 
   // 1. Get the global ceiling (SA's policy)
   const ceilingRes = await getSuperAdminFeatureFlags();
@@ -1348,6 +1416,7 @@ async function getCandidatePlacements(candidateId) {
       p.assignedAt as assignedDate,
       j.id as jobId, 
       j.positionTitle as positionTitle,
+      j.salary as salary,
       e.companyName as companyName, 
       e.country
     FROM placements p
@@ -3268,7 +3337,9 @@ async function updateEmployer(user, id, data) {
   ];
   try {
     await dbRun(db, sql, params);
-    return { success: true, id: id, data: data };
+    // Return the full updated row (include id and any DB-normalized fields)
+    const row = await dbGet(db, "SELECT * FROM employers WHERE id = ?", [id]);
+    return { success: true, id: id, data: row };
   } catch (err) {
     return { success: false, error: mapErrorToFriendly(err) };
   }
@@ -3401,6 +3472,7 @@ async function addJobOrder(user, data) {
       requirements,
       food,
       accommodation,
+      salary,
       dutyHours,
       overtime,
       contractPeriod,
@@ -3422,6 +3494,7 @@ async function addJobOrder(user, data) {
     data.requirements || null,
     data.food || null,
     data.accommodation || null,
+    data.salary || null,
     data.dutyHours || null,
     data.overtime || null,
     data.contractPeriod || null,
@@ -3479,6 +3552,7 @@ async function updateJobOrder(user, id, data) {
       requirements  = ?,
       food          = ?,
       accommodation = ?,
+      salary        = ?,
       dutyHours     = ?,
       overtime      = ?,
       contractPeriod= ?,
@@ -3497,6 +3571,7 @@ async function updateJobOrder(user, id, data) {
     data.requirements || null,
     data.food || null,
     data.accommodation || null,
+    data.salary || null,
     data.dutyHours || null,
     data.overtime || null,
     data.contractPeriod || null,
@@ -3733,6 +3808,12 @@ async function getNotifications(limit = 50) {
       link,
       candidate_id    AS candidateId,
       action_required AS actionRequired,
+      actor_id        AS actorId,
+      actor_name      AS actorName,
+      target_type     AS targetType,
+      target_id       AS targetId,
+      meta,
+      category,
       created_at      AS createdAt,
       read
     FROM notifications
@@ -3748,8 +3829,10 @@ async function createNotification(data) {
   const insertSql = `
     INSERT INTO notifications (
       title, message, type, priority, link,
-      candidate_id, action_required, read, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, datetime('now'))
+      candidate_id, action_required,
+      actor_id, actor_name, target_type, target_id, meta, category,
+      read, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'))
   `;
   await dbRun(db, insertSql, [
     data.title,
@@ -3759,13 +3842,26 @@ async function createNotification(data) {
     data.link || null,
     data.candidateId || null,
     data.actionRequired ? 1 : 0,
+    data.actorId || null,
+    data.actorName || null,
+    data.targetType || null,
+    data.targetId || null,
+    data.meta ? (typeof data.meta === 'string' ? data.meta : JSON.stringify(data.meta)) : null,
+    data.category || null,
   ]);
+  
 
   const rowSql = `
-    SELECT id, title, message, type, priority, link,
-           candidate_id    AS candidateId,
-           action_required AS actionRequired,
-           read, created_at AS createdAt
+      SELECT id, title, message, type, priority, link,
+        candidate_id    AS candidateId,
+        action_required AS actionRequired,
+        actor_id        AS actorId,
+        actor_name      AS actorName,
+        target_type     AS targetType,
+        target_id       AS targetId,
+        meta,
+        category,
+        read, created_at AS createdAt
     FROM notifications
     ORDER BY id DESC
     LIMIT 1
@@ -3774,53 +3870,7 @@ async function createNotification(data) {
   return row;
 }
 
-async function getPassportTracking(candidateId) {
-  const db = getDatabase();
 
-
-  const sql = `
-    SELECT * FROM passport_tracking 
-    WHERE candidate_id = ? AND (isDeleted IS NULL OR isDeleted = 0)
-    ORDER BY date DESC, createdAt DESC
-  `;
-
-
-  try {
-    const rows = await dbAll(db, sql, [candidateId]);
-
-
-    // Parse photos and add prefix back
-    const rowsWithPhotos = rows.map(row => {
-      let photos = [];
-      try {
-        photos = JSON.parse(row.photos || '[]');
-        
-        // Add data URL prefix for display
-        photos = photos.map(photo => ({
-          ...photo,
-          filedata: `data:${photo.filetype};base64,${photo.filedata}`
-        }));
-      } catch (e) {
-        photos = [];
-      }
-
-
-      return {
-        ...row,
-        photos,
-        photo_count: photos.length
-      };
-    });
-
-
-    return { success: true, data: rowsWithPhotos };
-
-
-  } catch (error) {
-    console.error('getPassportTracking error:', error);
-    return { success: false, error: error.message };
-  }
-}
 
 async function markNotificationAsRead(id) {
   const db = getDatabase();
@@ -3844,6 +3894,82 @@ async function clearAllNotifications() {
 
 
 
+async function getPassportTracking(candidateId){
+  const db=getDatabase();
+  const sql=`SELECT * FROM passport_tracking WHERE candidate_id=? AND (isDeleted IS NULL OR isDeleted=0) ORDER BY date DESC, createdAt DESC`;
+  try{
+    const rows=await dbAll(db,sql,[candidateId]);
+    const rowsWithPhotos=rows.map(row=>{
+      let photos=[];
+      try{
+        photos=JSON.parse(row.photos||'[]');
+        photos=photos.map(photo=>({
+          ...photo,
+          filedata:`data:${photo.filetype};base64,${photo.filedata}`
+        }));
+      }catch(e){
+        photos=[];
+      }
+      return{
+        ...row,
+        photos,
+        photo_count:photos.length
+      };
+    });
+    return{success:true,data:rowsWithPhotos};
+  }catch(error){
+    console.error('getPassportTracking error:',error);
+    return{success:false,error:error.message};
+  }
+}
+
+// ---------------------------
+// System settings helpers
+// ---------------------------
+async function listSystemSettings() {
+  const db = getDatabase();
+  try {
+    const rows = await dbAll(db, `SELECT key, value, updated_at FROM system_settings ORDER BY key ASC`, []);
+    return { success: true, data: rows || [] };
+  } catch (err) {
+    console.error('listSystemSettings error:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+async function getSystemSetting(keyName) {
+  const db = getDatabase();
+  try {
+    const row = await dbGet(db, `SELECT value, updated_at FROM system_settings WHERE key = ? LIMIT 1`, [keyName]);
+    if (!row) return { success: true, data: null };
+    return { success: true, data: { key: keyName, value: row.value, updated_at: row.updated_at } };
+  } catch (err) {
+    console.error('getSystemSetting error:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+async function saveSystemSetting(keyName, value) {
+  const db = getDatabase();
+  try {
+    await dbRun(db, `INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))`, [keyName, value]);
+    return { success: true };
+  } catch (err) {
+    console.error('saveSystemSetting error:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+async function deleteSystemSetting(keyName) {
+  const db = getDatabase();
+  try {
+    await dbRun(db, `DELETE FROM system_settings WHERE key = ?`, [keyName]);
+    return { success: true };
+  } catch (err) {
+    console.error('deleteSystemSetting error:', err);
+    return { success: false, error: err.message };
+  }
+}
 
  
 module.exports = {
@@ -3998,6 +4124,18 @@ getAdminEffectiveFlags,
   restoreInterview,
   getDeletedTravel,
   restoreTravel,
+
+  // System settings helpers
+  listSystemSettings,
+  getSystemSetting,
+  saveSystemSetting,
+  // Company setup
+  getCompanySetup,
+  getCompanySetupById,
+  addCompanySetup,
+  updateCompanySetup,
+  deleteCompanySetup,
+  deleteSystemSetting,
 
   // Passport Movements
   getPassportMovements,

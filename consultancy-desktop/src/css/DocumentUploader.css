@@ -284,6 +284,35 @@
   padding-right: 8px;
 }
 
+/* Layout variants: single-column vs 3-column grid */
+.du-files-list.du-grid-1 {
+  display: block; /* keep original list behavior */
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.du-files-list.du-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-height: none; /* let grid expand; container handles overall spacing */
+  overflow: visible;
+  padding-right: 0;
+}
+
+.du-files-list.du-grid-3 li {
+  margin-bottom: 0; /* grid gap handles spacing */
+}
+
+/* Make grid responsive: collapse to single column on narrow screens */
+@media (max-width: 900px) {
+  .du-files-list.du-grid-3 {
+    grid-template-columns: repeat(1, 1fr);
+    max-height: 200px;
+    overflow-y: auto;
+  }
+}
+
 .du-files-list::-webkit-scrollbar {
   width: 6px;
 }

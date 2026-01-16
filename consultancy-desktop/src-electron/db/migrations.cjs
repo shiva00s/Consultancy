@@ -86,6 +86,18 @@ async function runMigrations(dbInstance) {
       console.log('⏭️  Migration 004: Already applied');
     }
 
+    // Migration 005: Add rich fields to notifications (actor, target, meta)
+    if (!appliedNames.includes('005_add_notification_fields')) {
+      await migration_005_add_notification_fields(dbInstance);
+      await dbRun(
+        dbInstance,
+        `INSERT INTO schema_migrations (migration_name) VALUES ('005_add_notification_fields')`
+      );
+      console.log('✅ Migration 005: Add notification fields - APPLIED');
+    } else {
+      console.log('⏭️  Migration 005: Already applied');
+    }
+
     console.log('✅ All migrations completed successfully');
     return dbInstance;
   } catch (error) {
@@ -210,6 +222,60 @@ async function migration_002_add_comm_metadata_and_doc_path(dbInstance) {
 
   } catch (err) {
     console.error('❌ Migration 002 failed:', err);
+    throw err;
+  }
+}
+
+async function migration_005_add_notification_fields(dbInstance) {
+  console.log('🔄 Running migration: Add notification fields...');
+  try {
+    const cols = await dbAll(dbInstance, `PRAGMA table_info(notifications)`);
+    const colNames = (cols || []).map((c) => c.name);
+
+    if (!colNames.includes('actor_id')) {
+      await dbRun(dbInstance, `ALTER TABLE notifications ADD COLUMN actor_id INTEGER`);
+      console.log('✅ Added actor_id to notifications');
+    } else {
+      console.log('⏭️ actor_id already exists on notifications');
+    }
+
+    if (!colNames.includes('actor_name')) {
+      await dbRun(dbInstance, `ALTER TABLE notifications ADD COLUMN actor_name TEXT`);
+      console.log('✅ Added actor_name to notifications');
+    } else {
+      console.log('⏭️ actor_name already exists on notifications');
+    }
+
+    if (!colNames.includes('target_type')) {
+      await dbRun(dbInstance, `ALTER TABLE notifications ADD COLUMN target_type TEXT`);
+      console.log('✅ Added target_type to notifications');
+    } else {
+      console.log('⏭️ target_type already exists on notifications');
+    }
+
+    if (!colNames.includes('target_id')) {
+      await dbRun(dbInstance, `ALTER TABLE notifications ADD COLUMN target_id INTEGER`);
+      console.log('✅ Added target_id to notifications');
+    } else {
+      console.log('⏭️ target_id already exists on notifications');
+    }
+
+    if (!colNames.includes('meta')) {
+      await dbRun(dbInstance, `ALTER TABLE notifications ADD COLUMN meta TEXT`);
+      console.log('✅ Added meta to notifications');
+    } else {
+      console.log('⏭️ meta already exists on notifications');
+    }
+
+    if (!colNames.includes('category')) {
+      await dbRun(dbInstance, `ALTER TABLE notifications ADD COLUMN category TEXT`);
+      console.log('✅ Added category to notifications');
+    } else {
+      console.log('⏭️ category already exists on notifications');
+    }
+
+  } catch (err) {
+    console.error('❌ Migration 005 failed:', err);
     throw err;
   }
 }

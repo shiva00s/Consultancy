@@ -45,7 +45,9 @@ export const PERMISSION_KEYS = {
   SETTINGS_TEMPLATES: 'settings_templates',
   SETTINGS_MOBILE_APP: 'settings_mobile_app',
   SETTINGS_BACKUP: 'settings_backup',
+  SETTINGS_KEYS: 'settings_keys',
   SETTINGS_FEATURE_FLAGS: 'settings_feature_flags',
+  SETTINGS_COMPANY_SETUP: 'settings_company_setup',
 
   // ============================================
   // SYSTEM ACCESS & REPORTS
@@ -274,7 +276,9 @@ export const PERMISSION_GROUPS = {
       { key: PERMISSION_KEYS.SETTINGS_TEMPLATES, label: 'Templates', icon: '📋', description: 'Manage letter templates' },
       { key: PERMISSION_KEYS.SETTINGS_MOBILE_APP, label: 'Mobile App', icon: '📱', description: 'Mobile app settings' },
       { key: PERMISSION_KEYS.SETTINGS_BACKUP, label: 'Backup & Restore', icon: '💾', description: 'Database backup operations' },
+      { key: PERMISSION_KEYS.SETTINGS_KEYS, label: 'Keys', icon: '🔐', description: 'Manage system keys and secrets' },
       { key: PERMISSION_KEYS.SETTINGS_FEATURE_FLAGS, label: 'Feature Toggles', icon: '🎛️', description: 'Enable/disable features' },
+      { key: PERMISSION_KEYS.SETTINGS_COMPANY_SETUP, label: 'Company Setup', icon: '🏢', description: 'Manage company details used in templates' },
     ]
   },
 

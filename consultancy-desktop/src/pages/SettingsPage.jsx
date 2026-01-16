@@ -16,6 +16,8 @@ import EmailSettings from '../components/settings/EmailSettings';
 import OfferTemplateManager from '../components/settings/OfferTemplateManager';
 import BackupUtility from '../components/settings/BackupUtility';
 import ChangePasswordModal from '../components/modals/ChangePasswordModal';
+import KeysManager from '../components/settings/KeysManager';
+import CompanySetup from '../components/settings/CompanySetup';
 
 function SettingsPage({ user }) {
   const [activeTab, setActiveTab] = useState('users');
@@ -35,26 +37,29 @@ function SettingsPage({ user }) {
   const loadPermissions = async () => {
     if (!user) return;
 
-    if (user.role === 'super_admin') {
+    const roleStr = String(user.role || '').toLowerCase();
+    const isSuperAdmin = roleStr.includes('super') || user.is_super_admin || user.isSuperAdmin;
+    if (isSuperAdmin) {
+      // Super admin gets full settings access
       setUserPermissions({
         settings_users: true,
         settings_required_docs: true,
         settings_email: true,
         settings_templates: true,
+        settings_company_setup: true,
         settings_mobile_app: true,
         settings_backup: true,
+        settings_keys: true,
       });
-      setLoading(false);
-    } else if (user.role === 'admin' || user.role === 'staff') {
-      const res = await window.electronAPI.getUserGranularPermissions({
-        userId: user.id,
-      });
-      if (res.success) {
-        setUserPermissions(res.data || {});
-      }
       setLoading(false);
     } else {
-      setUserPermissions({});
+      // Admins and staff must fetch their delegated granular permissions
+      const res = await window.electronAPI.getUserGranularPermissions({ userId: user.id });
+      if (res && res.success) {
+        setUserPermissions(res.data || {});
+      } else {
+        setUserPermissions({});
+      }
       setLoading(false);
     }
   };
@@ -108,12 +113,31 @@ function SettingsPage({ user }) {
     });
   }
 
+  if (userPermissions.settings_company_setup) {
+    tabs.push({
+      key: 'company_setup',
+      label: 'Company Setup',
+      icon: '🏢',
+      content: <CompanySetup currentUser={user} />,
+    });
+  }
+
   if (userPermissions.settings_backup) {
     tabs.push({
       key: 'backup',
       label: 'Backup',
       icon: '💾',
       content: <BackupUtility />,
+    });
+  }
+
+  // Keys management tab (last)
+  if (userPermissions.settings_keys) {
+    tabs.push({
+      key: 'keys',
+      label: 'Keys',
+      icon: '🔐',
+      content: <KeysManager />,
     });
   }
 

@@ -6,6 +6,7 @@ import { MessageSquare, Plus, Settings, Wifi, WifiOff } from 'lucide-react';
 import ChatWindow from './ChatWindow';
 import NewChatModal from './NewChatModal';
 import TwilioSettingsModal from './TwilioSettingsModal';
+import KeyPromptModal from './KeyPromptModal';
 import './WhatsAppMain.css';
 import formatPhoneNumber from '../../utils/phoneFormatter';
 
@@ -427,6 +428,9 @@ const handleConversationSelect = useCallback(async (conv) => {
           onSave={handleSettingsSaved}
         />
       )}
+      
+      {/* Key manager one-time prompt modal (renders when main process requests a key) */}
+      <KeyPromptModal />
     </div>
   );
 };

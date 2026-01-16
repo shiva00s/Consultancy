@@ -14,7 +14,7 @@ function PassportReceiveForm({ candidateId, user, staffList, onSuccess }) {
   
   const [formData, setFormData] = useState({
     received_from: 'Candidate',
-    method: 'By Hand',
+    method: 'By Courier',
     courier_number: '',
     date: new Date().toISOString().split('T')[0],
     received_by: user?.fullName || '',
@@ -252,27 +252,30 @@ function PassportReceiveForm({ candidateId, user, staffList, onSuccess }) {
             />
           </div>
 
-          <StaffSelector
-            value={formData.received_by}
-            onChange={(value) => setFormData({ ...formData, received_by: value })}
-            staffList={staffList}
-            currentUser={user}
-            required={true}
-            label="RECEIVED BY"
-          />
-        </div>
+          <div className="form-group received-by">
+            <StaffSelector
+              value={formData.received_by}
+              onChange={(value) => setFormData({ ...formData, received_by: value })}
+              staffList={staffList}
+              currentUser={user}
+              required={true}
+              label="RECEIVED BY"
+            />
+          </div>
 
-        <div className="form-group full-width">
-          <label>
-            <FiFileText /> Notes
-          </label>
-          <textarea
-            value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            placeholder="Optional notes..."
-            className="form-textarea"
-            rows="3"
-          />
+          <div className="form-group receive-notes">
+            <label>
+              <FiFileText /> Notes
+            </label>
+            <textarea
+              rows={1}
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              placeholder="Optional notes..."
+              className="form-textarea"
+            />
+          </div>
+
         </div>
 
         <div className="form-group full-width">

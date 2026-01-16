@@ -26,6 +26,7 @@ function RecycleBinPage({ user }) {
   const [deletedRequiredDocs, setDeletedRequiredDocs] = useState([]);
   const [deletedPlacements, setDeletedPlacements] = useState([]);
   const [deletedPassports, setDeletedPassports] = useState([]);
+  const [deletedDocuments, setDeletedDocuments] = useState([]);
   const [deletedVisas, setDeletedVisas] = useState([]);
   const [deletedMedical, setDeletedMedical] = useState([]);
   const [deletedInterviews, setDeletedInterviews] = useState([]);
@@ -52,11 +53,12 @@ function RecycleBinPage({ user }) {
       reqDocRes,
       placementRes,
       passportRes,
+      docsRes,
       visaRes,
       medRes,
       intRes,
       travelRes,
-      movementRes,     
+      movementRes,
     ] = await Promise.all([
       window.electronAPI.getDeletedCandidates(),
       window.electronAPI.getDeletedEmployers(),
@@ -64,6 +66,7 @@ function RecycleBinPage({ user }) {
       window.electronAPI.getDeletedRequiredDocuments(),
       window.electronAPI.getDeletedPlacements(),
       window.electronAPI.getDeletedPassports(),
+      window.electronAPI.getDeletedDocuments(),
       window.electronAPI.getDeletedVisas(),
       window.electronAPI.getDeletedMedical(),
       window.electronAPI.getDeletedInterviews(),
@@ -88,6 +91,9 @@ function RecycleBinPage({ user }) {
 
     if (passportRes.success) setDeletedPassports(passportRes.data);
     else toast.error(passportRes.error);
+
+    if (docsRes && docsRes.success) setDeletedDocuments(docsRes.data);
+    else if (docsRes && docsRes.error) toast.error(docsRes.error);
 
     if (visaRes.success) setDeletedVisas(visaRes.data);
     else toast.error(visaRes.error);
@@ -133,6 +139,9 @@ function RecycleBinPage({ user }) {
         break;
       case "passports":
         setDeletedPassports(updater);
+        break;
+      case "documents":
+        setDeletedDocuments(updater);
         break;
       case "visas":
         setDeletedVisas(updater);
@@ -269,6 +278,19 @@ function RecycleBinPage({ user }) {
         if (res.success) {
           setDeletedPassports((prev) => prev.filter((p) => p.id !== id));
           toast.success("Passport restored.");
+        } else toast.error(res.error);
+      }
+    );
+
+  const handleRestoreDocument = (id, name) =>
+    openRestorePrompt(
+      "Restore document?",
+      `Restore document: ${name}?`,
+      async () => {
+        const res = await window.electronAPI.restoreDocument({ user, id });
+        if (res.success) {
+          setDeletedDocuments((prev) => prev.filter((d) => d.id !== id));
+          toast.success(`Document ${name} restored.`);
         } else toast.error(res.error);
       }
     );
@@ -439,6 +461,24 @@ function RecycleBinPage({ user }) {
       ),
     },
     {
+      key: "documents",
+      title: `Documents (${deletedDocuments.length})`,
+      icon: <FiFileText />,
+      content: renderList(
+        deletedDocuments,
+        "No deleted documents found.",
+        (doc) => (
+          <div key={doc.id} className="recycle-item">
+            <div className="item-info">
+              <strong>{doc.fileName || doc.file_name || doc.file}</strong>
+              <span>Candidate ID: {doc.candidate_id || 'N/A'}</span>
+            </div>
+            {renderItemActions(doc, "documents", handleRestoreDocument)}
+          </div>
+        )
+      ),
+    },
+    {
   key: "passport_movements",
   title: `Movements (${deletedPassportMovements.length})`,
   icon: <FiActivity />,
@@ -456,7 +496,7 @@ function RecycleBinPage({ user }) {
         {renderItemActions(
           movement,
           "passport_movements",
-          (id, name) => {
+              (id, name) => {
             // ✅ Now 'id' parameter is correctly passed from renderItemActions
             openRestorePrompt(
               "Restore passport movement?",

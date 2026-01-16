@@ -1,12 +1,20 @@
 const twilio = require("twilio");
 
-const ACCOUNT_SID = "AC7ff5862adc4fc67803722d3e8ac3bda7";
-const AUTH_TOKEN = "8db81c11ec073e5edf84330ad4d9c563";
 const FROM_NUMBER = "whatsapp:+14155238886"; // Twilio Sandbox number
 
-const client = twilio(ACCOUNT_SID, AUTH_TOKEN);
+const keyManager = require('../services/keyManager.cjs');
 
 module.exports = async (event, payload) => {
+  // Ensure we have Twilio credentials from key manager or env
+  const accountSid = await keyManager.getKey('twilioaccountsid') || process.env.TWILIO_ACCOUNT_SID || null;
+  const authToken = await keyManager.getKey('twilioauthtoken') || process.env.TWILIO_AUTH_TOKEN || null;
+
+  if (!accountSid || !authToken) {
+    console.error('Twilio credentials missing for twilioSendWhatsApp');
+    return { success: false, error: 'Twilio credentials not configured' };
+  }
+
+  const client = twilio(accountSid, authToken);
   try {
     const { numbers, message, mediaPath } = payload;
 

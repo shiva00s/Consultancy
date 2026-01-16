@@ -5,6 +5,7 @@ import {
   FiTrash2, FiDownload, FiZoomIn, FiMaximize2, FiMinimize2 ,FiUserCheck
 } from 'react-icons/fi';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import useNotificationStore from '../../store/useNotificationStore';
 import '../../css/passport-tracking/PassportTimeline.css';
 import toast from 'react-hot-toast';
 
@@ -17,6 +18,7 @@ function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
   const [lightboxImage, setLightboxImage] = useState(null);
   const [lightboxImages, setLightboxImages] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const createNotification = useNotificationStore((s) => s.createNotification);
 
   // Fetch photo previews for all movements
   useEffect(() => {
@@ -66,9 +68,10 @@ function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
   };
 
   const formatTime = (dateString) => {
-    if (!dateString) return 'Invalid Time';
+    // Accept either created_at or date strings. If invalid, return empty string so UI can hide it.
+    if (!dateString) return '';
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Invalid Time';
+    if (isNaN(date.getTime())) return '';
     return date.toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
@@ -100,6 +103,19 @@ function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
     if (res.success) {
       toast.success('Movement deleted successfully');
       if (onMovementDeleted) onMovementDeleted();
+        try {
+          const movement = movements.find((m) => m.id === movementId) || {};
+          createNotification({
+            title: '🗑️ Passport movement deleted',
+            message: `Passport movement ${movement.type || ''} deleted${movement.candidate_id ? ` for candidate ${movement.candidate_id}` : ''}`,
+            type: 'warning',
+            priority: 'high',
+            link: movement.candidate_id ? `/candidate/${movement.candidate_id}` : null,
+            actor: { id: user?.id, name: user?.name || user?.username },
+            target: { type: 'passport_movement', id: movementId },
+            meta: { movementId, candidateId: movement.candidate_id },
+          });
+        } catch (e) {}
     } else {
       console.error('Delete failed:', res);
       toast.error(res.message || res.error || 'Failed to delete movement');
@@ -196,8 +212,16 @@ function PassportHistoryTimeline({ movements = [], user, onMovementDeleted }) {
                     <div className="header-info">
                       <FiCalendar className="icon" />
                       <span className="date">{formatDate(movement.date)}</span>
-                      <FiClock className="icon" />
-                      <span className="time">{formatTime(movement.created_at)}</span>
+                      {(() => {
+                        const t = formatTime(movement.created_at || movement.date);
+                        if (!t) return null;
+                        return (
+                          <>
+                            <FiClock className="icon" />
+                            <span className="time">{t}</span>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                   

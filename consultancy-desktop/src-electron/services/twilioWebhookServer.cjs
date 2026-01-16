@@ -8,9 +8,7 @@ const path = require('path');
 const axios = require('axios');
 const os = require('os');
 const { dbGet, dbRun, dbAll } = require('../db/database.cjs');
-
-// ✅ JWT Secret for file URL signing
-const SECRET = '12023e5cf451cc4fc225b09f1543bd6c43c735c71db89f20c63cd6860430fc395b88778254ccbba2043df5989c0e61968cbf4ef6e4c6a6924f90fbe4c75cbb60';
+const keyManager = require('./keyManager.cjs');
 
 class TwilioWebhookServer {
   constructor(mainWindow, db, port = 3001) {
@@ -49,7 +47,7 @@ class TwilioWebhookServer {
     }
   }
 
-  generatePublicFileUrl(filePath) {
+  async generatePublicFileUrl(filePath) {
     try {
       if (!filePath) return null;
 
@@ -57,16 +55,24 @@ class TwilioWebhookServer {
       console.log('🌐 Using base URL:', BASE_URL);
       
       const normalizedPath = path.resolve(filePath);
-      
-      // Generate JWT token (7 days expiry - longer than 24h)
-      const token = jwt.sign({ path: normalizedPath }, SECRET, { expiresIn: '7d' });
+
+      // Ensure file exists before signing
+      try {
+        await fs.promises.access(normalizedPath);
+      } catch (accessErr) {
+        console.warn('File not accessible for public URL generation:', normalizedPath);
+        return null;
+      }
+
+      const secret = await keyManager.getKey('twilioJwtSecret') || process.env.TWILIO_JWT_SECRET || process.env.JWT_SECRET || 'dev-temporary-secret';
+      const token = jwt.sign({ path: normalizedPath }, secret, { expiresIn: '7d' });
       const filename = path.basename(normalizedPath);
       const publicUrl = `${BASE_URL}/public/files/${token}/${encodeURIComponent(filename)}`;
-      
+
       console.log('🔗 Generated public URL:', publicUrl);
       return publicUrl;
     } catch (error) {
-      console.error('❌ Error generating public URL:', error);
+      console.error('❌ Error generating public URL:', error && error.message);
       return null;
     }
   }
@@ -169,9 +175,10 @@ class TwilioWebhookServer {
     // ✅ Verify JWT token
     let decoded;
     try {
-      decoded = jwt.verify(token, SECRET);
+      const secret = await keyManager.getKey('twilioJwtSecret') || process.env.TWILIO_JWT_SECRET || process.env.JWT_SECRET || 'dev-temporary-secret';
+      decoded = jwt.verify(token, secret);
     } catch (error) {
-      console.error('❌ Invalid token:', error.message);
+      console.error('❌ Invalid token:', error && error.message);
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
@@ -378,14 +385,14 @@ class TwilioWebhookServer {
         } else {
           localMediaPath = await this.downloadMediaFromTwilio(MediaUrl0, mediaType, MessageSid);
           
-          if (localMediaPath) {
+            if (localMediaPath) {
             console.log('✅ Media saved locally:', localMediaPath);
-            
+
             if (!this.ngrokUrl) {
               await this.loadNgrokUrl();
             }
-            
-            publicMediaUrl = this.generatePublicFileUrl(localMediaPath);
+
+            publicMediaUrl = await this.generatePublicFileUrl(localMediaPath);
             console.log('✅ Public URL generated:', publicMediaUrl);
           }
         }

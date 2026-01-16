@@ -188,8 +188,9 @@
 
 .form-row {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
+  align-items: start;
 }
 
 .form-row-2 {
@@ -213,6 +214,50 @@
 
 .form-group.full-width {
   grid-column: 1 / -1;
+}
+
+/* Second-row column assignment (2 rows x 4 columns)
+   Row 1: Send To | Recipient Name | Contact Number | Method
+   Row 2: Courier Number | Date | Sent By | Notes
+   We lock columns for predictable layout even when some fields are conditionally disabled. */
+.form-group.courier-number {
+  grid-column: 1 / 2;
+}
+
+.form-group.date {
+  grid-column: 2 / 3;
+}
+
+.form-group.sent-by {
+  grid-column: 3 / 4;
+}
+
+.form-group.send-notes,
+.form-group.receive-notes {
+  grid-column: 4 / 5;
+  align-self: start;
+}
+/* Force notes textarea to match single-line input appearance */
+.form-group.notes .form-textarea {
+  height: 44px !important;
+  min-height: 44px !important;
+  max-height: 44px !important;
+  overflow: hidden !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+.form-group.receive-notes .form-textarea,
+.form-group.send-notes .form-textarea {
+  height: 44px !important;
+  min-height: 44px !important;
+  max-height: 44px !important;
+  overflow: hidden !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+.form-group.received-by {
+  grid-column: 1 / 2; /* keep Received By in first column */
 }
 
 .form-group.span-2 {
@@ -309,9 +354,13 @@
 
 .form-textarea {
   resize: vertical;
-  min-height: 80px;
+  min-height: 44px; /* match typical input height */
+  height: 44px; /* force single-line default height */
+  max-height: 220px;
   line-height: 1.5;
   font-family: inherit;
+  padding: 10px 12px;
+  box-sizing: border-box;
 }
 
 /* Select Dropdown */

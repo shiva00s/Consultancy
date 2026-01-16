@@ -11,13 +11,18 @@ import toast from "react-hot-toast";
 import useDataStore from "../store/dataStore";
 import { useShallow } from "zustand/react/shallow";
 import useAuthStore from "../store/useAuthStore";
+import useNotificationStore from '../store/useNotificationStore';
 import "../css/JobOrderListPage.css";
 import ConfirmDialog from "../components/common/ConfirmDialog";
 
 function JobOrderListPage() {
+  // ✅ CORRECT: Hooks first, before any other declarations
+  const createNotification = useNotificationStore((s) => s.createNotification);
+
   const initialForm = {
     employer_id: "",
     positionTitle: "",
+    salary: "",
     country: "",
     openingsCount: "1",
     status: "Open",
@@ -28,6 +33,7 @@ function JobOrderListPage() {
     accommodationCustom: "",
     dutyHours: "",
     overtime: "",
+    overtimeCustom: "",
     contractPeriod: "",
     selectionType: "CV Selection",
   };
@@ -87,6 +93,7 @@ function JobOrderListPage() {
     jobId: null,
     jobName: "",
   });
+  const [showDetails, setShowDetails] = useState(false);
 
   const selectionTypeOptions = [
     "CV Selection",
@@ -157,6 +164,7 @@ function JobOrderListPage() {
     setViewForm({
       employer_id: job.employer_id,
       positionTitle: job.positionTitle,
+      salary: job.salary || "",
       country: job.country || "",
       openingsCount: job.openingsCount?.toString() || "1",
       status: job.status,
@@ -166,7 +174,9 @@ function JobOrderListPage() {
       accommodation: accommodationValue,
       accommodationCustom: accommodationCustomValue,
       dutyHours: job.dutyHours || "",
-      overtime: job.overtime || "",
+      // If stored as 'Other: ...', parse to overtime + overtimeCustom
+      overtime: job.overtime && job.overtime.startsWith('Other: ') ? 'Other' : (job.overtime || ''),
+      overtimeCustom: job.overtime && job.overtime.startsWith('Other: ') ? job.overtime.replace('Other: ', '') : '',
       contractPeriod: job.contractPeriod || "",
       selectionType: job.selectionType || "CV Selection",
     });
@@ -218,6 +228,14 @@ function JobOrderListPage() {
     }
   }, [addForm.employer_id, employers]);
 
+  // Prefill overtime for addForm when country is available and overtime is empty
+  useEffect(() => {
+    const country = addForm.country && addForm.country.trim();
+    if (country && !addForm.overtime) {
+      setAddForm((p) => ({ ...p, overtime: `As per ${country} labour law` }));
+    }
+  }, [addForm.country]);
+
   // 🔥 AUTO-POPULATE POSITION & COUNTRY FROM EMPLOYER (VIEW/EDIT MODE)
   useEffect(() => {
     if (viewForm.employer_id && isEditing) {
@@ -234,12 +252,20 @@ function JobOrderListPage() {
     }
   }, [viewForm.employer_id, employers, isEditing]);
 
+  // Prefill overtime for viewForm when viewing (not editing) and no overtime exists
+  useEffect(() => {
+    const country = viewForm.country && viewForm.country.trim();
+    if (country && !isEditing && !viewForm.overtime) {
+      setViewForm((p) => ({ ...p, overtime: `As per ${country} labour law` }));
+    }
+  }, [viewForm.country, isEditing]);
+
   // ADD handlers
   const onAddChange = (e) => {
     const { name, value } = e.target;
     let v = value;
 
-    if (["openingsCount", "dutyHours", "overtime", "contractPeriod"].includes(name)) {
+    if (["openingsCount", "dutyHours", "contractPeriod"].includes(name)) {
       v = value.replace(/[^\d]/g, "");
     }
 
@@ -262,6 +288,7 @@ function JobOrderListPage() {
     return {
       employer_id: parseInt(state.employer_id, 10),
       positionTitle: state.positionTitle || "",
+      salary: state.salary || null,
       country: state.country || "",
       openingsCount: parseInt(state.openingsCount || "0", 10),
       status: state.status || "Open",
@@ -269,7 +296,8 @@ function JobOrderListPage() {
       food: finalFood,
       accommodation: finalAccommodation,
       dutyHours: state.dutyHours ? parseInt(state.dutyHours, 10) : null,
-      overtime: state.overtime ? parseInt(state.overtime, 10) : null,
+      // overtime is stored as free-text (e.g., 'As per Japan labour law', '2hrs', 'Other: custom')
+      overtime: state.overtime === 'Other' && state.overtimeCustom ? `Other: ${state.overtimeCustom}` : (state.overtime || null),
       contractPeriod: state.contractPeriod ? parseInt(state.contractPeriod, 10) : null,
       selectionType: state.selectionType || "CV Selection",
     };
@@ -291,6 +319,18 @@ function JobOrderListPage() {
       setAddForm(initialForm);
       setAddErrors({});
       toast.success("Job Order added successfully!");
+      try {
+        createNotification({
+          title: '📋 Job Order added',
+          message: `${res.data.positionTitle} added by ${user?.name || user?.username}`,
+          type: 'success',
+          priority: 'normal',
+          link: `/jobs`,
+          actor: { id: user?.id, name: user?.name || user?.username },
+          target: { type: 'job_order', id: res.data.id },
+          meta: { positionTitle: res.data.positionTitle, employerId: res.data.employer_id },
+        });
+      } catch (e) {}
     } else {
       toast.error(res.error || "Failed to add job order.");
     }
@@ -302,7 +342,7 @@ function JobOrderListPage() {
     const { name, value } = e.target;
     let v = value;
 
-    if (["openingsCount", "dutyHours", "overtime", "contractPeriod"].includes(name)) {
+    if (["openingsCount", "dutyHours", "contractPeriod"].includes(name)) {
       v = value.replace(/[^\d]/g, "");
     }
 
@@ -370,6 +410,7 @@ function JobOrderListPage() {
         const updatedData = {
           employer_id: job.employer_id,
           positionTitle: job.positionTitle,
+          salary: job.salary || "",
           country: job.country || "",
           openingsCount: job.openingsCount?.toString() || "1",
           status: job.status,
@@ -388,6 +429,18 @@ function JobOrderListPage() {
         setIsEditing(false);
         setViewErrors({});
         toast.success(`Job "${res.data.positionTitle}" updated successfully.`);
+        try {
+          createNotification({
+            title: '✏️ Job Order updated',
+            message: `${res.data.positionTitle} updated by ${user?.name || user?.username}`,
+            type: 'info',
+            priority: 'normal',
+            link: `/jobs`,
+            actor: { id: user?.id, name: user?.name || user?.username },
+            target: { type: 'job_order', id: res.data.id },
+            meta: { positionTitle: res.data.positionTitle, employerId: res.data.employer_id },
+          });
+        } catch (e) {}
       } else {
         toast.error(res.error || "Update failed");
       }
@@ -420,6 +473,18 @@ function JobOrderListPage() {
     if (res.success) {
       deleteJob(jobId);
       toast.success(`Job Order "${jobName}" moved to Recycle Bin.`);
+      try {
+        createNotification({
+          title: '🗑️ Job Order moved to Recycle Bin',
+          message: `${jobName} moved to Recycle Bin by ${user?.name || user?.username}`,
+          type: 'warning',
+          priority: 'high',
+          link: `/recycle-bin`,
+          actor: { id: user?.id, name: user?.name || user?.username },
+          target: { type: 'job_order', id: jobId },
+          meta: { jobName },
+        });
+      } catch (e) {}
     } else {
       toast.error(res.error || "Delete failed.");
     }
@@ -521,6 +586,21 @@ function JobOrderListPage() {
             value={state.country}
             onChange={onChange}
             placeholder="e.g. Japan"
+            disabled={disabled}
+          />
+        </div>
+
+        {/* SALARY */}
+        <div className="form-group">
+          <label>
+            <span className="emoji-inline">💰</span> SALARY
+          </label>
+          <input
+            type="text"
+            name="salary"
+            value={state.salary}
+            onChange={onChange}
+            placeholder="e.g. 1500 or $1,200/month"
             disabled={disabled}
           />
         </div>
@@ -640,15 +720,36 @@ function JobOrderListPage() {
           <label>
             <span className="emoji-inline">⏱️</span> OVERTIME (OT)
           </label>
-          <input
-            type="text"
-            inputMode="numeric"
-            name="overtime"
-            value={state.overtime}
-            onChange={onChange}
-            placeholder="e.g. 2"
-            disabled={disabled}
-          />
+          {/* Select with presets and a custom option. Prefilled based on country. */}
+          <select name="overtime" value={state.overtime} onChange={onChange} disabled={disabled}>
+            <option value="">-- Select OT --</option>
+            {(() => {
+              const country = (state.country || '').trim();
+              const baseLabel = country ? `As per ${country} labour law` : 'As per local law';
+              const opts = [baseLabel, '2 hrs', '3 hrs', 'Other'];
+              return opts.map((opt) => (
+                <option key={opt} value={opt === baseLabel ? baseLabel : opt}>
+                  {opt}
+                </option>
+              ));
+            })()}
+          </select>
+
+          {/* If user chooses Other, show a free-text input for custom OT */}
+          {state.overtime === 'Other' && !disabled && (
+            <input
+              type="text"
+              name="overtimeCustom"
+              value={state.overtimeCustom}
+              onChange={onChange}
+              placeholder="e.g. 2 hrs on weekends or special arrangement"
+              className="custom-input-field"
+              style={{ marginTop: '8px' }}
+            />
+          )}
+          {state.overtime === 'Other' && disabled && state.overtimeCustom && (
+            <div className="custom-value-display">{state.overtimeCustom}</div>
+          )}
         </div>
 
         {/* CONTRACT PERIOD */}
@@ -806,7 +907,11 @@ function JobOrderListPage() {
                   {viewForm.country || getEmployerName(viewForm.employer_id) ? (
                     <>
                       <span className="emoji-inline">🏢</span>{" "}
-                      {getEmployerName(viewForm.employer_id) || "N/A"}{" "}
+                      {getEmployerName(viewForm.employer_id) || "N/A"}
+                      {viewForm.salary ? (
+                        <> {" • "}<span className="emoji-inline">💰</span> {viewForm.salary}</>
+                      ) : null}
+                      {" "}
                       <span className="emoji-inline">🌍</span> {viewForm.country || "N/A"}
                     </>
                   ) : (
@@ -830,7 +935,7 @@ function JobOrderListPage() {
                   ) : (
                     jobs.map((j, i) => (
                       <option key={j.id} value={i}>
-                        {i + 1}. {j.positionTitle} - {getEmployerName(j.employer_id)}
+                        {i + 1}. {j.positionTitle} - {getEmployerName(j.employer_id)}{j.salary ? ` • ${j.salary}` : ''}
                       </option>
                     ))
                   )}
@@ -838,6 +943,15 @@ function JobOrderListPage() {
 
                 {!isEditing ? (
                   <>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      title="View job details"
+                      onClick={() => setShowDetails(true)}
+                    >
+                      <span role="img" aria-label="flag">🇮🇳</span>
+                    </button>
+
                     <button
                       type="button"
                       className="icon-btn"
@@ -902,8 +1016,167 @@ function JobOrderListPage() {
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
       />
+
+      {/* JOB DETAILS MODAL - NOW WITH CSS CLASSES */}
+      {showDetails && selectedJob && (
+        <div className="job-details-modal-overlay" onClick={() => setShowDetails(false)}>
+          <div className="job-details-modal" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="job-details-header">
+              <div className="job-details-header-top">
+                <div>
+                  <div className="job-details-header-title">CONGRATULATIONS</div>
+                  <div className="job-details-header-subtitle">
+                    {getEmployerName(viewForm.employer_id)} - {viewForm.positionTitle}
+                  </div>
+                </div>
+                <div className="job-details-header-date">
+                  Date: {new Date().toLocaleDateString()}
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="job-details-body">
+              <table className="job-details-table">
+                <tbody>
+                  <tr>
+                    <td>Position</td>
+                    <td>{viewForm.positionTitle}</td>
+                  </tr>
+                  <tr>
+                    <td>Employer</td>
+                    <td>{getEmployerName(viewForm.employer_id)}</td>
+                  </tr>
+                  <tr>
+                    <td>Country</td>
+                    <td>{viewForm.country}</td>
+                  </tr>
+                  <tr>
+                    <td>Salary</td>
+                    <td>{viewForm.salary || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td>Duty Hours</td>
+                    <td>{viewForm.dutyHours || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td>Overtime (OT)</td>
+                    <td>{viewForm.overtime === 'Other' ? viewForm.overtimeCustom || 'Other' : viewForm.overtime || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td>Contract Period</td>
+                    <td>{viewForm.contractPeriod ? `${viewForm.contractPeriod} months` : 'N/A'}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer Banner */}
+            <div className="job-details-footer-banner">
+              {getEmployerName(viewForm.employer_id)} • {viewForm.country}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="job-details-actions">
+              <button className="btn" onClick={async () => {
+                try {
+                  const dataUrl = createJobImageDataUrl(viewForm, getEmployerName);
+                  const a = document.createElement('a');
+                  a.href = dataUrl;
+                  a.download = `job-${selectedJob.id || 'details'}.png`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                } catch (err) {
+                  console.error('Download image failed', err);
+                }
+              }}>Download</button>
+              <button className="btn btn-close" onClick={() => setShowDetails(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default JobOrderListPage;
+
+// -------------------- Helper: Create image data URL from job data --------------------
+function createJobImageDataUrl(job, getEmployerNameFn) {
+  // Canvas dimensions
+  const width = 1000;
+  const height = 640;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  // Always render the printable card using a light theme to ensure high contrast
+  // (this avoids low-contrast text when the app theme is dark)
+  const headerColor = '#ff7f50';
+  const footerColor = '#2aa44f';
+  const bodyBg = '#ffffff';
+  const bodyText = '#1f2937';
+
+  // Background
+  ctx.fillStyle = bodyBg;
+  ctx.fillRect(0, 0, width, height);
+
+  // Header
+  ctx.fillStyle = headerColor;
+  ctx.fillRect(0, 0, width, 96);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 28px Inter, Arial';
+  ctx.fillText('CONGRATULATIONS', 20, 46);
+  ctx.font = '600 14px Inter, Arial';
+  ctx.fillText(`${job && job.positionTitle ? job.positionTitle : ''} ${job && job.employer_id ? '- ' + (job.positionTitle ? '' : '') : ''}`, 20, 70);
+
+  // Body panel (white card feel)
+  const cardY = 110;
+  ctx.fillStyle = bodyBg;
+  ctx.fillRect(20, cardY, width - 40, 420);
+
+  // Labels & values (ensure strong contrast and sensible fallbacks)
+  ctx.fillStyle = bodyText;
+  ctx.font = '600 14px Inter, Arial';
+  const labels = ['Position', 'Employer', 'Country', 'Salary', 'Duty Hours', 'Overtime (OT)', 'Contract Period'];
+  const values = [
+    job.positionTitle || '',
+    getEmployerNameFn(job && job.employer_id) || '',
+    job.country || '',
+    job.salary || '',
+    job.dutyHours || '',
+    job.overtime === 'Other' ? (job.overtimeCustom || 'Other') : (job.overtime || ''),
+    job.contractPeriod ? `${job.contractPeriod} months` : ''
+  ];
+
+  ctx.font = '600 12px Inter, Arial';
+  for (let i = 0; i < labels.length; i++) {
+    const y = cardY + 28 + i * 48;
+    // label (muted)
+    ctx.fillStyle = '#6b7280';
+    ctx.fillText(labels[i], 40, y);
+    // value (strong)
+    ctx.fillStyle = bodyText;
+    ctx.font = '600 16px Inter, Arial';
+    ctx.fillText(values[i], 220, y);
+    ctx.font = '600 12px Inter, Arial';
+    // underline (light)
+    ctx.strokeStyle = '#e6e6e6';
+    ctx.beginPath();
+    ctx.moveTo(40, y + 8);
+    ctx.lineTo(width - 60, y + 8);
+    ctx.stroke();
+  }
+
+  // Footer
+  ctx.fillStyle = footerColor;
+  ctx.fillRect(0, height - 64, width, 64);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 16px Inter, Arial';
+  ctx.fillText(`${getEmployerNameFn(job && job.employer_id) || ''} • ${job.country || ''}`, 20, height - 28);
+
+  return canvas.toDataURL('image/png');
+}

@@ -496,6 +496,34 @@ textarea.edit-input {
   width: 150px;
 }
 
+/* Form row layout: Test Date | Status | Notes */
+.medical-tracking-content .form-container .form-row {
+  display: grid;
+  grid-template-columns: 1fr 0.7fr 1.3fr;
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 12px;
+}
+
+.medical-tracking-content .form-container .form-row .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.medical-tracking-content .form-container .form-row .notes-group textarea,
+.medical-tracking-content .form-container .form-row .notes-group .notes-textarea {
+  min-height: 48px;
+  max-height: 120px;
+  resize: vertical;
+}
+
+@media (max-width: 1024px) {
+  .medical-tracking-content .form-container .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Custom File Input - Premium styling */
 .custom-file-input {
   display: flex;

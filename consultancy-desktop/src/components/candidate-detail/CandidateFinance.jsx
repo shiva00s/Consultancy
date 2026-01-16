@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import '../../css/CandidateFinance.css';
 import useAuthStore from '../../store/useAuthStore';
 import ConfirmDialog from '../common/ConfirmDialog';
+import useNotificationStore from '../../store/useNotificationStore';
 
 const initialPaymentForm = {
   description: '',
@@ -36,6 +37,7 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
     message: '',
     onConfirm: null,
   });
+  const createNotification = useNotificationStore((s) => s.createNotification);
 
   const isFinanceEnabled =
     authUser?.role === 'super_admin' ||
@@ -121,6 +123,18 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
         setPayments((prev) => [res.data, ...prev]);
         setPaymentForm(initialPaymentForm);
         toast.success('✅ Payment record added successfully!', { id: toastId });
+          try {
+            createNotification({
+              title: '💰 Payment record added',
+              message: `${paymentForm.description || 'Payment'} added for ${candidateName || 'candidate'}`,
+              type: 'info',
+              priority: 'normal',
+              link: `/candidate/${candidateId}?tab=finance`,
+              actor: { id: authUser?.id, name: authUser?.name || authUser?.username },
+              target: { type: 'payment', id: res.data?.id },
+              meta: { candidateId },
+            });
+          } catch (e) {}
 
         if (paymentForm.due_date && calculatedStatus !== 'Paid') {
           try {
@@ -215,6 +229,18 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
         setEditingId(null);
         setEditForm({ amountToAdd: '', manualStatus: '' });
         toast.success('✅ Payment record updated successfully!', { id: toastId });
+        try {
+          createNotification({
+            title: '💰 Payment record updated',
+            message: `Payment record updated: ${payment.description}`,
+            type: 'info',
+            priority: 'normal',
+            link: `/candidate/${candidateId}?tab=finance`,
+            actor: { id: authUser?.id, name: authUser?.name || authUser?.username },
+            target: { type: 'payment', id: payment.id },
+            meta: { candidateId },
+          });
+        } catch (e) {}
       } else {
         console.error('Update payment error:', res.error);
         toast.error('❌ ' + (res.error || 'Failed to update payment.'), { id: toastId });
@@ -247,6 +273,18 @@ function CandidateFinance({ candidateId, flags, candidateName }) {
           if (res.success) {
             setPayments((prev) => prev.filter((p) => p.id !== paymentId));
             toast.success('✅ Payment record moved to Recycle Bin.', { id: toastId });
+            try {
+              createNotification({
+                title: '🗑️ Payment record deleted',
+                message: `Payment "${description}" moved to Recycle Bin for candidate ${candidateId}`,
+                type: 'warning',
+                priority: 'high',
+                link: `/candidate/${candidateId}?tab=finance`,
+                actor: { id: authUser?.id, name: authUser?.name || authUser?.username },
+                target: { type: 'payment', id: paymentId },
+                meta: { candidateId },
+              });
+            } catch (e) {}
           } else {
             console.error('Delete payment error:', res.error);
             toast.error('❌ ' + (res.error || 'Failed to delete payment'), { id: toastId });

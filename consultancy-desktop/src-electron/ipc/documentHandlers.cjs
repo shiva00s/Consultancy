@@ -1,5 +1,5 @@
 const { ipcMain, dialog } = require('electron');
-const { getDb } = require('../db/database.cjs');
+const { getDb, dbGet, dbRun } = require('../db/database.cjs');
 const { fileManager } = require('../utils/fileManager.cjs');
 const fs = require('fs').promises;
 const path = require('path');
@@ -19,21 +19,27 @@ function registerDocumentHandlers() {
   const db = getDb();
 
   try {
-    // Get document with correct column names
-    const document = db.prepare('SELECT * FROM documents WHERE id = ?').get(docId);
-    
+    // Get document with correct column names using async helper
+    const document = await dbGet(db, 'SELECT * FROM documents WHERE id = ?', [docId]);
     if (!document) {
       throw new Error('Document not found');
     }
 
-    // Delete file - use filePath or file_path depending on your schema
     const pathToDelete = document.filePath || document.file_path;
-    if (pathToDelete) {
-      await fileManager.deleteFile(pathToDelete, 'documents');
-    }
 
     // Soft delete from database
-    db.prepare('UPDATE documents SET isDeleted = 1 WHERE id = ?').run(docId);
+    await dbRun(db, 'UPDATE documents SET isDeleted = 1 WHERE id = ?', [docId]);
+
+    // Move file to recycle area instead of permanently deleting (best-effort)
+    try {
+      if (pathToDelete) {
+        const filename = path.basename(pathToDelete);
+        const fromCategory = document.category || 'documents';
+        await fileManager.moveFile(filename, fromCategory, 'recycle');
+      }
+    } catch (moveErr) {
+      console.warn('Failed to move file to recycle, file left in place:', moveErr && moveErr.message);
+    }
 
     return { success: true };
   } catch (error) {
@@ -41,6 +47,69 @@ function registerDocumentHandlers() {
     return { success: false, error: error.message };
   }
 });
+
+  /**
+   * Batch delete (soft) - accepts array of doc IDs and processes them atomically.
+   * Returns { success: true, processed: n, errors: [...] }
+   */
+  ipcMain.handle('delete-documents-bulk', async (event, { user, docIds = [] }) => {
+    const db = getDb();
+    const results = { success: true, processed: 0, errors: [] };
+    if (!Array.isArray(docIds) || docIds.length === 0) return { success: false, error: 'No document IDs provided' };
+
+    const moves = [];
+
+    try {
+      // Begin transaction
+      await dbRun(db, 'BEGIN TRANSACTION');
+
+      for (const id of docIds) {
+        try {
+          const doc = await dbGet(db, 'SELECT * FROM documents WHERE id = ?', [id]);
+          if (!doc) {
+            results.errors.push({ id, error: 'not found' });
+            continue;
+          }
+
+          await dbRun(db, 'UPDATE documents SET isDeleted = 1 WHERE id = ?', [id]);
+          results.processed += 1;
+
+          const pathToDelete = doc.filePath || doc.file_path;
+          if (pathToDelete) {
+            const filename = path.basename(pathToDelete);
+            const fromCategory = doc.category || 'documents';
+            moves.push({ filename, fromCategory });
+          }
+        } catch (innerErr) {
+          console.warn('Error processing doc id', id, innerErr && innerErr.message);
+          results.errors.push({ id, error: innerErr && innerErr.message });
+        }
+      }
+
+      // Commit transaction
+      await dbRun(db, 'COMMIT');
+
+      // After commit, try moving files to recycle (best-effort)
+      for (const m of moves) {
+        try {
+          await fileManager.moveFile(m.filename, m.fromCategory, 'recycle');
+        } catch (moveErr) {
+          console.warn('bulk move to recycle failed for', m.filename, moveErr && moveErr.message);
+          results.errors.push({ filename: m.filename, error: moveErr && moveErr.message });
+        }
+      }
+
+      return results;
+    } catch (err) {
+      console.error('delete-documents-bulk error', err);
+      try {
+        await dbRun(db, 'ROLLBACK');
+      } catch (rbErr) {
+        console.error('rollback failed', rbErr);
+      }
+      return { success: false, error: err.message, processed: results.processed, errors: results.errors };
+    }
+  });
 
   /**
    * Open file picker dialog

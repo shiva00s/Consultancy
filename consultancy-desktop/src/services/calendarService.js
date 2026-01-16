@@ -1,4 +1,6 @@
 import { sanitizeText } from '../utils/sanitize';
+import { notificationService } from './notificationService';
+import useAuthStore from '../store/useAuthStore';
 
 class CalendarService {
   /**
@@ -19,6 +21,21 @@ class CalendarService {
       };
 
       const result = await window.electronAPI.createCalendarEvent(sanitizedData);
+      // create a persisted notification for this scheduled event
+      try {
+        const currentUser = useAuthStore.getState().user;
+        await notificationService.createNotification({
+          title: `📅 ${sanitizedData.title}`,
+          message: sanitizedData.description || `Scheduled ${sanitizedData.type}`,
+          type: 'reminder',
+          priority: 'normal',
+          link: sanitizedData.candidateId ? `/candidate/${sanitizedData.candidateId}` : null,
+          actor: { id: currentUser?.id, name: currentUser?.name || currentUser?.username },
+          target: { type: 'calendar_event', id: result?.event?.id || null },
+          meta: { candidateId: sanitizedData.candidateId, startDate: sanitizedData.startDate, eventType: sanitizedData.type },
+        });
+      } catch (e) {}
+
       return result;
     } catch (error) {
       console.error('Error creating event:', error);
@@ -53,6 +70,20 @@ class CalendarService {
         updates,
       });
 
+      try {
+        const currentUser = useAuthStore.getState().user;
+        await notificationService.createNotification({
+          title: `✏️ Calendar event updated`,
+          message: `Event updated: ${updates.title || eventId}`,
+          type: 'info',
+          priority: 'normal',
+          link: updates.candidateId ? `/candidate/${updates.candidateId}` : null,
+          actor: { id: currentUser?.id, name: currentUser?.name || currentUser?.username },
+          target: { type: 'calendar_event', id: eventId },
+          meta: { updates },
+        });
+      } catch (e) {}
+
       return result;
     } catch (error) {
       console.error('Error updating event:', error);
@@ -66,11 +97,57 @@ class CalendarService {
   async deleteEvent(eventId) {
     try {
       const result = await window.electronAPI.deleteCalendarEvent({ eventId });
+
+      try {
+        const currentUser = useAuthStore.getState().user;
+        await notificationService.createNotification({
+          title: `🗑️ Calendar event deleted`,
+          message: `Event ${eventId} was deleted`,
+          type: 'warning',
+          priority: 'high',
+          actor: { id: currentUser?.id, name: currentUser?.name || currentUser?.username },
+          target: { type: 'calendar_event', id: eventId },
+          meta: {},
+        });
+      } catch (e) {}
+
       return result;
     } catch (error) {
       console.error('Error deleting event:', error);
       throw error;
     }
+  }
+
+  /**
+   * Start periodic monitor to fetch upcoming reminders from main and create notifications.
+   * This complements the app-wide reminder check so critical schedules (interview, payment, travel, medical, visa, passport)
+   * surface as notifications and are not missed.
+   */
+  startReminderMonitor(pollIntervalMs = 60000) {
+    // do not start multiple intervals
+    if (this._reminderInterval) return;
+    this._reminderInterval = setInterval(async () => {
+      try {
+        const reminders = await this.getUpcomingReminders();
+        if (Array.isArray(reminders) && reminders.length > 0) {
+          for (const r of reminders) {
+            try {
+              await notificationService.createNotification({
+                title: `Reminder: ${r.title}`,
+                message: r.message || '',
+                type: 'reminder',
+                priority: r.priority || 'high',
+                link: r.link || null,
+                target: { type: r.targetType || 'reminder', id: r.id || null },
+                meta: { candidateId: r.candidateId, remindAt: r.remindAt },
+              });
+            } catch (e) {}
+          }
+        }
+      } catch (e) {
+        console.error('Reminder monitor failed:', e);
+      }
+    }, pollIntervalMs);
   }
 
   /**

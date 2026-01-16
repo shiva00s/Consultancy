@@ -117,6 +117,9 @@ function App() {
         link: rem.candidateId
           ? `/candidate/${rem.candidateId}?tab=${rem.module || 'profile'}`
           : null,
+        actor: { id: user?.id, name: user?.name || user?.username },
+        target: { type: rem.module || 'candidate', id: rem.candidateId || null },
+        meta: { remindAt: rem.remindAt || null },
         actionRequired: true,
       });
 

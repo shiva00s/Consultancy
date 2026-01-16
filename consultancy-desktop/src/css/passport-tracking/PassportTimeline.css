@@ -4,20 +4,27 @@
 
 .passport-timeline {
   position: relative;
-  padding: 1rem 0;
+  padding: 0.5rem 0;
   max-width: 100%;
-  min-height: 200px; /* ✅ ADDED */
-  opacity: 1 !important; /* ✅ ADDED */
-  visibility: visible !important; /* ✅ ADDED */
+  min-height: 200px;
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  /* Two-column grid for compact, visible timeline */
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem 1.5rem;
+  align-items: start;
 }
 
 .timeline-item {
   position: relative;
-  display: flex;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-  opacity: 1 !important; /* ✅ ADDED */
-  animation: slideInUp 0.4s ease backwards;
+  display: block;
+  margin: 0 0 0.5rem 0;
+  /* Ensure visible immediately even if animation doesn't run (tabs may delay animations) */
+  opacity: 1 !important;
+  transform: none !important;
+  animation: slideInUp 0.35s ease both;
 }
 
 /* ============================================================================
@@ -106,38 +113,15 @@
    ============================================================================ */
 
 .timeline-connector {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 3rem;
+  display: none; /* hide legacy vertical connector in two-column layout */
 }
 
 .timeline-dot {
-  width: 3rem;
-  height: 3rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  background: linear-gradient(135deg, var(--timeline-primary), var(--timeline-secondary));
-  border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
-  z-index: 2;
-  animation: pulse 2s ease-in-out infinite;
+  display: none; /* dot embedded into card header now */
 }
 
 .timeline-line {
-  position: absolute;
-  top: 3rem;
-  width: 2px;
-  height: calc(100% + 2rem);
-  background: linear-gradient(180deg, 
-    var(--timeline-primary) 0%, 
-    transparent 100%
-  );
-  opacity: 0.3;
+  display: none;
 }
 
 /* ============================================================================
@@ -145,21 +129,27 @@
    ============================================================================ */
 
 .timeline-card {
-  flex: 1;
+  width: 100%;
   background: var(--timeline-glass-bg);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
   border: 1px solid var(--timeline-glass-border);
-  padding: 1.5rem;
+  padding: 1rem;
   box-shadow: var(--timeline-shadow);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.18s ease;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .timeline-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-4px);
   box-shadow: var(--timeline-shadow-hover);
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Compact card spacing for two-column layout */
+.passport-timeline .timeline-item + .timeline-item {
+  margin-top: 0.5rem;
 }
 
 /* ============================================================================
@@ -323,10 +313,10 @@
 
 .timeline-photos-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
   gap: 0.5rem;
-  margin-top: 1rem;
-  animation: fadeIn 0.4s ease;
+  margin-top: 0.75rem;
+  animation: fadeIn 0.3s ease;
 }
 
 .photo-thumbnail {
@@ -777,6 +767,17 @@
 
   .timeline-card {
     width: 100%;
+  }
+}
+/* Tablet and smaller: switch to single column for readability */
+@media (max-width: 1024px) {
+  .passport-timeline {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .timeline-card {
+    padding: 0.9rem;
   }
 }
 /* ============================================================================

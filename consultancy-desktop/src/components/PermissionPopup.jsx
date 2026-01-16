@@ -154,7 +154,7 @@ function PermissionPopup({ user, targetUser, onClose, onSave }) {
       return base;
     }
 
-    // SETTINGS_TABS: show main settings pages, exclude mobile app
+    // SETTINGS_TABS: show main settings pages, include Keys and exclude mobile app
     if (groupKey === 'SETTINGS_TABS') {
       return group.permissions.filter((p) =>
         [
@@ -163,7 +163,9 @@ function PermissionPopup({ user, targetUser, onClose, onSave }) {
           'settings_email',
           'settings_templates',
           'settings_backup',
+          'settings_keys',
           'settings_feature_flags',
+          'settings_company_setup',
         ].includes(p.key)
       );
     }
@@ -233,9 +235,11 @@ function PermissionPopup({ user, targetUser, onClose, onSave }) {
               <FiInfo className="perm-info-icon" />
               <span>
                 <strong>Permission Rules:</strong>
-                {isSuperAdmin
-                  ? ' You can grant any permission (Super Admin)' 
-                  : ' You can only grant permissions that you possess (Admin)'}
+                {isSuperAdmin ? (
+                  ' You can grant any permission (Super Admin — full access).'
+                ) : (
+                  ' You can only grant permissions you possess. Admins are limited to features enabled by Super Admin; Staff can only receive permissions that Admins grant.'
+                )}
               </span>
               <span style={{ display: 'block', marginTop: 8, color: 'var(--text-secondary)', fontSize: 12 }}>
                 Showing controls only for main navigation, candidate tabs, and core settings pages.

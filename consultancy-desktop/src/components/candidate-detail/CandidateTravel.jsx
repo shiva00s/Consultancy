@@ -4,6 +4,7 @@ import { readFileAsBuffer } from '../../utils/file';
 import toast from 'react-hot-toast';
 import ConfirmDialog from '../common/ConfirmDialog';
 import '../../css/CandidateTravel.css';
+import useNotificationStore from '../../store/useNotificationStore';
 
 const initialTravelForm = {
   pnr: '',
@@ -23,6 +24,7 @@ function CandidateTravel({ user, candidateId, candidateName }) {
   const [editingId, setEditingId] = useState(null);
   const [editData, setEditData] = useState({});
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, travelId: null });
+  const createNotification = useNotificationStore((s) => s.createNotification);
   const fileInputRef = useRef(null);
   const [ticketPreviews, setTicketPreviews] = useState({});
   const [travelUploadId, setTravelUploadId] = useState(null);
@@ -161,6 +163,18 @@ function CandidateTravel({ user, candidateId, candidateName }) {
         } catch (err) {
           console.error('createReminder (travel) failed:', err);
         }
+        try {
+          createNotification({
+            title: '🧳 Travel entry added',
+            message: `${candidateName || 'Candidate'} travel scheduled from ${travelForm.departure_city} to ${travelForm.arrival_city} on ${travelForm.travel_date}`,
+            type: 'info',
+            priority: 'normal',
+            link: `/candidate/${candidateId}?tab=travel`,
+            actor: { id: user?.id, name: user?.name || user?.username },
+            target: { type: 'travel', id: res.data?.id },
+            meta: { candidateId },
+          });
+        } catch (e) {}
       } else {
         toast.error('❌ ' + (res.error || 'Failed to save travel entry'), { id: toastId });
       }
@@ -212,6 +226,18 @@ function CandidateTravel({ user, candidateId, candidateName }) {
       setEditingId(null);
       setEditData({});
       toast.success('✅ Travel entry updated!', { id: toastId });
+      try {
+        createNotification({
+          title: '🧳 Travel entry updated',
+          message: `${candidateName || 'Candidate'} travel updated for ${editData.departure_city} → ${editData.arrival_city} on ${editData.travel_date}`,
+          type: 'info',
+          priority: 'normal',
+          link: `/candidate/${candidateId}?tab=travel`,
+          actor: { id: user?.id, name: user?.name || user?.username },
+          target: { type: 'travel', id },
+          meta: { candidateId },
+        });
+      } catch (e) {}
     } else {
       toast.error('❌ ' + (res.error || 'Update failed'), { id: toastId });
     }
@@ -230,6 +256,18 @@ function CandidateTravel({ user, candidateId, candidateName }) {
     if (res.success) {
       setTravelEntries((prev) => prev.filter((e) => e.id !== id));
       toast.success('✅ Travel entry moved to Recycle Bin.');
+      try {
+        createNotification({
+          title: '🗑️ Travel entry deleted',
+          message: `Travel entry moved to Recycle Bin for candidate ${candidateName || candidateId}`,
+          type: 'warning',
+          priority: 'high',
+          link: `/candidate/${candidateId}?tab=travel`,
+          actor: { id: user?.id, name: user?.name || user?.username },
+          target: { type: 'travel', id },
+          meta: { candidateId },
+        });
+      } catch (e) {}
     } else {
       toast.error('❌ ' + (res.error || 'Failed to delete travel entry'));
     }

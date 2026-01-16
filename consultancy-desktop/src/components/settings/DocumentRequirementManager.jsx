@@ -7,6 +7,7 @@ import {
 import toast from 'react-hot-toast';
 import ConfirmDialog from '../common/ConfirmDialog';
 import '../../css/DocumentRequirementManager.css';
+import useNotificationStore from '../../store/useNotificationStore';
 
 // Standard documents list with emojis
 const STANDARD_DOCUMENTS = [
@@ -41,6 +42,7 @@ function DocumentRequirementManager({ user }) {
   // Confirm dialog states
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const createNotification = useNotificationStore((s) => s.createNotification);
 
   const fetchDocs = useCallback(async () => {
     setLoading(true);
@@ -91,6 +93,17 @@ function DocumentRequirementManager({ user }) {
       setNewDocName('');
       setSelectedStandardDoc('');
       toast.success(`✅ Document "${name}" added successfully!`);
+      try {
+        createNotification({
+          title: '📚 Required document added',
+          message: `Required document "${name}" added to master list`,
+          type: 'info',
+          priority: 'normal',
+          actor: { id: user?.id, name: user?.name || user?.username },
+          target: { type: 'document_requirement', id: res.data?.id },
+          meta: { name },
+        });
+      } catch (e) {}
     } else {
       toast.error(res.error || 'Failed to add document.');
     }
@@ -113,6 +126,17 @@ function DocumentRequirementManager({ user }) {
     if (res.success) {
       setRequiredDocs(prev => prev.filter(doc => doc.id !== deleteTarget.id));
       toast.success(`🗑️ Document "${deleteTarget.name}" removed successfully!`);
+      try {
+        createNotification({
+          title: '🗑️ Required document removed',
+          message: `Required document "${deleteTarget.name}" was removed from master list`,
+          type: 'warning',
+          priority: 'high',
+          actor: { id: user?.id, name: user?.name || user?.username },
+          target: { type: 'document_requirement', id: deleteTarget.id },
+          meta: { name: deleteTarget.name },
+        });
+      } catch (e) {}
     } else {
       toast.error(res.error || 'Failed to delete document.');
     }
@@ -175,6 +199,17 @@ function DocumentRequirementManager({ user }) {
       );
       toast.success(`✏️ Document updated to "${trimmedValue}"!`);
       cancelEdit();
+      try {
+        createNotification({
+          title: '✏️ Required document updated',
+          message: `Required document updated to "${trimmedValue}"`,
+          type: 'info',
+          priority: 'normal',
+          actor: { id: user?.id, name: user?.name || user?.username },
+          target: { type: 'document_requirement', id: doc.id },
+          meta: { oldName: doc.name, newName: trimmedValue },
+        });
+      } catch (e) {}
     } else {
       toast.error(res.error || 'Failed to update document.');
     }

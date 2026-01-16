@@ -4,8 +4,11 @@ import toast from 'react-hot-toast';
 import '../css/JobOrderListPage.css';
 import '../css/EmployerListPage.css';
 import useDataStore from '../store/dataStore';
+import { useShallow } from 'zustand/react/shallow';
 import useAuthStore from '../store/useAuthStore';
+import useNotificationStore from '../store/useNotificationStore';
 import ConfirmDialog from '../components/common/ConfirmDialog';
+
 
 function EmployerListPage() {
   const initialForm = {
@@ -17,14 +20,38 @@ function EmployerListPage() {
     notes: '',
   };
 
-  // ✅ Direct zustand selectors
-  const employers = useDataStore((state) => state.employers);
-  const isLoaded = useDataStore((state) => state.isLoaded);
-  const addEmployer = useDataStore((state) => state.addEmployer);
-  const updateEmployer = useDataStore((state) => state.updateEmployer);
-  const deleteEmployer = useDataStore((state) => state.deleteEmployer);
-  
-  const user = useAuthStore((state) => state.user);
+
+  // ✅ Direct zustand selectors with useShallow (optimized)
+  const {
+    employers,
+    isLoaded,
+    addEmployer,
+    updateEmployer,
+    deleteEmployer,
+    fetchInitialData,
+  } = useDataStore(
+    useShallow((state) => ({
+      employers: state.employers,
+      isLoaded: state.isLoaded,
+      addEmployer: state.addEmployer,
+      updateEmployer: state.updateEmployer,
+      deleteEmployer: state.deleteEmployer,
+      fetchInitialData: state.fetchInitialData,
+    }))
+  );
+
+  const { user } = useAuthStore(
+    useShallow((state) => ({
+      user: state.user,
+    }))
+  );
+
+  const createNotification = useNotificationStore((s) => s.createNotification);
+
+  // 🔥 Fetch data on component mount
+  useEffect(() => {
+    fetchInitialData();
+  }, [fetchInitialData]);
 
   const [activeTab, setActiveTab] = useState('add');
   
@@ -63,18 +90,37 @@ function EmployerListPage() {
     return Object.keys(errs).length === 0;
   };
 
+  // ✅ Sync selected employer to viewForm
+  const syncSelectedToForm = (idx) => {
+    const emp = employers[idx];
+    if (!emp) {
+      setViewForm(initialForm);
+      return;
+    }
+
+    setViewForm({
+      companyName: emp.companyName || '',
+      country: emp.country || '',
+      contactPerson: emp.contactPerson || '',
+      position: emp.position || '',
+      contactEmail: emp.contactEmail || '',
+      notes: emp.notes || '',
+    });
+  };
+
+  // ✅ Keep viewForm in sync when employers change
   useEffect(() => {
-    if (activeTab === 'list' && employers.length > 0) {
-      const emp = employers[selectedIndex];
-      if (emp) {
-        setViewForm({
-          companyName: emp.companyName || '',
-          country: emp.country || '',
-          contactPerson: emp.contactPerson || '',
-          position: emp.position || '',
-          contactEmail: emp.contactEmail || '',
-          notes: emp.notes || '',
-        });
+    if (activeTab === 'list') {
+      if (employers.length === 0) {
+        setSelectedIndex(0);
+        setViewForm(initialForm);
+        setIsEditing(false);
+      } else if (selectedIndex >= employers.length) {
+        setSelectedIndex(0);
+        syncSelectedToForm(0);
+      } else {
+        // ✅ Always sync when employer data changes
+        syncSelectedToForm(selectedIndex);
       }
     }
   }, [employers, activeTab, selectedIndex]);
@@ -84,6 +130,11 @@ function EmployerListPage() {
     if (tab === 'list') {
       setViewErrors({});
       setIsEditing(false);
+      if (employers.length > 0) {
+        syncSelectedToForm(selectedIndex);
+      } else {
+        setViewForm(initialForm);
+      }
     }
   };
 
@@ -107,6 +158,20 @@ function EmployerListPage() {
       setAddForm(initialForm);
       setAddErrors({});
       toast.success('Employer added successfully!');
+
+      // Notify
+      try {
+        createNotification({
+          title: '🏢 Employer added',
+          message: `${res.data.companyName} added by ${user?.name || user?.username}`,
+          type: 'success',
+          priority: 'normal',
+          link: `/employers`,
+          actor: { id: user?.id, name: user?.name || user?.username },
+          target: { type: 'employer', id: res.data.id },
+          meta: { companyName: res.data.companyName, country: res.data.country },
+        });
+      } catch (e) {}
     } else {
       toast.error(res.error || 'Add failed.');
     }
@@ -123,6 +188,7 @@ function EmployerListPage() {
   const onEmployerSelect = (e) => {
     const idx = Number(e.target.value);
     setSelectedIndex(idx);
+    syncSelectedToForm(idx);
     setViewErrors({});
     setIsEditing(false);
   };
@@ -133,56 +199,70 @@ function EmployerListPage() {
 
   const cancelEdit = () => {
     setIsEditing(false);
-    if (selectedEmployer) {
-      setViewForm({
-        companyName: selectedEmployer.companyName || '',
-        country: selectedEmployer.country || '',
-        contactPerson: selectedEmployer.contactPerson || '',
-        position: selectedEmployer.position || '',
-        contactEmail: selectedEmployer.contactEmail || '',
-        notes: selectedEmployer.notes || '',
-      });
-    }
+    syncSelectedToForm(selectedIndex);
     setViewErrors({});
   };
 
   const saveEdit = async (e) => {
-  e.preventDefault();
-  if (!selectedEmployer) return;
+    e.preventDefault();
+    if (!selectedEmployer) return;
 
-  if (!validate(viewForm, setViewErrors)) {
-    toast.error('Fix errors before saving.');
-    return;
-  }
+    if (!validate(viewForm, setViewErrors)) {
+      toast.error('Fix errors before saving.');
+      return;
+    }
 
-  setViewSaving(true);
+    setViewSaving(true);
 
-  try {
-    const res = await window.electronAPI.updateEmployer({
-      user,
-      id: selectedEmployer.id,
-      data: viewForm,
-    });
+    try {
+      const res = await window.electronAPI.updateEmployer({
+        user,
+        id: selectedEmployer.id,
+        data: viewForm,
+      });
 
-    if (res.success) {
-      updateEmployer(res.data);
-      toast.success(`Employer "${res.data.companyName}" updated successfully.`);
-      
-      // ✅ FIXED: Page refresh after successful save
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000); // Wait 500ms so toast shows first
-    } else {
-      toast.error(res.error || 'Update failed.');
+      if (res.success) {
+        // Update global store
+        updateEmployer(res.data);
+
+        // ✅ Immediately update local form state with server response
+        const emp = res.data;
+        const updatedData = {
+          companyName: emp.companyName || '',
+          country: emp.country || '',
+          contactPerson: emp.contactPerson || '',
+          position: emp.position || '',
+          contactEmail: emp.contactEmail || '',
+          notes: emp.notes || '',
+        };
+
+        setViewForm(updatedData);
+        setIsEditing(false);
+        setViewErrors({});
+        toast.success(`Employer "${res.data.companyName}" updated successfully.`);
+
+        try {
+          createNotification({
+            title: '✏️ Employer updated',
+            message: `${res.data.companyName} updated by ${user?.name || user?.username}`,
+            type: 'info',
+            priority: 'normal',
+            link: `/employers`,
+            actor: { id: user?.id, name: user?.name || user?.username },
+            target: { type: 'employer', id: res.data.id },
+            meta: { companyName: res.data.companyName, country: res.data.country },
+          });
+        } catch (e) {}
+      } else {
+        toast.error(res.error || 'Update failed.');
+      }
+    } catch (error) {
+      console.error('Update error:', error);
+      toast.error('An error occurred while updating.');
+    } finally {
       setViewSaving(false);
     }
-  } catch (error) {
-    console.error('Update error:', error);
-    toast.error('An error occurred while updating.');
-    setViewSaving(false);
-  }
-};
-
+  };
 
   const onDeleteClick = () => {
     if (!selectedEmployer) return;
@@ -202,6 +282,18 @@ function EmployerListPage() {
     if (res.success) {
       deleteEmployer(employerId);
       toast.success(`Employer "${employerName}" moved to Recycle Bin.`);
+      try {
+        createNotification({
+          title: '🗑️ Employer moved to Recycle Bin',
+          message: `${employerName} moved to Recycle Bin by ${user?.name || user?.username}`,
+          type: 'warning',
+          priority: 'high',
+          link: `/recycle-bin`,
+          actor: { id: user?.id, name: user?.name || user?.username },
+          target: { type: 'employer', id: employerId },
+          meta: { employerName },
+        });
+      } catch (e) {}
     } else {
       toast.error(res.error || 'Delete failed.');
     }
@@ -464,131 +556,124 @@ function EmployerListPage() {
             </div>
 
             <div className="job-card-body">
-              {selectedEmployer ? (
-                <form onSubmit={saveEdit} className={isEditing ? 'job-grid-4' : 'read-grid'}>
-                  <div
-                    className={
-                      isEditing ? 'form-group form-group-full' : 'detail-full'
-                    }
-                  >
-                    <label className={isEditing ? '' : 'detail-label'}>
-                      <span className="emoji-inline">🏢</span> Company Name
-                    </label>
-                    {isEditing ? (
-                      <>
-                        <input
-                          name="companyName"
-                          value={viewForm.companyName}
-                          onChange={onViewChange}
-                          placeholder="Company name"
-                          style={viewErrors.companyName ? { borderColor: 'red' } : {}}
-                        />
-                        {viewErrors.companyName && (
-                          <p className="error-text">{viewErrors.companyName}</p>
-                        )}
-                      </>
-                    ) : (
-                      <div className="detail-value">{viewForm.companyName || 'N/A'}</div>
-                    )}
-                  </div>
-
-                  <div className={isEditing ? 'form-group' : 'detail-item'}>
-                    <label className={isEditing ? '' : 'detail-label'}>
-                      <span className="emoji-inline">🌍</span> Country
-                    </label>
-                    {isEditing ? (
+              <form onSubmit={saveEdit} className={isEditing ? 'job-grid-4' : 'read-grid'}>
+                <div
+                  className={
+                    isEditing ? 'form-group form-group-full' : 'detail-full'
+                  }
+                >
+                  <label className={isEditing ? '' : 'detail-label'}>
+                    <span className="emoji-inline">🏢</span> Company Name
+                  </label>
+                  {isEditing ? (
+                    <>
                       <input
-                        name="country"
-                        value={viewForm.country}
+                        name="companyName"
+                        value={viewForm.companyName}
                         onChange={onViewChange}
-                        placeholder="Country"
+                        placeholder="Company name"
+                        style={viewErrors.companyName ? { borderColor: 'red' } : {}}
                       />
-                    ) : (
-                      <div className="detail-value">{viewForm.country || 'N/A'}</div>
-                    )}
-                  </div>
+                      {viewErrors.companyName && (
+                        <p className="error-text">{viewErrors.companyName}</p>
+                      )}
+                    </>
+                  ) : (
+                    <div className="detail-value">{viewForm.companyName || 'N/A'}</div>
+                  )}
+                </div>
 
-                  <div className={isEditing ? 'form-group' : 'detail-item'}>
-                    <label className={isEditing ? '' : 'detail-label'}>
-                      <span className="emoji-inline">👤</span> Contact Person
-                    </label>
-                    {isEditing ? (
+                <div className={isEditing ? 'form-group' : 'detail-item'}>
+                  <label className={isEditing ? '' : 'detail-label'}>
+                    <span className="emoji-inline">🌍</span> Country
+                  </label>
+                  {isEditing ? (
+                    <input
+                      name="country"
+                      value={viewForm.country}
+                      onChange={onViewChange}
+                      placeholder="Country"
+                    />
+                  ) : (
+                    <div className="detail-value">{viewForm.country || 'N/A'}</div>
+                  )}
+                </div>
+
+                <div className={isEditing ? 'form-group' : 'detail-item'}>
+                  <label className={isEditing ? '' : 'detail-label'}>
+                    <span className="emoji-inline">👤</span> Contact Person
+                  </label>
+                  {isEditing ? (
+                    <input
+                      name="contactPerson"
+                      value={viewForm.contactPerson}
+                      onChange={onViewChange}
+                      placeholder="Person in charge"
+                    />
+                  ) : (
+                    <div className="detail-value">{viewForm.contactPerson || 'N/A'}</div>
+                  )}
+                </div>
+
+                <div className={isEditing ? 'form-group' : 'detail-item'}>
+                  <label className={isEditing ? '' : 'detail-label'}>
+                    <span className="emoji-inline">💼</span> Position
+                  </label>
+                  {isEditing ? (
+                    <input
+                      name="position"
+                      value={viewForm.position}
+                      onChange={onViewChange}
+                      placeholder="Manager / HR"
+                    />
+                  ) : (
+                    <div className="detail-value">{viewForm.position || 'N/A'}</div>
+                  )}
+                </div>
+
+                <div className={isEditing ? 'form-group' : 'detail-item'}>
+                  <label className={isEditing ? '' : 'detail-label'}>
+                    <span className="emoji-inline">📧</span> Contact Email
+                  </label>
+                  {isEditing ? (
+                    <>
                       <input
-                        name="contactPerson"
-                        value={viewForm.contactPerson}
+                        name="contactEmail"
+                        value={viewForm.contactEmail}
                         onChange={onViewChange}
-                        placeholder="Person in charge"
+                        placeholder="Email address"
+                        style={viewErrors.contactEmail ? { borderColor: 'red' } : {}}
                       />
-                    ) : (
-                      <div className="detail-value">{viewForm.contactPerson || 'N/A'}</div>
-                    )}
-                  </div>
+                      {viewErrors.contactEmail && (
+                        <p className="error-text">{viewErrors.contactEmail}</p>
+                      )}
+                    </>
+                  ) : (
+                    <div className="detail-value">{viewForm.contactEmail || 'N/A'}</div>
+                  )}
+                </div>
 
-                  <div className={isEditing ? 'form-group' : 'detail-item'}>
-                    <label className={isEditing ? '' : 'detail-label'}>
-                      <span className="emoji-inline">💼</span> Position
-                    </label>
-                    {isEditing ? (
-                      <input
-                        name="position"
-                        value={viewForm.position}
-                        onChange={onViewChange}
-                        placeholder="Manager / HR"
-                      />
-                    ) : (
-                      <div className="detail-value">{viewForm.position || 'N/A'}</div>
-                    )}
-                  </div>
-
-                  <div className={isEditing ? 'form-group' : 'detail-item'}>
-                    <label className={isEditing ? '' : 'detail-label'}>
-                      <span className="emoji-inline">📧</span> Contact Email
-                    </label>
-                    {isEditing ? (
-                      <>
-                        <input
-                          name="contactEmail"
-                          value={viewForm.contactEmail}
-                          onChange={onViewChange}
-                          placeholder="Email address"
-                          style={viewErrors.contactEmail ? { borderColor: 'red' } : {}}
-                        />
-                        {viewErrors.contactEmail && (
-                          <p className="error-text">{viewErrors.contactEmail}</p>
-                        )}
-                      </>
-                    ) : (
-                      <div className="detail-value">{viewForm.contactEmail || 'N/A'}</div>
-                    )}
-                  </div>
-
-                  <div
-                    className={
-                      isEditing ? 'form-group form-group-full' : 'detail-full'
-                    }
-                  >
-                    <label className={isEditing ? '' : 'detail-label'}>
-                      <span className="emoji-inline">📝</span> Notes
-                    </label>
-                    {isEditing ? (
-                      <textarea
-                        name="notes"
-                        rows="3"
-                        value={viewForm.notes}
-                        onChange={onViewChange}
-                        placeholder="Any special conditions, communication notes, etc."
-                      />
-                    ) : (
-                      <div className="detail-value">{viewForm.notes || 'N/A'}</div>
-                    )}
-                  </div>
-                </form>
-              ) : (
-                <p className="empty-text">
-                  <span className="emoji-inline">📭</span> No employers available. Create one from
-                  the Add New tab.
-                </p>
-              )}
+                <div
+                  className={
+                    isEditing ? 'form-group form-group-full' : 'detail-full'
+                  }
+                >
+                  <label className={isEditing ? '' : 'detail-label'}>
+                    <span className="emoji-inline">📝</span> Notes
+                  </label>
+                  {isEditing ? (
+                    <textarea
+                      name="notes"
+                      rows="3"
+                      value={viewForm.notes}
+                      onChange={onViewChange}
+                      placeholder="Any special conditions, communication notes, etc."
+                    />
+                  ) : (
+                    <div className="detail-value">{viewForm.notes || 'N/A'}</div>
+                  )}
+                </div>
+              </form>
             </div>
           </section>
         ))}

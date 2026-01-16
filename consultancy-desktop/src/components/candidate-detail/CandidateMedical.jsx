@@ -4,6 +4,7 @@ import { readFileAsBuffer } from '../../utils/file';
 import toast from 'react-hot-toast';
 import '../../css/CandidateMedical.css';
 import ConfirmDialog from '../common/ConfirmDialog';
+import useNotificationStore from '../../store/useNotificationStore';
 
 const medicalStatusOptions = ['Pending', 'Fit', 'Unfit', 'Cancelled'];
 
@@ -29,6 +30,7 @@ function CandidateMedical({ user, candidateId, candidateName }) {
     message: '',
     onConfirm: null,
   });
+  const createNotification = useNotificationStore((s) => s.createNotification);
 
   const [medUploadId, setMedUploadId] = useState(null);
   const [medFileProgress, setMedFileProgress] = useState(null);
@@ -238,6 +240,18 @@ function CandidateMedical({ user, candidateId, candidateName }) {
         setEditingId(null);
         setEditForm({});
         toast.success('✅ Medical entry updated successfully!', { id: toastId });
+        try {
+          createNotification({
+            title: '🏥 Medical entry updated',
+            message: `${candidateName || 'Candidate'} medical entry updated for ${editForm.test_date}`,
+            type: 'info',
+            priority: 'normal',
+            link: `/candidate/${candidateId}?tab=medical`,
+            actor: { id: user?.id, name: user?.name || user?.username },
+            target: { type: 'medical', id: entryId },
+            meta: { candidateId },
+          });
+        } catch (e) {}
       } else {
         toast.error('❌ ' + (res.error || 'Failed to update medical entry'), {
           id: toastId,
@@ -359,6 +373,19 @@ function CandidateMedical({ user, candidateId, candidateName }) {
         } catch (err) {
           console.error('createReminder (medical) failed:', err);
         }
+
+        try {
+          createNotification({
+            title: '🏥 Medical entry added',
+            message: `${candidateName || 'Candidate'} medical entry added for ${medicalForm.test_date}`,
+            type: 'info',
+            priority: 'normal',
+            link: `/candidate/${candidateId}?tab=medical`,
+            actor: { id: user?.id, name: user?.name || user?.username },
+            target: { type: 'medical', id: res.data?.id },
+            meta: { candidateId },
+          });
+        } catch (e) {}
       } else {
         toast.error('❌ ' + (res.error || 'Failed to save medical entry'), {
           id: toastId,
@@ -382,6 +409,18 @@ function CandidateMedical({ user, candidateId, candidateName }) {
         if (res.success) {
           setMedicalEntries((prev) => prev.filter((e) => e.id !== id));
           toast.success('✅ Medical entry moved to Recycle Bin.');
+          try {
+            createNotification({
+              title: '🗑️ Medical entry deleted',
+              message: `Medical entry moved to Recycle Bin for candidate ${candidateName || candidateId}`,
+              type: 'warning',
+              priority: 'high',
+              link: `/candidate/${candidateId}?tab=medical`,
+              actor: { id: user?.id, name: user?.name || user?.username },
+              target: { type: 'medical', id },
+              meta: { candidateId },
+            });
+          } catch (e) {}
         } else {
           toast.error('❌ ' + (res.error || 'Failed to delete medical entry'));
         }
@@ -475,6 +514,18 @@ function CandidateMedical({ user, candidateId, candidateName }) {
                 ))}
               </select>
             </div>
+
+            <div className="form-group notes-group">
+              <label>Notes</label>
+              <textarea
+                name="notes"
+                value={medicalForm.notes}
+                onChange={handleFormChange}
+                placeholder="Add any additional notes..."
+                rows={2}
+                className="notes-textarea auto-resize compact-textarea"
+              />
+            </div>
           </div>
 
           <div className="form-group">
@@ -495,15 +546,17 @@ function CandidateMedical({ user, candidateId, candidateName }) {
     {medicalForm.certificate_file && (
       <div className="file-preview-row" style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
         {certificatePreview ? (
-          certificatePreview.type && certificatePreview.type.startsWith('image/') ? (
-            <div className="du-file-thumb">
-              <img src={certificatePreview.url} alt="certificate preview" />
-            </div>
-          ) : (
-            <div className="doclist-pdf-thumb">
-              <embed src={certificatePreview.url} type="application/pdf" />
-            </div>
-          )
+          (certificatePreview.type === 'image' || (certificatePreview.type && certificatePreview.type.startsWith && certificatePreview.type.startsWith('image')))
+            ? (
+              <div className="du-file-thumb">
+                <img src={certificatePreview.url} alt="certificate preview" />
+              </div>
+            ) : (certificatePreview.type === 'pdf' || (certificatePreview.type && certificatePreview.type.toLowerCase && certificatePreview.type.toLowerCase().includes('pdf')))
+            ? (
+              <div className="doclist-pdf-thumb">
+                <embed src={certificatePreview.url} type="application/pdf" />
+              </div>
+            ) : null
         ) : null}
 
         <div className="file-name-display">
@@ -545,17 +598,7 @@ function CandidateMedical({ user, candidateId, candidateName }) {
   </div>
 </div>
 
-          <div className="form-group">
-            <label>Notes</label>
-            <textarea
-              name="notes"
-              value={medicalForm.notes}
-              onChange={handleFormChange}
-              placeholder="Add any additional notes..."
-              rows={2}
-              className="notes-textarea auto-resize compact-textarea"
-            />
-          </div>
+          {/* Notes moved into the top row (notes-group) */}
 
           <button type="submit" className="btn-full-width" disabled={isSaving}>
             <FiPlus /> {isSaving ? 'Saving...' : 'Add Medical Entry'}
@@ -631,18 +674,20 @@ function CandidateMedical({ user, candidateId, candidateName }) {
       <FiFileText />
       Choose New Certificate
     </label>
-    {editForm.certificate_file && (
+        {editForm.certificate_file && (
       <div className="file-preview-row" style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
         {editPreviews[entry.id] ? (
-          editPreviews[entry.id].type && editPreviews[entry.id].type.startsWith('image/') ? (
-            <div className="du-file-thumb">
-              <img src={editPreviews[entry.id].url} alt="edit certificate preview" />
-            </div>
-          ) : (
-            <div className="doclist-pdf-thumb">
-              <embed src={editPreviews[entry.id].url} type="application/pdf" />
-            </div>
-          )
+          ((editPreviews[entry.id].type === 'image') || (editPreviews[entry.id].type && editPreviews[entry.id].type.startsWith && editPreviews[entry.id].type.startsWith('image')))
+            ? (
+              <div className="du-file-thumb">
+                <img src={editPreviews[entry.id].url} alt="edit certificate preview" />
+              </div>
+            ) : ((editPreviews[entry.id].type === 'pdf') || (editPreviews[entry.id].type && editPreviews[entry.id].type.toLowerCase && editPreviews[entry.id].type.toLowerCase().includes('pdf'))) 
+            ? (
+              <div className="doclist-pdf-thumb">
+                <embed src={editPreviews[entry.id].url} type="application/pdf" />
+              </div>
+            ) : null
         ) : null}
 
         <div className="file-name-display">

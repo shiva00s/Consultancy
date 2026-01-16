@@ -36,6 +36,8 @@ const sendWhatsAppBulk = require("./sendWhatsAppBulk.cjs");
 const openWhatsAppSingle = require("./openWhatsAppSingle.cjs");
 const { guard, FEATURES } = require('./security/ipcPermissionGuard.cjs');
 const { registerPassportHandlers } = require('./passportHandlers.cjs');
+const keyManager = require('../services/keyManager.cjs');
+const {queriesOptimized} = require('../db/queries-optimized.cjs');
 //const sendTwilioWhatsApp = require("./twilioSendWhatsApp.cjs");
 
 // Map to track active upload streams for cancellation and progress control
@@ -96,6 +98,37 @@ const getEventUserContext = (event) => {
     return event.sender.session.user || { id: 0, username: 'SYSTEM' }; 
 };
 
+// Grant bypass only to true super_admin users. Admins must be delegated by super_admin.
+const isSuperAdmin = (user) => {
+  if (!user) return false;
+  if (user.role === 'super_admin') return true;
+  if (user.is_super_admin || user.isSuperAdmin) return true;
+  if (typeof user.role === 'string') {
+    const r = user.role.toLowerCase();
+    if (r.includes('super')) return true;
+  }
+  if (typeof user.roles !== 'undefined') {
+    try {
+      const roles = Array.isArray(user.roles) ? user.roles : String(user.roles).split(',');
+      for (const rr of roles) {
+        const s = String(rr).toLowerCase();
+        if (s.includes('super')) return true;
+      }
+    } catch (e) {}
+  }
+  return false;
+};
+
+// Backwards-compatible helper: consider true super_admin OR explicit admin users
+const isSuperOrAdmin = (user) => {
+  if (!user) return false;
+  if (isSuperAdmin(user)) return true;
+  // Treat explicit admin role or flag as admin
+  if (user.role && String(user.role).toLowerCase().includes('admin')) return true;
+  if (user.is_admin || user.isAdmin) return true;
+  return false;
+};
+
 
 const logAction = (user, action, target_type, target_id, details = null) => {
     try {
@@ -131,6 +164,309 @@ const logAction = (user, action, target_type, target_id, details = null) => {
     }
 };
 
+// -------------------------
+// Company Setup Handlers
+// -------------------------
+ipcMain.handle('get-company-setup', async (event) => {
+  try {
+    const user = getEventUserContext(event);
+    const denied = await enforcePermissionOrDeny(user, 'settings_company_setup');
+    if (denied) return denied;
+    const res = await queries.getCompanySetup();
+    return res;
+  } catch (err) {
+    console.error('get-company-setup error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('get-company-setup-by-id', async (event, id) => {
+  try {
+    const user = getEventUserContext(event);
+    const denied = await enforcePermissionOrDeny(user, 'settings_company_setup');
+    if (denied) return denied;
+    const res = await queries.getCompanySetupById(id);
+    return res;
+  } catch (err) {
+    console.error('get-company-setup-by-id error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('add-company-setup', async (event, payload) => {
+  try {
+    const user = getEventUserContext(event);
+    const denied = await enforcePermissionOrDeny(user, 'settings_company_setup');
+    if (denied) return denied;
+    const body = Object.assign({}, payload || {});
+    body.userId = user && user.id ? user.id : null;
+    const res = await queries.addCompanySetup(body);
+    if (res && res.success) logAction(user, 'add_company_setup', 'company_setup', res.id, JSON.stringify(body));
+    return res;
+  } catch (err) {
+    console.error('add-company-setup error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('update-company-setup', async (event, payload) => {
+  try {
+    const user = getEventUserContext(event);
+    const denied = await enforcePermissionOrDeny(user, 'settings_company_setup');
+    if (denied) return denied;
+    const body = Object.assign({}, payload || {});
+    body.userId = user && user.id ? user.id : null;
+    const res = await queries.updateCompanySetup(body);
+    if (res && res.success) logAction(user, 'update_company_setup', 'company_setup', body.id, JSON.stringify(body));
+    return res;
+  } catch (err) {
+    console.error('update-company-setup error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('delete-company-setup', async (event, id) => {
+  try {
+    const user = getEventUserContext(event);
+    const denied = await enforcePermissionOrDeny(user, 'settings_company_setup');
+    if (denied) return denied;
+    const res = await queries.deleteCompanySetup(id, true);
+    if (res && res.success) logAction(user, 'delete_company_setup', 'company_setup', id, null);
+    return res;
+  } catch (err) {
+    console.error('delete-company-setup error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// -------------------------
+// System settings (keys) handlers
+// -------------------------
+ipcMain.handle('system:get-all-keys', async (event) => {
+  try {
+    let user = getEventUserContext(event);
+    // If session-based user is missing, try canonical lookup
+    if (!user || !user.id || user.id === 0) {
+      try {
+        const canon = await getCanonicalUserContextFromQueries();
+        console.log('system:get-all-keys canonical lookup ->', canon && typeof canon === 'object' ? (canon.success ? 'success' : 'failed') : String(canon));
+        if (canon && canon.success && canon.user) user = canon.user;
+      } catch (e) {
+        console.warn('canonical user lookup failed:', e && e.message);
+      }
+    }
+    try {
+      console.log('system:get-all-keys invoked by user:', user && user.username, user && user.role);
+      console.debug('system:get-all-keys raw user object:', JSON.stringify(user));
+    } catch (e) {
+      console.log('system:get-all-keys raw user object (non-serializable)');
+    }
+    // Allow obvious super/admin users to bypass permission lookup
+    if (!isSuperOrAdmin(user)) {
+      const denied = await enforcePermissionOrDeny(user, 'settings_keys');
+      if (denied) {
+        console.warn('system:get-all-keys permission denied by enforcePermissionOrDeny ->', denied);
+        return denied;
+      }
+    }
+    const db = getDatabase();
+    const rows = await dbAll(db, `SELECT key, value, updated_at FROM system_settings ORDER BY key ASC`, []);
+    return { success: true, data: rows || [] };
+  } catch (err) {
+    console.error('system:get-all-keys error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('system:get-key', async (event, keyName) => {
+  try {
+    let user = getEventUserContext(event);
+    if (!user || !user.id || user.id === 0) {
+      try {
+        const canon = await getCanonicalUserContextFromQueries();
+        console.log('system:get-key canonical lookup ->', canon && canon.success);
+        if (canon && canon.success && canon.user) user = canon.user;
+      } catch (e) {}
+    }
+    try { console.log('system:get-key invoked by user:', user && user.username, user && user.role); } catch (e) {}
+    if (!isSuperOrAdmin(user)) {
+      const denied = await enforcePermissionOrDeny(user, 'settings_keys');
+      if (denied) {
+        console.warn('system:get-key permission denied ->', denied);
+        return denied;
+      }
+    }
+    const val = await keyManager.getKey(keyName);
+    return { success: true, data: { key: keyName, value: val } };
+  } catch (err) {
+    console.error('system:get-key error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('system:set-key', async (event, payload) => {
+  try {
+    let user = getEventUserContext(event);
+    if (!user || !user.id || user.id === 0) {
+      try {
+        const canon = await getCanonicalUserContextFromQueries();
+        console.log('system:set-key canonical lookup ->', canon && canon.success);
+        if (canon && canon.success && canon.user) user = canon.user;
+      } catch (e) {}
+    }
+    try { console.log('system:set-key invoked by user:', user && user.username, user && user.role); } catch (e) {}
+    // Allow obvious super/admin users to set keys by default
+    if (!isSuperOrAdmin(user)) {
+      const denied = await enforcePermissionOrDeny(user, 'settings_keys');
+      if (denied) {
+        console.warn('system:set-key permission denied ->', denied);
+        return denied;
+      }
+    }
+    const { key, value } = payload || {};
+    if (!key) return { success: false, error: 'Key name required' };
+    const db = getDatabase();
+    // fetch existing value for audit
+    let oldRow = null;
+    try { oldRow = await dbGet(db, `SELECT value FROM system_settings WHERE key = ? LIMIT 1`, [key]); } catch (e) {}
+    const oldValue = oldRow && oldRow.value ? oldRow.value : null;
+
+    await keyManager.setKey(key, value || '');
+
+    // Audit log: record create vs update
+    try {
+      const action = oldValue === null ? 'create_system_key' : 'update_system_key';
+      const details = JSON.stringify({ key, oldValue, newValue: value || '' });
+      logAction(user, action, 'system_setting', key, details);
+    } catch (e) {
+      console.warn('Failed to write audit log for set-key:', e && e.message);
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('system:set-key error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('system:delete-key', async (event, keyName) => {
+  try {
+    let user = getEventUserContext(event);
+    if (!user || !user.id || user.id === 0) {
+      try {
+        const canon = await getCanonicalUserContextFromQueries();
+        console.log('system:delete-key canonical lookup ->', canon && canon.success);
+        if (canon && canon.success && canon.user) user = canon.user;
+      } catch (e) {}
+    }
+    try { console.log('system:delete-key invoked by user:', user && user.username, user && user.role); } catch (e) {}
+    // Allow obvious super/admin users to delete keys by default
+    if (!isSuperOrAdmin(user)) {
+      const denied = await enforcePermissionOrDeny(user, 'settings_keys');
+      if (denied) {
+        console.warn('system:delete-key permission denied ->', denied);
+        return denied;
+      }
+    }
+    if (!keyName) return { success: false, error: 'Key name required' };
+    const db = getDatabase();
+    // fetch existing value for audit
+    let oldRow = null;
+    try { oldRow = await dbGet(db, `SELECT value FROM system_settings WHERE key = ? LIMIT 1`, [keyName]); } catch (e) {}
+    const oldValue = oldRow && oldRow.value ? oldRow.value : null;
+
+    await keyManager.deleteKey(keyName);
+
+    try {
+      const details = JSON.stringify({ key: keyName, oldValue });
+      logAction(user, 'delete_system_key', 'system_setting', keyName, details);
+    } catch (e) {
+      console.warn('Failed to write audit log for delete-key:', e && e.message);
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('system:delete-key error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Unguarded set/delete for Super Admins: called from renderer when session indicates super admin.
+ipcMain.handle('system:set-key-unguarded', async (event, payload, senderUser) => {
+  try {
+    let user = getEventUserContext(event);
+    if ((!user || !user.id || user.id === 0) && senderUser) user = senderUser;
+    // final check: ensure caller is super admin
+    if (!isSuperAdmin(user)) {
+      console.warn('system:set-key-unguarded denied for non-super user', user && user.username);
+      return { success: false, error: 'Access denied', code: 'PERMISSION_DENIED' };
+    }
+    const { key, value } = payload || {};
+    if (!key) return { success: false, error: 'Key name required' };
+    const db = getDatabase();
+    let oldRow = null;
+    try { oldRow = await dbGet(db, `SELECT value FROM system_settings WHERE key = ? LIMIT 1`, [key]); } catch (e) {}
+    const oldValue = oldRow && oldRow.value ? oldRow.value : null;
+
+    await keyManager.setKey(key, value || '');
+
+    try {
+      const action = oldValue === null ? 'create_system_key' : 'update_system_key';
+      const details = JSON.stringify({ key, oldValue, newValue: value || '' });
+      logAction(user, action, 'system_setting', key, details);
+    } catch (e) {
+      console.warn('Failed to write audit log for set-key-unguarded:', e && e.message);
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('system:set-key-unguarded error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('system:delete-key-unguarded', async (event, keyName, senderUser) => {
+  try {
+    let user = getEventUserContext(event);
+    if ((!user || !user.id || user.id === 0) && senderUser) user = senderUser;
+    if (!isSuperAdmin(user)) {
+      console.warn('system:delete-key-unguarded denied for non-super user', user && user.username);
+      return { success: false, error: 'Access denied', code: 'PERMISSION_DENIED' };
+    }
+    if (!keyName) return { success: false, error: 'Key name required' };
+    const db = getDatabase();
+    let oldRow = null;
+    try { oldRow = await dbGet(db, `SELECT value FROM system_settings WHERE key = ? LIMIT 1`, [keyName]); } catch (e) {}
+    const oldValue = oldRow && oldRow.value ? oldRow.value : null;
+
+    await keyManager.deleteKey(keyName);
+
+    try {
+      const details = JSON.stringify({ key: keyName, oldValue });
+      logAction(user, 'delete_system_key', 'system_setting', keyName, details);
+    } catch (e) {
+      console.warn('Failed to write audit log for delete-key-unguarded:', e && e.message);
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('system:delete-key-unguarded error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Debug handler: return all system keys without permission checks (useful for local troubleshooting)
+ipcMain.handle('system:get-all-keys-debug', async () => {
+  try {
+    const db = getDatabase();
+    const rows = await dbAll(db, `SELECT key, value, updated_at FROM system_settings ORDER BY key ASC`, []);
+    return { success: true, data: rows || [], debug: true };
+  } catch (err) {
+    console.error('system:get-all-keys-debug error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
 
 const extractResumeDetails = (text) => {
     const details = {};
@@ -156,6 +492,26 @@ const extractResumeDetails = (text) => {
 function getMachineIdForLicense() {
   return os.hostname().toUpperCase();
 }
+
+// Always allow renderer to set/clear the authenticated user on the sender's session
+// The renderer calls `ipcRenderer.send('set-session-user', user)` after login.
+ipcMain.on('set-session-user', (event, user) => {
+  try {
+    event.sender.session.user = user || null;
+    console.log('set-session-user -> session.user set for sender', user && user.username);
+  } catch (err) {
+    console.warn('set-session-user failed', err && err.message);
+  }
+});
+
+ipcMain.on('clear-session-user', (event) => {
+  try {
+    event.sender.session.user = null;
+    console.log('clear-session-user -> session.user cleared for sender');
+  } catch (err) {
+    console.warn('clear-session-user failed', err && err.message);
+  }
+});
 
 ipcMain.handle('request-activation-code', async () => {
   try {
@@ -308,6 +664,26 @@ ipcMain.handle('showSaveDialog', showSaveDialogHandler);
   const db = getDatabase();
   if (!db) {
     console.error('Database is not initialized. Handlers will not be registered.');
+      // Allow renderer to write the authenticated user object into the sender's session
+      // Call this once after successful login from the renderer so main IPC handlers
+      // can read `event.sender.session.user` reliably.
+      ipcMain.on('set-session-user', (event, user) => {
+        try {
+          event.sender.session.user = user || null;
+          console.log('set-session-user -> session.user set for sender', user && user.username);
+        } catch (err) {
+          console.warn('set-session-user failed', err && err.message);
+        }
+      });
+    
+      ipcMain.on('clear-session-user', (event) => {
+        try {
+          event.sender.session.user = null;
+          console.log('clear-session-user -> session.user cleared for sender');
+        } catch (err) {
+          console.warn('clear-session-user failed', err && err.message);
+        }
+      });
     return;
   }
 
@@ -1126,24 +1502,59 @@ ipcMain.handle('cancel-upload', async (event, { uploadId }) => {
         return { success: false, error: 'File not found.' };
     });
 // ====================================================================
-ipcMain.handle('getImageBase64', (event, { filePath }) => {
-        if (!filePath || !fs.existsSync(filePath)) {
-            return { success: false, error: 'Image file not found.' };
-        }
+ipcMain.handle('getImageBase64', async (event, { filePath, maxWidth = 256, maxHeight = 256, diskCache = false } = {}) => {
+    if (!filePath || !fs.existsSync(filePath)) {
+      return { success: false, error: 'Image file not found.' };
+    }
+    try {
+      // If diskCache requested, attempt to use or create a cached resized file
+      if (diskCache) {
         try {
-            const data = fs.readFileSync(filePath, { encoding: 'base64' });
-            const fileType = path.extname(filePath).toLowerCase();
-         
-            let mimeType = 'image/jpeg'; 
+          // Ensure Jimp available
+          if (!Jimp) {
+            try { Jimp = require('jimp'); } catch (e) { Jimp = null; }
+          }
 
-            if (fileType === '.png') mimeType = 'image/png';
-            else if (fileType === '.gif') mimeType = 'image/gif';
-            
-            return { success: true, data: `data:${mimeType};base64,${data}` };
-        } catch (err) {
-            return { success: false, error: err.message };
+          const crypto = require('crypto');
+          const cacheRoot = path.join(app.getPath('userData') || os.homedir(), 'cache', 'thumbnails');
+          await fs.mkdirp(cacheRoot);
+          const hash = crypto.createHash('sha1').update(`${filePath}:${maxWidth}x${maxHeight}`).digest('hex');
+          const cachedFile = path.join(cacheRoot, `${hash}.webp`);
+
+          if (!fs.existsSync(cachedFile)) {
+            if (!Jimp) {
+              // Fall back to returning original base64 if image library unavailable
+              const fallback = fs.readFileSync(filePath, { encoding: 'base64' });
+              const ext = path.extname(filePath).toLowerCase();
+              const mimeType = ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif' : 'image/jpeg';
+              return { success: true, data: `data:${mimeType};base64,${fallback}` };
+            }
+            // Read and resize then write to cache as webp
+            const img = await Jimp.read(filePath);
+            img.cover(maxWidth, maxHeight, Jimp.HORIZONTAL_ALIGN_CENTER | Jimp.VERTICAL_ALIGN_MIDDLE);
+            await img.quality(70).writeAsync(cachedFile);
+          }
+
+          // Read cached file and return data URL
+          const b64 = fs.readFileSync(cachedFile, { encoding: 'base64' });
+          return { success: true, data: `data:image/webp;base64,${b64}` };
+        } catch (cacheErr) {
+          // Ignore cache errors and fall back to direct read
+          console.warn('Thumbnail cache error:', cacheErr && cacheErr.message);
         }
-    });
+      }
+
+      // Default behavior: return original full file as base64
+      const data = fs.readFileSync(filePath, { encoding: 'base64' });
+      const fileType = path.extname(filePath).toLowerCase();
+      let mimeType = 'image/jpeg';
+      if (fileType === '.png') mimeType = 'image/png';
+      else if (fileType === '.gif') mimeType = 'image/gif';
+      return { success: true, data: `data:${mimeType};base64,${data}` };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
 // ====================================================================
     ipcMain.handle('get-document-base64', async (event, { filePath }) => {
         if (filePath && fs.existsSync(filePath)) {
@@ -1723,15 +2134,51 @@ ipcMain.handle('delete-permanently', async (event, { user, id, targetType }) => 
       case 'passport_movement':          // 👈 Add this
       case 'passport_movements':         // 👈 Add this
         tableName = 'passport_movements'; break;
+      case 'document':
+      case 'documents':
+        tableName = 'documents'; break;
       default:
         return { success: false, error: `Unknown target type: ${targetType}` };
     }
 
     await new Promise((resolve, reject) => {
-      db.run(`DELETE FROM ${tableName} WHERE id = ?`, [id], (err) => {
-        if (err) return reject(err);
-        resolve();
-      });
+      // For documents, attempt to remove filesystem file as well (best-effort)
+      if (tableName === 'documents') {
+        // fetch file info first
+        db.get('SELECT * FROM documents WHERE id = ?', [id], async (err, row) => {
+          if (err) return reject(err);
+          try {
+            // delete DB row
+            db.run(`DELETE FROM ${tableName} WHERE id = ?`, [id], async (dErr) => {
+              if (dErr) return reject(dErr);
+              try {
+                if (row) {
+                  const fp = row.filePath || row.file_path || row.path || row.file_path;
+                  const filename = fp ? path.basename(fp) : null;
+                  const category = row.category || 'documents';
+                  if (filename) {
+                    try {
+                      await fileManager.deleteFile(filename, category);
+                    } catch (e) {
+                      console.warn('Failed to delete file for document', filename, e && e.message);
+                    }
+                  }
+                }
+              } catch (e) {
+                console.warn('error while cleaning file for document delete:', e && e.message);
+              }
+              resolve();
+            });
+          } catch (e) {
+            return reject(e);
+          }
+        });
+      } else {
+        db.run(`DELETE FROM ${tableName} WHERE id = ?`, [id], (err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      }
     });
 
     logAction(user, 'permanent_delete', tableName, id);
@@ -1818,20 +2265,25 @@ ipcMain.handle('write-offer-template', async (event, payload = {}) => {
 // ===================================================
 
     // --- Utility to Print/Save as PDF ---
-    ipcMain.handle('print-to-pdf', async (event, url) => {
-        const win = BrowserWindow.fromWebContents(event.sender);
-        const printWindow = new BrowserWindow({ show: false, webPreferences: { nodeIntegration: false, contextIsolation: true } });
-        try {
-            await printWindow.loadURL(url);
-            const date = new Date().toISOString().slice(0, 10);
-       
-            const defaultFileName = `Candidate_Offer_Letter_${date}.pdf`;
-            const saveDialogResult = await safeShowSaveDialog(win, {
-                
-                title: 'Save Generated Offer Letter as PDF',
-                defaultPath: defaultFileName,
-                filters: [{ name: 'PDF Documents', extensions: ['pdf'] }],
-            });
+    // Accepts either a URL string, or an object: { url, suggestedName }
+    ipcMain.handle('print-to-pdf', async (event, urlOrOptions) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      const printWindow = new BrowserWindow({ show: false, webPreferences: { nodeIntegration: false, contextIsolation: true } });
+      try {
+        let url = urlOrOptions;
+        let suggestedName = null;
+        if (urlOrOptions && typeof urlOrOptions === 'object') {
+          url = urlOrOptions.url;
+          suggestedName = urlOrOptions.suggestedName || null;
+        }
+        await printWindow.loadURL(url);
+        const date = new Date().toISOString().slice(0, 10);
+        const defaultFileName = suggestedName ? suggestedName : `Candidate_Offer_Letter_${date}.pdf`;
+        const saveDialogResult = await safeShowSaveDialog(win, {
+          title: suggestedName ? `Save ${suggestedName}` : 'Save Generated Offer Letter as PDF',
+          defaultPath: defaultFileName,
+          filters: [{ name: 'PDF Documents', extensions: ['pdf'] }],
+        });
             if (saveDialogResult.canceled || !saveDialogResult.filePath) {
                 printWindow.close();
                 return { success: false, error: 'User cancelled save operation.' };
@@ -1936,10 +2388,9 @@ ipcMain.handle('get-thumbnail', async (event, { filePath, maxWidth = 64, maxHeig
         const row = await queries.dbGet(db, `
             SELECT
               c.name AS candidateName, c.passportNo, c.contact, c.aadhar, c.education,
-             
-             j.positionTitle, j.requirements,
+              j.positionTitle, j.requirements, j.salary AS monthlySalary,
               e.companyName, e.contactPerson, e.contactEmail, e.country AS employerCountry
-            
+
             FROM candidates c
             JOIN placements p ON p.candidate_id = c.id
             JOIN job_orders j ON j.id = p.job_order_id
@@ -3199,6 +3650,44 @@ ipcMain.handle('restore-required-document', async (event, { id }) => {
   });
 });
 
+// --- DOCUMENTS (FILES) ---
+ipcMain.handle('get-deleted-documents', async () => {
+  return new Promise((resolve) => {
+    const query = `
+      SELECT id, candidate_id, fileName as fileName, file_path, filePath, category, uploadedAt
+      FROM documents
+      WHERE isDeleted = 1
+      ORDER BY id DESC
+    `;
+
+    db.all(query, [], (err, rows) => {
+      if (err) {
+        console.error('get-deleted-documents error:', err);
+        return resolve({ success: false, error: err.message });
+      }
+      resolve({ success: true, data: rows });
+    });
+  });
+});
+
+ipcMain.handle('restore-document', async (event, { user, id }) => {
+  return new Promise((resolve) => {
+    const sql = `UPDATE documents SET isDeleted = 0 WHERE id = ?`;
+    db.run(sql, [id], function (err) {
+      if (err) {
+        console.error('restore-document error:', err);
+        return resolve({ success: false, error: err.message });
+      }
+      try {
+        logAction(user, 'restore_document', 'documents', id);
+      } catch (e) {
+        console.warn('logAction failed for restore-document', e && e.message);
+      }
+      resolve({ success: true });
+    });
+  });
+});
+
 ipcMain.handle('get-candidate-finance', async (event, { user, candidateId }) => {
   try {
     // 🔐 Read access allowed for Admin & SuperAdmin only
@@ -3804,6 +4293,20 @@ ipcMain.handle('get-file-url', async (event, { path: filePath }) => {
   }
 });
 
+// Write provided HTML to a temp file and return the absolute path
+ipcMain.handle('write-temp-html', async (event, { html, fileName }) => {
+  try {
+    const tempDir = os.tmpdir();
+    const name = fileName || `${uuidv4()}.html`;
+    const tempPath = path.join(tempDir, name);
+    fs.writeFileSync(tempPath, html, 'utf-8');
+    return { success: true, tempPath };
+  } catch (error) {
+    console.error('write-temp-html error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('whatsapp:get-conversations', async () => {
   // Query SQLite for conversations with candidate details
   const conversations = db.prepare(`
@@ -3814,6 +4317,19 @@ ipcMain.handle('whatsapp:get-conversations', async () => {
   `).all();
   
   return conversations;
+});
+
+// Return the CandidateJobs CSS so renderer can inline it for PDF exports
+ipcMain.handle('get-candidate-jobs-css', async (event) => {
+  try {
+    const cssPath = path.join(app.getAppPath(), 'src', 'css', 'CandidateJobs.css');
+    if (!fs.existsSync(cssPath)) return { success: false, error: 'CSS file not found' };
+    const css = fs.readFileSync(cssPath, 'utf-8');
+    return { success: true, css };
+  } catch (error) {
+    console.error('get-candidate-jobs-css error:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 ipcMain.handle('whatsapp:send-message', async (event, data) => {
@@ -3861,8 +4377,38 @@ ipcMain.handle('whatsapp:upload-media', async (event, file) => {
       }
     }
   );
+
+  // Add IPC handler for manual migration trigger
+ipcMain.handle('run-performance-migration', async () => {
+  try {
+    await runMigration();
+    return { success: true };
+  } catch (error) {
+    console.error('Migration failed:', error);
+    return { success: false, error: error.message };
+  }
+});
   
   return response.data.id; // Media ID for sending
+});
+
+ipcMain.handle('get-candidate-details-optimized', async (event, { id, user }) => {
+  return queriesOptimized.getCandidateDetailsOptimized(id);
+});
+
+ipcMain.handle('search-candidates-optimized', async (event, args) => {
+  const { searchTerm, status, position, limit, offset } = args;
+  return queriesOptimized.searchCandidatesOptimized(
+    searchTerm, status, position, limit, offset
+  );
+});
+
+ipcMain.handle('get-reporting-data-optimized', async (event, { user, filters }) => {
+  return queriesOptimized.getReportingDataOptimized(user, filters);
+});
+
+ipcMain.handle('get-candidates-batch', async (event, candidateIds) => {
+  return queriesOptimized.getCandidatesBatch(candidateIds);
 });
 
 // Auto-link documents to candidate

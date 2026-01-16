@@ -129,6 +129,9 @@ function CandidateInterview({ user, candidateId, candidateName }) {
           type: 'info',
           priority: 'normal',
           link: `/candidates/${candidateId}/interview`,
+          actor: { id: user?.id, name: user?.name || user?.username },
+          target: { type: 'interview', id: res.data ? res.data.id : null },
+          meta: { candidateId, candidateName, interviewDate: interviewForm.interview_date, positionId: interviewForm.job_order_id },
         });
 
         try {
@@ -218,6 +221,9 @@ function CandidateInterview({ user, candidateId, candidateName }) {
           type: 'success',
           priority: 'normal',
           link: `/candidates/${candidateId}/interview`,
+          actor: { id: user?.id, name: user?.name || user?.username },
+          target: { type: 'interview', id: editingId },
+          meta: { candidateId, candidateName, interviewDate: editForm.interview_date, status: editForm.status, positionId: editForm.job_order_id },
         });
       } else {
         toast.error('❌ ' + (res.error || 'Failed to update interview'), { id: toastId });
@@ -247,6 +253,9 @@ function CandidateInterview({ user, candidateId, candidateName }) {
               type: 'warning',
               priority: 'high',
               actionRequired: false,
+              actor: { id: user?.id, name: user?.name || user?.username },
+              target: { type: 'interview', id },
+              meta: { candidateId, candidateName, position },
             });
           } else {
             toast.error('❌ ' + (res.error || 'Failed to delete interview entry'));

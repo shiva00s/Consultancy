@@ -8,6 +8,7 @@ import useAuthStore from '../../store/useAuthStore';
 import { useShallow } from 'zustand/react/shallow';
 import '../../css/UserManagement.css';
 import PERMISSION_KEYS from '../../config/permissionKeys';
+import useNotificationStore from '../../store/useNotificationStore';
 
 const roleOptions = [
   { value: 'staff', label: '👤 Staff (Data Entry)' },
@@ -26,6 +27,7 @@ function UserManagement({ currentUser }) {
   const [permissionTarget, setPermissionTarget] = useState(null);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [deleteConfirmUser, setDeleteConfirmUser] = useState(null);
+  const createNotification = useNotificationStore((s) => s.createNotification);
 
   const { featureFlags } = useAuthStore(
     useShallow((state) => ({ featureFlags: state.featureFlags }))
@@ -104,6 +106,17 @@ function UserManagement({ currentUser }) {
       setUsers((prev) => [...prev, res.data]);
       setForm(initialUserForm);
       toast.success(`✅ User ${res.data.username} added successfully!`);
+      try {
+        createNotification({
+          title: '👥 User created',
+          message: `User ${res.data.username} was created`,
+          type: 'info',
+          priority: 'normal',
+          actor: { id: currentUser?.id, name: currentUser?.name || currentUser?.username },
+          target: { type: 'user', id: res.data?.id },
+          meta: { username: res.data.username },
+        });
+      } catch (e) {}
     } else {
       toast.error(`❌ ${res.error}`);
     }
@@ -125,6 +138,17 @@ function UserManagement({ currentUser }) {
     if (res.success) {
       setUsers((prev) => prev.filter((u) => u.id !== userId));
       toast.success(`🗑️ User ${username} deleted successfully`);
+      try {
+        createNotification({
+          title: '🗑️ User deleted',
+          message: `User ${username} was deleted`,
+          type: 'warning',
+          priority: 'high',
+          actor: { id: currentUser?.id, name: currentUser?.name || currentUser?.username },
+          target: { type: 'user', id: userId },
+          meta: { username },
+        });
+      } catch (e) {}
       setDeleteConfirmUser(null);
     } else {
       toast.error(`❌ ${res.error}`);
@@ -165,6 +189,17 @@ function UserManagement({ currentUser }) {
           onSave={() => {
             setPermissionTarget(null);
             fetchUsers();
+            try {
+              createNotification({
+                title: '🔐 Permissions updated',
+                message: `Permissions updated for ${permissionTarget?.username || permissionTarget?.id}`,
+                type: 'info',
+                priority: 'normal',
+                actor: { id: currentUser?.id, name: currentUser?.name || currentUser?.username },
+                target: { type: 'user', id: permissionTarget?.id },
+                meta: { username: permissionTarget?.username },
+              });
+            } catch (e) {}
           }}
         />
       )}

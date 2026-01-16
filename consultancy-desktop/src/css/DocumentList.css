@@ -16,6 +16,9 @@
   margin-bottom: 1.25rem;
   border-bottom: 2px solid var(--border-color);
   background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .doclist-title {
@@ -49,6 +52,14 @@
   font-size: 0.85rem;
   line-height: 1.4;
   color: var(--text-secondary);
+}
+
+/* Header-level actions (delete all, import, etc.) */
+.doclist-header-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 /* ===== EMPTY STATE ===== */
@@ -97,6 +108,7 @@
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .doclist-category:hover {
@@ -111,6 +123,31 @@
   margin-bottom: 0.75rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--border-color);
+}
+
+/* Category header actions (group-level controls) */
+.doclist-category-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 8px;
+}
+
+/* Float the group delete button to the top-right corner of the card */
+.doclist-category .doclist-category-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  margin-left: 0;
+  z-index: 5;
+}
+
+/* Slightly smaller rounded button for the corner style */
+.doclist-category .doclist-category-actions .doclist-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  padding: 0;
 }
 
 .doclist-category-emoji {
@@ -341,6 +378,8 @@
 .doclist-btn-danger:hover {
   box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
 }
+
+/* flag button removed */
 
 /* ============================================
    🖼️ PREMIUM IMAGE GALLERY - STABLE VERSION

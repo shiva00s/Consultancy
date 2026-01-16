@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import { FiX, FiAlertTriangle, FiTrash2 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import "../../css/PermanentDeleteModal.css";
+import useNotificationStore from '../../store/useNotificationStore';
 
 function PermanentDeleteModal({ user, item, targetType, onClose, onPermanentDelete }) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const createNotification = useNotificationStore((s) => s.createNotification);
 
   const displayName =
     item.name ||
@@ -33,6 +35,17 @@ function PermanentDeleteModal({ user, item, targetType, onClose, onPermanentDele
         `${displayType} "${displayName}" permanently deleted.`,
         { duration: 3000 }
       );
+      try {
+        createNotification({
+          title: '❌ Permanently deleted',
+          message: `${displayType} "${displayName}" permanently deleted by ${user?.name || user?.username}`,
+          type: 'critical',
+          priority: 'high',
+          actor: { id: user?.id, name: user?.name || user?.username },
+          target: { type: targetType || 'item', id: item.id },
+          meta: { displayName },
+        });
+      } catch (e) {}
       onClose();
     } else {
       toast.error(

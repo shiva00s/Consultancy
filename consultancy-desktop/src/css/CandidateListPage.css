@@ -460,6 +460,103 @@
 }
 
 /* ============================================
+   ✨ SKELETON / SHIMMER PLACEHOLDERS
+   ============================================ */
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  padding: 20px 0;
+}
+
+@media (max-width: 1400px) {
+  .skeleton-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 1024px) {
+  .skeleton-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .skeleton-grid { grid-template-columns: 1fr; }
+}
+
+.skeleton-card {
+  background: linear-gradient(135deg, rgba(99,102,241,0.03), rgba(139,92,246,0.02));
+  border-radius: 14px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  min-height: 180px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(79,70,229,0.06) inset;
+  transform: translateZ(0);
+}
+
+.skeleton-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.04) 100%);
+  box-shadow: 0 10px 30px rgba(79,70,229,0.12) inset;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-lines { width: 100%; display:flex; flex-direction:column; gap:8px; align-items:center; }
+.skeleton-line { height: 12px; width: 70%; border-radius: 6px; background: rgba(255,255,255,0.04); position: relative; overflow: hidden; }
+.skeleton-line.short { width: 50%; }
+.skeleton-line.long { width: 85%; }
+.skeleton-badge { margin-top: 6px; width: 60%; height: 14px; border-radius: 12px; background: rgba(255,255,255,0.03); }
+
+/* shimmer animation */
+.skeleton-card::after,
+.skeleton-line::after,
+.skeleton-avatar::after,
+.skeleton-badge::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -150%;
+  height: 100%;
+  width: 180%;
+  background: linear-gradient(90deg, rgba(255,255,255,0.00) 0%, rgba(255,255,255,0.12) 35%, rgba(255,255,255,0.00) 70%);
+  transform: skewX(-22deg);
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  0% { left: -150%; }
+  50% { left: 10%; }
+  100% { left: 150%; }
+}
+
+/* avatar pulse to add visual emphasis */
+@keyframes avatarPulse {
+  0% { box-shadow: 0 10px 30px rgba(79,70,229,0.08) inset; transform: scale(1); }
+  50% { box-shadow: 0 18px 48px rgba(79,70,229,0.14) inset; transform: scale(1.03); }
+  100% { box-shadow: 0 10px 30px rgba(79,70,229,0.08) inset; transform: scale(1); }
+}
+
+.skeleton-avatar { animation: avatarPulse 1.8s ease-in-out infinite; }
+
+/* stagger shimmer for more life */
+.skeleton-card:nth-child(2n) .skeleton-card::after,
+.skeleton-card:nth-child(2n) .skeleton-line::after,
+.skeleton-card:nth-child(2n) .skeleton-avatar::after,
+.skeleton-card:nth-child(2n) .skeleton-badge::after { animation-delay: 0.18s; }
+.skeleton-card:nth-child(3n) .skeleton-card::after,
+.skeleton-card:nth-child(3n) .skeleton-line::after,
+.skeleton-card:nth-child(3n) .skeleton-avatar::after,
+.skeleton-card:nth-child(3n) .skeleton-badge::after { animation-delay: 0.32s; }
+
+/* make lines shimmer from left-to-right separately */
+.skeleton-line::after { opacity: 0.95; }
+.skeleton-badge::after { opacity: 0.9; }
+
+
+/* ============================================
    📱 RESPONSIVE BREAKPOINTS
    ============================================ */
 
@@ -509,6 +606,19 @@
 [data-theme="light"] .search-bar select,
 [data-theme="light"] .filter-field select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+}
+
+/* Ensure status badges have readable text in light theme (contrast fix) */
+[data-theme="light"] .badge,
+[data-theme="light"] .status-badge,
+[data-theme="light"] .badge-cyan,
+[data-theme="light"] .badge-green,
+[data-theme="light"] .badge-yellow,
+[data-theme="light"] .badge-blue,
+[data-theme="light"] .badge-red,
+[data-theme="light"] .badge-grey,
+[data-theme="light"] .badge-purple {
+  color: var(--text-primary) !important;
 }
 /* ============================================
    🎨 DROPDOWN DARK MODE - CANDIDATE LIST PAGE

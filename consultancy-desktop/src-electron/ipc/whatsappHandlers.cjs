@@ -2,6 +2,7 @@
 
 const { ipcMain } = require('electron');
 const { getDatabase, dbAll, dbGet, dbRun } = require('../db/database.cjs');
+const keyManager = require('../services/keyManager.cjs');
 
 let NGROK_URL = null;
 let whatsappService;
@@ -18,25 +19,25 @@ async function generatePublicFileUrl(filePath) {
   );
   
   const BASE_URL = setting?.value || 'http://127.0.0.1:3001';
-  const SECRET = '12023e5cf451cc4fc225b09f1543bd6c43c735c71db89f20c63cd6860430fc395b88778254ccbba2043df5989c0e61968cbf4ef6e4c6a6924f90fbe4c75cbb60';
-  
+
   try {
     if (!filePath) throw new Error('File path is required');
-    
+
     const normalizedPath = path.resolve(filePath);
-    
-    // ✅ CRITICAL FIX: Match webhook server - 7 days expiry
-    const token = jwt.sign({ path: normalizedPath }, SECRET, { expiresIn: '7d' });
-    
+
+    // Get secret from central key manager or env
+    const secret = await keyManager.getKey('twilioJwtSecret') || process.env.TWILIO_JWT_SECRET || process.env.JWT_SECRET || null;
+    const token = jwt.sign({ path: normalizedPath }, secret || 'dev-temporary-secret', { expiresIn: '7d' });
+
     const filename = path.basename(normalizedPath);
-    
-    // ✅ CRITICAL FIX: Encode filename for special characters
+
+    // Encode filename for special characters
     const publicUrl = `${BASE_URL}/public/files/${token}/${encodeURIComponent(filename)}`;
-    
+
     console.log('✅ Generated public URL:', publicUrl);
     return publicUrl;
   } catch (error) {
-    console.error('❌ Error generating public URL:', error);
+    console.error('❌ Error generating public URL:', error && error.message);
     throw error;
   }
 }
